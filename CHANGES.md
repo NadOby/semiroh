@@ -752,3 +752,21 @@ Composition APIs are specified in terms of these three result classes.
   and pinned the message of an unknown `code` link, which a mutant found
   loose. No existing test was edited.
 
+### Constant folding with declared continuity
+
+- Added `semiroh/fold.py`: `fold_constants(state)` returns a
+  `TransformResult` that folds constant `add`, `sub`, `mul`, `lt`, `eq` and
+  `if` on a constant bool, in every function of a graph-form state. A
+  constant subtree becomes one literal at its root's `EntityID`, with every
+  node below it merged into the root; an `if` merges itself and its
+  condition into the branch it takes, and the other branch disappears.
+  `sources_of(result, node)` reads the mapping back. Anything that could
+  raise is left alone, so optimised code raises what the original raised,
+  and a fold that would drop a labelled node is not done (constant_folding.md).
+- Findings from the tests: folding to a literal leaves the parent untouched
+  (the root keeps its `EntityID`), a swap lowers one node, and the folded
+  state equals the state `load` gives for the folded code. Chained `if`s
+  needed the mapping to point at the node that finally takes the place, not
+  at one that disappears.
+- Added `fold.py` to the mutation targets (two listed survivors).
+

@@ -83,6 +83,8 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   graph form (`load`, `define`, `function_at`); `bytecode.py` lowers each
   node to a chunk, kept with the node's `Value`, and runs chunks on a
   virtual machine with explicit stacks. `lang.run` calls it.
+- `fold.py`: constant folding as a graph transformation that declares its
+  merges (`fold_constants`, `sources_of`).
 - `cells.py`, `runtime.py`: `CellDeclaration(constraint, initial)`;
   `Runtime` holds cell content outside `StateID`, checks constraints
   (anything but Satisfied rejects), activates transformation results

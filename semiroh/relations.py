@@ -48,7 +48,9 @@ class Relation(SemanticRecord):
 
     ``roles`` maps role names to one endpoint entity, or to an ordered tuple
     of endpoint entities. Role order does not matter; order within a tuple
-    does. The kind has no built-in meaning in the core model.
+    does. A relation may have no roles at all (a nullary relation, such as
+    a leaf of code in graph form). The kind has no built-in meaning in the
+    core model.
     """
 
     kind: str
@@ -59,8 +61,8 @@ class Relation(SemanticRecord):
         if not isinstance(self.kind, str) or not self.kind:
             raise TypeError("relation kind must be a non-empty string")
 
-        if not isinstance(self.roles, Mapping) or not self.roles:
-            raise TypeError("a relation needs at least one role")
+        if not isinstance(self.roles, Mapping):
+            raise TypeError("relation roles must be a mapping")
 
         roles = {}
 

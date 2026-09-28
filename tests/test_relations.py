@@ -66,7 +66,7 @@ class RelationRecordTests(unittest.TestCase):
     def test_invalid_records_are_rejected(self) -> None:
         for kind, roles in [
             ("", {"to": A}),
-            ("r", {}),
+            ("r", [("to", A)]),
             ("r", {"": A}),
             ("r", {"to": "a"}),
             ("r", {"to": (A, "b")}),
@@ -79,6 +79,19 @@ class RelationRecordTests(unittest.TestCase):
         record = Relation("call", {"callee": B, "args": (A, C)}, payload=[1])
 
         self.assertEqual(relation_of(Value.create(R, record)), record)
+
+    def test_a_relation_may_have_no_roles(self) -> None:
+        # A nullary relation, such as a literal leaf of code in graph form:
+        # it relates nothing, so nothing can dangle and nothing indexes it.
+        record = Relation("lit", {}, payload=1)
+        state = graph(a=1, r=record)
+
+        self.assertEqual(record.endpoints, frozenset())
+        self.assertEqual(relation_of(state.values[R]), record)
+        self.assertEqual(dict(relations_of(state)), {R: record})
+        self.assertEqual(dict(relation_index(state)), {})
+        self.assertNotEqual(record, Relation("lit", {}, payload=2))
+        self.assertNotEqual(record, Relation("arg", {}, payload=1))
 
     def test_ordinary_values_are_not_relations(self) -> None:
         for content in (1, ("__type__", "relation", ("r", (), None)), {"to": A}):

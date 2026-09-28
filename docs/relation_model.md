@@ -57,6 +57,11 @@ arity three is `{caller: f, callee: g, site: s}`, not a positional triple.
 An ordered tuple within one role covers genuinely ordered endpoints such as
 arguments.
 
+A relation may have no roles: a nullary relation, whose meaning is its kind
+and payload alone. Code in graph form needs it for leaves such as a literal
+(graph_form.md). The rule it replaces, at least one role, never ensured
+that a relation relates something, since a role may hold an empty tuple.
+
 Relation records are canonical like other records, so equal records have equal
 identity. The kind is not interpreted by the core model; meaning comes from
 the tools, constraints, and metaprograms that use it.

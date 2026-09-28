@@ -1,7 +1,7 @@
 # Trials in the Language
 
-**Status: planned.** `semiroh/lang.py` does not implement this yet; the
-acceptance tests in `tests/test_language_trials.py` fail until it does.
+**Status: implemented.** `semiroh/lang.py` implements the `trial` operation
+below, and `tests/test_language_trials.py` passes unchanged.
 
 metaprogramming.md lets a program install code it wrote. This step lets it
 exercise that code first: the program runs a call against a candidate
@@ -132,9 +132,10 @@ evaluation, so that trial still runs.
 
 ## 9. Deferred questions this program needed
 
-To be filled in by the implementation. The plan expects:
-
 - activation_model.md §13, capability isolation for trials: answered
-  provisionally (section 3): code under trial gets no activation
-  capability;
-- none of ownership_model.md §13.
+  provisionally (section 3): code under trial runs with `may_activate=False`
+  regardless of the outer run's grant, so it cannot `activate` or `trial`
+  itself.
+- ownership_model.md §13: none. `trial` creates no entities, removes no
+  entities, and changes no ownership; it only stages and discards an
+  isolated candidate.

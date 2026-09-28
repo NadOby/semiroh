@@ -66,6 +66,8 @@ and references into `S₀` stay pinned (section 6).
 Producing a new state with the embedded compiler and activating a state are
 both governed by capabilities. A program without the activation capability
 cannot replace its own running version.
+Until capabilities are modelled, the language grants it per run
+(metaprogramming.md section 4).
 
 Order:
 
@@ -181,6 +183,9 @@ point, as Linux kernel livepatch does per task.
 
 A reasonable starting point is version coexistence with switching at call
 boundaries or explicit update points. On-stack replacement can come later.
+
+**Provisional:** the language uses version coexistence with switching at
+every call (metaprogramming.md section 5).
 
 ## 6. References across activation
 
@@ -361,7 +366,8 @@ for code in flight (section 5) is not modelled beyond that.
 
 ## 13. Unresolved areas
 
-- switching strategy for code in flight (section 5);
+- switching strategy for code in flight beyond the language's provisional
+  one (section 5);
 - conversion rule and placement, currently provisional (section 4);
 - how the runtime tracks holds on versions (section 7);
 - capability isolation for trial runs, once capabilities are modelled

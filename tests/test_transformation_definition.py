@@ -571,3 +571,68 @@ class TransformationDefinitionTests(unittest.TestCase):
             result.mappings,
             (),
         )
+
+
+class ConversionDeclarationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.a = EntityID("a")
+        self.b = EntityID("b")
+        self.c = EntityID("c")
+
+        self.state = State.create({
+            self.a: Value.create(self.a, 1),
+            self.b: Value.create(self.b, 2),
+        })
+
+    def test_conversions_are_canonically_ordered(self) -> None:
+        definition = TransformationDefinition.create(
+            changes={self.c: 0},
+            mappings={self.a: self.c, self.b: self.b},
+            conversions={self.c: "to_c", self.b: "to_b"},
+        )
+
+        self.assertEqual(
+            definition.conversions,
+            ((self.b, "to_b"), (self.c, "to_c")),
+        )
+
+    def test_result_carries_conversions(self) -> None:
+        result = TransformationDefinition.create(
+            changes={self.c: 0},
+            mappings={self.a: self.c},
+            conversions={self.c: "to_c"},
+        ).apply(self.state)
+
+        self.assertEqual(result.conversion_for(self.c), "to_c")
+        self.assertIsNone(result.conversion_for(self.b))
+
+    def test_conversion_must_target_a_mapping_destination(self) -> None:
+        definition = TransformationDefinition.create(
+            changes={self.c: 0},
+            conversions={self.c: "to_c"},
+        )
+
+        with self.assertRaises(ValueError):
+            definition.apply(self.state)
+
+    def test_invalid_conversion_records_are_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            TransformationDefinition(
+                changes=(),
+                mappings=(),
+                conversions=((self.c, "x"), (self.b, "y")),
+            )
+
+        with self.assertRaises(ValueError):
+            TransformationDefinition(
+                changes=(),
+                mappings=(),
+                conversions=((self.b, "x"), (self.b, "y")),
+            )
+
+        with self.assertRaises(TypeError):
+            TransformationDefinition(
+                changes=(),
+                mappings=(),
+                conversions=((self.b, ""),),
+            )

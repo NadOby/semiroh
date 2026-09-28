@@ -302,3 +302,14 @@ Composition APIs are specified in terms of these three result classes.
   the same converters and checks, so a trial is rejected whenever the
   activation would be. The main runtime is unchanged and its two-version
   bound does not apply; holds are not copied.
+
+### Relation model
+
+- Added `docs/relation_model.md` proposing the first concrete graph
+  structure: relations are entities whose values are relation records with
+  a kind, named roles, and an optional payload. Endpoints must be present in
+  the same state.
+- Decided that raw `EntityID`s in ordinary values are untracked data; that
+  relations follow declared continuity across transformations and are never
+  removed implicitly; and that constraint relations are evaluated over a
+  role map in the runtime, starting with `Role` and `External`.

@@ -213,7 +213,8 @@ reference, ownership, and transformation components needed to explore this
 architecture.
 
 The generalized graph/hypergraph itself is not yet fully specified or
-implemented.
+implemented. [`relation_model.md`](relation_model.md) proposes its first
+concrete structure: relations as entities whose values are relation records.
 
 The architecture described here therefore establishes direction rather than
 claiming a completed graph representation.
@@ -223,8 +224,9 @@ claiming a completed graph representation.
 Important open questions include:
 
 - the exact hypergraph representation;
-- whether nodes and edges are represented uniformly in implementation;
-- relation identity;
+- whether nodes and edges are represented uniformly in implementation
+  (relation_model.md proposes that they are: relations are entities);
+- relation identity (relation_model.md proposes entity identity);
 - graph persistence;
 - graph traversal semantics;
 - graph-local versus global identity;

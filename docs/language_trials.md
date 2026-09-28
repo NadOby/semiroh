@@ -1,7 +1,9 @@
 # Trials in the Language
 
 **Status: implemented.** `semiroh/lang.py` implements the `trial` operation
-below, and `tests/test_language_trials.py` passes unchanged.
+below, and `tests/test_language_trials.py` passes; since roadmap task 4 its
+programs are loaded into graph form (graph_form.md), with the behaviour
+assertions unchanged.
 
 metaprogramming.md lets a program install code it wrote. This step lets it
 exercise that code first: the program runs a call against a candidate
@@ -42,7 +44,7 @@ changes applied.
 4. Build the transformation exactly as `activate` would, from the active
    state as it is once the operands have been evaluated, and call
    `runtime.trial` on it. A rejection propagates unchanged as
-   `ActivationRejected`.
+   `ActivationRejected`. In graph form that is `define` (graph_form.md §6).
 5. Call the linked function with the evaluated arguments in the isolated
    runtime, without the activation capability, and return its result.
 

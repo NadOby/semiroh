@@ -297,7 +297,7 @@ areas in the README.
 The Python reference model currently provides:
 
     CellDeclaration
-        declares a mutable cell (type and initial content) as a value in
+        declares a mutable cell (constraint and initial content) as a value in
         program state
 
     Runtime

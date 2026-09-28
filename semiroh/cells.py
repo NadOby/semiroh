@@ -6,31 +6,41 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Mapping
 
-from .canonical import CanonicalNode, SemanticRecord, _node, canonicalize
+from .canonical import (
+    CanonicalNode,
+    SemanticRecord,
+    _node,
+    canonical_serialize,
+    canonicalize,
+)
+from .constraints import Constraint
 from .identity import EntityID
 from .state import State
 from .values import Value
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class CellDeclaration(SemanticRecord):
     """Declaration of a mutable cell.
 
     The declaration is semantic program state: a cell's existence, identity,
-    type, and initializer contribute to ``StateID``. The content a cell holds
-    while the program runs is runtime state and lives in a ``Runtime``.
+    constraint, and initial content contribute to ``StateID``. The content a
+    cell holds while the program runs is runtime state and lives in a
+    ``Runtime``.
 
-    ``type`` is an opaque semantic tag. The model compares cell types for
-    equality but does not check content against them.
+    The constraint is the cell's type: content must satisfy it. Program state
+    is pure data, so declaring a cell does not evaluate the constraint; a
+    runtime checks the initial content when it loads a version, and checks
+    every write.
     """
 
-    type: str
+    constraint: Constraint
     initial: Any = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.type, str) or not self.type:
+        if not isinstance(self.constraint, Constraint):
             raise TypeError(
-                "cell type must be a non-empty string"
+                "cell constraint must be a Constraint"
             )
 
         object.__setattr__(
@@ -43,10 +53,19 @@ class CellDeclaration(SemanticRecord):
         return _node(
             "cell",
             (
-                self.type,
+                self.constraint.canonical_node(),
                 self.initial,
             ),
         )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, CellDeclaration):
+            return NotImplemented
+
+        return canonical_serialize(self) == canonical_serialize(other)
+
+    def __hash__(self) -> int:
+        return hash(canonical_serialize(self))
 
 
 def cell_declaration(value: Value) -> CellDeclaration | None:
@@ -55,10 +74,10 @@ def cell_declaration(value: Value) -> CellDeclaration | None:
     content = value.content
 
     if isinstance(content, CanonicalNode) and content[1] == "cell":
-        cell_type, initial = content[2]
+        constraint, initial = content[2]
 
         return CellDeclaration(
-            cell_type,
+            Constraint.from_content(constraint),
             initial,
         )
 

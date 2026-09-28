@@ -64,7 +64,7 @@ class PrimitiveConstraintTests(unittest.TestCase):
 
     def test_record_kinds_can_be_named(self) -> None:
         for content, kind in [
-            (CellDeclaration("int", 0), "cell"),
+            (CellDeclaration(IsKind("int"), 0), "cell"),
             (IntRange(0, 1), "constraint"),
         ]:
             with self.subTest(kind=kind):
@@ -75,7 +75,7 @@ class PrimitiveConstraintTests(unittest.TestCase):
         # IsKind must accept every kind that kind_of can report.
         samples = [
             None, True, 1, "a", b"a", EntityID("e"), VersionID("v"),
-            StateID("s"), (1,), [1], {"a": 1}, CellDeclaration("int", 0),
+            StateID("s"), (1,), [1], {"a": 1}, CellDeclaration(IsKind("int"), 0),
             AllOf(),
         ]
 

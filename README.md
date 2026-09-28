@@ -284,11 +284,11 @@ The language distinguishes between:
 These operations are not interchangeable.
 
 A mutable cell is itself a semantic entity: its existence, identity, and type
-are part of semantic program state and are versioned like any other entity.
-The cell's current content is runtime state. Writing to a cell changes its
-content in place; it does not produce a new semantic state and does not change
-`StateID`. Otherwise every write would make every reference pinned to that
-state stale.
+(a constraint its content must satisfy) are part of semantic program state and
+are versioned like any other entity. The cell's current content is runtime
+state. Writing to a cell changes its content in place; it does not produce a
+new semantic state and does not change `StateID`. Otherwise every write would
+make every reference pinned to that state stale.
 
 ## 13. Effects and capabilities
 

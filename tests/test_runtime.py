@@ -8,6 +8,7 @@ from semiroh import (
     CellError,
     CrossStateReference,
     EntityID,
+    IsKind,
     Reference,
     Runtime,
     StaleReference,
@@ -26,8 +27,8 @@ LIMIT = EntityID("limit")
 
 def program() -> State:
     return State.create({
-        COUNTER: Value.create(COUNTER, CellDeclaration("int", 0)),
-        NAME: Value.create(NAME, CellDeclaration("str", "")),
+        COUNTER: Value.create(COUNTER, CellDeclaration(IsKind("int"), 0)),
+        NAME: Value.create(NAME, CellDeclaration(IsKind("str"), "")),
         LIMIT: Value.create(LIMIT, 10),
     })
 

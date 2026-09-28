@@ -137,6 +137,43 @@ class TransformationDefinition:
 
         _validate_conversions(self.conversions)
 
+        contradictory = sorted(
+            set(change_entities) & self.removed_entities
+        )
+
+        if contradictory:
+            raise ValueError(
+                f"definition changes "
+                f"{', '.join(entity.value for entity in contradictory)} "
+                f"and also removes it through its mappings"
+            )
+
+    @property
+    def removed_entities(self) -> frozenset[EntityID]:
+        """Source entities the mappings remove from the destination.
+
+        A source mapped to zero destinations disappears. Any other mapped
+        source is absent unless it is itself a destination of some mapping
+        (``A -> A``, or a swap or shift such as ``A -> B``, ``B -> A``).
+        """
+
+        mapped = {
+            mapping.source_entity
+            for mapping in self.mappings
+        }
+        destinations = {
+            destination
+            for mapping in self.mappings
+            for destination in mapping.destination_entities
+        }
+        disappearing = {
+            mapping.source_entity
+            for mapping in self.mappings
+            if not mapping.destination_entities
+        }
+
+        return frozenset((mapped - destinations) | disappearing)
+
     @staticmethod
     def create(
         changes: Mapping[EntityID, Any] | None = None,
@@ -266,41 +303,21 @@ class TransformationDefinition:
         for change in self.changes:
             values[change.entity] = change.value
 
-        explicitly_mapped: set[EntityID] = set()
-        declared_disappearances: set[EntityID] = set()
         mapped_destinations: set[EntityID] = set()
 
         for mapping in self.mappings:
-            source_entity = mapping.source_entity
-
-            if source_entity not in state.values:
+            if mapping.source_entity not in state.values:
                 raise KeyError(
-                    f"{source_entity.value} is absent from "
+                    f"{mapping.source_entity.value} is absent from "
                     f"{state.id.value}"
                 )
 
-            explicitly_mapped.add(source_entity)
             mapped_destinations.update(mapping.destination_entities)
 
-            if not mapping.destination_entities:
-                declared_disappearances.add(source_entity)
-
         # Presence of an explicitly mapped source is decided by the mappings
-        # alone:
-        #
-        # - a source mapped to zero destinations disappears;
-        # - otherwise a source is absent unless it is itself a destination of
-        #   some mapping (A -> A, or a swap / shift chain such as A -> B,
-        #   B -> A).
-        #
-        # A value change for a source that the mappings remove has no effect;
-        # this generalizes the rule that explicit disappearance takes
-        # precedence over a value change.
-        removed = (
-            explicitly_mapped - mapped_destinations
-        ) | declared_disappearances
-
-        for entity in removed:
+        # alone (removed_entities). A definition that also changes a removed
+        # entity is contradictory and was rejected at construction.
+        for entity in self.removed_entities:
             values.pop(entity, None)
 
         normalized_mappings: list[EntityMapping] = []

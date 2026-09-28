@@ -205,12 +205,35 @@ def random_definition(
             count = min(count, len(candidates))
             mappings[entity] = tuple(rng.sample(candidates, count))
 
+    # A change to an entity the mappings remove is contradictory and is
+    # rejected; keep generated definitions valid.
+    for entity in removed_by(mappings):
+        changes.pop(entity, None)
+
     definition = TransformationDefinition.create(
         changes=changes,
         mappings=mappings,
     )
 
     return definition, created
+
+
+def removed_by(
+    mappings: dict[EntityID, tuple[EntityID, ...]],
+) -> set[EntityID]:
+    """Sources the mappings remove, computed independently of the model."""
+
+    destinations = {
+        destination
+        for targets in mappings.values()
+        for destination in targets
+    }
+
+    return {
+        source
+        for source, targets in mappings.items()
+        if not targets or source not in destinations
+    }
 
 
 def random_relation(
@@ -504,6 +527,44 @@ class TransformationProperties(unittest.TestCase):
                     )
 
         self.assertGreater(checked, 50)
+
+    def test_definition_changing_a_removed_entity_is_rejected(self) -> None:
+        # transformation_model.md §4: a definition that changes an entity
+        # and removes it through its mappings is contradictory.
+        entities = entity_names(5)
+        outcomes = {"accepted": 0, "rejected": 0}
+
+        for seed in range(CASES):
+            with self.subTest(seed=seed):
+                rng = random.Random(seed)
+                mappings = {
+                    entity: tuple(rng.sample(entities, rng.choice([0, 1, 1, 2])))
+                    for entity in entities
+                    if rng.random() < 0.5
+                }
+                changes = {
+                    entity: 0
+                    for entity in entities
+                    if rng.random() < 0.3
+                }
+
+                if set(changes) & removed_by(mappings):
+                    outcomes["rejected"] += 1
+
+                    with self.assertRaises(ValueError):
+                        TransformationDefinition.create(
+                            changes=changes,
+                            mappings=mappings,
+                        )
+                else:
+                    outcomes["accepted"] += 1
+                    TransformationDefinition.create(
+                        changes=changes,
+                        mappings=mappings,
+                    )
+
+        self.assertGreater(outcomes["accepted"], 50)
+        self.assertGreater(outcomes["rejected"], 50)
 
     def test_composition_is_associative(self) -> None:
         # transformation_composition.md §17.

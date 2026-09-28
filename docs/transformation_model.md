@@ -157,26 +157,20 @@ For an entity explicitly mapped to zero destinations:
         →
     disappearance
 
-An explicit disappearance mapping therefore takes precedence over a value
-change for the same source entity: the entity is absent from the destination.
+The presence of an explicitly mapped source entity in the destination is
+decided by the mappings alone (see section 6).
 
-More generally, the presence of an explicitly mapped source entity in the
-destination is decided by the mappings alone (see section 6). A value change
-for a source entity that the mappings remove from the destination has no
-effect.
-
-This precedence rule is provisional. A definition that both changes an entity
-and removes it through its mappings makes two incompatible statements about
-the destination state:
+A definition that both changes an entity and removes it through its mappings
+makes two incompatible statements about the destination state:
 
     changes:  A has a new version
     mappings: A → ∅   or   A → B (A itself absent)
 
-Silently discarding the change hides what is most likely a mistake in the
-definition. A future revision is expected to reject such definitions as
-invalid, consistent with section 16, for both explicit disappearance and
-continuation into other entities. The current behaviour and its tests are
-kept until that change is made deliberately.
+Such a definition is contradictory and is rejected when it is created, for
+explicit disappearance and for continuation into other entities alike.
+Resolving the contradiction silently, for example by discarding the change,
+would hide what is most likely a mistake. A change to a mapped source that
+remains present (`A → A`, or a swap) is not contradictory and applies.
 
 This concerns semantic program state only. For explicitly mutable cells,
 carrying the current content of `A` into `B` during activation is a
@@ -551,7 +545,8 @@ A valid transformation mapping must satisfy:
 
 Invalid transition mappings must be rejected rather than silently normalized
 into a different semantic relation, except where canonical ordering is an
-explicitly supported normalization.
+explicitly supported normalization. This includes a definition that changes
+an entity its mappings remove (section 4).
 
 ## 17. Provenance
 
@@ -666,9 +661,7 @@ The following are intentionally not fully specified yet:
 - whether transformation definitions should have their own persistent semantic
   representation;
 - interaction between transformations and contract guarantees;
-- formal constraint-preservation semantics;
-- rejection of definitions that change an entity also removed by their
-  mappings (currently the change has no effect; see section 4).
+- formal constraint-preservation semantics.
 
 These questions must be resolved before they are treated as stable semantics.
 

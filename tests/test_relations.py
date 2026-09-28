@@ -342,6 +342,19 @@ class RelationContinuityProperties(unittest.TestCase):
                     entity for entity, targets in mappings.items()
                     if not targets
                 }
+                targeted = {
+                    target
+                    for targets in mappings.values()
+                    for target in targets
+                }
+
+                # A change to a relation the mappings remove is
+                # contradictory; drop it.
+                for entity in relations:
+                    if entity in mappings and (
+                        not mappings[entity] or entity not in targeted
+                    ):
+                        changes.pop(entity, None)
                 destinations = {
                     target
                     for targets in mappings.values()

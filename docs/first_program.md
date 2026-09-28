@@ -1,6 +1,7 @@
 # First Program
 
-**Status: done.** `semiroh/lang.py` implements this document; the acceptance
+**Status: done.** `semiroh/lang.py` and `semiroh/bytecode.py` implement this
+document; the acceptance
 tests in `tests/test_first_program.py` pass unchanged, and no design question
 deferred by ownership_model.md §13 turned out to be needed (section 8).
 Since roadmap task 4 the tests load their programs into graph form and edit

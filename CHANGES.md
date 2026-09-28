@@ -636,7 +636,7 @@ Composition APIs are specified in terms of these three result classes.
   remains.
 - The machine keeps an operand stack and a control stack of cursors, so a
   call does not use the host stack: recursion that is not a tail call is
-  bounded by memory, not by the recursion limit. Tail position is a flag of
+  bounded by `CALL_DEPTH_LIMIT`, not by the recursion limit. Tail position is a flag of
   the cursor, and a call there reuses its activation (frame entered, then
   the caller's released), so a chain of tail calls keeps one hold. Frames
   are still entered and released per call, code in flight still runs the
@@ -674,11 +674,23 @@ Composition APIs are specified in terms of these three result classes.
   old interpreter, holds during a tail chain and a waiting chain (through
   a cell evaluator), error names, code in flight through three ways a node
   is reached, and a seeded property test that warm chunks, cold chunks and
-  an independent evaluator agree through random node edits. Fourteen
+  an independent evaluator agree through random node edits. Eighteen
   planted bugs (a check moved, a cache keyed by entity, no cache, a
   frame reading the active state, a tail call that nests, frames not
   released, the wrong function in an error, and others) each fail at
   least one test. No existing test was edited.
+- **Provisional**, added after review: `CALL_DEPTH_LIMIT`, 100,000 calls
+  waiting on each other in one run (tail calls do not count), raises
+  `CallDepthExceeded`, a new `LanguageError`. Without it a runaway
+  recursion, which raised `RecursionError` at once, used all the memory
+  there was (31 s to a `MemoryError` under 1.5 GB, an OOM kill without a
+  limit, and holds left unreleased). 100,000 calls take about 90 MB and 1.5 s.
+  Also from review: an empty `seq` node lowers to `None` as it evaluated;
+  four docs whose status line still said `lang.py` runs the code name
+  `bytecode.py`; and the test list above gained the limit's boundary, tail
+  calls at the limit, a tail call in a `let` body and an invalid node's
+  function name. Two deviations for hand-built nodes remain, in
+  bytecode.md section 2.
 - Known limit, not the machine's: `canonical_serialize` still recurses on
   the host stack, so a function body nested about 244 levels or a value
   nested as deep fails to load or to write (bytecode.md section 8).

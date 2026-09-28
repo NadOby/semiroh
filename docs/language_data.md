@@ -1,7 +1,7 @@
 # Data, Local Names and Function References
 
-**Status: implemented** (roadmap.md task 6). `semiroh/lang.py` implements
-it; `tests/test_data_ops.py` is the acceptance suite, and
+**Status: implemented** (roadmap.md task 6). `semiroh/lang.py` and
+`semiroh/bytecode.py` implement it; `tests/test_data_ops.py` is the acceptance suite, and
 `tests/test_data_graph_form.py` covers the graph form and the frames of tail
 calls.
 

@@ -14,14 +14,18 @@ semantic state: it does not change any `EntityID`, `VersionID` or `StateID`.
 
 **Decided.**
 
-Nothing observable, except a limit that is gone. A call no longer uses the
-host's stack, so recursion that is not a tail call is bounded by memory, not
-by `sys.getrecursionlimit()`: the corpus program `map_long_tuple` (a `map`
-over two thousand elements) and `deep_recursion` (a sum a ten thousand calls
-deep) run, where the first failed from about 200 calls (corpus.md section
-4). Results, exception types and messages, cell content, holds and the
-order of effects are those of the interpreter it replaces, checked
-against it (section 6).
+Nothing observable, except the limit on recursion. A call no longer uses
+the host's stack, so the number of calls that may wait on each other moved
+from about 200 (the host's recursion limit, five Python frames a call) to
+`CALL_DEPTH_LIMIT`, 100,000 (section 4). The corpus programs
+`map_long_tuple` (a `map` over two thousand elements) and `deep_recursion`
+(a sum ten thousand calls deep) run, where the first failed from about 200
+elements (corpus.md section 4). A runaway recursion stops with
+`CallDepthExceeded`, a `LanguageError`, after about 1.5 s and 90 MB, where
+the interpreter raised the host's `RecursionError` at once. Results,
+exception types and messages, cell content, holds and the order of effects
+are otherwise those of the interpreter it replaces, checked against it
+(section 6).
 
 ## 2. Chunks
 
@@ -55,9 +59,14 @@ of the node's ancestors. By reference, an edit gives one node a new value
 and only that node's chunk is stale (section 5).
 
 `lower(node)` builds the chunk of a node and never fails on code. An
-`invalid` node lowers to `RAISE`, so code is still checked when it runs. The
-one node kind lowered differently from its interpretation is `unquote`,
-which is only ever a quote's hole: it evaluates its operand.
+`invalid` node lowers to `RAISE`, so code is still checked when it runs.
+
+Two things differ from the interpreter for nodes that only a hand-built
+state can hold, since `load` and `define` build neither. An `unquote` node
+outside a quote, which is only ever a quote's hole, evaluates its operand
+instead of raising "unknown operation". A node that lacks a role raises
+`KeyError` when it is lowered, before the operands that would have run first,
+where the interpreter raised it when the node was reached.
 
 ## 3. Instructions
 
@@ -123,6 +132,14 @@ push a cursor and `END` and `RETURN` pop one.
   bindings. `LETCHECK` looks in `env` when the `let` runs, since a chunk
   cannot know the scope around it and a node edit does not see it either
   (graph_form.md section 3).
+- **Depth limit** (**Provisional**). A `CALL` that is not in tail position
+  raises `CallDepthExceeded` when `CALL_DEPTH_LIMIT` calls (100,000, the
+  entry among them) are already waiting in the run; a call in tail position
+  replaces its caller and is never one more. The stacks are not the host's,
+  so without a limit a runaway recursion would use all the memory there is;
+  100,000 calls take about 90 MB and 1.5 s. It is a safety fuse of the
+  reference model, a constant that tests may patch, not a rule of the
+  language. A trial runs on its own machine, with its own count.
 - **Trial.** `TRIAL` runs the linked function on a fresh machine over the
   isolated runtime, without the activation capability
   (language_trials.md). That is the only nested run, one per trial level.
@@ -225,5 +242,9 @@ task 9). Per-node identity is paying for itself, modestly.
 - **Leaf inlining.** A chunk per leaf costs a push and a pop to run. Folding
   leaves into their parent would give up per-node precision for them; not
   done, since nothing needs it.
+- **The depth limit** is one constant for every run, and counts calls, not
+  memory: a run whose calls hold large values can use more than a run of
+  the same depth with small ones. Whether it should be an option of `run`,
+  or a budget like a constraint's (constraint_model.md), is open.
 - **Chunk lifetime is the value's.** Nothing bounds the number of chunks
   alive at once but the values themselves.

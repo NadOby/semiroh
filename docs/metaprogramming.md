@@ -1,7 +1,7 @@
 # Metaprogramming
 
-**Status: implemented.** `semiroh/lang.py` implements the metaprogramming
-operations below, and `tests/test_metaprogramming.py` passes; since
+**Status: implemented.** `semiroh/lang.py` and `semiroh/bytecode.py`
+implement the metaprogramming operations below, and `tests/test_metaprogramming.py` passes; since
 roadmap task 4 its programs are loaded into graph form (graph_form.md), with
 the behaviour assertions unchanged.
 

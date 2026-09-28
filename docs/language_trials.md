@@ -1,7 +1,7 @@
 # Trials in the Language
 
-**Status: implemented.** `semiroh/lang.py` implements the `trial` operation
-below, and `tests/test_language_trials.py` passes; since roadmap task 4 its
+**Status: implemented.** `semiroh/lang.py` and `semiroh/bytecode.py`
+implement the `trial` operation below, and `tests/test_language_trials.py` passes; since roadmap task 4 its
 programs are loaded into graph form (graph_form.md), with the behaviour
 assertions unchanged.
 

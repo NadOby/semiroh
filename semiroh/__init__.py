@@ -19,6 +19,14 @@ from .references import (
     StaleReference,
     project_entity,
 )
+from .runtime import (
+    CellError,
+    Frame,
+    Hold,
+    KeptReference,
+    Runtime,
+    Version,
+)
 from .state import State
 from .transforms import (
     CompositionResult,
@@ -43,6 +51,12 @@ __all__ = [
     "Value",
     "Reference",
     "State",
+    "Runtime",
+    "Version",
+    "Hold",
+    "Frame",
+    "KeptReference",
+    "CellError",
     "CellDeclaration",
     "Constraint",
     "ConstraintResult",

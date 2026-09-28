@@ -294,13 +294,27 @@ areas in the README.
 
 ## 12. Current implementation status
 
-The Python reference model does not yet implement activation, runtime state,
-or mutable cells.
+The Python reference model currently provides:
 
-A first executable model could consist of a small interpreter holding live
-references and mutable cells for an active state, a metaprogram producing
-`S₁`, activation that transfers cell content and references along the
-transformation result, and release of `S₀` once nothing is pinned to it.
+    CellDeclaration
+        declares a mutable cell (type and initial content) as a value in
+        program state
+
+    Runtime
+        mutable runtime state of one program: the runtime root owns the
+        loaded versions, each Version owns the content of its cells, and
+        reads and writes never change program state or StateID
+
+    Hold, Frame, KeptReference
+        runtime-internal holds on a version from simulated frames and from
+        references kept in runtime state
+
+Activation, retirement of superseded versions, and trial runs are not yet
+implemented. Until they are, a runtime has exactly one loaded version.
+
+The next stages add activation (transfer along continuity, pinned references,
+atomic switch-or-reject, the two-version bound, and retirement), then trial
+runs in isolated runtimes.
 
 ## 13. Unresolved areas
 

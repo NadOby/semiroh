@@ -91,6 +91,8 @@ KINDS = frozenset({
     "tuple",
     "list",
     "map",
+    "cell",
+    "constraint",
 })
 
 

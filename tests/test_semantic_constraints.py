@@ -7,6 +7,7 @@ from typing import Any
 from semiroh import (
     AllOf,
     AnyOf,
+    CellDeclaration,
     Constraint,
     ConstraintResult,
     EntityID,
@@ -19,10 +20,13 @@ from semiroh import (
     OneOf,
     SemanticConstraint,
     State,
+    StateID,
     Value,
+    VersionID,
     canonicalize,
     kind_of,
 )
+from semiroh.constraints import KINDS
 
 SAT = ConstraintResult.SATISFIED
 VIO = ConstraintResult.VIOLATED
@@ -57,6 +61,25 @@ class PrimitiveConstraintTests(unittest.TestCase):
             with self.subTest(content=content):
                 self.assertEqual(kind_of(content), kind)
                 self.assertEqual(IsKind(kind).evaluate(content), SAT)
+
+    def test_record_kinds_can_be_named(self) -> None:
+        for content, kind in [
+            (CellDeclaration("int", 0), "cell"),
+            (IntRange(0, 1), "constraint"),
+        ]:
+            with self.subTest(kind=kind):
+                self.assertEqual(kind_of(content), kind)
+                self.assertEqual(IsKind(kind).evaluate(content), SAT)
+
+    def test_every_producible_kind_is_nameable(self) -> None:
+        # IsKind must accept every kind that kind_of can report.
+        samples = [
+            None, True, 1, "a", b"a", EntityID("e"), VersionID("v"),
+            StateID("s"), (1,), [1], {"a": 1}, CellDeclaration("int", 0),
+            AllOf(),
+        ]
+
+        self.assertEqual({kind_of(sample) for sample in samples}, set(KINDS))
 
     def test_bool_is_not_int(self) -> None:
         self.assertEqual(IsKind("int").evaluate(True), VIO)

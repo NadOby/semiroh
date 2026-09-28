@@ -169,7 +169,8 @@ kept until that change is made deliberately.
 This concerns semantic program state only. For explicitly mutable cells,
 carrying the current content of `A` into `B` during activation is a
 legitimate state-transfer operation rather than a contradiction; its
-semantics belong to the activation model.
+semantics belong to the activation model
+([`activation_model.md`](activation_model.md)).
 
 ## 5. Transformation mappings
 

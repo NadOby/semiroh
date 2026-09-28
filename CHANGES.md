@@ -191,3 +191,26 @@ Composition APIs are specified in terms of these three result classes.
   conversion function.
 - Recorded runtime activation, embedded compiler footprint, and platforms
   that restrict runtime code generation as open design areas.
+
+### Activation model
+
+- Added `docs/activation_model.md`, separating decided, proposed, and open
+  parts of runtime activation: program versus runtime state, atomic
+  activation from a transformation result, capability-governed activation,
+  Erlang-style transfer of mutable cell content along continuity, handling
+  of code in flight and of references, and lifetime of superseded versions.
+- Added runtime self-modification prior art to `priors.md`.
+- Accepted the proposed activation rules: cardinality-based state transfer,
+  rejection of live cells without declared continuity, pinning of
+  untransferable references by default, validation before an atomic switch,
+  and rollback as a new activation.
+- Decided to retire superseded versions through the ownership model: a
+  version owns its code and untransferred resources and is destroyed once
+  nothing holds it. Holds are coarse, runtime-internal, per-version records,
+  deliberately not a general borrowing system.
+- Decided on a bound of two running versions per runtime (active and previous),
+  with speculative candidates exercised in isolated runtimes rather than as
+  additional running versions.
+- Decided that a new activation is rejected by default while the previous
+  version is still held; waiting or terminating the holders are explicit
+  alternatives.

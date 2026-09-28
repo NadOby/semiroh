@@ -23,6 +23,12 @@ A design appearing here does not imply that SEMIROH should adopt it. Likewise, a
 | Everything represented in one graph | Logos | Demonstrates how programs, types, proofs and compiler-related machinery can be represented within a common semantic structure. | "Everything is graph data" is elegant but can make the compiler/toolchain itself part of the language's semantic surface and dramatically increase scope. |
 | Hypergraph plus proofs | Clef | Shows that semantic hypergraphs can carry proof-related information as first-class structure. | Powerful semantic representations tend to accumulate optimization, proof, verification and domain-specific concerns. |
 | Minimal language primitives | Cation | Demonstrates an explicit attempt to keep the core language small. | A small syntax or primitive set does not guarantee small semantics. Complexity can migrate into types, compilation and metaprogramming. |
+| Compiler in every program | Forth, Smalltalk and Lisp images (SBCL), Terra, Synthesis kernel | Programs that carry their compiler and generate native code at runtime exist, including in firmware and OS-kernel contexts. | Image size, reproducibility, and platforms that forbid runtime code generation. |
+| Live state transfer at activation | Erlang/OTP hot code loading | Two coexisting module versions; `code_change` converts process state on upgrade. SEMIROH's adopted direction, in spirit. | The version bound terminates processes still running purged code; SEMIROH needs an equivalent policy without GC. |
+| Updating running native programs | DSU for C (Ginseng, Kitsune) | Explicit update points and state transformers make live updates of C programs workable. | Writing state transformers is a real tooling burden; update timing is the main safety question. |
+| Per-thread switching | Linux kernel livepatch (https://docs.kernel.org/livepatch/livepatch.html) | Each task switches to patched code once no affected function is on its stack. | Tasks that never reach a safe point block the transition. |
+| Live data migration after redefinition | Common Lisp (CLOS) | `update-instance-for-redefined-class` converts existing instances after a class changes. | Lazy conversion spreads work and failure points across later execution. |
+| Reclaiming old versions without GC | RCU | Old versions are freed after a grace period without blocking readers. | Requires well-defined quiescent points in every thread. |
 
 ## Projects worth watching
 
@@ -140,6 +146,29 @@ References:
 https://logoslang.dev/
 
 https://logos-lang.dev/metacall/introduction/
+
+### Erlang/OTP hot code loading
+
+Erlang keeps at most two versions of a module, current and old. Fully
+qualified calls always enter the current version, while processes already
+running old code continue in it. Loading a third version purges the old one
+and terminates processes still running it. `code_change` callbacks convert
+process state during an upgrade.
+
+This is the closest precedent for SEMIROH's activation direction: live state
+crosses a code change through explicit conversion. See
+[`docs/activation_model.md`](docs/activation_model.md).
+
+Relevant questions:
+
+- What replaces process termination as the purge policy in a language
+  without GC?
+- Where do conversion functions live relative to the transformation?
+- Which calls switch to the new version, and which stay in the old one?
+
+References:
+
+https://www.erlang.org/doc/system/code_loading.html
 
 ## Recurring design pressures
 

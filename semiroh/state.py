@@ -17,6 +17,7 @@ from .ownership import (
     owned_subtree,
     owner_of,
 )
+from .relations import check_relation_endpoints
 from .references import (
     CrossStateReference,
     Reference,
@@ -138,6 +139,10 @@ class State:
         immutable_ownership = MappingProxyType(
             dict(normalize_ownership(supplied_ownership))
         )
+
+        # Relations are structural references: every endpoint must be
+        # present (relation_model.md section 3).
+        check_relation_endpoints(immutable_values)
 
         state_id = StateID(
             sha256(
@@ -300,7 +305,11 @@ class State:
         self,
         entity: EntityID,
     ) -> "State":
-        """Produce a new state with an entity and its owned subtree removed."""
+        """Produce a new state with an entity and its owned subtree removed.
+
+        Fails with ``DanglingRelation`` if a relation outside the subtree
+        points into it; relations are never removed implicitly.
+        """
 
         if entity not in self.values:
             raise KeyError(

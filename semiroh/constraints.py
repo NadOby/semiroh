@@ -93,6 +93,7 @@ KINDS = frozenset({
     "map",
     "cell",
     "constraint",
+    "relation",
 })
 
 

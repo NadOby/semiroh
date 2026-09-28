@@ -19,6 +19,7 @@ from semiroh import (
     Length,
     Not,
     OneOf,
+    Relation,
     State,
     StateID,
     Value,
@@ -76,7 +77,7 @@ class PrimitiveConstraintTests(unittest.TestCase):
         samples = [
             None, True, 1, "a", b"a", EntityID("e"), VersionID("v"),
             StateID("s"), (1,), [1], {"a": 1}, CellDeclaration(IsKind("int"), 0),
-            AllOf(),
+            AllOf(), Relation("r", {"to": EntityID("e")}),
         ]
 
         self.assertEqual({kind_of(sample) for sample in samples}, set(KINDS))

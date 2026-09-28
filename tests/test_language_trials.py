@@ -3,6 +3,9 @@
 These tests define how a running program exercises candidate code in an
 isolated runtime before installing it. The implementation is done when they
 pass unchanged.
+
+Programs are written in the input format and loaded into graph form
+(graph_form.md).
 """
 
 import unittest
@@ -23,7 +26,7 @@ from semiroh import (
     State,
     Value,
 )
-from semiroh.lang import Function, LanguageError, links, run
+from semiroh.lang import Function, LanguageError, links, load, run
 
 COUNTER = EntityID("counter")
 INCREMENT = EntityID("increment")
@@ -179,10 +182,10 @@ def program(extra: dict | None = None) -> State:
         **(extra or {}),
     }
 
-    return State.create({
+    return load(State.create({
         entity: Value.create(entity, content)
         for entity, content in entities.items()
-    })
+    }))
 
 
 def runtime_for(extra: dict | None = None) -> Runtime:

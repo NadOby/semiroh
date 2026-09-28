@@ -21,6 +21,8 @@ Conceptually:
         semantic changes
         +
         explicit continuity mappings
+        +
+        named conversions (provisional)
 
 A definition may therefore be reused against multiple compatible source
 states.
@@ -38,6 +40,12 @@ continuity information.
 
 The result describes what happened when that definition was applied to one
 particular source state.
+
+Named conversions are used only when a result is activated: each names the
+converter that produces a destination cell's content from the content of the
+cells mapped into it. A conversion must target a destination of the
+definition's mappings. See
+[`activation_model.md`](activation_model.md) section 4.
 
 The current definition does not yet include contracts, constraints, effects,
 capabilities, or provenance as semantic components. Those are separate

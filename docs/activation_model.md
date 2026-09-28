@@ -81,7 +81,8 @@ policy says otherwise.
 
 ## 4. Mutable cell content
 
-**Decided**, except where conversion functions live, which is open.
+**Decided.** The conversion rule and the placement of conversions are
+provisional.
 
 A mutable cell is versioned program state; its content is runtime state. At
 activation, cell content is carried along explicit continuity:
@@ -92,14 +93,15 @@ activation, cell content is carried along explicit continuity:
 This corresponds to Erlang's `code_change`: the new version receives the old
 state and may convert it.
 
-Rules by mapping cardinality:
+A cell's type is its constraint. Rules by mapping cardinality:
 
-    A → A' (same representation)
-        content transferred unchanged
+    A → A', content satisfies the constraint of A'
+        content transferred unchanged, even if the constraint changed
+        (for example, a widened range)
 
-    A → A' (changed type or representation)
-        an explicit conversion function is required;
-        without one, activation is rejected
+    A → A', content violates the constraint of A' or is Unknown under it
+        an explicit conversion is required; without one, activation is
+        rejected
 
     A → ∅
         content is discarded; resources it owns stay owned by the
@@ -116,16 +118,31 @@ Rules by mapping cardinality:
     A with no declared continuity
         activation is rejected if A holds live content
 
+    A → X, where X is not a cell
+        activation is rejected: the content would be lost without an
+        explicit disappearance
+
 The last rule follows the transformation model: preservation is not
 continuity. Tools that produce transformations, including the embedded
 compiler, are expected to declare identity mappings (`A → A`) for cells they
 leave untouched, so this rule costs nothing in the common case.
 
-A cell new in `S₁` (no incoming mapping) is initialized by its own
+A cell in `S₁` with no incoming mapping from a cell is initialized by its own
 initializer.
 
-Where conversion functions live is open. One option is to make them a third
-component of the transformation definition, next to changes and mappings.
+Every content that reaches a cell of `S₁` is checked against that cell's
+constraint in the runtime's evaluation context: transferred content,
+conversion output, and initial content alike. Anything but `Satisfied`
+rejects the activation.
+
+Provisionally, conversions are the third component of the transformation
+definition, next to changes and mappings. A conversion is declared per
+destination cell and receives the content of every cell mapped into it,
+keyed by source cell, which covers one-to-one changes, splits, and merges
+alike. The definition names each conversion; executable converters are
+supplied at activation, as evaluators are for External constraints, so the
+definition stays pure data. A missing converter rejects the activation, and
+a converter failure propagates without changing the runtime.
 
 ## 5. Code in flight
 
@@ -311,17 +328,23 @@ The Python reference model currently provides:
         runtime-internal holds on a version from simulated frames and from
         references kept in runtime state
 
-Activation, retirement of superseded versions, and trial runs are not yet
-implemented. Until they are, a runtime has exactly one loaded version.
+    Runtime.activate
+        staged, atomic activation of a transformation result (or of a bare
+        state, with unknown continuity): cell transfer by the rules of
+        section 4 with named Converters, reference transfer or pinning
+        (section 6), rejection while the previous version is held, and
+        retirement of a superseded version when its last hold is released
+        (section 7)
 
-The next stages add activation (transfer along continuity, pinned references,
-atomic switch-or-reject, the two-version bound, and retirement), then trial
-runs in isolated runtimes.
+Frames keep executing in the version they started in; the switching strategy
+for code in flight (section 5) is not modelled beyond that.
+
+Trial runs in isolated runtimes (section 8) are not yet implemented.
 
 ## 13. Unresolved areas
 
 - switching strategy for code in flight (section 5);
-- where conversion and transfer functions live (section 4);
+- conversion rule and placement, currently provisional (section 4);
 - how the runtime tracks holds on versions (section 7);
 - isolation and state copying for trial runs (section 8);
 - concurrency: per-thread switching and its memory model;

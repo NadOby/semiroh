@@ -63,8 +63,11 @@ parameters bound to the canonicalized arguments, and returns the result.
   `runtime.enter(function)` and releases it on return and on failure, so a
   finished run leaves no holds.
 - `read` and `write` go through `runtime.read` and `runtime.write`, so cell
-  constraints and constraint relations are enforced; their errors propagate
-  unchanged (for example `CellContentRejected`).
+  constraints and constraint relations are enforced. A rejected constraint
+  propagates unchanged (for example `CellContentRejected`,
+  `RelationConstraintRejected`); a link naming something that is not a cell
+  is a language mistake, not a constraint failure, and becomes a
+  `LanguageError` instead (below).
 - Running never changes program state or `StateID`.
 - `LanguageError` (a `ValueError`) covers: an unknown operation, an unknown
   link name, a wrong number of arguments, calling something that is not a

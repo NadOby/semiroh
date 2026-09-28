@@ -338,6 +338,11 @@ def _eval(
         _arity(function_entity, op, rest, 1)
         cell = _resolve_link(function_entity, links_relation, rest[0])
 
+        # CellError means the link names something that is not a cell: a
+        # language mistake (section 3), not a constraint rejection, so it
+        # becomes a LanguageError. CellContentRejected and
+        # RelationConstraintRejected are constraint failures and are left to
+        # propagate unchanged.
         try:
             return runtime.read(cell)
         except CellError as exc:
@@ -350,6 +355,7 @@ def _eval(
             runtime, function_entity, links_relation, bindings, rest[1]
         )
 
+        # Same distinction as "read" above.
         try:
             runtime.write(cell, value)
         except CellError as exc:

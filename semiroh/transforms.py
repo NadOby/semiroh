@@ -447,7 +447,21 @@ def compose(
     correspond to intermediate entities reached by the first relation.
 
     Destination entities use set semantics, so duplicate endpoints collapse.
+
+    Only transformation definitions and composition results can be composed.
+    Transformation results are rejected: references move through results one
+    step at a time (transformation_composition_api.md).
     """
+
+    for relation in (first, second):
+        if not isinstance(
+            relation,
+            (TransformationDefinition, CompositionResult),
+        ):
+            raise TypeError(
+                "compose accepts TransformationDefinition or "
+                f"CompositionResult, not {type(relation).__name__}"
+            )
 
     second_mappings = {
         mapping.source_entity: mapping.destination_entities
@@ -608,19 +622,17 @@ def rebind_reference(
 ) -> Reference:
     """Explicitly bind to a chosen destination entity.
 
-    Rebinding does not preserve conceptual identity.
+    Rebinding does not preserve conceptual identity and asserts no relation
+    to the original reference. The original reference is therefore neither
+    validated nor consulted: a stale, cross-state, or untransferable
+    reference can be rebound, which is usually why rebinding is needed. It
+    is still a parameter so that call sites state what is being replaced.
     """
 
-    if destination_entity not in destination.values:
-        raise KeyError(
-            f"{destination_entity.value} is absent from "
-            f"{destination.id.value}"
+    if not isinstance(reference, Reference):
+        raise TypeError(
+            "rebind_reference expects the Reference being replaced, "
+            f"not {type(reference).__name__}"
         )
 
-    destination_value = destination.values[destination_entity]
-
-    return Reference(
-        state=destination.id,
-        entity=destination_entity,
-        version=version_id_for(destination_value),
-    )
+    return destination.reference(destination_entity)

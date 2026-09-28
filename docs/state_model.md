@@ -196,6 +196,9 @@ The value and ownership mappings are exposed as immutable structures.
 
 `State.create()` constructs a state and derives its `StateID`.
 
+Direct construction performs the same validation. A `StateID` is always
+derived from content and cannot be supplied by the caller.
+
 `State.with_changes()` produces a new state.
 
 `State.destroy()` produces a new state with an entity and its owned subtree

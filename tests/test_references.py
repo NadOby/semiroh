@@ -3,6 +3,9 @@
 import unittest
 
 from semiroh import (
+    Reference,
+    StateID,
+    VersionID,
     CrossStateReference,
     EntityID,
     MissingEntityMapping,
@@ -232,4 +235,62 @@ class ReferenceConstructionTests(unittest.TestCase):
                 state.id,
                 foo,
                 state.values[bar],
+            )
+
+
+class RebindingTests(unittest.TestCase):
+    def test_reference_that_cannot_be_transferred_can_be_rebound(self) -> None:
+        foo = EntityID("foo")
+
+        first = State.create({
+            foo: Value.create(foo, 1),
+        })
+        second = transform(first, {foo: 2})
+
+        stale = first.reference(foo)
+
+        self.assertEqual(
+            rebind_reference(stale, second, foo),
+            second.reference(foo),
+        )
+
+    def test_original_reference_is_not_validated(self) -> None:
+        foo = EntityID("foo")
+
+        state = State.create({
+            foo: Value.create(foo, 1),
+        })
+        foreign = Reference(
+            StateID("elsewhere"),
+            EntityID("missing"),
+            VersionID("unknown"),
+        )
+
+        self.assertEqual(
+            rebind_reference(foreign, state, foo),
+            state.reference(foo),
+        )
+
+    def test_rebinding_requires_a_reference(self) -> None:
+        foo = EntityID("foo")
+
+        state = State.create({
+            foo: Value.create(foo, 1),
+        })
+
+        with self.assertRaises(TypeError):
+            rebind_reference(foo, state, foo)  # type: ignore[arg-type]
+
+    def test_rebinding_to_absent_entity_is_rejected(self) -> None:
+        foo = EntityID("foo")
+
+        state = State.create({
+            foo: Value.create(foo, 1),
+        })
+
+        with self.assertRaises(KeyError):
+            rebind_reference(
+                state.reference(foo),
+                state,
+                EntityID("missing"),
             )

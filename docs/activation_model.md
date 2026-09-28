@@ -383,6 +383,12 @@ The language layer in `semiroh.lang` additionally provides:
         capability-gated self-modification using an explicit identity mapping
         for every entity and the existing atomic Runtime.activate path
 
+    trial
+        exercises a candidate in an isolated runtime via the same pair
+        checks and identity mapping as activate, then calls the linked
+        function there with the activation capability withheld
+        (language_trials.md)
+
 Frames keep executing in the version they started in; the switching strategy
 for code in flight (section 5) is implemented by the language as
 version coexistence with switching at every linked call.
@@ -393,7 +399,7 @@ version coexistence with switching at every linked call.
   one (section 5);
 - conversion rule and placement, currently provisional (section 4);
 - how the runtime tracks holds on versions (section 7);
-- capability isolation for trial runs, once capabilities are modelled
+- capability isolation for trial runs beyond the language's provisional one
   (section 8);
 - concurrency: per-thread switching and its memory model;
 - native code installation under platform restrictions.

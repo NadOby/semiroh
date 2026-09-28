@@ -417,8 +417,8 @@ Composition APIs are specified in terms of these three result classes.
 - Shared the link/value pair checks and the identity-mapped transformation
   between `activate` and `trial` in one helper, and moved the active-state
   read after operand evaluation for both, so a pair value that itself
-  activates is trialled or activated against the state that leaves, not a
-  stale one.
+  activates is trialled or activated against the active state after
+  evaluation, not a stale one.
 - Code running under trial gets no activation capability, so it cannot
   `activate` or `trial` itself; a rejected candidate or a failure in the
   call propagates unchanged and leaves the real program alone.
@@ -427,4 +427,4 @@ Composition APIs are specified in terms of these three result classes.
 - Added unit coverage for `trial`'s `LanguageError` cases, the order of
   checks before the capability, a zero-pair trial run in isolation, and a
   trial whose own pair value activates, confirming the transformation
-  starts from the state that leaves.
+  starts from the active state after evaluation.

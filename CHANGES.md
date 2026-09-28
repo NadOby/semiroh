@@ -260,3 +260,14 @@ Composition APIs are specified in terms of these three result classes.
   the term.
 - Documented that the step budget does not bound evaluators and that an
   evaluator failure propagates rather than becoming `Unknown`.
+
+### Cell constraints
+
+- A `CellDeclaration` declares a constraint instead of a type name; the
+  constraint is the cell's type.
+- Program state stays pure data: declaring a cell does not evaluate its
+  constraint. A runtime checks each cell's initial content when it loads a
+  version, and checks every write, using its evaluation context.
+- Only `Satisfied` content is accepted; `Violated` and `Unknown` are both
+  rejected with `CellContentRejected`, and a rejected write leaves the cell
+  unchanged.

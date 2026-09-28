@@ -7,6 +7,11 @@ the record of what depends on which loaded version.
 Ownership follows activation_model.md section 7: the runtime root owns the
 loaded versions, and each version owns the content of its cells. Holds record
 that running code or runtime-held references depend on a version.
+
+Cell content must satisfy the cell's constraint. A runtime checks the initial
+content of every cell when it loads a version, and checks every write, using
+its evaluation context. Only ``SATISFIED`` is accepted: ``VIOLATED`` and
+``UNKNOWN`` are both rejected.
 """
 
 from __future__ import annotations
@@ -15,7 +20,8 @@ from types import MappingProxyType
 from typing import Any, Mapping
 
 from .canonical import canonicalize
-from .cells import cells_of
+from .cells import CellDeclaration, cells_of
+from .constraints import ConstraintResult, EvaluationContext
 from .identity import EntityID, StateID
 from .references import CrossStateReference, Reference
 from .state import State
@@ -23,6 +29,36 @@ from .state import State
 
 class CellError(ValueError):
     """A cell operation named an entity that is not a mutable cell."""
+
+
+class CellContentRejected(ValueError):
+    """Cell content was not established to satisfy the cell's constraint."""
+
+    def __init__(
+        self,
+        cell: EntityID,
+        result: ConstraintResult,
+        operation: str,
+    ) -> None:
+        super().__init__(
+            f"{operation} of cell {cell.value} rejected: constraint is "
+            f"{result.value}"
+        )
+        self.cell = cell
+        self.result = result
+
+
+def _check_content(
+    cell: EntityID,
+    declaration: CellDeclaration,
+    content: object,
+    context: EvaluationContext,
+    operation: str,
+) -> None:
+    result = declaration.constraint.evaluate(content, context)
+
+    if result is not ConstraintResult.SATISFIED:
+        raise CellContentRejected(cell, result, operation)
 
 
 class Version:
@@ -33,11 +69,23 @@ class Version:
     version's program state or ``StateID``.
     """
 
-    def __init__(self, state: State) -> None:
+    def __init__(self, state: State, context: EvaluationContext) -> None:
+        declarations = cells_of(state)
+
+        for entity, declaration in declarations.items():
+            _check_content(
+                entity,
+                declaration,
+                declaration.initial,
+                context,
+                "initial content",
+            )
+
         self._state = state
+        self._declarations = declarations
         self._cells: dict[EntityID, Any] = {
             entity: declaration.initial
-            for entity, declaration in cells_of(state).items()
+            for entity, declaration in declarations.items()
         }
         self._holds: set[Hold] = set()
 
@@ -126,9 +174,20 @@ class Runtime:
     program state with every cell set to its declared initial content.
     """
 
-    def __init__(self, state: State) -> None:
-        self._active = Version(state)
+    def __init__(
+        self,
+        state: State,
+        context: EvaluationContext | None = None,
+    ) -> None:
+        self._context = context or EvaluationContext()
+        self._active = Version(state, self._context)
         self._versions: list[Version] = [self._active]
+
+    @property
+    def context(self) -> EvaluationContext:
+        """Evaluation context used to check cell content."""
+
+        return self._context
 
     @property
     def active(self) -> Version:
@@ -160,11 +219,21 @@ class Runtime:
         """Replace the content of a cell in the active version in place.
 
         The content is canonicalized, so later changes to the supplied object
-        do not affect the cell. Program state and ``StateID`` are unchanged.
+        do not affect the cell. It must satisfy the cell's constraint; a
+        rejected write leaves the cell unchanged. Program state and
+        ``StateID`` are unchanged either way.
         """
 
         self._active_cell(cell)
-        self._active._cells[cell] = canonicalize(content)
+        canonical = canonicalize(content)
+        _check_content(
+            cell,
+            self._active._declarations[cell],
+            canonical,
+            self._context,
+            "write",
+        )
+        self._active._cells[cell] = canonical
 
     def enter(self, entity: EntityID) -> Frame:
         """Start a simulated frame executing code of an entity."""

@@ -178,12 +178,22 @@ endpoints maps to the tuple of their contents.
              roles={low: min_cell, high: max_cell},
              payload=<constraint over {low: ..., high: ...}>)
 
+**Provisional:** an endpoint that owns entities contributes its owned
+subtree with it, as the map `{"value": <its own content>, "owned": {child:
+<the child's contribution>, ...}}`, recursively; an endpoint that owns
+nothing contributes its content as before. Ownership bounds a composite,
+so a constraint over the owner sees all of it. Code in graph form needs
+this: a function's value holds only its definition, and its code lives in
+the nodes it owns (graph_form.md), so a constraint over a function's code
+is a constraint over the function.
+
 Evaluation follows the existing rules for cells: it happens in a runtime,
 with the runtime's evaluation context, and anything but `Satisfied` rejects.
 
 - loading a version evaluates every constraint relation;
-- a cell write re-evaluates every constraint relation that has that cell as
-  an endpoint, and a rejected write leaves the cell unchanged;
+- a cell write re-evaluates every constraint relation that has that cell,
+  or one of its owners, as an endpoint, and a rejected write leaves the
+  cell unchanged;
 - activation and trial runs evaluate every constraint relation of the
   destination state against the staged content.
 
@@ -235,8 +245,9 @@ The Python reference model currently provides:
     constraint relations
         constraint_relations and Role; a runtime evaluates constraint
         relations when a version loads, when a write changes an endpoint
-        cell, and against the staged content of activation and trial runs,
-        rejecting anything but Satisfied (section 7)
+        cell or a cell an endpoint owns, and against the staged content of
+        activation and trial runs, rejecting anything but Satisfied; an
+        owner endpoint contributes its owned subtree (section 7)
 
 ## 11. Unresolved areas
 

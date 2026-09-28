@@ -201,6 +201,123 @@ class ActivationTests(unittest.TestCase):
             runtime.write(LOW, 11)
 
 
+OWNER = EntityID("owner")
+PART = EntityID("part")
+GAUGE = EntityID("gauge")
+WHOLE = EntityID("whole")
+
+
+def mentions(content: Any, word: str) -> bool:
+    if content == word:
+        return True
+
+    return isinstance(content, tuple) and any(
+        mentions(item, word) for item in content
+    )
+
+
+# Anything the owner contributes, owned entities included, must not say
+# "forbidden"; a gauge cell anywhere in it must stay at most 5.
+WHOLE_CONTEXT = EvaluationContext({
+    "clean": Evaluator(
+        lambda subject: VIO if mentions(subject, "forbidden") else SAT
+    ),
+})
+CLEAN_WHOLE = Relation("whole", {"whole": OWNER}, External("clean"))
+
+
+def owned_program(part: Any = "fine", gauge: int = 0) -> State:
+    return State.create(
+        {
+            OWNER: Value.create(OWNER, 1),
+            PART: Value.create(PART, part),
+            GAUGE: Value.create(GAUGE, CellDeclaration(IsKind("int"), gauge)),
+            WHOLE: Value.create(WHOLE, CLEAN_WHOLE),
+        },
+        {OWNER: (PART,), PART: (GAUGE,)},
+    )
+
+
+class OwnedSubtreeTests(unittest.TestCase):
+    """An endpoint that owns entities contributes its owned subtree."""
+
+    def test_an_owner_contributes_its_value_and_owned_subtree(self) -> None:
+        seen = []
+        context = EvaluationContext({
+            "clean": Evaluator(lambda subject: seen.append(subject) or SAT),
+        })
+
+        runtime = Runtime(owned_program(gauge=3), context)
+        runtime.write(GAUGE, 4)
+
+        expected = canonicalize({
+            "whole": {
+                "value": 1,
+                "owned": {PART: {"value": "fine", "owned": {GAUGE: 3}}},
+            },
+        })
+        self.assertEqual(seen[0], expected)
+        self.assertEqual(
+            seen[-1],
+            canonicalize({
+                "whole": {
+                    "value": 1,
+                    "owned": {PART: {"value": "fine", "owned": {GAUGE: 4}}},
+                },
+            }),
+        )
+
+    def test_an_owned_entity_can_violate_its_owners_relation(self) -> None:
+        with self.assertRaises(RelationConstraintRejected) as raised:
+            Runtime(owned_program(part="forbidden"), WHOLE_CONTEXT)
+
+        self.assertEqual(raised.exception.relation, WHOLE)
+
+    def test_activation_checks_the_changed_owned_subtree(self) -> None:
+        source = owned_program()
+        runtime = Runtime(source, WHOLE_CONTEXT)
+        result = transform_with_mapping(
+            source,
+            {PART: "forbidden"},
+            {entity: entity for entity in source.values},
+        )
+
+        with self.assertRaises(ActivationRejected) as raised:
+            runtime.activate(result)
+
+        self.assertEqual(raised.exception.relation, WHOLE)
+        self.assertEqual(runtime.active.state, source)
+
+    def test_writing_an_owned_cell_checks_its_owners_relations(self) -> None:
+        state = State.create(
+            {
+                OWNER: Value.create(OWNER, 1),
+                PART: Value.create(PART, "fine"),
+                GAUGE: Value.create(GAUGE, CellDeclaration(IsKind("int"), 0)),
+                WHOLE: Value.create(
+                    WHOLE,
+                    Relation("whole", {"whole": OWNER}, External("low")),
+                ),
+            },
+            {OWNER: (PART,), PART: (GAUGE,)},
+        )
+
+        def low(subject: Any) -> ConstraintResult:
+            whole = dict(subject[2])["whole"]
+            part = dict(dict(whole[2])["owned"][2])[canonicalize(PART)]
+            gauge = dict(dict(part[2])["owned"][2])[canonicalize(GAUGE)]
+            return SAT if gauge <= 5 else VIO
+
+        runtime = Runtime(state, EvaluationContext({"low": Evaluator(low)}))
+        runtime.write(GAUGE, 5)
+
+        with self.assertRaises(RelationConstraintRejected) as raised:
+            runtime.write(GAUGE, 6)
+
+        self.assertEqual(raised.exception.relation, WHOLE)
+        self.assertEqual(runtime.read(GAUGE), 5)
+
+
 class ConstraintRelationProperties(unittest.TestCase):
     def test_random_writes_never_break_the_relation(self) -> None:
         # A write is accepted exactly when both the cell constraint and the

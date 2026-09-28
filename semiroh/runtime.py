@@ -32,6 +32,7 @@ from .canonical import canonicalize
 from .cells import CellDeclaration, cells_of
 from .constraints import ConstraintResult, EvaluationContext
 from .identity import EntityID, StateID
+from .ownership import owner_of
 from .relations import constraint_relations, role_subject
 from .references import (
     AmbiguousEntityMapping,
@@ -107,19 +108,43 @@ def _failed_constraint_relation(
     """Return the first constraint relation not established as satisfied.
 
     Endpoint content is the runtime content of a cell, or the value content
-    of any other entity. With ``touching``, only relations that have that
-    entity as an endpoint are checked.
+    of any other entity. An endpoint that owns entities contributes that
+    content together with its owned subtree, as ``{"value": ...,
+    "owned": {child: ...}}`` (relation_model.md section 7). With
+    ``touching``, only relations that have that entity, or one of its
+    owners, as an endpoint are checked.
     """
 
     def content_of(entity: EntityID) -> Any:
         if entity in cells:
-            return cells[entity]
+            own = cells[entity]
+        else:
+            own = state.values[entity].content
 
-        return state.values[entity].content
+        children = state.ownership.get(entity, ())
+
+        if not children:
+            return own
+
+        return {
+            "value": own,
+            "owned": {child: content_of(child) for child in children},
+        }
+
+    affected: set[EntityID] | None = None
 
     for entity, (relation, constraint) in constraint_relations(state).items():
-        if touching is not None and touching not in relation.endpoints:
-            continue
+        if touching is not None:
+            if affected is None:
+                affected = set()
+                current: EntityID | None = touching
+
+                while current is not None:
+                    affected.add(current)
+                    current = owner_of(state.ownership, current)
+
+            if affected.isdisjoint(relation.endpoints):
+                continue
 
         outcome = constraint.evaluate(
             role_subject(relation, content_of),

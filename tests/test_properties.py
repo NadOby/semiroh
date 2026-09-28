@@ -29,6 +29,7 @@ from semiroh import (
     same_version,
     semantic_equal,
     transfer_reference,
+    transform_with_mapping,
 )
 
 CASES = 300
@@ -250,28 +251,36 @@ def cascaded_disappearances(
     does not descend past a named entity.
     """
 
+    # Derived bottom-up, unlike the implementation's top-down walk, so the
+    # two do not share a traversal: an unnamed entity ends when the nearest
+    # ancestor that is either named or explicitly disappearing is the latter.
     named = set(mappings)
 
     for targets in mappings.values():
         named.update(targets)
 
-    stack = [
-        child
-        for source, targets in mappings.items()
-        if not targets
-        for child in ownership.get(source, ())
-    ]
-
+    parent = {
+        child: owner
+        for owner, children in ownership.items()
+        for child in children
+    }
     cascaded: set[EntityID] = set()
 
-    while stack:
-        entity = stack.pop()
-
-        if entity in named or entity in cascaded:
+    for entity in parent:
+        if entity in named:
             continue
 
-        cascaded.add(entity)
-        stack.extend(ownership.get(entity, ()))
+        ancestor = parent.get(entity)
+
+        while ancestor is not None:
+            if mappings.get(ancestor) == ():
+                cascaded.add(entity)
+                break
+
+            if ancestor in named:
+                break
+
+            ancestor = parent.get(ancestor)
 
     return cascaded
 
@@ -520,6 +529,67 @@ class OwnershipProperties(unittest.TestCase):
                         {entity: Value(entity, 0) for entity in entities},
                         ownership,
                     )
+
+
+
+def random_forest(rng: random.Random) -> State:
+    """A state whose ownership is a random forest, often several levels deep."""
+
+    entities = entity_names(rng.randrange(2, 12))
+    ownership: dict[EntityID, list[EntityID]] = {}
+
+    for index, entity in enumerate(entities[1:], start=1):
+        if rng.random() < 0.8:
+            ownership.setdefault(entities[rng.randrange(index)], []).append(entity)
+
+    return State.create(
+        {entity: Value(entity, index) for index, entity in enumerate(entities)},
+        {owner: tuple(children) for owner, children in ownership.items()},
+    )
+
+
+class EndedSubtreeProperties(unittest.TestCase):
+    """ownership_model.md section 7: an owner's disappearance ends its subtree."""
+
+    def test_disappearance_matches_destruction(self) -> None:
+        for seed in range(CASES):
+            with self.subTest(seed=seed):
+                rng = random.Random(seed)
+                state = random_forest(rng)
+                ended = rng.choice(sorted(state.values))
+                result = transform_with_mapping(state, {}, {ended: ()})
+                destroyed = state.destroy(ended)
+
+                self.assertEqual(result.destination.id, destroyed.id)
+
+                for entity in set(state.values) - set(destroyed.values):
+                    self.assertEqual(
+                        result.mapping_for(entity).destination_entities, ()
+                    )
+
+    def test_named_entities_stop_the_cascade(self) -> None:
+        for seed in range(CASES):
+            with self.subTest(seed=seed):
+                rng = random.Random(seed)
+                state = random_forest(rng)
+                entities = sorted(state.values)
+                ended = rng.choice(entities)
+                kept = [
+                    entity
+                    for entity in entities
+                    if entity != ended and rng.random() < 0.3
+                ]
+                mappings = {ended: (), **{entity: (entity,) for entity in kept}}
+                expected_gone = {ended} | cascaded_disappearances(
+                    state.ownership, mappings
+                )
+
+                result = transform_with_mapping(state, {}, mappings, ownership={})
+
+                self.assertEqual(
+                    set(result.destination.values),
+                    set(entities) - expected_gone,
+                )
 
 
 class TransformationProperties(unittest.TestCase):

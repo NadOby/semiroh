@@ -76,8 +76,10 @@ references may form arbitrary cycles (ownership_model.md §2).
 
 ## 4. References inside ordinary values
 
-**Open.** An `EntityID` can also appear inside an ordinary value, for example
-a list of entity names held by a metaprogram.
+**Decided:** raw `EntityID`s in ordinary values are data.
+
+An `EntityID` can also appear inside an ordinary value, for example a list of
+entity names held by a metaprogram. The options considered were:
 
     data
         raw EntityIDs in content are data, not references: no integrity
@@ -91,15 +93,17 @@ a list of entity names held by a metaprogram.
     implicit relations
         raw EntityIDs are treated as unnamed relations and tracked.
 
-Recommendation: data. Metaprograms need entity names as data, and implicit
+Data was chosen. Metaprograms need entity names as data, and implicit
 relations would give every value hidden graph structure. The hazard of stale
 names remains, but it becomes a visible choice: a reference that must stay
 valid is written as a relation.
 
 ## 5. Relations across transformations
 
-**Open.** A transformation can remove an entity that relations still point
-to: a source mapped elsewhere, or mapped to zero destinations.
+**Decided:** relations follow declared continuity.
+
+A transformation can remove an entity that relations still point to: a
+source mapped elsewhere, or mapped to zero destinations.
 
 A relation that the transformation explicitly changes or removes is taken as
 given; its new endpoints are checked (section 3). The question is what
@@ -117,7 +121,7 @@ happens to a relation the transformation does not mention.
         transformation is rejected unless it changes or removes that
         relation explicitly.
 
-Recommendation: follow continuity. It infers nothing: it follows declared
+Following continuity was chosen. It infers nothing: it follows declared
 continuity, one step, exactly as `transfer_reference` does, and it keeps
 renames cheap. Rewriting endpoints produces a new version of the relation;
 like any entity, the relation's own continuity must still be declared by the
@@ -139,7 +143,7 @@ model depends on it.
 
 ## 7. Constraints over several entities
 
-**Proposed** (direction). **Open** (constraint primitives).
+**Decided** (direction). **Open** (the full set of constraint primitives).
 
 A constraint relation carries a constraint as its payload. The subject of
 that constraint is the map from role name to the current content of each
@@ -158,10 +162,9 @@ with the runtime's evaluation context, and anything but `Satisfied` rejects.
 - activation and trial runs evaluate every constraint relation of the
   destination state against the staged content.
 
-Constraints over a role map need primitives that do not exist yet. The
-smallest useful set is probably a projection, `Role(name, constraint)`, and
-`External` evaluators that receive the whole map. Comparisons between roles
-can follow.
+Constraints over a role map need primitives that do not exist yet. The first
+set is a projection, `Role(name, constraint)`, and `External` evaluators that
+receive the whole map. Comparisons between roles can follow.
 
 ## 8. Queries and indexes
 
@@ -190,9 +193,8 @@ relations with the first role-map primitives.
 
 ## 11. Unresolved areas
 
-- references inside ordinary values (section 4);
-- relations across transformations (section 5);
-- constraint primitives over role maps (section 7);
+- constraint primitives over role maps beyond `Role` and `External`
+  (section 7);
 - whether ownership becomes a relation kind (section 6);
 - relation kinds with semantics the core must enforce;
 - persistence and indexing strategy for large graphs.

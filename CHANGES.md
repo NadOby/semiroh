@@ -309,7 +309,7 @@ Composition APIs are specified in terms of these three result classes.
   structure: relations are entities whose values are relation records with
   a kind, named roles, and an optional payload. Endpoints must be present in
   the same state.
-- Listed as open, with recommendations: raw `EntityID`s in ordinary values
-  as untracked data; relations following declared continuity across
-  transformations; constraint relations evaluated over a role map in the
-  runtime.
+- Decided that raw `EntityID`s in ordinary values are untracked data; that
+  relations follow declared continuity across transformations and are never
+  removed implicitly; and that constraint relations are evaluated over a
+  role map in the runtime, starting with `Role` and `External`.

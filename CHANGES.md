@@ -255,3 +255,8 @@ Composition APIs are specified in terms of these three result classes.
   are called directly or through `External`.
 - Made `IsKind` accept every kind the model produces, including `cell` and
   `constraint`.
+- Renamed the executable predicate wrapper `Constraint` to `Evaluator` and
+  `SemanticConstraint` to `Constraint`, matching the specification's use of
+  the term.
+- Documented that the step budget does not bound evaluators and that an
+  evaluator failure propagates rather than becoming `Unknown`.

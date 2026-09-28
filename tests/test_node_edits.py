@@ -95,6 +95,22 @@ class HostNodeEditTests(unittest.TestCase):
 
         self.assertEqual(run(runtime, INCREMENT), 10)
 
+    def test_a_replacement_may_keep_the_label_of_the_node_it_replaces(self) -> None:
+        state = load(source())
+
+        result = define(state, {(INCREMENT, "step"): ("label", "step", ("lit", 10))})
+
+        runtime = Runtime(state)
+        runtime.activate(result)
+
+        self.assertEqual(run(runtime, INCREMENT), 10)
+
+        # and the label still names the replacement
+        again = define(runtime.active.state, {(INCREMENT, "step"): ("lit", 20)})
+        runtime.activate(again)
+
+        self.assertEqual(run(runtime, INCREMENT), 30)
+
     def test_replacing_with_a_larger_expression_and_back(self) -> None:
         state = load(source())
         before = nodes(state, INCREMENT)

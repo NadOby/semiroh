@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Mapping
 
 from .canonical import (
     CanonicalNode,
@@ -13,6 +13,7 @@ from .canonical import (
     canonical_serialize,
     canonicalize,
 )
+from .constraints import Constraint
 from .identity import EntityID
 from .values import Value
 
@@ -222,3 +223,39 @@ def relation_index(
         entity: tuple(sorted(pairs))
         for entity, pairs in sorted(index.items())
     })
+
+
+def constraint_relations(
+    state: State,
+) -> Mapping[EntityID, tuple[Relation, Constraint]]:
+    """Relations whose payload is a constraint (relation_model.md §7).
+
+    The payload, not the kind, makes a relation a constraint relation: the
+    kind has no built-in meaning in the core.
+    """
+
+    found = {}
+
+    for entity, relation in relations_of(state).items():
+        payload = relation.payload
+
+        if isinstance(payload, CanonicalNode) and payload[1] == "constraint":
+            found[entity] = (relation, Constraint.from_content(payload))
+
+    return MappingProxyType(found)
+
+
+def role_subject(
+    relation: Relation,
+    content_of: Callable[[EntityID], Any],
+) -> dict[str, Any]:
+    """The subject of a constraint relation: role name to endpoint content."""
+
+    return {
+        role: (
+            content_of(endpoint)
+            if isinstance(endpoint, EntityID)
+            else tuple(content_of(item) for item in endpoint)
+        )
+        for role, endpoint in relation.roles.items()
+    }

@@ -155,11 +155,14 @@ model depends on it.
 
 **Decided** (direction). **Open** (the full set of constraint primitives).
 
-A constraint relation carries a constraint as its payload. The subject of
-that constraint is the map from role name to the current content of each
-endpoint: the value of an ordinary entity, or the runtime content of a cell.
+A constraint relation carries a constraint as its payload. The payload, not
+the kind, makes a relation a constraint relation, because the core gives
+kinds no meaning (section 9). The subject of that constraint is the map from
+role name to the current content of each endpoint: the value of an ordinary
+entity, or the runtime content of a cell. A role holding a tuple of
+endpoints maps to the tuple of their contents.
 
-    Relation(kind="constraint",
+    Relation(kind="bound",
              roles={low: min_cell, high: max_cell},
              payload=<constraint over {low: ..., high: ...}>)
 
@@ -172,9 +175,11 @@ with the runtime's evaluation context, and anything but `Satisfied` rejects.
 - activation and trial runs evaluate every constraint relation of the
   destination state against the staged content.
 
-Constraints over a role map need primitives that do not exist yet. The first
-set is a projection, `Role(name, constraint)`, and `External` evaluators that
-receive the whole map. Comparisons between roles can follow.
+The first primitives over a role map are a projection, `Role(name,
+constraint)`, which is violated when the subject is not a map or lacks the
+role, and `External` evaluators, which receive the whole canonical map.
+Comparisons between roles are not yet a primitive; they are written as
+evaluators.
 
 ## 8. Queries and indexes
 
@@ -214,7 +219,11 @@ The Python reference model currently provides:
     relation_index
         the derived index from entity to (relation, role) pairs
 
-Constraint relations (section 7) are not yet implemented.
+    constraint relations
+        constraint_relations and Role; a runtime evaluates constraint
+        relations when a version loads, when a write changes an endpoint
+        cell, and against the staged content of activation and trial runs,
+        rejecting anything but Satisfied (section 7)
 
 ## 11. Unresolved areas
 

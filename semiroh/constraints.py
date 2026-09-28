@@ -264,6 +264,9 @@ class Constraint(SemanticRecord):
         if name == "not":
             return Not(Constraint.from_content(payload[0]))
 
+        if name == "role":
+            return Role(payload[0], Constraint.from_content(payload[1]))
+
         if name == "external":
             return External(*payload)
 
@@ -508,6 +511,40 @@ class Not(Constraint):
             return ConstraintResult.SATISFIED
 
         return result
+
+
+@dataclass(frozen=True, eq=False)
+class Role(Constraint):
+    """The content of one role in a role map satisfies a constraint.
+
+    The subject of a constraint relation maps role names to endpoint content
+    (relation_model.md section 7). A subject that is not a map, or has no
+    such role, violates the constraint.
+    """
+
+    name: str
+    part: Constraint
+    _name = "role"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name:
+            raise TypeError("role name must be a non-empty string")
+
+        if not isinstance(self.part, Constraint):
+            raise TypeError("component must be a semantic constraint")
+
+    def _payload(self) -> tuple[Any, ...]:
+        return (self.name, self.part.canonical_node())
+
+    def _check(self, subject: Any, evaluation: _Evaluation) -> ConstraintResult:
+        if kind_of(subject) != "map":
+            return ConstraintResult.VIOLATED
+
+        for key, content in subject[2]:
+            if key == self.name:
+                return self.part._evaluate(content, evaluation)
+
+        return ConstraintResult.VIOLATED
 
 
 @dataclass(frozen=True, eq=False)

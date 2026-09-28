@@ -400,6 +400,17 @@ class DeepRecursionTests(unittest.TestCase):
 
         self.assertEqual(runtime.active.holds, frozenset())
 
+    def test_an_invalid_node_names_the_function_it_is_in(self) -> None:
+        runtime = runtime_of({
+            "outer": Function((), ("add", lit(1), ("call", "inner"))),
+            "inner": Function((), ("frob", lit(1))),
+        })
+
+        with self.assertRaisesRegex(LanguageError, "^inner: unknown operation"):
+            run(runtime, EntityID("outer"))
+
+        self.assertEqual(runtime.active.holds, frozenset())
+
     def test_a_tail_call_names_the_callee_in_its_errors(self) -> None:
         runtime = runtime_of({
             "outer": Function((), ("call", "inner")),
@@ -455,6 +466,32 @@ class DeepRecursionTests(unittest.TestCase):
                         "seq",
                         ("write", "w", arg("n")),
                         ("call", "spin", ("sub", arg("n"), lit(1))),
+                    ),
+                ),
+            ),
+        })
+
+        self.assertEqual(run(runtime, EntityID("spin"), 300), 0)
+        self.assertEqual(set(seen), {1})
+        self.assertEqual(len(seen), 300)
+
+    def test_a_tail_call_in_a_let_body_keeps_one_hold(self) -> None:
+        runtime, seen = self.watched({
+            "spin": Function(
+                ("n",),
+                (
+                    "if",
+                    ("lt", arg("n"), lit(1)),
+                    lit(0),
+                    (
+                        "let",
+                        "k",
+                        ("sub", arg("n"), lit(1)),
+                        (
+                            "seq",
+                            ("write", "w", arg("n")),
+                            ("call", "spin", arg("k")),
+                        ),
                     ),
                 ),
             ),

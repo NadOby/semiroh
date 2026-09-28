@@ -102,8 +102,9 @@ Rules by mapping cardinality:
         without one, activation is rejected
 
     A → ∅
-        content is discarded; owned resources follow ownership
-        and destruction rules (open)
+        content is discarded; resources it owns stay owned by the
+        old version and are destroyed when that version is retired
+        (section 7)
 
     A → (A', A'')
         an explicit transfer function must produce each destination's
@@ -175,25 +176,52 @@ silently rebound to an unrelated entity in `S₁`.
 Pinning is the default. A program may opt into a stricter policy that
 rejects activation when any live reference cannot be transferred.
 
-## 7. Superseded versions
+## 7. Retiring superseded versions
 
-**Open**, with a proposed direction.
+**Proposed** (ownership and borrows). **Open** (version bound and purge
+policy).
 
-Without garbage collection, the lifetime of old versions must be explicit.
+Retirement of old versions uses the ownership model rather than a separate
+lifetime mechanism. The same rules apply to runtime state as to program
+state: one owner per entity, no cycles, and recursive destruction of an owned
+subtree.
 
-An old version stays alive while anything in runtime state still depends on
-it: executing frames, pinned references, function pointers, return addresses.
+    runtime root
+        owns the active version
+        owns superseded versions that are still in use
 
-Proposed direction:
+    version
+        owns its native code
+        owns cells and resources that did not transfer at activation
 
-- count dependencies per version, not per object;
-- use an epoch or RCU-style grace period: activation opens a new epoch, and
-  an old version is released once no thread remains in its epoch and no
-  pinned reference remains;
-- bound the number of coexisting versions. Erlang keeps at most two; before a
-  third version can be loaded, the oldest must be purged, which terminates
-  processes still executing it. SEMIROH needs its own policy for what happens
-  to runtime state pinned to a purged version.
+Retiring a version destroys its owned subtree. Resources of cells that
+disappeared at activation (`A → ∅`, section 4) remain owned by the old version
+and are destroyed with it.
+
+Ownership alone cannot say when retirement is allowed. Many threads, frames
+and pinned references can depend on the same old version, and ownership
+permits only one owner. These dependencies are therefore borrows: they do not
+own the version, but it cannot be destroyed while any borrow is live.
+
+    frame executing old code             borrows its version
+    reference pinned to S₀ (section 6)   borrows the version of S₀
+    function pointer, return address     borrows the version it points into
+
+A superseded version is retired when its last borrow ends.
+
+Borrows of running code are dynamic, so the runtime tracks them. An epoch or
+RCU-style grace period is one cheap way to detect that no thread still
+borrows an old version. That is an implementation of borrow tracking, not a
+separate semantic concept.
+
+Open: how many versions may coexist, and what happens when that bound is
+reached while the oldest version still has live borrows. The options are to
+wait, to reject the activation, or to terminate the borrowers, as Erlang
+terminates processes still running purged code. Terminating a thread would
+itself be destruction of what that thread owns.
+
+Borrowing is an open area of the ownership model. Retirement is its first
+concrete use case.
 
 ## 8. Rollback
 
@@ -225,8 +253,8 @@ areas in the README.
   Activation adds no continuity of its own.
 - **Reference model**: activation is the one-step transfer for runtime-held
   references.
-- **Ownership model**: owned resources of cells that disappear follow
-  destruction rules; the details are open.
+- **Ownership model**: retirement of superseded versions is recursive
+  destruction of an owned subtree, gated by borrows (section 7).
 - **Constraint and contract models**: supply the validation performed before
   activation.
 - **State model**: activation selects a state; it does not mutate any state.
@@ -245,8 +273,9 @@ transformation result, and release of `S₀` once nothing is pinned to it.
 
 - switching strategy for code in flight (section 5);
 - where conversion and transfer functions live (section 4);
-- lifetime, bound, and purge policy for superseded versions (section 7);
-- ownership and destruction of resources held by disappearing cells;
+- borrow semantics for runtime dependencies on superseded versions
+  (section 7);
+- version bound and purge policy (section 7);
 - concurrency: per-thread switching and its memory model;
 - native code installation under platform restrictions.
 

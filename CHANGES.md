@@ -251,3 +251,7 @@ Composition APIs are specified in terms of these three result classes.
 - Added a computation-step budget; exhausting it yields `Unknown`.
 - Decided that a cell write whose constraint evaluates to `Unknown` is
   rejected, like activation; this applies once cells declare constraints.
+- Made executable evaluators always receive canonical content, whether they
+  are called directly or through `External`.
+- Made `IsKind` accept every kind the model produces, including `cell` and
+  `constraint`.

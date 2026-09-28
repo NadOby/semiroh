@@ -80,6 +80,13 @@ The ordering of semantically unordered mappings does not affect state identity.
 Canonical serialization is used so that equivalent semantic content produces the
 same state identity.
 
+**Decided.** `StateID` hashes each entity's `VersionID`, which is itself the
+hash of the entity and its canonical content, together with the ownership
+relation. A value's `VersionID` is derived once and kept with the value, so
+deriving a new state's identity never serializes content again: the cost of
+a transformation does not depend on the size of the content it leaves
+unchanged. `StateID` stays derived from content and cannot be supplied.
+
 ## 5. History independence
 
 State identity is independent of construction history.

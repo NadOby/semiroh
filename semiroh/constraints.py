@@ -58,9 +58,14 @@ class Constraint:
             )
 
     def evaluate(self, subject: Any) -> ConstraintResult:
-        """Evaluate the constraint against a subject."""
+        """Evaluate the constraint against a subject.
 
-        result = self.predicate(subject)
+        The predicate always receives canonical content, the same form as
+        ``Value.content``, whether it is called directly or through
+        ``External``. A subject that cannot be canonicalized is rejected.
+        """
+
+        result = self.predicate(canonicalize(subject))
 
         if not isinstance(result, ConstraintResult):
             raise TypeError(

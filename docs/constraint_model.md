@@ -511,6 +511,10 @@ Semantic constraints are semantic values with canonical identity and can
 appear in program state. An External constraint without a registered
 evaluator evaluates to Unknown, as does evaluation that exhausts its budget.
 
+Every subject is canonicalized before evaluation. Executable evaluators
+therefore always receive canonical content, the same form as `Value.content`,
+whether they are called directly or through External.
+
 The following remain future work:
 
 - constraints relating several entities (naturally hyperedges of the semantic

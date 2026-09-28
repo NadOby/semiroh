@@ -2,7 +2,7 @@
 
 import unittest
 
-from semiroh import Constraint, ConstraintResult
+from semiroh import Constraint, ConstraintResult, canonicalize
 
 
 class ConstraintTests(unittest.TestCase):
@@ -40,13 +40,32 @@ class ConstraintTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            constraint.evaluate(object()),
+            constraint.evaluate(None),
             ConstraintResult.UNKNOWN,
         )
 
     def test_invalid_predicate_result_is_rejected(self) -> None:
         constraint = Constraint(
             predicate=lambda _: True,  # type: ignore[return-value]
+        )
+
+        with self.assertRaises(TypeError):
+            constraint.evaluate(None)
+
+    def test_predicate_receives_canonical_content(self) -> None:
+        seen = []
+
+        def record(subject: object) -> ConstraintResult:
+            seen.append(subject)
+            return ConstraintResult.SATISFIED
+
+        Constraint(predicate=record).evaluate([1, (2, b"x")])
+
+        self.assertEqual(seen, [canonicalize([1, (2, b"x")])])
+
+    def test_subject_must_be_canonicalizable(self) -> None:
+        constraint = Constraint(
+            predicate=lambda _: ConstraintResult.SATISFIED,
         )
 
         with self.assertRaises(TypeError):
@@ -77,7 +96,7 @@ class ConstraintTests(unittest.TestCase):
         )
 
         self.assertIsInstance(
-            constraint.evaluate(object()),
+            constraint.evaluate(None),
             ConstraintResult,
         )
 

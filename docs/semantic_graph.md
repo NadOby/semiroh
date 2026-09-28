@@ -32,10 +32,17 @@ itself.
 
 ## 2. Generalized graph model
 
-SEMIROH is intended to use a generalized hypergraph as its fundamental semantic
-structure.
+SEMIROH's fundamental semantic structure is a generalization of a hypergraph
+in which there is no distinction between nodes and edges.
 
-There is no fundamental semantic distinction between nodes and edges.
+There are only entities. An entity whose value is a relation record relates
+other entities, and every entity, including a relation, can itself be
+related. Whether an entity relates others depends only on its value, not on a
+separate kind of graph element.
+
+"Node" and "edge" are therefore not terms of the model. Where the
+documentation says "edge", as in "ownership edge", it is informal shorthand
+for one relationship between two entities.
 
 A semantic value may participate in zero or more relations.
 
@@ -212,9 +219,9 @@ The Python reference model currently implements the identity, value, state,
 reference, ownership, and transformation components needed to explore this
 architecture.
 
-The generalized graph/hypergraph itself is not yet fully specified or
-implemented. [`relation_model.md`](relation_model.md) proposes its first
-concrete structure: relations as entities whose values are relation records.
+The generalized graph itself is not yet fully specified or implemented.
+[`relation_model.md`](relation_model.md) defines its first concrete structure:
+relations are entities whose values are relation records.
 
 The architecture described here therefore establishes direction rather than
 claiming a completed graph representation.
@@ -223,10 +230,7 @@ claiming a completed graph representation.
 
 Important open questions include:
 
-- the exact hypergraph representation;
-- whether nodes and edges are represented uniformly in implementation
-  (relation_model.md proposes that they are: relations are entities);
-- relation identity (relation_model.md proposes entity identity);
+- the exact graph representation;
 - graph persistence;
 - graph traversal semantics;
 - graph-local versus global identity;

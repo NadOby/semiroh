@@ -653,7 +653,7 @@ The following remain future work:
 - formal lossless/lossy semantics;
 - transformation deltas and distance measures;
 - richer provenance/history semantics;
-- generalized graph/hypergraph interaction;
+- generalized graph interaction;
 - persistent representation of transformation definitions.
 
 ## 21. Current unresolved areas
@@ -668,7 +668,7 @@ The following are intentionally not fully specified yet:
 - formal distinction between lossless and lossy transformations;
 - transformation deltas and distance measures;
 - richer provenance/history semantics;
-- interaction with the eventual generalized graph/hypergraph model;
+- interaction with the eventual generalized graph model;
 - whether transformation definitions should have their own persistent semantic
   representation;
 - interaction between transformations and contract guarantees;

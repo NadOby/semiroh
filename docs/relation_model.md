@@ -28,9 +28,10 @@ program state like any other value.
     entity b : 2
     entity r : Relation(kind="depends_on", roles={from: a, to: b})
 
-The semantic graph is therefore the state itself: entities whose values are
-not relation records act as nodes, and relation entities act as hyperedges.
-No separate edge store is added.
+The semantic graph is therefore the state itself. It has no nodes and edges,
+only entities: a relation is an entity whose value relates other entities,
+and any entity, including a relation, can be related (semantic_graph.md §2).
+No separate store of relations is added.
 
 Consequences:
 
@@ -51,7 +52,7 @@ A relation record is a semantic value with:
     roles     role name → one EntityID, or an ordered tuple of EntityIDs
     payload   optional semantic value
 
-Named roles make hyperedges readable and order-independent: a relation of
+Named roles make relations readable and order-independent: a relation of
 arity three is `{caller: f, callee: g, site: s}`, not a positional triple.
 An ordered tuple within one role covers genuinely ordered endpoints such as
 arguments.

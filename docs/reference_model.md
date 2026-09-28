@@ -219,7 +219,7 @@ The following remain open:
 - raw pointer semantics;
 - capability-backed references;
 - references into moved representations;
-- reference semantics in the eventual generalized graph/hypergraph model.
+- reference semantics in the eventual generalized graph model.
 
 ## 13. Design principle
 

@@ -36,8 +36,7 @@ become valid, or remain explicitly pinned, when `S₁` becomes active.
 
 ## 2. Activation as a transition
 
-**Decided** (inputs and atomicity). **Proposed** (activation without a
-transition record).
+**Decided.**
 
 Activation takes:
 
@@ -55,20 +54,20 @@ Activation is atomic from the program's point of view: either `S₁` becomes
 active with every required transfer completed, or `S₀` stays active and
 runtime state is unchanged.
 
-Proposed: activating a state for which no transformation from the active state
-exists treats every live entity as having unknown continuity (section 4).
-Activation is therefore rejected whenever live runtime state depends on
-entities that differ between the two states.
+Activating a state for which no transformation from the active state
+exists gives every live entity unknown continuity. Such an activation is
+therefore rejected whenever any mutable cell holds live content (section 4),
+and references into `S₀` stay pinned (section 6).
 
 ## 3. Validation and authority
 
-**Decided** (capabilities). **Proposed** (validation order).
+**Decided.**
 
 Producing a new state with the embedded compiler and activating a state are
 both governed by capabilities. A program without the activation capability
 cannot replace its own running version.
 
-Proposed order:
+Order:
 
 1. produce `S₁`;
 2. validate `S₁` (constraints and contracts);
@@ -82,8 +81,7 @@ policy says otherwise.
 
 ## 4. Mutable cell content
 
-**Decided** (transfer along continuity, Erlang-style in spirit).
-**Proposed** (cardinality rules).
+**Decided**, except where conversion functions live, which is open.
 
 A mutable cell is versioned program state; its content is runtime state. At
 activation, cell content is carried along explicit continuity:
@@ -94,7 +92,7 @@ activation, cell content is carried along explicit continuity:
 This corresponds to Erlang's `code_change`: the new version receives the old
 state and may convert it.
 
-Proposed rules by mapping cardinality:
+Rules by mapping cardinality:
 
     A → A' (same representation)
         content transferred unchanged
@@ -160,7 +158,7 @@ boundaries or explicit update points. On-stack replacement can come later.
 
 ## 6. References across activation
 
-**Proposed.**
+**Decided.**
 
 References are state-pinned. Activation is exactly the one step through which
 runtime-held references into `S₀` are transferred:
@@ -174,8 +172,8 @@ runtime-held references into `S₀` are transferred:
 A pinned reference keeps the old version alive (section 7). It is never
 silently rebound to an unrelated entity in `S₁`.
 
-A stricter policy rejects activation when any live reference cannot be
-transferred. Which policy is the default is open.
+Pinning is the default. A program may opt into a stricter policy that
+rejects activation when any live reference cannot be transferred.
 
 ## 7. Superseded versions
 
@@ -199,7 +197,7 @@ Proposed direction:
 
 ## 8. Rollback
 
-**Proposed.**
+**Decided.**
 
 `S₀` remains an immutable, valid state after activation. Returning to it is a
 new activation `S₁ → S₀` with its own continuity mappings and conversion
@@ -246,14 +244,11 @@ transformation result, and release of `S₀` once nothing is pinned to it.
 ## 12. Unresolved areas
 
 - switching strategy for code in flight (section 5);
-- default policy for references that cannot be transferred (section 6);
 - where conversion and transfer functions live (section 4);
 - lifetime, bound, and purge policy for superseded versions (section 7);
 - ownership and destruction of resources held by disappearing cells;
 - concurrency: per-thread switching and its memory model;
-- native code installation under platform restrictions;
-- activation of states produced without a transformation from the active
-  state.
+- native code installation under platform restrictions.
 
 ## 13. Design principle
 

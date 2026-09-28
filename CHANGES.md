@@ -708,3 +708,24 @@ Composition APIs are specified in terms of these three result classes.
   decision from the roadmap. Docs only; `OwnedSubtreeTests` already pin the
   behaviour.
 
+### Mutation tests
+
+- Added `tests/mutation.py` and `tests/test_mutation.py`: seeded single-site
+  bugs (a comparison flipped, `and` turned into `or`, an `if` negated, a
+  constant moved by one, a returned value dropped) planted in a copy of
+  `bytecode.py`, `lang.py` and `runtime.py`, with the whole suite run on each.
+  A mutant the suite does not fail is a survivor. The machinery is tested in
+  the normal run on a tiny package (planted change killed, a change with no
+  effect surviving, a hang counted as killed, the sample repeating); running
+  it on the model takes about a minute and only happens with
+  `SEMIROH_MUTATE` set, so `unittest discover` and CI are unchanged. It
+  replaces the differential harness of #26, which could not outlive the
+  tree interpreter.
+- It found two gaps, now tested: nothing checked that a `GOTO`, `BRANCH` or
+  `LETBIND` child comes from the chunk cache (a second run of a program
+  using `if`, `seq` and `let` lowers nothing), and an edit whose
+  replacement repeats the label of the node it replaces had no test. Both
+  tests fail with the bug planted. Survivors that change nothing are listed
+  with their reason; one is an open gap (equality of `Function` by content
+  against by fields).
+

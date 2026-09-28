@@ -20,6 +20,7 @@ from semiroh import (
     Not,
     OneOf,
     Relation,
+    Role,
     State,
     StateID,
     Value,
@@ -348,8 +349,34 @@ ONE_OF_EACH = [
     AllOf(IsKind("int"), IntRange(0)),
     AnyOf(IsKind("str"), Not(Length(0, 0))),
     Not(IsKind("none")),
+    Role("low", IntRange(0)),
     External("even"),
 ]
+
+
+class RoleConstraintTests(unittest.TestCase):
+    def test_role_projects_into_a_role_map(self) -> None:
+        subject = {"low": 1, "high": 5}
+
+        self.assertEqual(Role("low", IntRange(0, 3)).evaluate(subject), SAT)
+        self.assertEqual(Role("high", IntRange(0, 3)).evaluate(subject), VIO)
+
+    def test_missing_role_or_non_map_subject_violates(self) -> None:
+        self.assertEqual(Role("low", IsKind("int")).evaluate({"high": 1}), VIO)
+        self.assertEqual(Role("low", IsKind("int")).evaluate(1), VIO)
+
+    def test_unknown_propagates_through_a_role(self) -> None:
+        self.assertEqual(
+            Role("low", External("missing")).evaluate({"low": 1}),
+            UNK,
+        )
+
+    def test_invalid_roles_are_rejected(self) -> None:
+        with self.assertRaises(TypeError):
+            Role("", IsKind("int"))
+
+        with self.assertRaises(TypeError):
+            Role("low", "int")  # type: ignore[arg-type]
 
 
 class ConstraintRoundTripTests(unittest.TestCase):

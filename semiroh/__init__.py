@@ -14,6 +14,7 @@ from .constraints import (
     Length,
     Not,
     OneOf,
+    Role,
     Constraint,
     kind_of,
 )
@@ -95,6 +96,7 @@ __all__ = [
     "IntRange",
     "Length",
     "OneOf",
+    "Role",
     "AllOf",
     "AnyOf",
     "Not",

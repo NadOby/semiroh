@@ -393,16 +393,17 @@ Composition APIs are specified in terms of these three result classes.
 
 - Implemented `quote` and `unquote` for constructing expression trees with
   evaluated holes.
-- Implemented `Function` values as semantic records that can be constructed
-  at runtime and passed through ordinary values.
+- Implemented `function`, which builds `Function` values at run time; they
+  pass through ordinary values and cells.
 - Implemented `activate` as capability-gated self-modification through the
   existing transformation and atomic runtime activation machinery.
 - Kept the semantic core unchanged: self-modification declares identity
   continuity for every existing entity and changes only the selected
   function values.
-- Established version coexistence for the language layer: the frame running
+- Provisionally, the language uses version coexistence: the frame running
   an activation continues in its starting version, while subsequent linked
-  calls enter the active version.
+  calls enter the active version. A second activation in the same run is
+  rejected by the two-version bound.
 - Added unit coverage for all new operations, malformed operands, activation
   check ordering, atomicity, canonical function values, cell-content
   preservation, and a seeded quotation property.

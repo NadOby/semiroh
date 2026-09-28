@@ -123,7 +123,14 @@ Possible budget dimensions include:
 - transformation count;
 - optional wall-clock time.
 
-The exact budget mechanism is not yet specified.
+The exact budget mechanism is not yet specified. The current reference model
+implements only a computation-step budget: each evaluated constraint node
+consumes one step.
+
+The budget counts constraint nodes only. An External constraint consumes one
+step, but the evaluator it calls is not bounded by the budget: an evaluator
+that does not terminate prevents evaluation from terminating. Bounding
+evaluators needs a cooperative mechanism that the model does not yet define.
 
 Where an applicable evaluation condition or budget prevents a definitive
 constraint result from being established, the result is `Unknown`.
@@ -181,8 +188,9 @@ Constraint identity must be independent of mutable evaluation state.
 Evaluation results, caches, resource consumption, and runtime evaluation state
 must not change the identity of the constraint.
 
-The exact semantic identity representation for constraints remains
-implementation work.
+In the current reference model, a semantic constraint has a tagged canonical
+representation. Its identity follows from canonical serialization, like any
+other semantic value, so constraints can appear in program state.
 
 ## 8. Constraint immutability
 
@@ -221,9 +229,6 @@ At minimum, the model is expected to support logical composition such as:
     OR
     NOT
 
-The exact representation and evaluation semantics of composed constraints
-remain to be finalized.
-
 Composition must preserve the distinction between:
 
     Satisfied
@@ -234,8 +239,33 @@ In particular, an implementation must not collapse an unresolved component
 into a definitive result merely because a definitive result would be
 convenient.
 
-Three-valued composition rules must be specified explicitly before the
-composition API is implemented.
+The composition rules are those of strong Kleene logic. A composed result is
+definitive only when it holds for every possible resolution of its `Unknown`
+components:
+
+    AND (all of)
+        Violated   if any component is Violated
+        Satisfied  if every component is Satisfied
+        Unknown    otherwise
+
+    OR (any of)
+        Satisfied  if any component is Satisfied
+        Violated   if every component is Violated
+        Unknown    otherwise
+
+    NOT
+        Satisfied  ↔  Violated
+        Unknown    →  Unknown
+
+For example, `Violated AND Unknown` is `Violated`: whatever the unknown
+component turns out to be, the conjunction cannot be satisfied. `Satisfied
+AND Unknown` stays `Unknown`.
+
+An empty AND is `Satisfied`; an empty OR is `Violated`.
+
+AND and OR are commutative and idempotent, so their components have set
+semantics: the order and repetition of components do not affect constraint
+identity.
 
 ## 10. Constraint dependencies
 
@@ -442,6 +472,10 @@ and:
 The semantics of ordinary computation errors belong to the relevant future
 error and effect models.
 
+In the current reference model, an exception raised by an evaluator therefore
+propagates out of constraint evaluation. It is an ordinary computation
+failure, not `Unknown`.
+
 ## 19. Soundness principle
 
 A system must not report `Satisfied` or `Violated` merely because an answer
@@ -469,21 +503,35 @@ The Python reference model currently provides:
         (is_known)
 
     Constraint
-        an immutable wrapper around an executable predicate and a
-        description; evaluate() requires the predicate to return a
-        ConstraintResult
+        base of all constraints, which are semantic values:
+        IsKind, IntRange, Length, OneOf       primitive constraints
+        AllOf, AnyOf, Not                     composition (section 9)
+        External                              a named constraint evaluated
+                                              by an Evaluator
 
-The predicate is only the executable evaluation mechanism. Constraint identity
-is intentionally not derived from Python callable identity, so the model does
-not yet provide a semantic constraint representation.
+    EvaluationContext
+        registered evaluators for External constraints and an optional
+        computation-step budget
+
+    Evaluator
+        an executable evaluator wrapping a Python predicate; it is not a
+        semantic value and is referenced by name through External
+
+Constraints are semantic values with canonical identity and can appear in
+program state. An External constraint without a registered
+evaluator evaluates to Unknown, as does evaluation that exhausts its budget.
+
+Every subject is canonicalized before evaluation. Executable evaluators
+therefore always receive canonical content, the same form as `Value.content`,
+whether they are called directly or through External.
 
 The following remain future work:
 
-- semantic constraint representation and canonical constraint identity;
+- constraints relating several entities (naturally hyperedges of the semantic
+  graph);
 - evidence representation;
-- evaluation context;
-- evaluation budgets;
-- constraint composition;
+- evaluation conditions beyond registered evaluators;
+- budget dimensions beyond computation steps;
 - dependency evaluation;
 - preservation analysis.
 

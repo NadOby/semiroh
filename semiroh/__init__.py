@@ -2,7 +2,21 @@
 
 from .canonical import canonical_serialize, canonicalize
 from .cells import CellDeclaration, cell_declaration, cells_of
-from .constraints import Constraint, ConstraintResult
+from .constraints import (
+    AllOf,
+    AnyOf,
+    Evaluator,
+    ConstraintResult,
+    EvaluationContext,
+    External,
+    IntRange,
+    IsKind,
+    Length,
+    Not,
+    OneOf,
+    Constraint,
+    kind_of,
+)
 from .equality import semantic_equal, same_entity, same_version
 from .identity import Entity, EntityID, StateID, VersionID
 from .ownership import (
@@ -58,8 +72,19 @@ __all__ = [
     "KeptReference",
     "CellError",
     "CellDeclaration",
-    "Constraint",
+    "Evaluator",
     "ConstraintResult",
+    "Constraint",
+    "EvaluationContext",
+    "IsKind",
+    "IntRange",
+    "Length",
+    "OneOf",
+    "AllOf",
+    "AnyOf",
+    "Not",
+    "External",
+    "kind_of",
     "EntityChange",
     "TransformationMapping",
     "TransformationDefinition",

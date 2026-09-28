@@ -76,6 +76,10 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   core meaning.
 - `constraints.py`: three-valued semantic constraints (strong Kleene),
   `Evaluator` behind `External(name)`, step budgets.
+- `lang.py`, `bytecode.py`: the language layer. `lang.py` keeps code as
+  graph form (`load`, `define`, `function_at`); `bytecode.py` lowers each
+  node to a chunk, kept with the node's `Value`, and runs chunks on a
+  virtual machine with explicit stacks. `lang.run` calls it.
 - `cells.py`, `runtime.py`: `CellDeclaration(constraint, initial)`;
   `Runtime` holds cell content outside `StateID`, checks constraints
   (anything but Satisfied rejects), activates transformation results

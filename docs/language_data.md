@@ -63,7 +63,8 @@ not follow a rename of its function; applying it afterwards is a
 
 **Decided.**
 
-A `call` or `apply` in tail position does not grow the interpreter's stack.
+A `call` or `apply` in tail position does not grow the machine's stacks
+(bytecode.md section 4).
 Tail position is the body root, both branches of an `if` in tail position,
 the last item of a `seq` in tail position, and the body of a `let` in tail
 position. The caller's frame is released when the callee's frame is entered;

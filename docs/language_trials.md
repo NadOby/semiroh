@@ -122,9 +122,9 @@ evaluation, so that trial still runs.
   that checks the pairs and builds the `TransformResult` from the active
   state read after the operands are evaluated. Move `activate`'s read of
   the active state after its operand evaluation too.
-- Run the call in the isolated runtime through the existing `_call`, with a
-  run context whose runtime is the isolated one and whose `may_activate` is
-  false.
+- Run the call in the isolated runtime on a fresh run of the machine
+  (bytecode.md section 4), whose runtime is the isolated one and whose
+  `may_activate` is false.
 - Use `Runtime.trial` and `transform_with_mapping` as they are. No core
   change should be needed; if one is, stop and say why in the PR.
 - Keep the diff small: add code rather than reformat existing code, and

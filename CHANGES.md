@@ -214,3 +214,16 @@ Composition APIs are specified in terms of these three result classes.
 - Decided that a new activation is rejected by default while the previous
   version is still held; waiting or terminating the holders are explicit
   alternatives.
+
+### Review follow-ups
+
+- `State` derives `StateID` during construction; an identity can no longer
+  be supplied by the caller, and direct construction performs the same
+  validation as `State.create()`.
+- `compose()` rejects inputs other than transformation definitions and
+  composition results, as the composition API specifies.
+- `rebind_reference()` documents that the original reference is neither
+  validated nor consulted, and delegates to `State.reference()`.
+- Removed the placeholder composition specification tests, superseded by
+  the implemented composition tests.
+- Updated the constraint model's implementation status.

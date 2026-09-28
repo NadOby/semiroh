@@ -504,3 +504,54 @@ Composition APIs are specified in terms of these three result classes.
   named its previously-unnamed `child`/`sibling` in the mapping: unnamed
   children now disappear with their owner instead of being rejected, so the
   case that rule now checks is a named, kept child changing owner.
+
+### Graph form
+
+- `semiroh/lang.py` stores and runs code as graph form (roadmap.md D1, task
+  4; docs/graph_form.md). A function keeps its `EntityID` and holds a
+  `definition` relation: its body root (`body`), its link table (one
+  `link:<name>` role per link) and `{"params", "generation"}`. Each
+  expression node is a relation owned directly by its function, named
+  `<function>/<generation>.<index>` in preorder, never reusing an existing
+  name. Calls, reads and writes name targets by role; malformed code becomes
+  an `invalid` node that raises the same `LanguageError` when run.
+- `load` converts the input format (links relations disappear),
+  `function_at` collapses a function back, and `define` replaces whole
+  bodies with placements and old nodes mapped to `()`. `activate` and
+  `trial` build their transformation with `define`. `play` loads corpus
+  programs, which stay in the input format.
+- Differential check before removing the tuple-body interpreter: the corpus
+  (41 steps) and 4000 seeded random programs (16,000 steps, about 3,100
+  succeeding) gave the same results, exception types and messages, cells
+  and collapsed functions on both; main's acceptance suites passed on the
+  old interpreter and the edited ones on graph form. Deviations: records
+  inside a `quote` template are copied as atoms (the old interpreter walked
+  their canonical encoding), and `sum_to_n` recurses one call deeper
+  (`docs/corpus.md`, `missing.py`).
+- Core: a relation may have no roles (relation_model.md §2), for leaf
+  nodes. `tests/test_relations.py`'s `test_invalid_records_are_rejected`
+  loses its `("r", {})` case, which encoded the old rule, and gains a
+  non-mapping case.
+- Core, **Provisional**: a constraint relation endpoint that owns entities
+  contributes `{"value": ..., "owned": {child: ...}}`, and a cell write
+  re-evaluates relations over the cell's owners (relation_model.md §7). A
+  function's value no longer holds its code, and without this the program
+  guards in `test_program_constraints_guard_self_modification` and
+  `test_program_constraints_reject_a_candidate` stop rejecting anything.
+- Core, performance: `check_relation_endpoints` looks endpoints up instead
+  of hashing every entity once per relation (it was quadratic), and
+  `relation_of` keeps the decoded record with the value. COMPILE(12)
+  install: 2.26 ms on main, 4.25 ms on graph form before these two, 2.55
+  ms after; corpus 28.4 ms on main, 25.0 ms here; `power(2)` after it 108
+  vs 31 µs per call.
+- Edited existing tests, program construction and representation only:
+  `test_first_program.py` (`program`, `test_language_errors` load;
+  `test_program_changes_behaviour_by_activation` uses `define`;
+  `test_renamed_function_keeps_callers_working` copies `double`'s
+  definition and checks `quad`'s call nodes instead of its links relation),
+  `test_metaprogramming.py` (`program` loads, `installed` uses
+  `function_at`), `test_language_trials.py` (`program` loads),
+  `test_lang.py` (`make_state` loads; `test_activate_changes_code_atomically`
+  and `test_canonical_function_argument_can_activate` use `function_at`).
+  No test was renamed; `test_graph_form.py` and `test_corpus.py` are
+  unchanged.

@@ -70,6 +70,12 @@ _ARITY = {
     "write": 2,
     "quote": 1,
     "function": 2,
+    "len": 1,
+    "item": 2,
+    "slice": 3,
+    "concat": 2,
+    "let": 3,
+    "ref": 1,
 }
 
 NODE_KINDS = frozenset({
@@ -86,6 +92,14 @@ NODE_KINDS = frozenset({
     "function",
     "activate",
     "trial",
+    "tuple",
+    "len",
+    "item",
+    "slice",
+    "concat",
+    "let",
+    "ref",
+    "apply",
     INVALID_KIND,
 })
 
@@ -549,6 +563,64 @@ class _Builder:
                 {"params": self.expr(rest[0]), "body": self.expr(rest[1])},
             )
 
+        if op == "tuple":
+            return Relation("tuple", {"items": self.exprs(rest)})
+
+        if op == "len":
+            return Relation("len", {"tuple": self.expr(rest[0])})
+
+        if op == "item":
+            return Relation(
+                "item",
+                {"tuple": self.expr(rest[0]), "index": self.expr(rest[1])},
+            )
+
+        if op == "slice":
+            return Relation(
+                "slice",
+                {
+                    "tuple": self.expr(rest[0]),
+                    "start": self.expr(rest[1]),
+                    "stop": self.expr(rest[2]),
+                },
+            )
+
+        if op == "concat":
+            return Relation(
+                "concat",
+                {"left": self.expr(rest[0]), "right": self.expr(rest[1])},
+            )
+
+        if op == "let":
+            if not isinstance(rest[0], str) or not rest[0]:
+                return _invalid(
+                    f"let name must be a non-empty string, got {rest[0]!r}",
+                    expr,
+                )
+
+            return Relation(
+                "let",
+                {"value": self.expr(rest[1]), "body": self.expr(rest[2])},
+                rest[0],
+            )
+
+        if op == "ref":
+            target, problem = self.resolve(rest[0])
+
+            if problem is not None:
+                return _invalid(problem, expr)
+
+            return Relation("ref", {"target": target}, rest[0])
+
+        if op == "apply":
+            if not rest:
+                return _invalid("apply needs a function", expr)
+
+            return Relation(
+                "apply",
+                {"function": self.expr(rest[0]), "args": self.exprs(rest[1:])},
+            )
+
         if op == "activate":
             if not rest or len(rest) % 2:
                 return _invalid("activate needs link/value pairs", expr)
@@ -983,6 +1055,36 @@ def _collapse(
         expr = ("seq", *collapse_all(roles["items"]))
     elif kind == "call":
         expr = ("call", _decode(node.payload), *collapse_all(roles["args"]))
+    elif kind == "tuple":
+        expr = ("tuple", *collapse_all(roles["items"]))
+    elif kind == "len":
+        expr = ("len", collapse(roles["tuple"]))
+    elif kind == "item":
+        expr = ("item", collapse(roles["tuple"]), collapse(roles["index"]))
+    elif kind == "slice":
+        expr = (
+            "slice",
+            collapse(roles["tuple"]),
+            collapse(roles["start"]),
+            collapse(roles["stop"]),
+        )
+    elif kind == "concat":
+        expr = ("concat", collapse(roles["left"]), collapse(roles["right"]))
+    elif kind == "let":
+        expr = (
+            "let",
+            _decode(node.payload),
+            collapse(roles["value"]),
+            collapse(roles["body"]),
+        )
+    elif kind == "ref":
+        expr = ("ref", _decode(node.payload))
+    elif kind == "apply":
+        expr = (
+            "apply",
+            collapse(roles["function"]),
+            *collapse_all(roles["args"]),
+        )
     elif kind == "read":
         expr = ("read", _decode(node.payload))
     elif kind == "write":
@@ -1054,6 +1156,40 @@ class _RunContext:
     may_activate: bool
 
 
+@dataclass(frozen=True)
+class _TailCall:
+    """A call in tail position, handed back to :func:`_call`'s loop instead
+    of nesting another interpreter frame (language_data.md section 4).
+    """
+
+    entity: EntityID
+    args: tuple[Any, ...]
+
+
+def _items(value: Any) -> tuple[Any, ...] | None:
+    """The items of a tuple value, live or canonical; None if not a tuple."""
+
+    if isinstance(value, CanonicalNode):
+        return value[2] if value[1] == "tuple" else None
+
+    if isinstance(value, tuple):
+        return value
+
+    return None
+
+
+def _reference(value: Any) -> EntityID | None:
+    """The entity a function reference value names, live or canonical."""
+
+    if isinstance(value, EntityID):
+        return value
+
+    if isinstance(value, CanonicalNode) and value[1] == "entity_id":
+        return EntityID(value[2])
+
+    return None
+
+
 def _eval_int(
     context: _RunContext,
     state: State,
@@ -1070,6 +1206,25 @@ def _eval_int(
         )
 
     return value
+
+
+def _eval_tuple(
+    context: _RunContext,
+    state: State,
+    function_entity: EntityID,
+    bindings: dict[str, Any],
+    entity: EntityID,
+    op: str,
+) -> tuple[Any, ...]:
+    value = _eval(context, state, function_entity, bindings, entity)
+    items = _items(value)
+
+    if items is None:
+        raise LanguageError(
+            f"{function_entity.value}: {op} operands must be tuples"
+        )
+
+    return items
 
 
 def _quote(
@@ -1312,8 +1467,14 @@ def _eval(
     function_entity: EntityID,
     bindings: dict[str, Any],
     entity: EntityID,
+    tail: bool = False,
 ) -> Any:
-    """Evaluate one expression node of a function body."""
+    """Evaluate one expression node of a function body.
+
+    In tail position (``tail``, language_data.md section 4) a ``call`` or
+    ``apply`` returns a :class:`_TailCall` for :func:`_call` to run instead
+    of making the call itself.
+    """
 
     node = _node_at(state, function_entity, entity)
     op = node.kind
@@ -1376,13 +1537,21 @@ def _eval(
 
         branch = roles["then"] if condition else roles["else"]
 
-        return _eval(context, state, function_entity, bindings, branch)
+        return _eval(context, state, function_entity, bindings, branch, tail)
 
     if op == "seq":
         result: Any = None
+        items = roles["items"]
 
-        for item in roles["items"]:
-            result = _eval(context, state, function_entity, bindings, item)
+        for index, item in enumerate(items):
+            result = _eval(
+                context,
+                state,
+                function_entity,
+                bindings,
+                item,
+                tail and index == len(items) - 1,
+            )
 
         return result
 
@@ -1392,7 +1561,130 @@ def _eval(
             for arg in roles["args"]
         )
 
+        if tail:
+            return _TailCall(roles["target"], args)
+
         return _call(context, roles["target"], args)
+
+    if op == "tuple":
+        return tuple(
+            _eval(context, state, function_entity, bindings, item)
+            for item in roles["items"]
+        )
+
+    if op == "len":
+        return len(
+            _eval_tuple(
+                context, state, function_entity, bindings, roles["tuple"], op
+            )
+        )
+
+    if op == "item":
+        items = _eval_tuple(
+            context, state, function_entity, bindings, roles["tuple"], op
+        )
+        index = _eval_int(
+            context, state, function_entity, bindings, roles["index"], op
+        )
+
+        if not 0 <= index < len(items):
+            raise LanguageError(
+                f"{function_entity.value}: item index {index} is outside a "
+                f"tuple of {len(items)}"
+            )
+
+        return items[index]
+
+    if op == "slice":
+        items = _eval_tuple(
+            context, state, function_entity, bindings, roles["tuple"], op
+        )
+        start = _eval_int(
+            context, state, function_entity, bindings, roles["start"], op
+        )
+        stop = _eval_int(
+            context, state, function_entity, bindings, roles["stop"], op
+        )
+
+        if not 0 <= start <= stop <= len(items):
+            raise LanguageError(
+                f"{function_entity.value}: slice {start}:{stop} is outside "
+                f"a tuple of {len(items)}"
+            )
+
+        return items[start:stop]
+
+    if op == "concat":
+        left = _eval_tuple(
+            context, state, function_entity, bindings, roles["left"], op
+        )
+        right = _eval_tuple(
+            context, state, function_entity, bindings, roles["right"], op
+        )
+
+        return left + right
+
+    if op == "let":
+        name = _decode(node.payload)
+
+        if name in bindings:
+            raise LanguageError(
+                f"{function_entity.value}: let name {name!r} is already in "
+                f"scope"
+            )
+
+        value = _eval(context, state, function_entity, bindings, roles["value"])
+
+        return _eval(
+            context,
+            state,
+            function_entity,
+            {**bindings, name: value},
+            roles["body"],
+            tail,
+        )
+
+    if op == "ref":
+        target = roles["target"]
+        held = state.values.get(target)
+
+        if held is None or _definition_of(held) is None:
+            raise LanguageError(
+                f"{function_entity.value}: ref {_decode(node.payload)!r} "
+                f"does not name a function"
+            )
+
+        return target
+
+    if op == "apply":
+        target = _reference(
+            _eval(context, state, function_entity, bindings, roles["function"])
+        )
+
+        if target is None:
+            raise LanguageError(
+                f"{function_entity.value}: apply needs a reference to a "
+                f"function"
+            )
+
+        args = tuple(
+            _eval(context, state, function_entity, bindings, arg)
+            for arg in roles["args"]
+        )
+
+        # A reference is an EntityID, so it does not follow a rename
+        # (language_data.md section 3); the check is against the active
+        # state, as `call` enters its target there.
+        if not context.runtime.active.state.contains(target):
+            raise LanguageError(
+                f"{function_entity.value}: apply of {target.value}, which is "
+                f"not in the active state"
+            )
+
+        if tail:
+            return _TailCall(target, args)
+
+        return _call(context, target, args)
 
     if op == "read":
         # CellError means the link names something that is not a cell: a
@@ -1443,38 +1735,55 @@ def _call(
     function_entity: EntityID,
     args: tuple[Any, ...],
 ) -> Any:
-    """Call a function entity with already-evaluated arguments."""
+    """Call a function entity with already-evaluated arguments.
+
+    A call in tail position comes back from the body as a
+    :class:`_TailCall`; the loop enters the callee's frame and only then
+    releases the caller's, so a chain of tail calls keeps one frame and one
+    interpreter stack level (language_data.md section 4). Whichever frame
+    is current when the loop ends or raises is released.
+    """
 
     runtime = context.runtime
     frame = runtime.enter(function_entity)
 
     try:
-        state = frame.version.state
-        value = state.values[function_entity]
-        definition = _definition_of(value)
+        while True:
+            state = frame.version.state
+            value = state.values[function_entity]
+            definition = _definition_of(value)
 
-        if definition is None:
-            unloaded = function_of(value) is not None
-            raise LanguageError(
-                f"{function_entity.value} is not a function"
-                + ("; load the program first" if unloaded else "")
+            if definition is None:
+                unloaded = function_of(value) is not None
+                raise LanguageError(
+                    f"{function_entity.value} is not a function"
+                    + ("; load the program first" if unloaded else "")
+                )
+
+            if len(args) != len(definition.params):
+                raise LanguageError(
+                    f"{function_entity.value} takes {len(definition.params)} "
+                    f"argument(s), got {len(args)}"
+                )
+
+            bindings = dict(zip(definition.params, args))
+
+            result = _eval(
+                context,
+                state,
+                function_entity,
+                bindings,
+                definition.body,
+                True,
             )
 
-        if len(args) != len(definition.params):
-            raise LanguageError(
-                f"{function_entity.value} takes {len(definition.params)} "
-                f"argument(s), got {len(args)}"
-            )
+            if not isinstance(result, _TailCall):
+                return result
 
-        bindings = dict(zip(definition.params, args))
-
-        return _eval(
-            context,
-            state,
-            function_entity,
-            bindings,
-            definition.body,
-        )
+            entered = runtime.enter(result.entity)
+            released, frame = frame, entered
+            released.release()
+            function_entity, args = result.entity, result.args
     finally:
         frame.release()
 

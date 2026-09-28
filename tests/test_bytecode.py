@@ -365,10 +365,23 @@ class CacheTests(unittest.TestCase):
             {entity: value.version_id for entity, value in state.values.items()},
             versions,
         )
-        self.assertEqual(
-            Value.create(self.F, state.values[self.F].content),
-            state.values[self.F],
-        )
+
+        # Nodes are what carry chunks: a node with its chunk is still equal
+        # to, and hashes and versions like, a fresh value of its content.
+        nodes = [
+            entity
+            for entity, value in state.values.items()
+            if "_chunk" in value.__dict__
+        ]
+        self.assertTrue(nodes)
+
+        for entity in nodes:
+            value = state.values[entity]
+            fresh = Value.create(entity, value.content)
+
+            self.assertEqual(value, fresh)
+            self.assertEqual(hash(value), hash(fresh))
+            self.assertEqual(value.version_id, fresh.version_id)
 
 
 class DeepRecursionTests(unittest.TestCase):

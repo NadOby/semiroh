@@ -308,3 +308,7 @@ class StateConstructionTests(unittest.TestCase):
                 values={foo: Value.create(foo, 1)},
                 ownership={ghost: (foo,)},
             )
+
+
+if __name__ == "__main__":
+    unittest.main()

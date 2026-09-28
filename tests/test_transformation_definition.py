@@ -621,3 +621,7 @@ class ConversionDeclarationTests(unittest.TestCase):
                 mappings=(),
                 conversions=((self.b, ""),),
             )
+
+
+if __name__ == "__main__":
+    unittest.main()

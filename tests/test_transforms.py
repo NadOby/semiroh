@@ -462,3 +462,7 @@ class MappingOwnershipPreservationTests(unittest.TestCase):
 
         # b continues a, so b owns a's child.
         self.assertEqual(result.destination.ownership, {b: (child,)})
+
+
+if __name__ == "__main__":
+    unittest.main()

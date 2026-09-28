@@ -259,6 +259,32 @@ class CacheTests(unittest.TestCase):
         self.assertEqual(self.lowered_by(lambda: run(runtime, self.F, 4)), 1)
         self.assertEqual(run(runtime, self.F, 4), 5 + 5 + 12)
 
+    def test_a_leaf_edit_lowers_one_node_however_big_the_function(self) -> None:
+        # bytecode.md section 7: a function of 41 nodes and one of 401.
+        for links_in_chain, nodes in ((20, 41), (200, 401)):
+            with self.subTest(nodes=nodes):
+                body = ("label", "edit", lit(1))
+
+                for index in range(links_in_chain):
+                    body = ("add", body, lit(index))
+
+                runtime = runtime_of({"big": Function((), body)})
+                big = EntityID("big")
+                expected = 1 + sum(range(links_in_chain))
+
+                self.assertEqual(run(runtime, big), expected)
+                self.assertEqual(
+                    len(runtime.active.state.owned_subtree(big)),
+                    nodes,
+                )
+
+                runtime.activate(
+                    define(runtime.active.state, {(big, "edit"): lit(5)})
+                )
+
+                self.assertEqual(self.lowered_by(lambda: run(runtime, big)), 1)
+                self.assertEqual(run(runtime, big), expected + 4)
+
     def test_an_edit_that_adds_nodes_lowers_those_and_no_others(self) -> None:
         runtime = self.runtime()
         run(runtime, self.F, 4)

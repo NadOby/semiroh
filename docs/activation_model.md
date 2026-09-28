@@ -178,8 +178,8 @@ rejects activation when any live reference cannot be transferred.
 
 ## 7. Retiring superseded versions
 
-**Proposed** (ownership and runtime holds). **Open** (version bound and
-purge policy).
+**Proposed** (ownership, runtime holds, two-version bound). **Open**
+(activation while the previous version is still held).
 
 Retirement of old versions uses the ownership model rather than a separate
 lifetime mechanism. The same rules apply to runtime state as to program
@@ -219,11 +219,17 @@ A hold is deliberately much narrower than a borrow:
 
 SEMIROH does not introduce a general borrowing system to retire versions.
 
-Open: how many versions may coexist, and what happens when that bound is
-reached while the oldest version is still held. The options are to wait, to
-reject the activation, or to terminate the holders, as Erlang terminates
-processes still running purged code. Terminating a thread would
-itself be destruction of what that thread owns.
+At most two versions run in one runtime: the active version and the previous
+one, as in Erlang. Two is the minimum compatible with pinned references
+(section 6) and with activation that does not stop every thread. A
+single-version bound would require every activation to wait until no thread
+runs old code, and to reject every reference it cannot transfer.
+
+Open: what happens when a new activation arrives while the previous version
+is still held. The options are to wait (possibly with a timeout), to reject
+the activation, or to terminate the holders, as Erlang terminates processes
+still running purged code. Terminating a thread would itself be destruction of
+what that thread owns.
 
 ## 8. Rollback
 
@@ -277,7 +283,7 @@ transformation result, and release of `S₀` once nothing is pinned to it.
 - switching strategy for code in flight (section 5);
 - where conversion and transfer functions live (section 4);
 - how the runtime tracks holds on versions (section 7);
-- version bound and purge policy (section 7);
+- activation while the previous version is still held (section 7);
 - concurrency: per-thread switching and its memory model;
 - native code installation under platform restrictions.
 

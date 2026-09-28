@@ -11,7 +11,6 @@ useful constraints relate several.
 Each section is marked:
 
 - **Given**: already stated by other documents;
-- **Proposed**: recommended direction, not yet agreed;
 - **Open**: options are listed; no direction is chosen.
 
 ## 1. Relations are entities
@@ -19,7 +18,7 @@ Each section is marked:
 **Given** (semantic_graph.md §2): there is no fundamental semantic
 distinction between nodes and edges.
 
-**Proposed.**
+**Decided.**
 
 A relation is an entity whose value is a relation record. It has an
 `EntityID`, versions, and continuity like any other entity, and it lives in
@@ -44,7 +43,7 @@ Consequences:
 
 ## 2. Relation records
 
-**Proposed.**
+**Decided.**
 
 A relation record is a semantic value with:
 
@@ -63,7 +62,7 @@ the tools, constraints, and metaprograms that use it.
 
 ## 3. Referential integrity
 
-**Proposed.**
+**Decided.**
 
 Every endpoint of every relation must be present in the same state. A state
 with a dangling endpoint cannot be constructed.
@@ -73,6 +72,11 @@ present entities. It evaluates nothing, so program state stays pure data.
 
 Cycles are allowed: relations are ordinary references, and ordinary
 references may form arbitrary cycles (ownership_model.md §2).
+
+Recursive destruction follows the same rule. Destroying an owned subtree
+fails if a relation outside the subtree points into it: the relation must be
+changed or removed first, because relations are never removed implicitly
+(section 5).
 
 ## 4. References inside ordinary values
 
@@ -102,28 +106,34 @@ valid is written as a relation.
 
 **Decided:** relations follow declared continuity.
 
-A transformation can remove an entity that relations still point to: a
-source mapped elsewhere, or mapped to zero destinations.
-
-A relation that the transformation explicitly changes or removes is taken as
-given; its new endpoints are checked (section 3). The question is what
-happens to a relation the transformation does not mention.
+A transformation can remove an entity that relations still point to, or
+declare that an entity continues as a different one. A relation that the
+transformation explicitly changes or removes is taken as given; its new
+endpoints are checked (section 3). The question is what happens to a relation
+the transformation does not change.
 
     explicit
         a transformation must itself change or remove every relation that
         points to an entity it removes; otherwise it is rejected.
 
     follow continuity
-        an endpoint whose entity continues as exactly one destination
-        entity is rewritten to that entity, as reference transfer does,
-        including when several sources merge into that entity. An endpoint
-        whose entity disappears or splits cannot be followed, and the
-        transformation is rejected unless it changes or removes that
-        relation explicitly.
+        an endpoint whose entity the transformation maps follows that
+        mapping, as reference transfer does. It is rewritten to the single
+        destination entity, including when several sources merge into it.
+        A mapped endpoint whose entity disappears or splits cannot be
+        followed, and the transformation is rejected unless it changes or
+        removes that relation explicitly. An endpoint whose entity the
+        transformation does not map is unchanged, like any preserved content.
 
 Following continuity was chosen. It infers nothing: it follows declared
 continuity, one step, exactly as `transfer_reference` does, and it keeps
-renames cheap. Rewriting endpoints produces a new version of the relation;
+renames cheap.
+
+A mapped endpoint follows its mapping even when its entity is still present.
+In a swap (`a → b`, `b → a`) or a shift (`a → b`, `b → c`), entity `b` is
+present afterwards but continues a different entity. A relation to `a`
+therefore points to `b` afterwards, and a relation to `b` points to `a` or
+`c`, never silently to whatever now carries the old name. Rewriting endpoints produces a new version of the relation;
 like any entity, the relation's own continuity must still be declared by the
 transformation (tools generate `r → r`).
 
@@ -134,7 +144,7 @@ be an undeclared disappearance.
 
 ## 6. Ownership
 
-**Proposed.** Ownership stays a separate relation in state for now.
+**Decided.** Ownership stays a separate relation in state for now.
 
 Ownership has lifetime semantics and structural invariants (one owner,
 acyclic, recursive destruction) that general relations do not. Expressing it
@@ -168,7 +178,7 @@ receive the whole map. Comparisons between roles can follow.
 
 ## 8. Queries and indexes
 
-**Proposed.** Finding the relations that touch an entity needs an index. An
+**Decided.** Finding the relations that touch an entity needs an index. An
 index is derived implementation data: it is rebuilt from state content and
 never contributes to `StateID` (README §29).
 

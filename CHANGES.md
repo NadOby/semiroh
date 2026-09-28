@@ -474,3 +474,27 @@ Composition APIs are specified in terms of these three result classes.
   limit long before any conceptual program-level limit (measured: the
   `sum_to_n` example succeeds up to `n = 196` and raises `RecursionError`
   at `n = 197`, under the default limit of 1000).
+
+### Placements and ended subtrees
+
+- `TransformationDefinition.create` and `transform_with_mapping` take
+  `placements`, `created entity -> owner`, stored canonically like
+  `conversions` (ownership_model.md section 10). A placed entity must not
+  be a mapping destination (rejected at `create`); `apply` rejects one that
+  exists in the source state, is absent from the destination, or whose
+  owner is absent from the destination, all with `OwnershipError`.
+  Placements and explicit `ownership=` are mutually exclusive
+  (`ValueError`); placed edges are appended after the owner's existing
+  children, and a placement cycle is caught by the usual forest check.
+- Mapping an owner to `()` now ends its owned subtree (ownership_model.md
+  section 7): every entity in it, computed from the source ownership, that
+  the definition does not name as a mapping source or destination
+  disappears too, recursively, stopping at a named entity. `apply` records
+  each cascaded entity in the result as a mapping to nothing, drops its
+  ownership edge, and rejects a `changes` entry for it with `ValueError`.
+  The cascade runs whether or not explicit ownership is supplied.
+- Updated the property-test oracles in `tests/test_properties.py`
+  (`followed_ownership`, `test_apply_follows_the_presence_and_validity_rules`,
+  `apply_stating_ownership`) to compute the cascaded set independently from
+  source ownership and the definition's mappings, since they encoded the
+  older rule that an owner's disappearance left unnamed children in place.

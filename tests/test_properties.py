@@ -236,6 +236,46 @@ def removed_by(
     }
 
 
+def cascaded_disappearances(
+    ownership: Any,
+    mappings: dict[EntityID, tuple[EntityID, ...]],
+) -> set[EntityID]:
+    """Entities that disappear because an ended owner's subtree ends with it.
+
+    Computed independently from the source ownership and the definition's
+    mappings, never by calling the implementation: ownership_model.md
+    section 7 / transformation_model.md section 13 say every entity in a
+    disappearing owner's owned subtree that the mappings do not name, as a
+    source or a destination, disappears too, recursively, and the cascade
+    does not descend past a named entity.
+    """
+
+    named = set(mappings)
+
+    for targets in mappings.values():
+        named.update(targets)
+
+    stack = [
+        child
+        for source, targets in mappings.items()
+        if not targets
+        for child in ownership.get(source, ())
+    ]
+
+    cascaded: set[EntityID] = set()
+
+    while stack:
+        entity = stack.pop()
+
+        if entity in named or entity in cascaded:
+            continue
+
+        cascaded.add(entity)
+        stack.extend(ownership.get(entity, ()))
+
+    return cascaded
+
+
 def followed_ownership(
     ownership: Any,
     mappings: dict[EntityID, tuple[EntityID, ...]],
@@ -245,19 +285,27 @@ def followed_ownership(
     transformation_model.md §13: mapped endpoints follow their mapping; an
     edge whose child disappears goes; an owner that disappears or splits
     while its child remains, or a child that splits, is rejected; the result
-    must be a forest.
+    must be a forest. ownership_model.md §7: an entity that cascades away
+    because its owner's subtree ended counts as disappearing here too, for
+    both ends of an edge.
     """
+
+    cascaded = cascaded_disappearances(ownership, mappings)
+    effective = dict(mappings)
+
+    for entity in cascaded:
+        effective[entity] = ()
 
     parent: dict[EntityID, EntityID] = {}
 
     for owner, children in ownership.items():
         for child in children:
-            child_targets = mappings.get(child, (child,))
+            child_targets = effective.get(child, (child,))
 
             if not child_targets:
                 continue
 
-            owner_targets = mappings.get(owner, (owner,))
+            owner_targets = effective.get(owner, (owner,))
 
             if len(child_targets) != 1 or len(owner_targets) != 1:
                 return None
@@ -298,8 +346,33 @@ def apply_stating_ownership(
     """Apply, stating empty destination ownership if following rejects.
 
     For properties about continuity rather than ownership: a rejected
-    implicit ownership change is replaced by an explicit one.
+    implicit ownership change is replaced by an explicit one. A change to an
+    entity that cascades away because its owner's subtree ended is dropped
+    first (computed independently, as in `cascaded_disappearances`): these
+    properties are about continuity, not about that change/disappearance
+    contradiction, which `test_apply_follows_the_presence_and_validity_rules`
+    already covers.
     """
+
+    cascaded = cascaded_disappearances(
+        state.ownership,
+        {
+            mapping.source_entity: mapping.destination_entities
+            for mapping in definition.mappings
+        },
+    )
+
+    if {change.entity for change in definition.changes} & cascaded:
+        definition = TransformationDefinition(
+            changes=tuple(
+                change
+                for change in definition.changes
+                if change.entity not in cascaded
+            ),
+            mappings=definition.mappings,
+            conversions=definition.conversions,
+            placements=definition.placements,
+        )
 
     try:
         return definition.apply(state)
@@ -451,7 +524,7 @@ class OwnershipProperties(unittest.TestCase):
 
 class TransformationProperties(unittest.TestCase):
     def test_apply_follows_the_presence_and_validity_rules(self) -> None:
-        # transformation_model.md §4, §6, §13.
+        # transformation_model.md §4, §6, §13; ownership_model.md §7.
         for seed in range(CASES):
             with self.subTest(seed=seed):
                 rng = random.Random(seed)
@@ -473,7 +546,24 @@ class TransformationProperties(unittest.TestCase):
                     mapping.source_entity
                     for mapping in definition.mappings
                 }
+                declared = {
+                    mapping.source_entity: mapping.destination_entities
+                    for mapping in definition.mappings
+                }
+                cascaded = cascaded_disappearances(state.ownership, declared)
                 available = set(sources) | created
+
+                changed_cascaded = {
+                    change.entity for change in definition.changes
+                } & cascaded
+
+                if changed_cascaded:
+                    # A change to an entity that cascades away because its
+                    # owner's subtree ended is rejected the same way as a
+                    # change to an explicitly removed entity.
+                    with self.assertRaises(ValueError):
+                        definition.apply(state)
+                    continue
 
                 expected_valid = (
                     destinations <= available
@@ -487,10 +577,7 @@ class TransformationProperties(unittest.TestCase):
 
                 expected_ownership = followed_ownership(
                     state.ownership,
-                    {
-                        mapping.source_entity: mapping.destination_entities
-                        for mapping in definition.mappings
-                    },
+                    declared,
                 )
 
                 if expected_ownership is None:
@@ -506,8 +593,10 @@ class TransformationProperties(unittest.TestCase):
                 }
 
                 for entity in sources:
-                    present = entity not in disappearing and (
-                        entity not in mapped or entity in destinations
+                    present = (
+                        entity not in disappearing
+                        and entity not in cascaded
+                        and (entity not in mapped or entity in destinations)
                     )
 
                     self.assertEqual(destination.contains(entity), present)

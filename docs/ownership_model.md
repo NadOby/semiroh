@@ -186,6 +186,10 @@ The Python reference model currently provides:
 
 `State.destroy()` performs recursive subtree destruction.
 
+`TransformationDefinition` supports `placements` for entities it creates
+(section 10) and cascades an ended owner's disappearance through its owned
+subtree (section 7).
+
 ## 13. Unresolved areas
 
 The following remain open:

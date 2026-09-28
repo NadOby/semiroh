@@ -498,3 +498,9 @@ Composition APIs are specified in terms of these three result classes.
   `apply_stating_ownership`) to compute the cascaded set independently from
   source ownership and the definition's mappings, since they encoded the
   older rule that an owner's disappearance left unnamed children in place.
+- Renamed `tests/test_transform_mapping.py`'s
+  `test_owner_disappearing_while_children_remain_is_rejected` to
+  `test_named_children_of_a_disappearing_owner_need_explicit_ownership` and
+  named its previously-unnamed `child`/`sibling` in the mapping: unnamed
+  children now disappear with their owner instead of being rejected, so the
+  case that rule now checks is a named, kept child changing owner.

@@ -577,3 +577,32 @@ Composition APIs are specified in terms of these three result classes.
   `trial`, a pair's target may be `(link, label)`, with an expression
   (code as data) instead of a function value; capability, checks, code in
   flight and atomicity are unchanged.
+
+### Data, let, references and tail calls
+
+- `semiroh/lang.py` implements docs/language_data.md (roadmap.md task 6):
+  `tuple`, `len`, `item`, `slice` and `concat` (int indices, no negative
+  indexing and no clamping; anything out of bounds is a `LanguageError`);
+  `("let", name, e, body)`, which `("arg", name)` reads like a parameter, a
+  name already in scope being rejected when the `let` runs; `("ref", link)`,
+  an `EntityID` value, and `("apply", f, ...)`, which calls it as `call`
+  does. Each is a graph-form node kind (docs/graph_form.md section 3) and
+  `function_at` round-trips it.
+- Tail calls: `_eval` knows tail position, where a `call` or `apply`
+  returns a `_TailCall` to a loop in `_call`. The loop enters the callee's
+  frame and then releases the caller's, so a chain of tail calls keeps one
+  frame and one interpreter level, and no hold survives a call that raises.
+  Calls not in tail position are unchanged (about 5 Python frames each).
+- Corpus tier 2: `TAGS` gains `data` and `higher order`; new examples
+  `insertion_sort`, `let_bindings`, `map`, `fold`, `deep_loop` and the
+  `sort_swap` canary (higher order and self-modification: `order` is
+  activated between two sorts while the data stays in a cell). The four
+  closed entries left `MISSING`; two gaps found while writing them were
+  added: `map_long_tuple` (non-tail recursion is still bounded by the Python
+  stack, `map` fails from about 200 elements) and `make_adder` (no function
+  values that capture names).
+- New `tests/test_data_graph_form.py` (roles, round trip, holds after a
+  raising tail call, `apply` of an absent entity). `tests/test_data_ops.py`
+  and `tests/test_corpus.py` are unchanged; no existing test was edited.
+- Provisional: a reference is the function's `EntityID`; held in cell
+  content it does not follow a rename (docs/language_data.md section 3).

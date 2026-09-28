@@ -1,8 +1,9 @@
 # Data, Local Names and Function References
 
-**Status: planned** (roadmap.md task 6). `semiroh/lang.py` does not
-implement this yet; the acceptance tests in `tests/test_data_ops.py` fail
-until it does.
+**Status: implemented** (roadmap.md task 6). `semiroh/lang.py` implements
+it; `tests/test_data_ops.py` is the acceptance suite, and
+`tests/test_data_graph_form.py` covers the graph form and the frames of tail
+calls.
 
 The canary corpus (corpus.md section 4) found four programs the language
 could not express: insertion sort, map and fold, local variables, and a

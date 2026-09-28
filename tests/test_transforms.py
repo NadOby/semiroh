@@ -71,9 +71,13 @@ class TransformTests(unittest.TestCase):
             },
         )
 
+        # Both entities remain present, and mappings do not modify ownership
+        # (transformation_model.md §13, ownership_model.md §8-9).
         self.assertEqual(
             result.destination.ownership,
-            {},
+            {
+                root: (child,),
+            },
         )
 
     def test_transform_can_explicitly_remove_ownership(self) -> None:
@@ -367,3 +371,91 @@ class TransformTests(unittest.TestCase):
         )
 
         self.assertNotEqual(result.destination.id, state.id)
+
+
+class MappingOwnershipPreservationTests(unittest.TestCase):
+    def test_identity_mapping_preserves_ownership(self) -> None:
+        root = EntityID("root")
+        child = EntityID("child")
+
+        state = State.create(
+            {
+                root: Value.create(root, 1),
+                child: Value.create(child, 2),
+            },
+            {
+                root: (child,),
+            },
+        )
+
+        result = transform_with_mapping(
+            state,
+            {},
+            {
+                root: root,
+            },
+        )
+
+        self.assertEqual(result.destination.owner_of(child), root)
+
+    def test_merge_target_keeps_its_ownership(self) -> None:
+        source = EntityID("source")
+        source_child = EntityID("source_child")
+        target = EntityID("target")
+        target_child = EntityID("target_child")
+
+        state = State.create(
+            {
+                source: Value.create(source, 1),
+                source_child: Value.create(source_child, 2),
+                target: Value.create(target, 3),
+                target_child: Value.create(target_child, 4),
+            },
+            {
+                source: (source_child,),
+                target: (target_child,),
+            },
+        )
+
+        result = transform_with_mapping(
+            state,
+            {},
+            {
+                source: target,
+            },
+        )
+
+        self.assertEqual(
+            result.destination.ownership,
+            {
+                target: (target_child,),
+            },
+        )
+        self.assertIsNone(result.destination.owner_of(source_child))
+
+    def test_swap_preserves_ownership(self) -> None:
+        a = EntityID("a")
+        b = EntityID("b")
+        child = EntityID("child")
+
+        state = State.create(
+            {
+                a: Value.create(a, 1),
+                b: Value.create(b, 2),
+                child: Value.create(child, 3),
+            },
+            {
+                a: (child,),
+            },
+        )
+
+        result = transform_with_mapping(
+            state,
+            {},
+            {
+                a: b,
+                b: a,
+            },
+        )
+
+        self.assertEqual(result.destination.ownership, state.ownership)

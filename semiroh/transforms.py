@@ -217,24 +217,19 @@ class TransformationDefinition:
                 )
             )
 
+        destination_ownership: Mapping[EntityID, Any]
+
         if ownership is None:
+            # Mappings do not modify ownership. Only edges involving entities
+            # absent from the destination are removed.
             destination_ownership = {
                 owner: tuple(
                     child
                     for child in children
-                    if (
-                        owner not in explicitly_mapped
-                        and child not in explicitly_mapped
-                    )
+                    if child in values
                 )
                 for owner, children in state.ownership.items()
-                if owner not in explicitly_mapped
-            }
-
-            destination_ownership = {
-                owner: children
-                for owner, children in destination_ownership.items()
-                if children
+                if owner in values
             }
         else:
             destination_ownership = ownership

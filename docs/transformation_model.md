@@ -460,6 +460,10 @@ of entities that disappear.
 An entity disappearing from the destination removes ownership edges involving
 that entity.
 
+An explicitly mapped entity that remains present in the destination (for
+example `A → A`, or the target of a merge or swap) keeps its ownership edges.
+Being mentioned in a mapping is not itself a reason to change ownership.
+
 This does not imply recursive deletion of its owned descendants.
 
 Recursive subtree destruction is a separate state operation.

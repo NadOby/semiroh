@@ -115,6 +115,13 @@ def random_activation_case(
         if rng.random() < 0.5
     }
 
+    # A change to a cell the mappings remove is contradictory; drop it.
+    for name in names:
+        targets = mappings.get(name)
+
+        if targets is not None and (not targets or name not in destinations):
+            changes.pop(name, None)
+
     try:
         result = transform_with_mapping(
             source,

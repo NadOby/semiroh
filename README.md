@@ -71,6 +71,10 @@ Much of the design follows from this goal:
 
 The semantic graph is the canonical representation of a program.
 
+The graph generalizes a hypergraph: it has no nodes and edges, only entities.
+A relation is itself an entity, and any entity, including a relation, can be
+related.
+
 Source code, intermediate representations, machine code, documentation, debug
 information, and other artifacts are representations or derived products of
 the semantic program.
@@ -696,7 +700,7 @@ semantic model provides enough evidence to choose among alternatives.
 
 Important open areas include:
 
-- exact semantic graph and hypergraph representation;
+- exact semantic graph representation;
 - exact scope and name-resolution graph;
 - module root semantics;
 - module version activation;

@@ -72,6 +72,7 @@ A transformation result consists conceptually of:
     source state
     destination state
     explicit entity continuity mapping
+    relation rewrites derived from that mapping
     optional provenance
 
 Continuity mapping and provenance describe the transition. They are not
@@ -157,26 +158,20 @@ For an entity explicitly mapped to zero destinations:
         →
     disappearance
 
-An explicit disappearance mapping therefore takes precedence over a value
-change for the same source entity: the entity is absent from the destination.
+The presence of an explicitly mapped source entity in the destination is
+decided by the mappings alone (see section 6).
 
-More generally, the presence of an explicitly mapped source entity in the
-destination is decided by the mappings alone (see section 6). A value change
-for a source entity that the mappings remove from the destination has no
-effect.
-
-This precedence rule is provisional. A definition that both changes an entity
-and removes it through its mappings makes two incompatible statements about
-the destination state:
+A definition that both changes an entity and removes it through its mappings
+makes two incompatible statements about the destination state:
 
     changes:  A has a new version
     mappings: A → ∅   or   A → B (A itself absent)
 
-Silently discarding the change hides what is most likely a mistake in the
-definition. A future revision is expected to reject such definitions as
-invalid, consistent with section 16, for both explicit disappearance and
-continuation into other entities. The current behaviour and its tests are
-kept until that change is made deliberately.
+Such a definition is contradictory and is rejected when it is created, for
+explicit disappearance and for continuation into other entities alike.
+Resolving the contradiction silently, for example by discarding the change,
+would hide what is most likely a mistake. A change to a mapped source that
+remains present (`A → A`, or a swap) is not contradictory and applies.
 
 This concerns semantic program state only. For explicitly mutable cells,
 carrying the current content of `A` into `B` during activation is a
@@ -482,27 +477,37 @@ Rebinding therefore does not preserve conceptual identity.
 
 Ownership is part of semantic state content.
 
-Transformation mappings do not implicitly modify ownership.
+No entity that remains in the destination may change owner implicitly.
 
-When no destination ownership relation is explicitly supplied, the
-transformation preserves the existing ownership relation subject to removal
-of entities that disappear.
+When no destination ownership relation is explicitly supplied, ownership
+edges follow declared continuity, as relation endpoints do
+([`relation_model.md`](relation_model.md) section 5):
 
-An entity disappearing from the destination removes ownership edges involving
-that entity.
+    owner or child mapped to exactly one entity
+        the edge follows the mapping (renames, merges, swaps, shifts)
 
-An explicitly mapped entity that remains present in the destination (for
-example `A → A`, or the target of a merge or swap) keeps its ownership edges.
-Being mentioned in a mapping is not itself a reason to change ownership.
+    endpoint not mapped
+        unchanged
 
-This does not imply recursive deletion of its owned descendants.
+    child disappears
+        the edge goes with the child; its disappearance is declared
 
+    owner disappears or splits while its child remains
+        rejected: the child would change owner implicitly
+
+    child splits
+        rejected: which destination stays owned is ambiguous
+
+The followed edges must still form a forest. Merging children of different
+owners into one entity, or a child into its own owner, is rejected.
+
+Disappearance does not imply recursive deletion of owned descendants.
 Recursive subtree destruction is a separate state operation.
 
 When explicit destination ownership is supplied, it defines the destination
-ownership relation directly and must refer only to destination entities.
-
-Ownership and ordinary entity continuity are therefore separate relations.
+ownership relation directly and must refer only to destination entities. This
+is how a transformation states an ownership change that following cannot
+express, such as orphaning or reparenting.
 
 ## 14. State identity
 
@@ -551,7 +556,8 @@ A valid transformation mapping must satisfy:
 
 Invalid transition mappings must be rejected rather than silently normalized
 into a different semantic relation, except where canonical ordering is an
-explicitly supported normalization.
+explicitly supported normalization. This includes a definition that changes
+an entity its mappings remove (section 4).
 
 ## 17. Provenance
 
@@ -647,7 +653,7 @@ The following remain future work:
 - formal lossless/lossy semantics;
 - transformation deltas and distance measures;
 - richer provenance/history semantics;
-- generalized graph/hypergraph interaction;
+- generalized graph interaction;
 - persistent representation of transformation definitions.
 
 ## 21. Current unresolved areas
@@ -662,13 +668,11 @@ The following are intentionally not fully specified yet:
 - formal distinction between lossless and lossy transformations;
 - transformation deltas and distance measures;
 - richer provenance/history semantics;
-- interaction with the eventual generalized graph/hypergraph model;
+- interaction with the eventual generalized graph model;
 - whether transformation definitions should have their own persistent semantic
   representation;
 - interaction between transformations and contract guarantees;
-- formal constraint-preservation semantics;
-- rejection of definitions that change an entity also removed by their
-  mappings (currently the change has no effect; see section 4).
+- formal constraint-preservation semantics.
 
 These questions must be resolved before they are treated as stable semantics.
 

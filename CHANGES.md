@@ -338,3 +338,25 @@ Composition APIs are specified in terms of these three result classes.
   write changes one of their endpoint cells, and against the staged content
   of activation and trial runs. Anything but `Satisfied` rejects, and the
   runtime stays unchanged.
+
+### Vision conflict fixes
+
+- A definition that changes an entity and also removes it through its
+  mappings is contradictory and is rejected when created. The earlier rule,
+  that the change was silently dropped, is reversed.
+- Ownership edges follow declared continuity when a transformation does not
+  supply destination ownership: renamed, merged, swapped, or shifted owners
+  and children keep their place in the forest. No remaining entity changes
+  owner implicitly: an owner disappearing or splitting while its child
+  remains, or a child splitting, is rejected. This reverses the rule that
+  continuity mappings never modify ownership, which silently orphaned the
+  children of a renamed owner.
+- Transformation results list every relation whose endpoints followed
+  continuity (`RelationRewrite`), checked against the source and destination
+  states.
+- Stated that the semantic graph generalizes a hypergraph: there are no
+  nodes and edges, only entities, and a relation is itself an entity.
+- Deferred until the first program implementations need them: how ownership
+  becomes part of the graph, whether deletion and disappearance are one
+  operation, the root of the ownership forest, and how creation places an
+  entity under its owner.

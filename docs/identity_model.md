@@ -189,7 +189,7 @@ The following remain intentionally open:
 - the final identity model for transformations themselves;
 - identity of representations;
 - identity of capabilities and resources;
-- interaction with the eventual generalized graph/hypergraph model;
+- interaction with the eventual generalized graph model;
 - the precise relationship between semantic identity and persistent storage.
 
 These must not be inferred merely from the current Python representation.

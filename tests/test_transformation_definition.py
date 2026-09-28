@@ -405,7 +405,6 @@ class TransformationDefinitionTests(unittest.TestCase):
 
         definition = TransformationDefinition.create(
             changes={
-                source: 10,
                 destination: 20,
             },
             mappings={
@@ -435,34 +434,20 @@ class TransformationDefinitionTests(unittest.TestCase):
             source,
         )
 
-    def test_disappearance_takes_precedence_over_value_change(self) -> None:
+    def test_change_to_a_disappearing_entity_is_rejected(self) -> None:
+        # Changing an entity and declaring its disappearance is
+        # contradictory; it is rejected rather than resolved silently.
         foo = EntityID("foo")
 
-        state = State.create({
-            foo: Value.create(foo, 1),
-        })
-
-        definition = TransformationDefinition.create(
-            changes={
-                foo: 99,
-            },
-            mappings={
-                foo: (),
-            },
-        )
-
-        result = definition.apply(state)
-
-        self.assertFalse(
-            result.destination.contains(foo),
-        )
-        self.assertEqual(
-            result.mappings[0].destination_entities,
-            (),
-        )
-
-        with self.assertRaises(MissingEntityMapping):
-            result.mapped_entity(state.reference(foo))
+        with self.assertRaises(ValueError):
+            TransformationDefinition.create(
+                changes={
+                    foo: 99,
+                },
+                mappings={
+                    foo: (),
+                },
+            )
 
     def test_apply_can_disappear_an_entity(self) -> None:
         foo = EntityID("foo")

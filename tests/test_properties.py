@@ -205,12 +205,106 @@ def random_definition(
             count = min(count, len(candidates))
             mappings[entity] = tuple(rng.sample(candidates, count))
 
+    # A change to an entity the mappings remove is contradictory and is
+    # rejected; keep generated definitions valid.
+    for entity in removed_by(mappings):
+        changes.pop(entity, None)
+
     definition = TransformationDefinition.create(
         changes=changes,
         mappings=mappings,
     )
 
     return definition, created
+
+
+def removed_by(
+    mappings: dict[EntityID, tuple[EntityID, ...]],
+) -> set[EntityID]:
+    """Sources the mappings remove, computed independently of the model."""
+
+    destinations = {
+        destination
+        for targets in mappings.values()
+        for destination in targets
+    }
+
+    return {
+        source
+        for source, targets in mappings.items()
+        if not targets or source not in destinations
+    }
+
+
+def followed_ownership(
+    ownership: Any,
+    mappings: dict[EntityID, tuple[EntityID, ...]],
+) -> dict[EntityID, tuple[EntityID, ...]] | None:
+    """Expected ownership under declared continuity, or None if rejected.
+
+    transformation_model.md §13: mapped endpoints follow their mapping; an
+    edge whose child disappears goes; an owner that disappears or splits
+    while its child remains, or a child that splits, is rejected; the result
+    must be a forest.
+    """
+
+    parent: dict[EntityID, EntityID] = {}
+
+    for owner, children in ownership.items():
+        for child in children:
+            child_targets = mappings.get(child, (child,))
+
+            if not child_targets:
+                continue
+
+            owner_targets = mappings.get(owner, (owner,))
+
+            if len(child_targets) != 1 or len(owner_targets) != 1:
+                return None
+
+            child_after, owner_after = child_targets[0], owner_targets[0]
+
+            if child_after == owner_after:
+                return None
+
+            if parent.get(child_after, owner_after) != owner_after:
+                return None
+
+            parent[child_after] = owner_after
+
+    for start in parent:
+        seen = set()
+        node: EntityID | None = start
+
+        while node is not None:
+            if node in seen:
+                return None
+
+            seen.add(node)
+            node = parent.get(node)
+
+    forest: dict[EntityID, list[EntityID]] = {}
+
+    for child, owner in parent.items():
+        forest.setdefault(owner, []).append(child)
+
+    return {owner: tuple(sorted(children)) for owner, children in forest.items()}
+
+
+def apply_stating_ownership(
+    definition: TransformationDefinition,
+    state: State,
+) -> Any:
+    """Apply, stating empty destination ownership if following rejects.
+
+    For properties about continuity rather than ownership: a rejected
+    implicit ownership change is replaced by an explicit one.
+    """
+
+    try:
+        return definition.apply(state)
+    except OwnershipError:
+        return definition.apply(state, ownership={})
 
 
 def random_relation(
@@ -391,6 +485,19 @@ class TransformationProperties(unittest.TestCase):
                         definition.apply(state)
                     continue
 
+                expected_ownership = followed_ownership(
+                    state.ownership,
+                    {
+                        mapping.source_entity: mapping.destination_entities
+                        for mapping in definition.mappings
+                    },
+                )
+
+                if expected_ownership is None:
+                    with self.assertRaises(OwnershipError):
+                        definition.apply(state)
+                    continue
+
                 result = definition.apply(state)
                 destination = result.destination
                 changes = {
@@ -414,23 +521,7 @@ class TransformationProperties(unittest.TestCase):
                 for entity in created:
                     self.assertTrue(destination.contains(entity))
 
-                # Ownership is preserved except for edges involving entities
-                # that are absent from the destination.
-                expected_ownership = {
-                    owner: tuple(
-                        child
-                        for child in children
-                        if destination.contains(child)
-                    )
-                    for owner, children in state.ownership.items()
-                    if destination.contains(owner)
-                }
-                expected_ownership = {
-                    owner: children
-                    for owner, children in expected_ownership.items()
-                    if children
-                }
-
+                # Ownership follows declared continuity (option B).
                 self.assertEqual(
                     dict(destination.ownership),
                     expected_ownership,
@@ -452,7 +543,7 @@ class TransformationProperties(unittest.TestCase):
                 first, _ = random_definition(rng, sorted(state.values), "n")
 
                 try:
-                    first_result = first.apply(state)
+                    first_result = apply_stating_ownership(first, state)
                 except KeyError:
                     continue
 
@@ -463,7 +554,10 @@ class TransformationProperties(unittest.TestCase):
                 )
 
                 try:
-                    second_result = second.apply(first_result.destination)
+                    second_result = apply_stating_ownership(
+                        second,
+                        first_result.destination,
+                    )
                 except KeyError:
                     continue
 
@@ -504,6 +598,44 @@ class TransformationProperties(unittest.TestCase):
                     )
 
         self.assertGreater(checked, 50)
+
+    def test_definition_changing_a_removed_entity_is_rejected(self) -> None:
+        # transformation_model.md §4: a definition that changes an entity
+        # and removes it through its mappings is contradictory.
+        entities = entity_names(5)
+        outcomes = {"accepted": 0, "rejected": 0}
+
+        for seed in range(CASES):
+            with self.subTest(seed=seed):
+                rng = random.Random(seed)
+                mappings = {
+                    entity: tuple(rng.sample(entities, rng.choice([0, 1, 1, 2])))
+                    for entity in entities
+                    if rng.random() < 0.5
+                }
+                changes = {
+                    entity: 0
+                    for entity in entities
+                    if rng.random() < 0.3
+                }
+
+                if set(changes) & removed_by(mappings):
+                    outcomes["rejected"] += 1
+
+                    with self.assertRaises(ValueError):
+                        TransformationDefinition.create(
+                            changes=changes,
+                            mappings=mappings,
+                        )
+                else:
+                    outcomes["accepted"] += 1
+                    TransformationDefinition.create(
+                        changes=changes,
+                        mappings=mappings,
+                    )
+
+        self.assertGreater(outcomes["accepted"], 50)
+        self.assertGreater(outcomes["rejected"], 50)
 
     def test_composition_is_associative(self) -> None:
         # transformation_composition.md §17.

@@ -132,3 +132,58 @@ def owned_subtree(
         )
 
     return frozenset(result)
+
+
+def follow_ownership(
+    ownership: OwnershipMap,
+    mappings: Mapping[EntityID, tuple[EntityID, ...]],
+) -> dict[EntityID, list[EntityID]]:
+    """Carry ownership edges along declared continuity.
+
+    Each endpoint of an edge that the mappings name follows its mapping, as
+    relation endpoints do; unmapped endpoints stay. No entity that remains
+    may change owner implicitly, so an owner that disappears or splits while
+    its child remains, or a child that splits, is rejected: the
+    transformation must then supply destination ownership explicitly. An edge
+    whose child disappears goes with the child, because that disappearance
+    is declared. The caller validates the resulting forest.
+    """
+
+    followed: dict[EntityID, list[EntityID]] = {}
+
+    for owner, children in ownership.items():
+        for child in children:
+            if child in mappings:
+                targets = mappings[child]
+
+                if not targets:
+                    continue
+
+                if len(targets) > 1:
+                    raise OwnershipError(
+                        f"owned entity {child.value} splits; supply "
+                        f"destination ownership explicitly"
+                    )
+
+                child_after = targets[0]
+            else:
+                child_after = child
+
+            if owner in mappings:
+                targets = mappings[owner]
+
+                if len(targets) != 1:
+                    outcome = "disappears" if not targets else "splits"
+                    raise OwnershipError(
+                        f"owner {owner.value} {outcome} while "
+                        f"{child.value} remains; supply destination "
+                        f"ownership explicitly"
+                    )
+
+                owner_after = targets[0]
+            else:
+                owner_after = owner
+
+            followed.setdefault(owner_after, []).append(child_after)
+
+    return followed

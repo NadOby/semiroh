@@ -28,9 +28,10 @@ program state like any other value.
     entity b : 2
     entity r : Relation(kind="depends_on", roles={from: a, to: b})
 
-The semantic graph is therefore the state itself: entities whose values are
-not relation records act as nodes, and relation entities act as hyperedges.
-No separate edge store is added.
+The semantic graph is therefore the state itself. It has no nodes and edges,
+only entities: a relation is an entity whose value relates other entities,
+and any entity, including a relation, can be related (semantic_graph.md §2).
+No separate store of relations is added.
 
 Consequences:
 
@@ -51,7 +52,7 @@ A relation record is a semantic value with:
     roles     role name → one EntityID, or an ordered tuple of EntityIDs
     payload   optional semantic value
 
-Named roles make hyperedges readable and order-independent: a relation of
+Named roles make relations readable and order-independent: a relation of
 arity three is `{caller: f, callee: g, site: s}`, not a positional triple.
 An ordered tuple within one role covers genuinely ordered endpoints such as
 arguments.
@@ -129,6 +130,11 @@ Following continuity was chosen. It infers nothing: it follows declared
 continuity, one step, exactly as `transfer_reference` does, and it keeps
 renames cheap.
 
+The rewrites are derived, but they are not hidden: the transformation result
+lists every relation whose endpoints were rewritten, with the old and new
+entity of each rewritten endpoint. The result checks that record against its
+source and destination states.
+
 A mapped endpoint follows its mapping even when its entity is still present.
 In a swap (`a → b`, `b → a`) or a shift (`a → b`, `b → c`), entity `b` is
 present afterwards but continues a different entity. A relation to `a`
@@ -137,19 +143,20 @@ therefore points to `b` afterwards, and a relation to `b` points to `a` or
 like any entity, the relation's own continuity must still be declared by the
 transformation (tools generate `r → r`).
 
-Unlike ownership edges, relations are never removed implicitly. An ownership
-edge is not an entity, so dropping it when an endpoint disappears loses no
-declared identity. A relation is an entity, and removing it silently would
-be an undeclared disappearance.
+Relations are never removed implicitly: a relation is an entity, and
+removing it silently would be an undeclared disappearance. Ownership edges
+follow declared continuity by the same rule; see transformation_model.md
+section 13.
 
 ## 6. Ownership
 
 **Decided.** Ownership stays a separate relation in state for now.
 
 Ownership has lifetime semantics and structural invariants (one owner,
-acyclic, recursive destruction) that general relations do not. Expressing it
-as a relation kind with extra constraints is possible later; nothing in this
-model depends on it.
+acyclic, recursive destruction) that general relations do not. It already
+follows declared continuity by the same rule as relations. How it becomes
+part of the graph is deferred until the first program implementations need
+it; see ownership_model.md section 13.
 
 ## 7. Constraints over several entities
 
@@ -213,8 +220,9 @@ The Python reference model currently provides:
 
     relations across transformations
         applying a definition rewrites mapped endpoints of every relation
-        the definition does not change, and rejects a mapped endpoint that
-        disappears or splits (section 5)
+        the definition does not change, records each rewrite in the result
+        (RelationRewrite), and rejects a mapped endpoint that disappears or
+        splits (section 5)
 
     relation_index
         the derived index from entity to (relation, role) pairs

@@ -1,0 +1,78 @@
+# CLAUDE.md
+
+Guidance for AI sessions working on SEMIROH. Read this first; read the docs it
+points to only when the task touches them.
+
+## What this is
+
+SEMIROH is the skeleton of a systems programming language whose canonical
+program is an immutable semantic graph, and whose programs carry their own
+compiler and can modify themselves at runtime (Erlang-style hot loading in
+spirit). `semiroh/` is an executable Python *reference model* of the semantic
+rules, not the language implementation. `README.md` is the overview; `docs/`
+holds one spec per concept; `CHANGES.md` is the architectural log.
+
+## Vision (guidance, not dogma)
+
+- The semantic graph is the source of truth. It generalizes a hypergraph:
+  there are no nodes and edges, only entities; a relation is an entity.
+- Semantic state is immutable. Changes produce new states; identity never
+  depends on history or provenance.
+- Runtime is an interpretation of semantic state. Runtime mutation (cell
+  content) never changes semantic identity.
+- Transformations are explicit: continuity, disappearance, creation, splits,
+  merges, conversions. Ambiguity is rejected, never silently resolved.
+- Constraints are semantic values; executable evaluators are separate and
+  referenced by name.
+- Be pragmatic, not pure: prefer the smallest change that works, defer design
+  decisions until a real program needs them, and change the vision where it
+  contradicts reality.
+
+## Workflow
+
+- Docs, tests, and code are three representations of one spec: change them
+  together. Mark doc sections Decided / Provisional / Open.
+- Check a proposal against the vision first; if existing code conflicts with
+  it, say so rather than rationalize it.
+- One coherent change per PR. Append an entry to `CHANGES.md` per PR. If two
+  open branches both append to `CHANGES.md`, stack the later one on the
+  earlier one to avoid conflicts.
+- Never edit the owner's tests to fit new code without saying so; if a test
+  encodes an old rule, rename it to what it now checks and call it out.
+
+## Conventions
+
+- Commits: one line, smart-commit style: starts with Add / Change / Fix /
+  Remove and says exactly what was done. No body besides trailers.
+- PR descriptions: short. No link to the AI session. If the environment
+  appends a session-link footer, remove it by editing the description.
+- Python, standard library only. Frozen dataclasses for semantic records.
+
+## Testing
+
+- Run: `python3 -m unittest discover` (CI runs the same on Python 3.12).
+- Property tests use seeded `random.Random(seed)` with `subTest(seed=...)`, so
+  failures are reproducible. No third-party test libraries.
+- A new regression test must fail on the old code. For a property test,
+  plant a plausible bug and confirm the property catches it.
+- Test semantic contracts, not incidental implementation details.
+
+## Model map
+
+- `canonical.py`: canonical content and serialization; identity is derived
+  from canonical bytes. `SemanticRecord` lets model records be values.
+- `values.py`, `state.py`: `Value`, immutable `State` (values + ownership);
+  `StateID` is derived from content and cannot be supplied.
+- `transforms.py`: `TransformationDefinition` (changes, mappings, named
+  conversions) → `TransformResult`. Mapped sources are removed unless they
+  are mapping destinations; changing a removed entity is rejected; relation
+  endpoints and ownership follow declared continuity.
+- `relations.py`: `Relation(kind, roles, payload)` entities; endpoints must
+  exist; a constraint payload makes a constraint relation. Kinds have no
+  core meaning.
+- `constraints.py`: three-valued semantic constraints (strong Kleene),
+  `Evaluator` behind `External(name)`, step budgets.
+- `cells.py`, `runtime.py`: `CellDeclaration(constraint, initial)`;
+  `Runtime` holds cell content outside `StateID`, checks constraints
+  (anything but Satisfied rejects), activates transformation results
+  atomically (two-version bound, holds, retirement), and runs trials.

@@ -125,6 +125,11 @@ class EditTests(unittest.TestCase):
 
         self.assertEqual(function_at(destination, INCREMENT), replacement)
 
+        # Every entity define creates is a new node owned by the function.
+        created = set(destination.values) - set(state.values)
+        self.assertTrue(created)
+        self.assertEqual(created, set(nodes(destination, INCREMENT)))
+
         for node in old_nodes:
             self.assertFalse(destination.contains(node))
             self.assertEqual(result.mapping_for(node).destination_entities, ())

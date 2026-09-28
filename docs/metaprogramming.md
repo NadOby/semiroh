@@ -1,7 +1,9 @@
 # Metaprogramming
 
 **Status: implemented.** `semiroh/lang.py` implements the metaprogramming
-operations below, and `tests/test_metaprogramming.py` passes unchanged.
+operations below, and `tests/test_metaprogramming.py` passes; since
+roadmap task 4 its programs are loaded into graph form (graph_form.md), with
+the behaviour assertions unchanged.
 
 The first program (first_program.md) changes only when the host changes it.
 This step lets a running program write code and install it into itself: the
@@ -104,6 +106,12 @@ Either every change lands, in one new version, or none does. Every entity
 stays continuous with itself and only function values change, so cells keep
 their content (activation_model.md §4) and links relations are untouched.
 
+In graph form (graph_form.md §6) step 4 is `define(active_state, {target_i:
+f_i})`: the targets' old nodes disappear, their new nodes are placed under
+them, every other entity is continuous with itself, and each `f_i`'s link
+names resolve through its target's link table, which replaces the links
+relation.
+
 **Capability.** activation_model.md §3 decided that a program without the
 activation capability cannot replace its own running version. Capabilities
 are not modelled yet, so the grant is minimal:
@@ -121,7 +129,9 @@ functions: an endpoint that is not a cell contributes its value
 (relation_model.md §7). A program can therefore declare what its code must
 satisfy, for example with an `External` evaluator over a function's value,
 and a self-modification that breaks it is rejected like any other
-activation.
+activation. In graph form a function's value is its definition and its code
+is the nodes it owns; a function endpoint contributes both, as its owned
+subtree (relation_model.md §7, graph_form.md §7).
 
 ## 5. Code in flight
 
@@ -141,7 +151,9 @@ The language uses version coexistence with switching at call boundaries:
   continuous.
 
 `activate` keeps every entity and every links relation, so links a frame
-resolved before the activation still name the same entities after it.
+resolved before the activation still name the same entities after it. In
+graph form a frame evaluates the nodes of the version it started in, and
+the nodes name their targets directly (graph_form.md §6).
 
 **At most one activation per run.** The run's frames hold the previous
 version until they return, so a second `activate` in the same run is

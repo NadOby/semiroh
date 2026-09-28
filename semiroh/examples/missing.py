@@ -54,9 +54,10 @@ MISSING: tuple[Wanted, ...] = (
             "Python's recursion limit (RecursionError) long before any "
             "conceptual program-level limit. Measured against the "
             "`sum_to_n` example here, under the interpreter's default "
-            "recursion limit of 1000, `sum_to_n(196)` succeeds and "
-            "`sum_to_n(197)` raises RecursionError -- about 5 Python "
-            "stack frames per SEMIROH call."
+            "recursion limit of 1000, `sum_to_n(197)` succeeds and "
+            "`sum_to_n(198)` raises RecursionError -- about 5 Python "
+            "stack frames per SEMIROH call (graph form; the tuple-body "
+            "interpreter stopped one call earlier)."
         ),
     ),
 )

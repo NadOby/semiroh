@@ -2,6 +2,9 @@
 
 These tests define how a running program writes code and installs it into
 itself. The implementation is done when they pass unchanged.
+
+Programs are written in the input format and loaded into graph form
+(graph_form.md).
 """
 
 import unittest
@@ -24,7 +27,7 @@ from semiroh import (
     canonicalize,
     kind_of,
 )
-from semiroh.lang import Function, LanguageError, function_of, links, run
+from semiroh.lang import Function, LanguageError, function_at, links, load, run
 
 COUNTER = EntityID("counter")
 STASH = EntityID("stash")
@@ -160,10 +163,10 @@ def program(extra: dict | None = None) -> State:
         **(extra or {}),
     }
 
-    return State.create({
+    return load(State.create({
         entity: Value.create(entity, content)
         for entity, content in entities.items()
-    })
+    }))
 
 
 def runtime_for(extra: dict | None = None) -> Runtime:
@@ -171,7 +174,7 @@ def runtime_for(extra: dict | None = None) -> Runtime:
 
 
 def installed(runtime: Runtime, entity: EntityID) -> Function | None:
-    return function_of(runtime.active.state.values[entity])
+    return function_at(runtime.active.state, entity)
 
 
 class CodeAsDataTests(unittest.TestCase):

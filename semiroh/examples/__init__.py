@@ -25,6 +25,7 @@ from .. import (
     canonical_serialize,
     canonicalize,
 )
+from ..lang import load
 
 TAGS = frozenset({"recursion", "side effects", "control", "self-modification"})
 
@@ -66,7 +67,7 @@ class Example:
 
     ``program`` is a ``State`` in the input format (tuple ``Function``
     bodies and ``links`` relations). Each scenario is a tuple of ``Step``\\ s
-    run in order against one fresh ``Runtime(program, context)``.
+    run in order against one fresh ``Runtime(load(program), context)``.
     """
 
     name: str
@@ -106,13 +107,18 @@ def _semantically_equal(left: Any, right: Any) -> bool:
 def play(example: Example, run: Callable[..., Any]) -> None:
     """Run every scenario of ``example`` with ``run``.
 
+    The program is loaded into graph form (``semiroh.lang.load``) once, and
+    each scenario starts a fresh runtime from it.
+
     Raises ``ExampleFailed``, naming the example, scenario and step, at the
     first mismatch. A step expecting a value that raises instead is a
     mismatch too, and so is a step expecting a raise that returns normally.
     """
 
+    program = load(example.program)
+
     for scenario_index, scenario in enumerate(example.scenarios):
-        runtime = Runtime(example.program, example.context)
+        runtime = Runtime(program, example.context)
 
         for step_index, step in enumerate(scenario):
             label = (

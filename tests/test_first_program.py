@@ -2,6 +2,9 @@
 
 These tests define the behaviour of `semiroh.lang`. The implementation is
 done when they pass unchanged.
+
+Programs are written in the input format and loaded into graph form
+(graph_form.md); host edits use `define` or plain core transformations.
 """
 
 import unittest
@@ -18,7 +21,7 @@ from semiroh import (
     relation_of,
     transform_with_mapping,
 )
-from semiroh.lang import Function, LanguageError, links, run
+from semiroh.lang import Function, LanguageError, define, links, load, run
 
 SQUARE = EntityID("square")
 DOUBLE = EntityID("double")
@@ -55,10 +58,10 @@ def program(step: int = 1, counter_limit: int = 100) -> State:
         INCREMENT_LINKS: links(INCREMENT, counter=COUNTER),
     }
 
-    return State.create({
+    return load(State.create({
         entity: Value.create(entity, content)
         for entity, content in entities.items()
-    })
+    }))
 
 
 def identity(state: State) -> dict:
@@ -109,9 +112,9 @@ class RunningTests(unittest.TestCase):
 
         for body in (("frobnicate",), ("call", "missing")):
             with self.subTest(body=body):
-                state = State.create({
+                state = load(State.create({
                     broken: Value.create(broken, Function((), body)),
-                })
+                }))
 
                 with self.assertRaises(LanguageError):
                     run(Runtime(state), broken)
@@ -124,13 +127,7 @@ class SelfModificationTests(unittest.TestCase):
         self.assertEqual(run(runtime, INCREMENT), 1)
 
         source = runtime.active.state
-        runtime.activate(
-            transform_with_mapping(
-                source,
-                {INCREMENT: increment_function(10)},
-                identity(source),
-            )
-        )
+        runtime.activate(define(source, {INCREMENT: increment_function(10)}))
 
         self.assertEqual(run(runtime, INCREMENT), 11)
         self.assertTrue(old.retired)
@@ -143,16 +140,23 @@ class SelfModificationTests(unittest.TestCase):
 
         result = transform_with_mapping(
             source,
-            {TWICE: double_function()},
+            {TWICE: source.values[DOUBLE].content},
             mappings,
         )
         runtime.activate(result)
 
-        self.assertFalse(runtime.active.state.contains(DOUBLE))
-        self.assertEqual(
-            relation_of(runtime.active.state.values[QUAD_LINKS]).roles["double"],
-            TWICE,
-        )
+        state = runtime.active.state
+        self.assertFalse(state.contains(DOUBLE))
+        calls = [
+            relation_of(state.values[node])
+            for node in state.owned_subtree(QUAD)
+            if relation_of(state.values[node]).kind == "call"
+        ]
+        self.assertEqual(len(calls), 2)
+
+        for call in calls:
+            self.assertEqual(call.roles["target"], TWICE)
+
         self.assertEqual(run(runtime, QUAD, 3), 12)
 
     def test_rejected_activation_keeps_the_running_program(self) -> None:

@@ -48,7 +48,9 @@ class Relation(SemanticRecord):
 
     ``roles`` maps role names to one endpoint entity, or to an ordered tuple
     of endpoint entities. Role order does not matter; order within a tuple
-    does. The kind has no built-in meaning in the core model.
+    does. A relation may have no roles at all (a nullary relation, such as
+    a leaf of code in graph form). The kind has no built-in meaning in the
+    core model.
     """
 
     kind: str
@@ -59,8 +61,8 @@ class Relation(SemanticRecord):
         if not isinstance(self.kind, str) or not self.kind:
             raise TypeError("relation kind must be a non-empty string")
 
-        if not isinstance(self.roles, Mapping) or not self.roles:
-            raise TypeError("a relation needs at least one role")
+        if not isinstance(self.roles, Mapping):
+            raise TypeError("relation roles must be a mapping")
 
         roles = {}
 
@@ -143,21 +145,40 @@ def _decode_endpoint(node: CanonicalNode) -> Endpoint:
     return tuple(EntityID(item[2]) for item in node[2])
 
 
+_UNDECODED = object()
+
+
 def relation_of(value: Value) -> Relation | None:
-    """Return the relation record held by a value, if it is a relation."""
+    """Return the relation record held by a value, if it is a relation.
+
+    The record is decoded once and kept with the value, like its
+    ``VersionID`` (state_model.md section 4): a value carried unchanged
+    into a new state is not decoded again by the integrity check, endpoint
+    following, or constraint lookup of that state. Values and relation
+    records are immutable, so the kept record can never disagree with the
+    value's content.
+    """
+
+    cached = value.__dict__.get("_relation", _UNDECODED)
+
+    if cached is not _UNDECODED:
+        return cached
 
     content = value.content
+    record = None
 
     if isinstance(content, CanonicalNode) and content[1] == "relation":
         kind, roles, payload = content[2]
 
-        return Relation(
+        record = Relation(
             kind,
             {role: _decode_endpoint(endpoint) for role, endpoint in roles},
             payload,
         )
 
-    return None
+    object.__setattr__(value, "_relation", record)
+
+    return record
 
 
 def relations_of(state: State) -> Mapping[EntityID, Relation]:
@@ -185,7 +206,14 @@ def check_relation_endpoints(
         if relation is None:
             continue
 
-        missing = sorted(relation.endpoints - values.keys())
+        # Look each endpoint up in ``values``: subtracting ``values.keys()``
+        # from the endpoints would hash every entity of the state once per
+        # relation.
+        missing = sorted(
+            endpoint
+            for endpoint in relation.endpoints
+            if endpoint not in values
+        )
 
         if missing:
             raise DanglingRelation(

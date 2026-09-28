@@ -5,7 +5,9 @@ observable behaviour end to end. These tests exercise the interpreter and
 the ``Function``/``links`` records directly: every operation, every
 ``LanguageError`` case, a seeded property comparing ``run`` against a
 plain reference evaluator, and one comparing ``quote`` without holes with
-``lit``.
+``lit``. Programs are loaded into graph form (docs/graph_form.md); the
+graph form itself (nodes, ``load``, ``define``, ``function_at``) has its own
+tests at the end, including a seeded round-trip property.
 """
 
 import random
@@ -20,13 +22,17 @@ from semiroh import (
     Runtime,
     State,
     Value,
+    relation_of,
 )
 from semiroh.lang import (
     FUNCTION_ROLE,
     Function,
     LanguageError,
+    define,
+    function_at,
     function_of,
     links,
+    load,
     run,
 )
 from semiroh.transforms import transform_with_mapping
@@ -38,10 +44,12 @@ CELL = EntityID("cell")
 
 
 def make_state(entities: dict) -> State:
-    return State.create({
+    """A program in the input format, loaded into graph form."""
+
+    return load(State.create({
         entity: Value.create(entity, content)
         for entity, content in entities.items()
-    })
+    }))
 
 
 def unbounded_cell(initial: int = 0) -> CellDeclaration:
@@ -374,11 +382,11 @@ class MetaprogrammingOperationTests(unittest.TestCase):
 
         self.assertIsNone(run(runtime, F, may_activate=True))
         self.assertEqual(
-            function_of(runtime.active.state.values[target]),
+            function_at(runtime.active.state, target),
             Function((), ("lit", 2)),
         )
         self.assertEqual(
-            function_of(runtime.active.state.values[first]),
+            function_at(runtime.active.state, first),
             Function((), ("lit", 1)),
         )
 
@@ -400,7 +408,7 @@ class MetaprogrammingOperationTests(unittest.TestCase):
             run(runtime, F, replacement, may_activate=True)
         )
         self.assertEqual(
-            function_of(runtime.active.state.values[target]),
+            function_at(runtime.active.state, target),
             replacement,
         )
 
@@ -833,6 +841,281 @@ class TrialOperationTests(unittest.TestCase):
         self.assertEqual(run(runtime, POWER, 3), 1)
         self.assertEqual(runtime.versions, (runtime.active,))
         self.assertEqual(runtime.active.holds, frozenset())
+
+
+def input_state(entities: dict) -> State:
+    """A program in the input format, not loaded."""
+
+    return State.create({
+        entity: Value.create(entity, content)
+        for entity, content in entities.items()
+    })
+
+
+def nodes_of(state: State, function: EntityID) -> dict:
+    return {
+        node: relation_of(state.values[node])
+        for node in state.owned_subtree(function)
+    }
+
+
+class GraphFormTests(unittest.TestCase):
+    """The graph form itself (docs/graph_form.md)."""
+
+    def test_leaves_are_relations_with_no_roles(self) -> None:
+        state = function_only(("add", ("lit", 1), ("arg", "x")), params=("x",))
+        nodes = nodes_of(state, F)
+        by_kind = {relation.kind: node for node, relation in nodes.items()}
+
+        self.assertEqual(set(by_kind), {"add", "lit", "arg"})
+        self.assertEqual(dict(nodes[by_kind["lit"]].roles), {})
+        self.assertEqual(dict(nodes[by_kind["arg"]].roles), {})
+        self.assertEqual(
+            dict(nodes[by_kind["add"]].roles),
+            {"left": by_kind["lit"], "right": by_kind["arg"]},
+        )
+
+    def test_calls_reads_and_writes_name_their_targets_by_role(self) -> None:
+        state = make_state({
+            F: Function((), ("write", "c", ("call", "g"))),
+            F_LINKS: links(F, c=CELL, g=G),
+            G: Function((), ("read", "c")),
+            EntityID("g.links"): links(G, c=CELL),
+            CELL: unbounded_cell(0),
+        })
+        roles = {
+            relation.kind: relation.roles
+            for function in (F, G)
+            for relation in nodes_of(state, function).values()
+        }
+
+        self.assertEqual(roles["write"]["cell"], CELL)
+        self.assertEqual(roles["call"]["target"], G)
+        self.assertEqual(roles["read"]["cell"], CELL)
+
+    def test_load_leaves_graph_form_unchanged(self) -> None:
+        state = make_state({
+            F: Function((), ("call", "g")),
+            F_LINKS: links(F, g=G),
+            G: Function((), ("lit", 1)),
+        })
+
+        self.assertEqual(load(state).id, state.id)
+
+    def test_load_rejects_a_function_with_two_links_relations(self) -> None:
+        program = input_state({
+            F: Function((), ("call", "g")),
+            F_LINKS: links(F, g=G),
+            EntityID("f.more"): links(F, g=G),
+            G: Function((), ("lit", 1)),
+        })
+
+        with self.assertRaises(LanguageError):
+            load(program)
+
+    def test_running_an_unloaded_program_says_so(self) -> None:
+        program = input_state({F: Function((), ("lit", 1))})
+
+        with self.assertRaisesRegex(LanguageError, "load"):
+            run(Runtime(program), F)
+
+    def test_define_rejects_what_is_not_a_function(self) -> None:
+        state = make_state({F: Function((), ("lit", 1)), CELL: unbounded_cell()})
+
+        for target in (CELL, EntityID("absent")):
+            with self.subTest(target=target):
+                with self.assertRaises(LanguageError):
+                    define(state, {target: Function((), ("lit", 2))})
+
+    def test_repeated_defines_never_reuse_a_node_entity(self) -> None:
+        # An unrelated entity already has the name the next body would use.
+        state = make_state({
+            F: Function((), ("lit", 0)),
+            EntityID("f/1.0"): 7,
+        })
+        seen = set(state.values)
+
+        for step in range(1, 5):
+            body = ("add", ("lit", step), ("lit", 1))
+            state = define(state, {F: Function((), body)}).destination
+
+            self.assertTrue(set(nodes_of(state, F)).isdisjoint(seen))
+            self.assertEqual(run(Runtime(state), F), step + 1)
+            seen |= set(state.values)
+
+    def test_define_depends_only_on_its_arguments(self) -> None:
+        state = function_only(("lit", 1))
+        replacement = Function(("x",), ("mul", ("arg", "x"), ("lit", 2)))
+
+        self.assertEqual(
+            define(state, {F: replacement}).destination.id,
+            define(state, {F: replacement}).destination.id,
+        )
+
+    def test_new_bodies_resolve_links_through_their_own_function(self) -> None:
+        helper = EntityID("helper")
+        state = make_state({
+            F: Function(
+                (),
+                (
+                    "activate",
+                    "g",
+                    ("lit", Function((), ("call", "helper"))),
+                ),
+            ),
+            F_LINKS: links(F, g=G),
+            # G never calls helper itself, but its link table names it.
+            G: Function((), ("lit", 1)),
+            EntityID("g.links"): links(G, helper=helper),
+            helper: Function((), ("lit", 42)),
+        })
+        runtime = Runtime(state)
+
+        run(runtime, F, may_activate=True)
+
+        self.assertEqual(run(runtime, G), 42)
+
+    def test_activated_code_is_checked_when_it_runs(self) -> None:
+        state = make_state({
+            F: Function(
+                (),
+                ("activate", "g", ("lit", Function((), ("frobnicate",)))),
+            ),
+            F_LINKS: links(F, g=G),
+            G: Function((), ("lit", 1)),
+        })
+        runtime = Runtime(state)
+
+        self.assertIsNone(run(runtime, F, may_activate=True))
+        self.assertEqual(
+            function_at(runtime.active.state, G),
+            Function((), ("frobnicate",)),
+        )
+
+        with self.assertRaises(LanguageError):
+            run(runtime, G)
+
+    def test_activate_evaluates_its_values_before_checking_links(self) -> None:
+        replacement = Function((), ("lit", 2))
+        state = make_state({
+            F: Function(
+                (),
+                (
+                    "activate",
+                    "missing",
+                    ("seq", ("write", "c", ("lit", 5)), ("lit", replacement)),
+                ),
+            ),
+            F_LINKS: links(F, c=CELL),
+            CELL: unbounded_cell(0),
+        })
+        runtime = Runtime(state)
+
+        with self.assertRaises(LanguageError):
+            run(runtime, F, may_activate=True)
+
+        self.assertEqual(runtime.read(CELL), 5)
+
+
+def _random_body(rng: random.Random, depth: int) -> tuple:
+    """A random body in the input format, often malformed on purpose."""
+
+    def expr(depth: int) -> object:
+        if depth <= 0 or rng.random() < 0.3:
+            return rng.choice([
+                ("lit", rng.choice([1, True, "s", (1, ("lit", 2)), [3]])),
+                ("arg", rng.choice(["x", 5])),
+                ("read", rng.choice(["c", "missing"])),
+                ("frobnicate",),
+                ("lit",),
+                7,
+            ])
+
+        op = rng.choice([
+            "add", "if", "seq", "call", "write", "quote", "function",
+            "activate", "trial",
+        ])
+
+        if op == "add":
+            return ("add", expr(depth - 1), expr(depth - 1))
+
+        if op == "if":
+            return ("if", expr(depth - 1), expr(depth - 1), expr(depth - 1))
+
+        if op == "seq":
+            return ("seq", *(expr(depth - 1) for _ in range(rng.randrange(3))))
+
+        if op == "call":
+            link = rng.choice(["g", "c", "missing", "function"])
+            args = (expr(depth - 1) for _ in range(rng.randrange(3)))
+            return ("call", link, *args)
+
+        if op == "write":
+            return ("write", rng.choice(["c", "g"]), expr(depth - 1))
+
+        if op == "quote":
+            return ("quote", template(depth - 1))
+
+        if op == "function":
+            return ("function", expr(depth - 1), expr(depth - 1))
+
+        pairs: list = []
+
+        for _ in range(rng.randrange(3)):
+            pairs += [rng.choice(["g", "missing"]), expr(depth - 1)]
+
+        if rng.random() < 0.3:
+            pairs.append("g")
+
+        if op == "activate":
+            return ("activate", *pairs)
+
+        call = rng.choice([
+            ("call", "g", expr(depth - 1)),
+            ("call", "missing"),
+            ("lit", 1),
+        ])
+        return ("trial", call, *pairs)
+
+    def template(depth: int) -> object:
+        if depth <= 0 or rng.random() < 0.3:
+            return rng.choice([1, "x", [("unquote", 1)], {"k": ("unquote", 2)}])
+
+        if rng.random() < 0.3:
+            return rng.choice([
+                ("unquote", expr(depth - 1)),
+                ("unquote",),
+                ("unquote", 1, 2),
+            ])
+
+        return tuple(template(depth - 1) for _ in range(rng.randrange(1, 4)))
+
+    body = expr(depth)
+    return body if isinstance(body, tuple) and body else ("seq", body)
+
+
+class GraphFormProperties(unittest.TestCase):
+    def test_load_and_define_round_trip_any_body(self) -> None:
+        for seed in range(300):
+            with self.subTest(seed=seed):
+                rng = random.Random(seed)
+                source = Function(("x",), _random_body(rng, 4))
+                replacement = Function((), _random_body(rng, 4))
+                state = load(input_state({
+                    F: source,
+                    F_LINKS: links(F, g=G, c=CELL),
+                    G: Function(("x",), ("arg", "x")),
+                    CELL: unbounded_cell(0),
+                }))
+
+                self.assertEqual(function_at(state, F), source)
+
+                defined = define(state, {F: replacement}).destination
+
+                self.assertEqual(function_at(defined, F), replacement)
+                self.assertTrue(
+                    set(nodes_of(defined, F)).isdisjoint(nodes_of(state, F))
+                )
 
 
 if __name__ == "__main__":

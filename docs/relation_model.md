@@ -57,6 +57,11 @@ arity three is `{caller: f, callee: g, site: s}`, not a positional triple.
 An ordered tuple within one role covers genuinely ordered endpoints such as
 arguments.
 
+A relation may have no roles: a nullary relation, whose meaning is its kind
+and payload alone. Code in graph form needs it for leaves such as a literal
+(graph_form.md). The rule it replaces, at least one role, never ensured
+that a relation relates something, since a role may hold an empty tuple.
+
 Relation records are canonical like other records, so equal records have equal
 identity. The kind is not interpreted by the core model; meaning comes from
 the tools, constraints, and metaprograms that use it.
@@ -173,12 +178,22 @@ endpoints maps to the tuple of their contents.
              roles={low: min_cell, high: max_cell},
              payload=<constraint over {low: ..., high: ...}>)
 
+**Provisional:** an endpoint that owns entities contributes its owned
+subtree with it, as the map `{"value": <its own content>, "owned": {child:
+<the child's contribution>, ...}}`, recursively; an endpoint that owns
+nothing contributes its content as before. Ownership bounds a composite,
+so a constraint over the owner sees all of it. Code in graph form needs
+this: a function's value holds only its definition, and its code lives in
+the nodes it owns (graph_form.md), so a constraint over a function's code
+is a constraint over the function.
+
 Evaluation follows the existing rules for cells: it happens in a runtime,
 with the runtime's evaluation context, and anything but `Satisfied` rejects.
 
 - loading a version evaluates every constraint relation;
-- a cell write re-evaluates every constraint relation that has that cell as
-  an endpoint, and a rejected write leaves the cell unchanged;
+- a cell write re-evaluates every constraint relation that has that cell,
+  or one of its owners, as an endpoint, and a rejected write leaves the
+  cell unchanged;
 - activation and trial runs evaluate every constraint relation of the
   destination state against the staged content.
 
@@ -193,6 +208,11 @@ evaluators.
 **Decided.** Finding the relations that touch an entity needs an index. An
 index is derived implementation data: it is rebuilt from state content and
 never contributes to `StateID` (README §29).
+
+The decoded relation record of a value is derived data of the same kind: it
+is decoded once and kept with the value, like its `VersionID`
+(state_model.md §4), so a relation a transformation carries unchanged is
+not decoded again.
 
 ## 9. What this does not add
 
@@ -230,8 +250,9 @@ The Python reference model currently provides:
     constraint relations
         constraint_relations and Role; a runtime evaluates constraint
         relations when a version loads, when a write changes an endpoint
-        cell, and against the staged content of activation and trial runs,
-        rejecting anything but Satisfied (section 7)
+        cell or a cell an endpoint owns, and against the staged content of
+        activation and trial runs, rejecting anything but Satisfied; an
+        owner endpoint contributes its owned subtree (section 7)
 
 ## 11. Unresolved areas
 

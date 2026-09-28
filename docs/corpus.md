@@ -41,7 +41,8 @@ files):
     Example(name, tags, program, scenarios, context=None, description="")
         `program` is a State in the input format (tuple Function bodies
         and links relations); each scenario is a tuple of Steps run in
-        order against one fresh `Runtime(program, context)`
+        order against one fresh `Runtime(load(program), context)`, the
+        program loaded into graph form (graph_form.md)
 
     Wanted(name, needs)
         a program the language cannot express yet, and the feature it
@@ -105,8 +106,9 @@ activates.
   recursion, and every `call` nests further Python stack frames in
   `semiroh/lang.py`'s `_call`/`_eval`. Measured against the `sum_to_n`
   tier-1 example: under the interpreter's default recursion limit of 1000,
-  `sum_to_n(196)` succeeds and `sum_to_n(197)` raises `RecursionError` —
-  about 5 Python stack frames per SEMIROH call.
+  `sum_to_n(197)` succeeds and `sum_to_n(198)` raises `RecursionError` —
+  about 5 Python stack frames per SEMIROH call (measured on graph form;
+  the tuple-body interpreter stopped one call earlier).
 
 ## 5. Acceptance tests
 

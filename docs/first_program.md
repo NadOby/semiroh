@@ -3,6 +3,9 @@
 **Status: done.** `semiroh/lang.py` implements this document; the acceptance
 tests in `tests/test_first_program.py` pass unchanged, and no design question
 deferred by ownership_model.md §13 turned out to be needed (section 8).
+Since roadmap task 4 the tests load their programs into graph form and edit
+them with `define` or core transformations (graph_form.md); their behaviour
+assertions are unchanged.
 
 ## 1. Scope
 
@@ -20,6 +23,11 @@ transformation; the natural next step, metaprogramming.md), types beyond cell co
 concurrency, and switching code in flight.
 
 ## 2. Program representation
+
+Since roadmap task 4 this is the **input format**: `load` turns it into
+graph form, the form a program is stored and run in, where every expression
+node is a relation entity owned by its function and links relations no
+longer exist (graph_form.md).
 
 A **function** is an entity whose value is `Function(params, body)`, a
 semantic record. `params` is a tuple of parameter names; `body` is an
@@ -94,6 +102,10 @@ Module `semiroh/lang.py`, a layer on top of the core (not re-exported from
     links(function, **targets)  the links Relation
     run(runtime, entry, *args)  evaluate, return the result
     LanguageError               ValueError subclass
+
+Graph form adds `load`, `define` and `function_at` (graph_form.md §5); `run`
+takes a loaded program, and the host's edits in section 4 use `define` or
+plain core transformations on it.
 
 ## 6. Acceptance tests
 

@@ -428,3 +428,17 @@ Composition APIs are specified in terms of these three result classes.
   checks before the capability, a zero-pair trial run in isolation, and a
   trial whose own pair value activates, confirming the transformation
   starts from the active state after evaluation.
+
+### Roadmap
+
+- Added `docs/roadmap.md`: the order of work after the code-as-graph spike,
+  as tasks, and the semi-automatic workflow (plan, writer agent, reviewer
+  agent, check, merge) that carries them out.
+- Decided D1: graph form is canonical; tuple bodies with links become an
+  input format. The spike's hybrid recommendation rested on a `StateID`
+  cost that task 2 removes.
+- Tasks: a canary corpus of small programs, a `StateID` derived from cached
+  `VersionID`s, and creation that places entities under an owner; then
+  adopting graph form, node-level self-modification, a second corpus tier,
+  incremental compilation, a compiler pass that keeps continuity, and
+  self-hosting.

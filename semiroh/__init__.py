@@ -34,8 +34,10 @@ from .references import (
     project_entity,
 )
 from .runtime import (
+    ActivationRejected,
     CellContentRejected,
     CellError,
+    Converter,
     Frame,
     Hold,
     KeptReference,
@@ -73,6 +75,8 @@ __all__ = [
     "KeptReference",
     "CellError",
     "CellContentRejected",
+    "Converter",
+    "ActivationRejected",
     "CellDeclaration",
     "Evaluator",
     "ConstraintResult",

@@ -57,12 +57,51 @@ class TransformationMapping:
             )
 
 
+Conversions = tuple[tuple[EntityID, str], ...]
+
+
+def _validate_conversions(conversions: Conversions) -> None:
+    destinations = tuple(
+        destination
+        for destination, _ in conversions
+    )
+
+    if len(destinations) != len(set(destinations)):
+        raise ValueError(
+            "multiple conversions for the same destination entity"
+        )
+
+    if destinations != tuple(sorted(destinations)):
+        raise ValueError(
+            "conversions are not canonically ordered"
+        )
+
+    for destination, name in conversions:
+        if not isinstance(destination, EntityID):
+            raise TypeError(
+                "conversion destination must be an EntityID"
+            )
+
+        if not isinstance(name, str) or not name:
+            raise TypeError(
+                "conversion name must be a non-empty string"
+            )
+
+
 @dataclass(frozen=True)
 class TransformationDefinition:
-    """Immutable semantic definition of a state transformation."""
+    """Immutable semantic definition of a state transformation.
+
+    ``conversions`` name, per destination cell, the converter that produces
+    that cell's content from the content of the cells mapped into it when the
+    result is activated. They are provisional (activation_model.md section 4)
+    and refer to executable converters by name, so the definition stays pure
+    data.
+    """
 
     changes: tuple[EntityChange, ...]
     mappings: tuple[TransformationMapping, ...]
+    conversions: Conversions = ()
 
     def __post_init__(self) -> None:
         change_entities = tuple(
@@ -95,6 +134,8 @@ class TransformationDefinition:
                 "mappings are not canonically ordered"
             )
 
+        _validate_conversions(self.conversions)
+
     @staticmethod
     def create(
         changes: Mapping[EntityID, Any] | None = None,
@@ -102,6 +143,7 @@ class TransformationDefinition:
             EntityID,
             EntityID | tuple[EntityID, ...],
         ] | None = None,
+        conversions: Mapping[EntityID, str] | None = None,
     ) -> "TransformationDefinition":
         """Create an immutable transformation definition."""
 
@@ -147,6 +189,12 @@ class TransformationDefinition:
         return TransformationDefinition(
             changes=normalized_changes,
             mappings=normalized_mappings,
+            conversions=tuple(
+                sorted(
+                    (conversions or {}).items(),
+                    key=lambda item: item[0],
+                )
+            ),
         )
 
     def apply(
@@ -217,6 +265,13 @@ class TransformationDefinition:
                 )
             )
 
+        for destination_entity, _ in self.conversions:
+            if destination_entity not in mapped_destinations:
+                raise ValueError(
+                    f"conversion for {destination_entity.value} does not "
+                    f"target a mapping destination"
+                )
+
         destination_ownership: Mapping[EntityID, Any]
 
         if ownership is None:
@@ -244,6 +299,7 @@ class TransformationDefinition:
             destination=destination,
             mappings=tuple(normalized_mappings),
             provenance=provenance,
+            conversions=self.conversions,
         )
 
 
@@ -317,8 +373,24 @@ class TransformResult:
     destination: State
     mappings: tuple[EntityMapping, ...]
     provenance: Any = None
+    conversions: Conversions = ()
 
     def __post_init__(self) -> None:
+        _validate_conversions(self.conversions)
+
+        mapped_destinations = {
+            destination
+            for mapping in self.mappings
+            for destination in mapping.destination_entities
+        }
+
+        for destination, _ in self.conversions:
+            if destination not in mapped_destinations:
+                raise ValueError(
+                    f"conversion for {destination.value} does not target a "
+                    f"mapping destination"
+                )
+
         seen_sources: set[EntityID] = set()
 
         for mapping in self.mappings:
@@ -375,6 +447,24 @@ class TransformResult:
             raise ValueError(
                 "entity mappings are not canonically ordered"
             )
+
+    def conversion_for(self, destination: EntityID) -> str | None:
+        """Return the converter name declared for a destination, if any."""
+
+        for converted, name in self.conversions:
+            if converted == destination:
+                return name
+
+        return None
+
+    def mapping_for(self, source: EntityID) -> EntityMapping | None:
+        """Return the mapping record for a source entity, if any."""
+
+        for mapping in self.mappings:
+            if mapping.source_entity == source:
+                return mapping
+
+        return None
 
     def mapped_entities(
         self,
@@ -553,12 +643,14 @@ def transform_with_mapping(
     ],
     provenance: Any = None,
     ownership: Mapping[EntityID, Any] | None = None,
+    conversions: Mapping[EntityID, str] | None = None,
 ) -> TransformResult:
     """Produce a state transition with an explicit continuity mapping."""
 
     definition = TransformationDefinition.create(
         changes=changes,
         mappings=entity_mappings,
+        conversions=conversions,
     )
 
     return definition.apply(

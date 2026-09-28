@@ -157,6 +157,32 @@ class ExternalConstraintTests(unittest.TestCase):
 
         self.assertEqual(seen, [canonicalize([1, 2])])
 
+    def test_evaluator_failure_propagates(self) -> None:
+        # Ordinary computation failure is not Unknown (constraint_model §18).
+        def fail(_: Any) -> ConstraintResult:
+            raise ZeroDivisionError("evaluator failed")
+
+        context = EvaluationContext({"fail": Evaluator(fail)})
+
+        with self.assertRaises(ZeroDivisionError):
+            External("fail").evaluate(1, context)
+
+    def test_external_consumes_one_budget_step(self) -> None:
+        # The evaluator itself is not bounded by the budget (§5).
+        calls = []
+
+        def expensive(_: Any) -> ConstraintResult:
+            calls.extend(range(1000))
+            return SAT
+
+        context = EvaluationContext(
+            {"expensive": Evaluator(expensive)},
+            budget=1,
+        )
+
+        self.assertEqual(External("expensive").evaluate(1, context), SAT)
+        self.assertEqual(len(calls), 1000)
+
     def test_externals_must_be_evaluators(self) -> None:
         with self.assertRaises(TypeError):
             EvaluationContext({"f": lambda _: SAT})  # type: ignore[dict-item]

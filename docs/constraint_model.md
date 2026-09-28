@@ -127,6 +127,11 @@ The exact budget mechanism is not yet specified. The current reference model
 implements only a computation-step budget: each evaluated constraint node
 consumes one step.
 
+The budget counts constraint nodes only. An External constraint consumes one
+step, but the evaluator it calls is not bounded by the budget: an evaluator
+that does not terminate prevents evaluation from terminating. Bounding
+evaluators needs a cooperative mechanism that the model does not yet define.
+
 Where an applicable evaluation condition or budget prevents a definitive
 constraint result from being established, the result is `Unknown`.
 
@@ -466,6 +471,10 @@ and:
 
 The semantics of ordinary computation errors belong to the relevant future
 error and effect models.
+
+In the current reference model, an exception raised by an evaluator therefore
+propagates out of constraint evaluation. It is an ordinary computation
+failure, not `Unknown`.
 
 ## 19. Soundness principle
 

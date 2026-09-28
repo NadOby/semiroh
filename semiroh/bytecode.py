@@ -64,10 +64,6 @@ def lowered_count() -> int:
 # ---------------------------------------------------------------------------
 
 
-def _children(value: Any) -> tuple[EntityID, ...]:
-    return value if isinstance(value, tuple) else (value,)
-
-
 def _eval_all(entities: tuple[EntityID, ...]) -> list[Instruction]:
     return [("EVAL", entity) for entity in entities]
 

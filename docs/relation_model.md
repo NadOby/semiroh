@@ -129,6 +129,11 @@ Following continuity was chosen. It infers nothing: it follows declared
 continuity, one step, exactly as `transfer_reference` does, and it keeps
 renames cheap.
 
+The rewrites are derived, but they are not hidden: the transformation result
+lists every relation whose endpoints were rewritten, with the old and new
+entity of each rewritten endpoint. The result checks that record against its
+source and destination states.
+
 A mapped endpoint follows its mapping even when its entity is still present.
 In a swap (`a → b`, `b → a`) or a shift (`a → b`, `b → c`), entity `b` is
 present afterwards but continues a different entity. A relation to `a`
@@ -213,8 +218,9 @@ The Python reference model currently provides:
 
     relations across transformations
         applying a definition rewrites mapped endpoints of every relation
-        the definition does not change, and rejects a mapped endpoint that
-        disappears or splits (section 5)
+        the definition does not change, records each rewrite in the result
+        (RelationRewrite), and rejects a mapped endpoint that disappears or
+        splits (section 5)
 
     relation_index
         the derived index from entity to (relation, role) pairs

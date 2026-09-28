@@ -72,6 +72,7 @@ A transformation result consists conceptually of:
     source state
     destination state
     explicit entity continuity mapping
+    relation rewrites derived from that mapping
     optional provenance
 
 Continuity mapping and provenance describe the transition. They are not

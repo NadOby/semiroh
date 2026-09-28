@@ -238,7 +238,7 @@ class TransformationDefinition:
     def _follow_relation_endpoints(
         self,
         values: dict[EntityID, Value],
-    ) -> None:
+    ) -> tuple["RelationRewrite", ...]:
         """Rewrite endpoints of unchanged relations along declared continuity.
 
         An endpoint whose entity the definition maps follows that mapping,
@@ -253,6 +253,7 @@ class TransformationDefinition:
             mapping.source_entity: mapping.destination_entities
             for mapping in self.mappings
         }
+        rewrites: list[RelationRewrite] = []
 
         for entity in sorted(values):
             if entity in changed:
@@ -281,14 +282,20 @@ class TransformationDefinition:
 
                 replacement[endpoint] = destinations[0]
 
-            if any(
-                source != target
-                for source, target in replacement.items()
-            ):
+            moved = tuple(
+                (source, target)
+                for source, target in sorted(replacement.items())
+                if source != target
+            )
+
+            if moved:
                 values[entity] = Value(
                     entity,
                     relation.with_endpoints(replacement),
                 )
+                rewrites.append(RelationRewrite(entity, moved))
+
+        return tuple(rewrites)
 
     def apply(
         self,
@@ -345,7 +352,7 @@ class TransformationDefinition:
                     f"target a mapping destination"
                 )
 
-        self._follow_relation_endpoints(values)
+        relation_rewrites = self._follow_relation_endpoints(values)
 
         destination_ownership: Mapping[EntityID, Any]
 
@@ -375,6 +382,7 @@ class TransformationDefinition:
             mappings=tuple(normalized_mappings),
             provenance=provenance,
             conversions=self.conversions,
+            relation_rewrites=relation_rewrites,
         )
 
 
@@ -432,6 +440,34 @@ class CompositionResult:
 
 
 @dataclass(frozen=True)
+class RelationRewrite:
+    """Endpoints of one relation rewritten along declared continuity.
+
+    ``endpoints`` lists each rewritten endpoint as ``(before, after)`` in
+    canonical order. Recording rewrites makes the relation changes that a
+    transformation derives from its mappings explicit in its result
+    (relation_model.md section 5).
+    """
+
+    relation: EntityID
+    endpoints: tuple[tuple[EntityID, EntityID], ...]
+
+    def __post_init__(self) -> None:
+        if not self.endpoints:
+            raise ValueError("a relation rewrite needs at least one endpoint")
+
+        befores = tuple(before for before, _ in self.endpoints)
+
+        if befores != tuple(sorted(set(befores))):
+            raise ValueError(
+                "rewritten endpoints must be unique and canonically ordered"
+            )
+
+        if any(before == after for before, after in self.endpoints):
+            raise ValueError("a rewritten endpoint must change")
+
+
+@dataclass(frozen=True)
 class EntityMapping:
     """Explicit continuity relation from one source entity to destinations."""
 
@@ -449,9 +485,11 @@ class TransformResult:
     mappings: tuple[EntityMapping, ...]
     provenance: Any = None
     conversions: Conversions = ()
+    relation_rewrites: tuple[RelationRewrite, ...] = ()
 
     def __post_init__(self) -> None:
         _validate_conversions(self.conversions)
+        self._validate_relation_rewrites()
 
         mapped_destinations = {
             destination
@@ -522,6 +560,39 @@ class TransformResult:
             raise ValueError(
                 "entity mappings are not canonically ordered"
             )
+
+    def _validate_relation_rewrites(self) -> None:
+        relations = tuple(rewrite.relation for rewrite in self.relation_rewrites)
+
+        if relations != tuple(sorted(set(relations))):
+            raise ValueError(
+                "relation rewrites must be unique and canonically ordered"
+            )
+
+        for rewrite in self.relation_rewrites:
+            relation = rewrite.relation
+
+            if not (
+                self.source.contains(relation)
+                and self.destination.contains(relation)
+            ):
+                raise ValueError(
+                    f"rewritten relation {relation.value} must be present "
+                    f"in the source and destination states"
+                )
+
+            before = relation_of(self.source.values[relation])
+            after = relation_of(self.destination.values[relation])
+
+            if (
+                before is None
+                or after is None
+                or before.with_endpoints(dict(rewrite.endpoints)) != after
+            ):
+                raise ValueError(
+                    f"relation rewrite for {relation.value} does not match "
+                    f"the source and destination states"
+                )
 
     def conversion_for(self, destination: EntityID) -> str | None:
         """Return the converter name declared for a destination, if any."""

@@ -8,7 +8,9 @@ from semiroh import (
     EntityID,
     MissingEntityMapping,
     Relation,
+    RelationRewrite,
     State,
+    TransformResult,
     TransformationDefinition,
     Value,
     transfer_reference,
@@ -286,6 +288,55 @@ class RelationContinuityTests(unittest.TestCase):
         )
 
 
+class RelationRewriteRecordTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.state = graph(a=1, b=2, r=edge(source=A, target=B))
+
+    def test_rename_is_recorded(self) -> None:
+        result = transform_with_mapping(self.state, {C: 3}, {A: C})
+
+        self.assertEqual(
+            result.relation_rewrites,
+            (RelationRewrite(R, ((A, C),)),),
+        )
+
+    def test_swap_records_both_endpoints(self) -> None:
+        result = transform_with_mapping(self.state, {}, {A: B, B: A})
+
+        self.assertEqual(
+            result.relation_rewrites,
+            (RelationRewrite(R, ((A, B), (B, A))),),
+        )
+
+    def test_unrewritten_relations_are_not_recorded(self) -> None:
+        identity = transform_with_mapping(self.state, {}, {A: A, B: B})
+        explicit = transform_with_mapping(
+            self.state,
+            {C: 3, R: edge(source=C, target=B)},
+            {A: C},
+        )
+
+        self.assertEqual(identity.relation_rewrites, ())
+        self.assertEqual(explicit.relation_rewrites, ())
+
+    def test_record_must_match_the_states(self) -> None:
+        result = transform_with_mapping(self.state, {C: 3}, {A: C})
+
+        with self.assertRaises(ValueError):
+            TransformResult(
+                source=result.source,
+                destination=result.destination,
+                mappings=result.mappings,
+                relation_rewrites=(RelationRewrite(R, ((B, C),)),),
+            )
+
+    def test_invalid_rewrite_records_are_rejected(self) -> None:
+        for endpoints in [(), ((A, A),), ((B, C), (A, C)), ((A, B), (A, C))]:
+            with self.subTest(endpoints=endpoints):
+                with self.assertRaises(ValueError):
+                    RelationRewrite(R, endpoints)
+
+
 class RelationContinuityProperties(unittest.TestCase):
     def test_apply_follows_mapped_endpoints_or_rejects(self) -> None:
         plain = [EntityID(f"e{index}") for index in range(4)]
@@ -397,8 +448,10 @@ class RelationContinuityProperties(unittest.TestCase):
                     outcomes["dangling"] += 1
                     continue
 
-                destination = definition.apply(state).destination
+                result = definition.apply(state)
+                destination = result.destination
                 outcomes["applied"] += 1
+                expected_rewrites = []
 
                 for entity in relations:
                     if entity not in present or entity in changes:
@@ -412,6 +465,21 @@ class RelationContinuityProperties(unittest.TestCase):
                     })
 
                     self.assertEqual(relation_at(destination, entity), expected)
+
+                    moved = tuple(
+                        (endpoint, mappings[endpoint][0])
+                        for endpoint in sorted(old.endpoints)
+                        if endpoint in mappings
+                        and mappings[endpoint][0] != endpoint
+                    )
+
+                    if moved:
+                        expected_rewrites.append(RelationRewrite(entity, moved))
+
+                self.assertEqual(
+                    result.relation_rewrites,
+                    tuple(expected_rewrites),
+                )
 
         self.assertGreater(outcomes["applied"], 50)
         self.assertGreater(outcomes["dangling"], 50)

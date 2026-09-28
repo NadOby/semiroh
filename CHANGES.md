@@ -694,3 +694,17 @@ Composition APIs are specified in terms of these three result classes.
 - Known limit, not the machine's: `canonical_serialize` still recurses on
   the host stack, so a function body nested about 244 levels or a value
   nested as deep fails to load or to write (bytecode.md section 8).
+
+### Decide owned-subtree constraint subjects
+
+- Decided what task 4 left Provisional: a constraint relation sees an owner
+  endpoint as `{"value": ..., "owned": {...}}` and any other endpoint as its
+  plain content (relation_model.md section 7, graph_form.md section 7). It
+  is kept because a constraint over a function's code has to keep holding
+  while nodes are edited or swapped, and naming each node would not.
+  Recorded the cost: the shape depends on whether the endpoint owns
+  anything, which has not mattered since only functions own structure. An
+  opt-in for the subtree was considered and not taken. Removed the pending
+  decision from the roadmap. Docs only; `OwnedSubtreeTests` already pin the
+  behaviour.
+

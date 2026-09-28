@@ -178,14 +178,24 @@ endpoints maps to the tuple of their contents.
              roles={low: min_cell, high: max_cell},
              payload=<constraint over {low: ..., high: ...}>)
 
-**Provisional:** an endpoint that owns entities contributes its owned
+**Decided:** an endpoint that owns entities contributes its owned
 subtree with it, as the map `{"value": <its own content>, "owned": {child:
 <the child's contribution>, ...}}`, recursively; an endpoint that owns
 nothing contributes its content as before. Ownership bounds a composite,
 so a constraint over the owner sees all of it. Code in graph form needs
 this: a function's value holds only its definition, and its code lives in
 the nodes it owns (graph_form.md), so a constraint over a function's code
-is a constraint over the function.
+is a constraint over the function, and it keeps holding when nodes are
+edited, added or swapped.
+
+The shape of an endpoint's contribution therefore depends on whether it owns
+anything: plain content for an entity that owns nothing, the composite map
+for one that does. A constraint written for a plain value stops matching
+when its endpoint gains an owned child. Only owners of structure (functions,
+whose nodes they own) have the composite shape today; cells own nothing. A
+constraint over a kind of entity that may own or not must accept both
+shapes, or name the shape it means. An opt-in for the subtree was considered
+and not taken, since no program needs the plain shape of an owner.
 
 Evaluation follows the existing rules for cells: it happens in a runtime,
 with the runtime's evaluation context, and anything but `Satisfied` rejects.

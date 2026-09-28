@@ -127,8 +127,10 @@ continuity. Tools that produce transformations, including the embedded
 compiler, are expected to declare identity mappings (`A → A`) for cells they
 leave untouched, so this rule costs nothing in the common case.
 
-A cell in `S₁` with no incoming mapping from a cell is initialized by its own
-initializer.
+A cell in `S₁` with no incoming mapping from a cell, including one whose only
+incoming mappings come from non-cell entities, is initialized by its own
+initializer. A conversion declared for such a cell rejects the activation,
+because there is no content to convert.
 
 Every content that reaches a cell of `S₁` is checked against that cell's
 constraint in the runtime's evaluation context: transferred content,
@@ -144,9 +146,15 @@ supplied at activation, as evaluators are for External constraints, so the
 definition stays pure data. A missing converter rejects the activation, and
 a converter failure propagates without changing the runtime.
 
+A conversion declared for a one-to-one mapping is always used, even when the
+transferred content would already satisfy the destination's constraint. Its
+output is checked like any other content.
+
 ## 5. Code in flight
 
-**Open.**
+**Decided:** a frame that is executing when an activation happens keeps
+executing in the version it started in, and holds that version.
+**Open:** the strategy for switching code in flight, described below.
 
 Some threads may be executing code of entities that the transformation
 changed or removed. Options:

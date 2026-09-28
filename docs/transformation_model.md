@@ -148,6 +148,11 @@ For an entity explicitly mapped to zero destinations:
 An explicit disappearance mapping therefore takes precedence over a value
 change for the same source entity: the entity is absent from the destination.
 
+More generally, the presence of an explicitly mapped source entity in the
+destination is decided by the mappings alone (see section 6). A value change
+for a source entity that the mappings remove from the destination has no
+effect.
+
 ## 5. Transformation mappings
 
 A transformation definition may contain explicit continuity mappings.
@@ -201,8 +206,34 @@ Destination entities may be introduced by the definition's changes.
 A source mapped to an empty destination tuple disappears from the destination
 state.
 
+A source mapped to one or more destinations is present in the destination
+state if and only if it is itself a destination of some mapping in the same
+definition. Therefore:
+
+    A → A
+        A remains present
+
+    A → B
+        A is absent (B continues A)
+
+    A → B
+    B → A
+        both remain present (a swap)
+
+    A → B
+    B → C
+        A is absent; B and C are present (a shift)
+
+An explicit disappearance is not overridden by appearing as a destination.
+A mapping whose destinations include an entity explicitly mapped to zero
+destinations therefore names an entity absent from the destination state and
+is invalid.
+
 A source entity that is not explicitly mapped remains in the destination
 state, subject to any value change explicitly specified for that entity.
+
+Destination validation is performed against the resulting destination state,
+after changes have been applied and mapped sources have been removed.
 
 A destination entity with no incoming mapping is a newly created destination
 entity.

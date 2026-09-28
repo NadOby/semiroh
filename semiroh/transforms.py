@@ -162,8 +162,9 @@ class TransformationDefinition:
         for change in self.changes:
             values[change.entity] = change.value
 
-        normalized_mappings: list[EntityMapping] = []
         explicitly_mapped: set[EntityID] = set()
+        declared_disappearances: set[EntityID] = set()
+        mapped_destinations: set[EntityID] = set()
 
         for mapping in self.mappings:
             source_entity = mapping.source_entity
@@ -175,7 +176,32 @@ class TransformationDefinition:
                 )
 
             explicitly_mapped.add(source_entity)
+            mapped_destinations.update(mapping.destination_entities)
 
+            if not mapping.destination_entities:
+                declared_disappearances.add(source_entity)
+
+        # Presence of an explicitly mapped source is decided by the mappings
+        # alone:
+        #
+        # - a source mapped to zero destinations disappears;
+        # - otherwise a source is absent unless it is itself a destination of
+        #   some mapping (A -> A, or a swap / shift chain such as A -> B,
+        #   B -> A).
+        #
+        # A value change for a source that the mappings remove has no effect;
+        # this generalizes the rule that explicit disappearance takes
+        # precedence over a value change.
+        removed = (
+            explicitly_mapped - mapped_destinations
+        ) | declared_disappearances
+
+        for entity in removed:
+            values.pop(entity, None)
+
+        normalized_mappings: list[EntityMapping] = []
+
+        for mapping in self.mappings:
             for destination_entity in mapping.destination_entities:
                 if destination_entity not in values:
                     raise KeyError(
@@ -186,35 +212,10 @@ class TransformationDefinition:
             normalized_mappings.append(
                 EntityMapping(
                     source_state=state.id,
-                    source_entity=source_entity,
+                    source_entity=mapping.source_entity,
                     destination_entities=mapping.destination_entities,
                 )
             )
-
-        for entity in explicitly_mapped:
-            values.pop(entity, None)
-
-        for mapping in self.mappings:
-            if mapping.source_entity in mapping.destination_entities:
-                source_entity = mapping.source_entity
-
-                if source_entity not in values:
-                    source_value = state.values[source_entity]
-
-                    change = next(
-                        (
-                            change
-                            for change in self.changes
-                            if change.entity == source_entity
-                        ),
-                        None,
-                    )
-
-                    values[source_entity] = (
-                        change.value
-                        if change is not None
-                        else source_value
-                    )
 
         if ownership is None:
             destination_ownership = {

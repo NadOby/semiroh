@@ -88,6 +88,8 @@ where the interpreter raised it when the node was reached.
     CALL f k            pop k arguments, call the function entity f
     REFCHECK, APPLY k   the reference to a function, then a call of it
     REF f name          push f, which must be a function (a reference)
+    CODE f name         push the code of function f as (params, body)
+                        (self_hosting.md)
     LETCHECK name       the name must not be in scope
     LETBIND name n      pop a value, bind name to it, continue as node n
     READ cell           push the cell's content

@@ -96,6 +96,10 @@ Tier 2 (roadmap.md task 6, language_data.md section 5) adds:
   tail call, ten thousand calls deep;
 - higher order and recursion: `map_long_tuple`, `map` over tuples of a
   thousand and two thousand elements;
+- self-hosting (roadmap.md task 8): `compiler`, `lower` written in SEMIROH,
+  and `instrument`, a program that reads its own function, swaps in a
+  version that counts its calls and compiles what it installed
+  (self_hosting.md);
 - self-modification: `sort_swap`, which sorts a tuple in a cell with the
   function `order` refers to, activates a different `order` between two
   runs, and sorts again with the data still in its cell.

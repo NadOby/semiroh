@@ -173,6 +173,10 @@ record that per-node identity is not paying for itself.
 
 ### 8. Self-hosting milestone (one session)
 
+**Done.** The design is in self_hosting.md. The owner chose the scope:
+the compiler emits bytecode as data and is checked against the host's;
+what it emits is not run yet (task 10).
+
 First, an operation that reads a function's code as data (input form or
 nodes), so a program can see the code it compiles; today only the host has
 `function_at`. Then write the lowering pass from task 7 in SEMIROH itself:
@@ -183,6 +187,14 @@ a program recompiles and hot swaps part of itself with its own compiler.
 For example, constant folding written as a graph transformation that
 declares its merges. Optimised, hot-swapped code keeps a mapping to its
 source nodes, which a test checks. Independent of task 8.
+
+### 10. A bytecode interpreter in SEMIROH (one session, provisional)
+
+Owner's direction after task 8: "probably". A small VM written in the
+language runs the chunks the compiler of task 8 emits, so a program compiles
+itself and swaps in a function that runs its own emitted chunk. Needs a way
+to call a function chosen at run time and to read a function by reference
+(self_hosting.md sections 5 and 6).
 
 ## Later
 

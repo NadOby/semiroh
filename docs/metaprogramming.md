@@ -24,7 +24,7 @@ Out of scope: creating, removing or renaming entities from inside the
 language (creation would force ownership_model.md §13's placement
 question); changing cells or links relations from inside the language;
 reading code back as data and taking tuples apart; trials from inside the
-language (activation_model.md §8); error handling inside the language;
+language (activation_model.md §8; language_trials.md); error handling inside the language;
 nested quotation; any capability model beyond one per-run grant.
 
 ## 2. Code as data

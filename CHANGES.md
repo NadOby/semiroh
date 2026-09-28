@@ -407,3 +407,24 @@ Composition APIs are specified in terms of these three result classes.
 - Added unit coverage for all new operations, malformed operands, activation
   check ordering, atomicity, canonical function values, cell-content
   preservation, and a seeded quotation property.
+
+### Trials in the language
+
+- Implemented `trial`, which exercises a candidate against a call in an
+  isolated runtime (`Runtime.trial`) before a program decides whether to
+  `activate` it; the real runtime's state, cells and holds are never
+  touched.
+- Shared the link/value pair checks and the identity-mapped transformation
+  between `activate` and `trial` in one helper, and moved the active-state
+  read after operand evaluation for both, so a pair value that itself
+  activates is trialled or activated against the active state after
+  evaluation, not a stale one.
+- Code running under trial gets no activation capability, so it cannot
+  `activate` or `trial` itself; a rejected candidate or a failure in the
+  call propagates unchanged and leaves the real program alone.
+- Trials are not limited by the two-version bound: a run may trial any
+  number of candidates, before or after its one activation.
+- Added unit coverage for `trial`'s `LanguageError` cases, the order of
+  checks before the capability, a zero-pair trial run in isolation, and a
+  trial whose own pair value activates, confirming the transformation
+  starts from the active state after evaluation.

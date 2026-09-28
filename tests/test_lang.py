@@ -668,5 +668,172 @@ class MetaprogrammingProperties(unittest.TestCase):
                 self.assertEqual(run(Runtime(quoted), F), value)
 
 
+PREP = EntityID("prep")
+PREP_LINKS = EntityID("prep.links")
+POWER = EntityID("power")
+MARKER = EntityID("marker")
+
+
+class TrialOperationTests(unittest.TestCase):
+    """Unit tests for ``trial`` (docs/language_trials.md)."""
+
+    def test_trial_without_changes_runs_the_call_in_isolation(self) -> None:
+        state = make_state({
+            F: Function((), ("trial", ("call", "g"))),
+            F_LINKS: links(F, g=G),
+            G: Function((), ("write", "c", ("lit", 9))),
+            EntityID("g.links"): links(G, c=CELL),
+            CELL: unbounded_cell(0),
+        })
+        runtime = Runtime(state)
+
+        self.assertEqual(run(runtime, F, may_activate=True), 9)
+        self.assertEqual(runtime.read(CELL), 0)
+        self.assertEqual(runtime.versions, (runtime.active,))
+        self.assertEqual(runtime.active.holds, frozenset())
+
+    def test_trial_runs_the_replaced_function_without_installing_it(self) -> None:
+        state = make_state({
+            F: Function(
+                (),
+                (
+                    "trial",
+                    ("call", "g"),
+                    "g",
+                    ("lit", Function((), ("lit", 42))),
+                ),
+            ),
+            F_LINKS: links(F, g=G),
+            G: Function((), ("lit", 1)),
+        })
+        runtime = Runtime(state)
+
+        self.assertEqual(run(runtime, F, may_activate=True), 42)
+        self.assertEqual(run(runtime, G), 1)
+
+    def test_trial_first_operand_must_be_a_call_form(self) -> None:
+        for body in (
+            ("trial",),
+            ("trial", ("lit", 1)),
+            ("trial", ("call",)),
+        ):
+            with self.subTest(body=body):
+                state = function_only(body)
+
+                with self.assertRaises(LanguageError):
+                    run(Runtime(state), F, may_activate=True)
+
+    def test_trial_rejects_an_unknown_call_link(self) -> None:
+        state = make_state({
+            F: Function((), ("trial", ("call", "missing"))),
+            F_LINKS: links(F),
+        })
+
+        with self.assertRaises(LanguageError):
+            run(Runtime(state), F, may_activate=True)
+
+    def test_trial_pair_errors(self) -> None:
+        base = {
+            F_LINKS: links(F, g=G, c=CELL),
+            G: Function((), ("lit", 1)),
+            CELL: unbounded_cell(0),
+        }
+
+        cases = {
+            "odd pairs": ("trial", ("call", "g"), "g"),
+            "duplicate target": (
+                "trial",
+                ("call", "g"),
+                "g",
+                ("lit", Function((), ("lit", 2))),
+                "g",
+                ("lit", Function((), ("lit", 3))),
+            ),
+            "target is not a function": (
+                "trial",
+                ("call", "g"),
+                "c",
+                ("lit", Function((), ("lit", 2))),
+            ),
+            "value is not a function": (
+                "trial",
+                ("call", "g"),
+                "g",
+                ("lit", 5),
+            ),
+        }
+
+        for name, body in cases.items():
+            with self.subTest(case=name):
+                state = make_state({F: Function((), body), **base})
+
+                with self.assertRaises(LanguageError):
+                    run(Runtime(state), F, may_activate=True)
+
+    def test_trial_checks_operands_before_the_capability(self) -> None:
+        state = make_state({
+            F: Function((), ("trial", ("call", "missing"))),
+            F_LINKS: links(F),
+        })
+
+        # No may_activate at all: a LanguageError from the operand checks
+        # must still win over ActivationRejected from the missing capability.
+        with self.assertRaises(LanguageError):
+            run(Runtime(state), F)
+
+    def test_trial_requires_the_capability_after_operand_checks(self) -> None:
+        state = make_state({
+            F: Function((), ("trial", ("call", "g"))),
+            F_LINKS: links(F, g=G),
+            G: Function((), ("lit", 1)),
+        })
+
+        with self.assertRaises(ActivationRejected):
+            run(Runtime(state), F)
+
+    def test_trial_builds_from_the_active_state_after_its_operands_activate(
+        self,
+    ) -> None:
+        # prep() activates marker as a side effect of evaluating trial's own
+        # pair value (its replacement for "power"). The transformation trial
+        # builds must start from the state that leaves, not the one active
+        # when trial began, or Runtime.trial rejects it as not starting from
+        # the active state.
+        state = make_state({
+            F: Function(
+                (),
+                (
+                    "trial",
+                    ("call", "power", ("lit", 7)),
+                    "power",
+                    ("call", "prep"),
+                ),
+            ),
+            F_LINKS: links(F, prep=PREP, power=POWER),
+            PREP: Function(
+                (),
+                (
+                    "seq",
+                    (
+                        "activate",
+                        "marker",
+                        ("lit", Function((), ("lit", 2))),
+                    ),
+                    ("lit", Function(("x",), ("lit", 99))),
+                ),
+            ),
+            PREP_LINKS: links(PREP, marker=MARKER),
+            POWER: Function(("x",), ("lit", 1)),
+            MARKER: Function((), ("lit", 1)),
+        })
+        runtime = Runtime(state)
+
+        self.assertEqual(run(runtime, F, may_activate=True), 99)
+        self.assertEqual(run(runtime, MARKER), 2)
+        self.assertEqual(run(runtime, POWER, 3), 1)
+        self.assertEqual(runtime.versions, (runtime.active,))
+        self.assertEqual(runtime.active.holds, frozenset())
+
+
 if __name__ == "__main__":
     unittest.main()

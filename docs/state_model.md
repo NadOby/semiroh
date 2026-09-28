@@ -201,6 +201,10 @@ derived from content and cannot be supplied by the caller.
 
 `State.with_changes()` produces a new state.
 
+A value holding a `CellDeclaration` declares a mutable cell. The declaration
+(type and initializer) is state content; the cell's current content lives in a
+`Runtime` and is not.
+
 `State.destroy()` produces a new state with an entity and its owned subtree
 removed.
 

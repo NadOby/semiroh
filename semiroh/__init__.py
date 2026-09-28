@@ -1,6 +1,7 @@
 """SEMIROH executable semantic reference model."""
 
 from .canonical import canonical_serialize, canonicalize
+from .cells import CellDeclaration, cell_declaration, cells_of
 from .constraints import Constraint, ConstraintResult
 from .equality import semantic_equal, same_entity, same_version
 from .identity import Entity, EntityID, StateID, VersionID
@@ -42,6 +43,7 @@ __all__ = [
     "Value",
     "Reference",
     "State",
+    "CellDeclaration",
     "Constraint",
     "ConstraintResult",
     "EntityChange",
@@ -57,6 +59,8 @@ __all__ = [
     "AmbiguousEntityMapping",
     "canonical_serialize",
     "canonicalize",
+    "cell_declaration",
+    "cells_of",
     "version_id_for",
     "semantic_equal",
     "same_entity",

@@ -27,6 +27,18 @@ def _node(kind: str, payload: Any) -> CanonicalNode:
     return CanonicalNode(("__type__", kind, payload))
 
 
+class SemanticRecord:
+    """Base class for model records that are semantic values.
+
+    A semantic record defines its own tagged canonical node. Canonicalization
+    and canonical serialization use that node, so records participate in
+    value and state identity like built-in semantic values.
+    """
+
+    def canonical_node(self) -> CanonicalNode:
+        raise NotImplementedError
+
+
 def _encode_length(length: int) -> bytes:
     return length.to_bytes(
         8,
@@ -52,6 +64,9 @@ def canonical_serialize(value: Any) -> bytes:
     therefore part of the representation and distinct semantic types must not
     collapse to the same byte sequence.
     """
+
+    if isinstance(value, SemanticRecord):
+        return canonical_serialize(value.canonical_node())
 
     if value is None:
         return b"N"
@@ -144,6 +159,9 @@ def canonicalize(value: Any) -> Any:
 
     if isinstance(value, CanonicalNode):
         return value
+
+    if isinstance(value, SemanticRecord):
+        return value.canonical_node()
 
     if value is None or isinstance(
         value,

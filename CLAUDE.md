@@ -30,6 +30,8 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 
 ## Workflow
 
+- Work follows `docs/roadmap.md`: its task order and its plan, write,
+  review, publish loop.
 - Docs, tests, and code are three representations of one spec: change them
   together. Mark doc sections Decided / Provisional / Open.
 - Check a proposal against the vision first; if existing code conflicts with

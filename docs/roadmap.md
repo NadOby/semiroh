@@ -4,40 +4,50 @@
 (PR #17, docs/spikes/code_as_graph.md on that branch). Tasks are done in
 order unless marked independent; each one is a PR and follows CLAUDE.md.
 
-Modes:
+## Workflow
 
-- **handoff**: plan and acceptance tests here, a writer implements, a
-  reviewer checks (as for first_program.md, metaprogramming.md and
-  language_trials.md);
-- **one session**: design-heavy work, designed and implemented in one
-  session, reviewed at the end.
+**Decided.** A semi-automatic loop, driven from one planning chat:
 
-## Decision D1: graph form canonical, or hybrid
+1. **Plan.** The planning chat writes the task's plan and acceptance tests
+   on a branch `task/<n>-<name>`. For handoff tasks it checks them against
+   a throwaway prototype and a few planted bugs.
+2. **Write.** A writer agent (a smaller model, started fresh in its own
+   worktree) implements the plan and commits. For one-session tasks a
+   larger model designs and implements together.
+3. **Review.** A reviewer agent, fresh and not the writer, checks the work
+   against the plan and CLAUDE.md, fixes small issues as separate commits,
+   and reports anything larger.
+4. **Check and publish.** The planning chat checks that the acceptance
+   tests are unchanged, runs the suite, pushes, and opens a ready PR with
+   anything that needs the owner.
+5. **Merge.** The owner merges, or pushes back, and says so. The loop
+   continues with the next task.
 
-**Open.** Owner decides before task 4.
+Tasks are marked **handoff** (the plan and tests are settled before any
+code) or **one session** (the design comes out of writing the code). The
+planning chat asks the owner only about decisions like D1; any other choice
+is made, marked Provisional and named in the PR. Independent tasks may run
+in parallel; the planning chat resolves `CHANGES.md` conflicts when
+publishing. When the planning chat grows heavy, a new one starts from
+CLAUDE.md and this roadmap.
+
+## Decision D1: graph form is canonical
+
+**Decided.** Code is stored as graph form: each expression node is a
+relation entity owned by its function. Tuple bodies with links remain an
+input format that converts into it.
 
 The spike showed that code as graph works over the unchanged core. Editing
 one node leaves every other node's `EntityID` and `VersionID` alone.
 Renames come free from relation endpoint continuity, and the links relation
-becomes redundant. Its recommendation is a hybrid: tuple bodies by default,
-expanded into graph form on demand. It rests on one measured cost,
-installing code in a state with 3-5x more entities.
+becomes redundant. The spike recommended a hybrid because installing code
+was slower in a state with 3-5x more entities. That cost comes from `State`
+re-serializing every entity's content to derive `StateID`, a core scaling
+problem task 2 fixes. A hybrid would have meant two representations, two
+interpreters and conversions in both directions, against a vision whose
+first line is that the graph is the source of truth.
 
-- **Canonical graph (recommended).** The measured cost comes from `State`
-  re-serializing every entity's content to derive `StateID` on every
-  transformation. That is a core scaling problem that any large program has,
-  and task 2 fixes it. With it fixed, the hybrid's price is two
-  representations, two interpreters and conversions in both directions,
-  against a vision whose first line is that the graph is the source of
-  truth. Tuple bodies and links stay as an input format that converts into
-  graph form.
-- **Hybrid.** Tuple bodies stay canonical; graph form is an explicit
-  expansion for tools that need it (README section 22). Task 4 then
-  becomes packaging expand and collapse, task 5 applies to expanded
-  functions only, and task 7 keys its cache by function version rather
-  than by node.
-
-## A. Needed either way
+## A. Foundations
 
 ### 1. Canary corpus, tier 1 (handoff, independent)
 
@@ -83,12 +93,11 @@ Done when: `ownership_model.md` §13 marks the answer Decided, and
 transformations can create and delete owned groups without supplying the
 full ownership map.
 
-## B. Code as graph (after D1)
+## B. Code as graph
 
 ### 4. Adopt graph form (one session)
 
-Code is stored as graph form: each expression node is a relation entity
-owned by its function. Tuple bodies with links become the input format
+Code is stored as graph form (D1). Tuple bodies with links become the input format
 that converts into it, so `test_first_program.py`,
 `test_metaprogramming.py` and `test_language_trials.py` keep running,
 through the converter. The spike's leaf-node `self` role is replaced by

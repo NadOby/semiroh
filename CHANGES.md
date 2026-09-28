@@ -134,3 +134,42 @@ Unknown represents insufficient continuity information and is distinct
 from both continuity and disappearance.
 
 Composition APIs are specified in terms of these three result classes.
+
+## 2026-09-28
+
+### Model/specification divergences fixed
+
+- Transformation application now decides the presence of explicitly mapped
+  sources by the mappings alone: a mapped source remains present if and only
+  if it is itself a destination of some mapping, and explicit disappearance
+  is never overridden. Swap (`A → B`, `B → A`) and shift (`A → B`, `B → C`)
+  mappings are now applicable; previously they were rejected.
+- Destination validation runs against the resulting destination state, so a
+  mapping into an entity that is explicitly mapped to zero destinations is
+  rejected as a missing destination.
+- Documented that a value change for a source removed by the mappings has no
+  effect, generalizing the existing disappearance-precedence rule.
+- Transformations without explicit destination ownership now remove only
+  ownership edges involving entities absent from the destination. Explicitly
+  mapped entities that remain present (such as `A → A`) keep their ownership,
+  as the transformation and ownership models already required.
+- Canonicalization is idempotent. Already-canonical content is recognised
+  and not wrapped again, so rebuilding a value from existing content (for
+  example through `with_changes` or `dataclasses.replace`) no longer changes
+  its identity. Canonical serializations, and therefore all existing
+  `VersionID` and `StateID` values, are unchanged.
+- `Value` equality, hashing and `semantic_equal` use canonical serialization,
+  so `True` and `1` are distinct values, consistent with their distinct
+  `VersionID`s.
+- Owners listed with no children no longer affect state identity; absent
+  entities are still rejected.
+- Ownership cycle detection is iterative and supports deep ownership chains.
+- `make_reference` rejects a value belonging to a different entity.
+
+### Testing
+
+- Added regression tests for each fix in the thematic test modules.
+- Added seeded property tests (`tests/test_properties.py`) for
+  canonicalization, ownership normalization, application rules, associativity
+  of composition, and agreement between chained reference transfer and
+  continuity composition.

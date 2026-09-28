@@ -231,7 +231,29 @@ the activation, or to terminate the holders, as Erlang terminates processes
 still running purged code. Terminating a thread would itself be destruction of
 what that thread owns.
 
-## 8. Rollback
+## 8. Speculative versions
+
+**Proposed.**
+
+The two-version bound applies to versions running in one runtime, not to
+produced states. Candidate states are immutable values: any number of them can
+be produced, compared and validated without activation.
+
+A candidate that must be exercised, not only validated, runs in an isolated
+runtime:
+
+- it has its own runtime root, so its versions do not count against the main
+  runtime's bound;
+- its live state is a copy of the relevant main-runtime state, produced by the
+  same transfer functions that activation would use;
+- it receives only the capabilities the trial grants, so its effects stay
+  contained.
+
+A trial run therefore also tests the state-transfer functions before the real
+activation. A candidate becomes a version of the main runtime only through
+activation (section 2).
+
+## 9. Rollback
 
 **Decided.**
 
@@ -243,7 +265,7 @@ Runtime state transferred during the first activation is not automatically
 restored. Consistent with the transformation model, reversibility is not
 implied by the existence of a forward transformation.
 
-## 9. Native code
+## 10. Native code
 
 **Open.**
 
@@ -255,7 +277,7 @@ Installing new native code interacts with W^X memory policies, code signing,
 and platforms that forbid runtime code generation. These are listed as open
 areas in the README.
 
-## 10. Relation to other models
+## 11. Relation to other models
 
 - **Transformation model**: supplies `S₁` and the continuity mappings.
   Activation adds no continuity of its own.
@@ -268,7 +290,7 @@ areas in the README.
   activation.
 - **State model**: activation selects a state; it does not mutate any state.
 
-## 11. Current implementation status
+## 12. Current implementation status
 
 The Python reference model does not yet implement activation, runtime state,
 or mutable cells.
@@ -278,16 +300,17 @@ references and mutable cells for an active state, a metaprogram producing
 `S₁`, activation that transfers cell content and references along the
 transformation result, and release of `S₀` once nothing is pinned to it.
 
-## 12. Unresolved areas
+## 13. Unresolved areas
 
 - switching strategy for code in flight (section 5);
 - where conversion and transfer functions live (section 4);
 - how the runtime tracks holds on versions (section 7);
 - activation while the previous version is still held (section 7);
+- isolation and state copying for trial runs (section 8);
 - concurrency: per-thread switching and its memory model;
 - native code installation under platform restrictions.
 
-## 13. Design principle
+## 14. Design principle
 
 Activation is an explicit, atomic transition of the running program from one
 immutable program state to another.

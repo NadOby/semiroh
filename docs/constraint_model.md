@@ -123,7 +123,9 @@ Possible budget dimensions include:
 - transformation count;
 - optional wall-clock time.
 
-The exact budget mechanism is not yet specified.
+The exact budget mechanism is not yet specified. The current reference model
+implements only a computation-step budget: each evaluated constraint node
+consumes one step.
 
 Where an applicable evaluation condition or budget prevents a definitive
 constraint result from being established, the result is `Unknown`.
@@ -181,8 +183,9 @@ Constraint identity must be independent of mutable evaluation state.
 Evaluation results, caches, resource consumption, and runtime evaluation state
 must not change the identity of the constraint.
 
-The exact semantic identity representation for constraints remains
-implementation work.
+In the current reference model, a semantic constraint has a tagged canonical
+representation. Its identity follows from canonical serialization, like any
+other semantic value, so constraints can appear in program state.
 
 ## 8. Constraint immutability
 
@@ -490,22 +493,31 @@ The Python reference model currently provides:
         Satisfied, Violated, Unknown, and whether a result is decisive
         (is_known)
 
-    Constraint
-        an immutable wrapper around an executable predicate and a
-        description; evaluate() requires the predicate to return a
-        ConstraintResult
+    semantic constraints
+        IsKind, IntRange, Length, OneOf       primitive constraints
+        AllOf, AnyOf, Not                     composition (section 9)
+        External                              a named constraint evaluated
+                                              by an executable evaluator
 
-The predicate is only the executable evaluation mechanism. Constraint identity
-is intentionally not derived from Python callable identity, so the model does
-not yet provide a semantic constraint representation.
+    EvaluationContext
+        registered evaluators for External constraints and an optional
+        computation-step budget
+
+    Constraint
+        an executable evaluator wrapping a Python predicate; it is not a
+        semantic value and is referenced by name through External
+
+Semantic constraints are semantic values with canonical identity and can
+appear in program state. An External constraint without a registered
+evaluator evaluates to Unknown, as does evaluation that exhausts its budget.
 
 The following remain future work:
 
-- semantic constraint representation and canonical constraint identity;
+- constraints relating several entities (naturally hyperedges of the semantic
+  graph);
 - evidence representation;
-- evaluation context;
-- evaluation budgets;
-- constraint composition;
+- evaluation conditions beyond registered evaluators;
+- budget dimensions beyond computation steps;
 - dependency evaluation;
 - preservation analysis.
 

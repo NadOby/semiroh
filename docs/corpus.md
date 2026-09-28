@@ -51,7 +51,7 @@ files):
     EXAMPLES: tuple[Example, ...]
     MISSING: tuple[Wanted, ...]
     TAGS = frozenset({"recursion", "side effects", "control",
-                      "self-modification"})
+                      "self-modification", "data", "higher order"})
 
     ExampleFailed(AssertionError)
     play(example, run)
@@ -83,10 +83,40 @@ depends on an earlier write. A self-modification example must have a step
 whose result shows the new code, run with `may_activate=True` where it
 activates.
 
+Tier 2 (roadmap.md task 6, language_data.md section 5) adds:
+
+- data: `insertion_sort`, and `let_bindings` (a discriminant named once, a
+  side-effecting bound expression that runs once, a `let` that reuses a
+  parameter's name and raises);
+- higher order: `map` and `fold`, run with function references passed as
+  arguments;
+- recursion: `deep_loop`, tail-recursive loops thousands of calls deep,
+  through `call`, through `apply` and between two functions;
+- self-modification: `sort_swap`, which sorts a tuple in a cell with the
+  function `order` refers to, activates a different `order` between two
+  runs, and sorts again with the data still in its cell.
+
 ## 4. Wanted programs
 
-**Open.** The list is the input for roadmap.md task 6. Recorded in
-`semiroh/examples/missing.py` (`MISSING`):
+**Open.** Recorded in `semiroh/examples/missing.py` (`MISSING`). Writing the
+tier 2 programs found two gaps:
+
+- `map_long_tuple` needs non-tail recursion deeper than the Python stack.
+  Tail calls made loops unbounded, but a call not in tail position still
+  nests about 5 Python frames. Under the default recursion limit of 1000
+  the `map` example succeeds on a tuple of 190 elements and raises
+  `RecursionError` on 200, and `insertion_sort` succeeds on 150 and raises
+  on 200. It needs an evaluator whose stack is not the Python stack, or a
+  primitive that walks a tuple without recursion.
+- `make_adder` needs function values that capture local names, such as
+  `make_adder(n)` or `compose(f, g)`. `ref` gives only the identity of a
+  function that already exists and `apply` takes only such a reference; a
+  function built by `function` is code as data and runs only after
+  `activate` installs it under an existing entity. It needs anonymous
+  function values with captured bindings, or partial application.
+
+**Closed** by roadmap.md task 6: the four programs this list first
+recorded, now tier 2 examples. What each needed, as first written:
 
 - `insertion_sort` needs a way to take a tuple apart at runtime (head/tail
   or an index operation) and a length operation, to iterate over a sequence

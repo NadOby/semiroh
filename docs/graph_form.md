@@ -64,6 +64,14 @@ so `function_at` gives back the link names as written.
     call                target, args (ordered)             link name
     read                cell                               link name
     write               cell, value                        link name
+    tuple               items (ordered)                    -
+    len                 tuple                              -
+    item                tuple, index                       -
+    slice               tuple, start, stop                 -
+    concat              left, right                        -
+    let                 value, body                        name
+    ref                 target                             link name
+    apply               function, args (ordered)           -
     quote               holes (ordered)                    template, each
                                                            hole replaced
                                                            by ("unquote",)
@@ -97,6 +105,15 @@ returns the original expression.
 For `activate` and `trial`, a link that does not resolve is recorded as a
 `(name, problem)` entry and raised only when the pairs are checked, after
 their values are evaluated (metaprogramming.md §4, language_trials.md §2).
+
+**Data, let, references** (language_data.md). `ref` names its function by
+the `target` role, like `call`, so a rename of the function follows
+continuity; the value it produces, an `EntityID`, is runtime data and does
+not. A `let` whose name is not a non-empty string is an `invalid` node.
+That the name is not already in scope is checked when the `let` runs,
+because a node edit (section 9) replaces a node without seeing the `let`s
+around it. Tail position (language_data.md section 4) is a property of where
+a node sits, not a node kind: the interpreter finds it while evaluating.
 
 **Quote.** The template stays data: only tuples headed `"unquote"` are
 holes, lists, maps and records inside it are copied as they are, and holes

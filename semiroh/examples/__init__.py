@@ -27,7 +27,14 @@ from .. import (
 )
 from ..lang import load
 
-TAGS = frozenset({"recursion", "side effects", "control", "self-modification"})
+TAGS = frozenset({
+    "recursion",
+    "side effects",
+    "control",
+    "self-modification",
+    "data",
+    "higher order",
+})
 
 
 @dataclass(frozen=True)
@@ -170,13 +177,23 @@ def play(example: Example, run: Callable[..., Any]) -> None:
 
 # Submodules build on the data format above, so they are imported only now
 # that it is fully defined; each does `from . import Example, Step, ...`.
-from . import control, missing, recursion, self_modification, side_effects  # noqa: E402
+from . import (  # noqa: E402
+    control,
+    data,
+    higher_order,
+    missing,
+    recursion,
+    self_modification,
+    side_effects,
+)
 
 EXAMPLES: tuple[Example, ...] = (
     recursion.EXAMPLES
     + control.EXAMPLES
     + side_effects.EXAMPLES
     + self_modification.EXAMPLES
+    + data.EXAMPLES
+    + higher_order.EXAMPLES
 )
 
 MISSING: tuple[Wanted, ...] = missing.MISSING

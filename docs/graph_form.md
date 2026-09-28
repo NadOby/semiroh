@@ -182,10 +182,35 @@ Program constraints over code (metaprogramming.md §4, language_trials.md
 
 ## 8. Open
 
-- Node-level `activate` and `trial` (roadmap task 5).
 - Whether a function should own its nodes as a tree shaped like the
   expression, which would let a subexpression be removed with its operands
   by one disappearance.
 - Whether invalid code should be rejected at `load`/`define` instead, once
   the language has error handling.
 - Whether the link table should be editable from the language.
+
+## 9. Node edits
+
+**Status: implemented** (roadmap.md task 5). **Provisional** as a whole.
+
+A program replaces one subexpression of a function without replacing the
+function, so hot swapping has the granularity of node identity.
+
+- **Labels.** `("label", name, e)` marks the node of `e` with a name unique
+  within its function. It is transparent when run (it evaluates `e`), and
+  `function_at` keeps it. A duplicate label in one function, or a name that
+  is not a non-empty string, is a `LanguageError`.
+- **Host.** `define` also accepts `(function, label): expression` entries,
+  mixed with whole-function entries in one transformation. The labelled
+  node keeps its `EntityID` and takes the new expression's root content;
+  the nodes below it are replaced, the old ones disappearing and the new
+  ones placed under the function. Every other node, and the function's own
+  value unless its labels change, keeps its `EntityID` and `VersionID`.
+- **Language.** In `activate` and `trial`, a pair's target may be
+  `(link, label)`, with an expression (code as data) as its value instead
+  of a function value. Capability, checks, code in flight and atomicity
+  are as for whole functions.
+- **Errors** (`LanguageError`): an unknown label; a value that is not an
+  expression (for example a function value) for a node target, or an
+  expression for a function target; a replacement that introduces a label
+  already used elsewhere in the function.

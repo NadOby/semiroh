@@ -563,3 +563,17 @@ Composition APIs are specified in terms of these three result classes.
 - Added `if __name__ == "__main__": unittest.main()` to the 12 test modules
   that lacked it, so every module runs alone with `python3 -m tests.test_x`;
   CLAUDE.md now asks for it in new test modules.
+
+### Node edits
+
+- `semiroh/lang.py` implements node-level edits (roadmap.md task 5;
+  docs/graph_form.md §9). `("label", name, e)` marks `e`'s node with a
+  unique, transparent name, kept in a function's definition (a `label:`
+  role per name, alongside its `link:` roles) and restored by
+  `function_at`. `define` also takes `(function, label)` keys, with an
+  expression value: the labelled node keeps its `EntityID` and takes the
+  new content, the nodes below it disappear, and any nodes the
+  replacement needs are placed under the function. In `activate` and
+  `trial`, a pair's target may be `(link, label)`, with an expression
+  (code as data) instead of a function value; capability, checks, code in
+  flight and atomicity are unchanged.

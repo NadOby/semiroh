@@ -1,7 +1,7 @@
 # Canary Corpus
 
-**Status: planned.** `semiroh/examples/` does not exist yet; the acceptance
-tests in `tests/test_corpus.py` fail until it does.
+**Status: implemented.** `semiroh/examples/` exists; the acceptance tests in
+`tests/test_corpus.py` pass.
 
 A library of small programs with expected results. Every interpreter and
 every representation of code must run the whole corpus unchanged. That
@@ -84,10 +84,29 @@ activates.
 
 ## 4. Wanted programs
 
-**Open.** The list is the input for roadmap.md task 6. Expected entries
-include insertion sort, map and fold (taking tuples apart; applying a
-function value), local variables, and a loop too deep for recursion in the
-reference interpreter. Each entry says which feature it needs.
+**Open.** The list is the input for roadmap.md task 6. Recorded in
+`semiroh/examples/missing.py` (`MISSING`):
+
+- `insertion_sort` needs a way to take a tuple apart at runtime (head/tail
+  or an index operation) and a length operation, to iterate over a sequence
+  of unknown length. The language only has fixed-shape literal tuples and
+  `quote`/`unquote` for shaping code, not for walking runtime data whose
+  length isn't known when the program is written.
+- `map_and_fold` needs an `apply` operation that calls a function *value*
+  directly: `call` only dispatches through a static link name resolved via
+  the calling function's own links relation, so a function received as an
+  argument or read from a cell cannot be invoked. It also needs the same
+  tuple decomposition as insertion sort.
+- `local_variables` needs a `let`/local-binding form to name an
+  intermediate value within one function body; the only binding mechanism
+  is a call's parameters.
+- `deep_loop` needs tail-call elimination, or an iteration primitive, in
+  the reference interpreter. The language has no loop construct, only
+  recursion, and every `call` nests further Python stack frames in
+  `semiroh/lang.py`'s `_call`/`_eval`. Measured against the `sum_to_n`
+  tier-1 example: under the interpreter's default recursion limit of 1000,
+  `sum_to_n(196)` succeeds and `sum_to_n(197)` raises `RecursionError` —
+  about 5 Python stack frames per SEMIROH call.
 
 ## 5. Acceptance tests
 

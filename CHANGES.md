@@ -456,3 +456,21 @@ Composition APIs are specified in terms of these three result classes.
 - The cost of deriving a new state's identity no longer depends on the
   size of content a transformation leaves unchanged, only on the number
   of entities.
+
+### Canary corpus
+
+- Added `semiroh/examples/`, implementing the canary corpus (docs/corpus.md):
+  `Raises`, `Step`, `Example`, `Wanted`, `ExampleFailed`, and `play`, plus
+  thirteen tier-1 programs across recursion, control, side effects, and
+  self-modification, one module per tag.
+- `gcd` uses subtraction-based Euclid and the Collatz example builds its own
+  recursive even/odd test and halving, since the language has only `add`,
+  `sub` and `mul` and no modulo or division operator.
+- Recorded four wanted programs the language cannot express yet: insertion
+  sort and map/fold need runtime tuple decomposition and, for map/fold, a
+  way to call a function value directly rather than through a static link
+  name; local variables need a `let`/local-binding form; and a loop
+  expressed as recursion hits the reference interpreter's Python recursion
+  limit long before any conceptual program-level limit (measured: the
+  `sum_to_n` example succeeds up to `n = 196` and raises `RecursionError`
+  at `n = 197`, under the default limit of 1000).

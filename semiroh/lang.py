@@ -120,6 +120,12 @@ class LanguageError(ValueError):
     """
 
 
+class CallDepthExceeded(LanguageError):
+    """A run has more calls waiting on each other than the machine allows
+    (``semiroh.bytecode.CALL_DEPTH_LIMIT``, bytecode.md section 4).
+    """
+
+
 @dataclass(frozen=True, eq=False)
 class Function(SemanticRecord):
     """Semantic record: a function's parameters and body.

@@ -13,8 +13,8 @@ a new value lowers that node again and nothing else.
 and an explicit control stack. It reads nodes from the state a frame was
 entered in, so code in flight keeps running the version it started in
 (metaprogramming.md section 5). No Python recursion is involved in a call,
-so the depth of non-tail recursion is bounded by memory, not by
-``sys.getrecursionlimit()``.
+so the depth of non-tail recursion is bounded by ``CALL_DEPTH_LIMIT``, a
+constant of the machine, not by ``sys.getrecursionlimit()``.
 
 This module is a layer on top of :mod:`semiroh.lang`, which keeps the graph
 form itself (``load``, ``define``, ``function_at``).
@@ -29,6 +29,7 @@ from .identity import EntityID
 from .lang import (
     INVALID_KIND,
     NODE_KINDS,
+    CallDepthExceeded,
     Function,
     LanguageError,
     _decode,
@@ -44,6 +45,12 @@ from .values import Value
 
 Instruction = tuple
 Chunk = tuple
+
+# Provisional (bytecode.md section 4): the most calls that may wait on each
+# other in one run. The machine's stacks are not the host's, so without a
+# limit a runaway recursion would use all the memory there is. A call in tail
+# position replaces its caller and does not count.
+CALL_DEPTH_LIMIT = 100_000
 
 _END: Instruction = ("END",)
 _RETURN: Chunk = (("RETURN",),)
@@ -111,7 +118,7 @@ def lower(node: Relation) -> Chunk:
         for item in items[:-1]:
             code += [("EVAL", item), ("POP",)]
 
-        code.append(("GOTO", items[-1]))
+        code.append(("GOTO", items[-1]) if items else ("LIT", None))
     elif kind == "call":
         args = roles["args"]
         code = [*_eval_all(args), ("CALL", roles["target"], len(args))]
@@ -594,6 +601,12 @@ def _execute(
                             f"{target.value}, which is not in the active "
                             f"state"
                         )
+
+                if not tail and len(live) >= CALL_DEPTH_LIMIT:
+                    raise CallDepthExceeded(
+                        f"{activation.entity.value}: more than "
+                        f"{CALL_DEPTH_LIMIT} calls waiting on each other"
+                    )
 
                 hold = runtime.enter(target)
 

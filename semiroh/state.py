@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from hashlib import sha256
 from types import MappingProxyType
 from typing import Any, Mapping
@@ -91,14 +91,66 @@ class State:
 
     Equality and hashing are semantic: two states with identical canonical
     semantic content are equal regardless of how their mappings were supplied.
+
+    ``StateID`` is always derived from the validated content during
+    construction and cannot be supplied by the caller.
     """
 
-    id: StateID
+    id: StateID = field(init=False)
     values: Mapping[EntityID, Value]
     ownership: Mapping[
         EntityID,
         tuple[EntityID, ...],
-    ]
+    ] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        for entity, value in self.values.items():
+            if value.entity != entity:
+                raise ValueError(
+                    f"value entity {value.entity.value} does not match "
+                    f"state key {entity.value}"
+                )
+
+        immutable_values = MappingProxyType(
+            dict(self.values)
+        )
+
+        supplied_ownership = {
+            owner: tuple(children)
+            for owner, children in self.ownership.items()
+        }
+
+        # Presence is checked on the supplied relation, before normalization
+        # drops owners with no children, so that an absent entity is rejected
+        # even when it is listed with an empty child collection.
+        for owner, children in supplied_ownership.items():
+            if owner not in immutable_values:
+                raise OwnershipError(
+                    f"owner {owner.value} is absent from state"
+                )
+
+            for child in children:
+                if child not in immutable_values:
+                    raise OwnershipError(
+                        f"owned entity {child.value} is absent from state"
+                    )
+
+        immutable_ownership = MappingProxyType(
+            dict(normalize_ownership(supplied_ownership))
+        )
+
+        state_id = StateID(
+            sha256(
+                _state_content(
+                    immutable_values,
+                    immutable_ownership,
+                )
+            ).hexdigest()
+        )
+
+        object.__setattr__(self, "values", immutable_values)
+        object.__setattr__(self, "ownership", immutable_ownership)
+        object.__setattr__(self, "id", state_id)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, State):
@@ -131,58 +183,9 @@ class State:
         values: Mapping[EntityID, Value],
         ownership: OwnershipMap | None = None,
     ) -> "State":
-        for entity, value in values.items():
-            if value.entity != entity:
-                raise ValueError(
-                    f"value entity {value.entity.value} does not match "
-                    f"state key {entity.value}"
-                )
-
-        immutable_values = MappingProxyType(
-            dict(values)
-        )
-
-        supplied_ownership = {
-            owner: tuple(children)
-            for owner, children in (ownership or {}).items()
-        }
-
-        # Presence is checked on the supplied relation, before normalization
-        # drops owners with no children, so that an absent entity is rejected
-        # even when it is listed with an empty child collection.
-        for owner, children in supplied_ownership.items():
-            if owner not in immutable_values:
-                raise OwnershipError(
-                    f"owner {owner.value} is absent from state"
-                )
-
-            for child in children:
-                if child not in immutable_values:
-                    raise OwnershipError(
-                        f"owned entity {child.value} is absent from state"
-                    )
-
-        normalized_ownership = normalize_ownership(
-            supplied_ownership
-        )
-
-        immutable_ownership = MappingProxyType(
-            dict(normalized_ownership)
-        )
-
-        encoded = _state_content(
-            immutable_values,
-            immutable_ownership,
-        )
-
-        state_id = StateID(
-            sha256(encoded).hexdigest()
-        )
-
         return State(
-            id=state_id,
-            values=immutable_values,
-            ownership=immutable_ownership,
+            values=values,
+            ownership=ownership or {},
         )
 
     def reference(

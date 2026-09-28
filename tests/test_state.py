@@ -3,6 +3,8 @@
 import unittest
 
 from semiroh import (
+    OwnershipError,
+    StateID,
     EntityID,
     State,
     Value,
@@ -273,3 +275,36 @@ class StateContentStabilityTests(unittest.TestCase):
 
         self.assertEqual(again.id, state.id)
         self.assertEqual(again, state)
+
+
+class StateConstructionTests(unittest.TestCase):
+    def test_state_identity_cannot_be_supplied(self) -> None:
+        with self.assertRaises(TypeError):
+            State(  # type: ignore[call-arg]
+                id=StateID("forged"),
+                values={},
+            )
+
+    def test_direct_construction_matches_create(self) -> None:
+        foo = EntityID("foo")
+        bar = EntityID("bar")
+
+        values = {
+            foo: Value.create(foo, 1),
+            bar: Value.create(bar, 2),
+        }
+
+        self.assertEqual(
+            State(values=values, ownership={foo: [bar]}),
+            State.create(values, {foo: (bar,)}),
+        )
+
+    def test_direct_construction_validates_ownership(self) -> None:
+        foo = EntityID("foo")
+        ghost = EntityID("ghost")
+
+        with self.assertRaises(OwnershipError):
+            State(
+                values={foo: Value.create(foo, 1)},
+                ownership={ghost: (foo,)},
+            )

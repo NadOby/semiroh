@@ -3,14 +3,14 @@
 The acceptance tests in ``test_first_program.py`` pin the language's
 observable behaviour end to end. These tests exercise the interpreter and
 the ``Function``/``links`` records directly: every operation, every
-``LanguageError`` case, and a seeded property comparing ``run`` against a
-plain reference evaluator.
+``LanguageError`` case, and seeded properties.
 """
 
 import random
 import unittest
 
 from semiroh import (
+    ActivationRejected,
     CellContentRejected,
     CellDeclaration,
     EntityID,
@@ -27,6 +27,7 @@ from semiroh.lang import (
     links,
     run,
 )
+from semiroh.transforms import transform_with_mapping
 
 F = EntityID("f")
 F_LINKS = EntityID("f.links")
@@ -93,9 +94,6 @@ class LinksTests(unittest.TestCase):
         self.assertEqual(relation.roles["double"], G)
 
     def test_function_is_a_reserved_link_name(self) -> None:
-        # "function" is both the reserved role and links()'s own first
-        # parameter, so passing it as a link target collides at the call
-        # site itself.
         with self.assertRaises(TypeError):
             links(F, function=G)
 
@@ -182,11 +180,252 @@ class OperationTests(unittest.TestCase):
         self.assertEqual(runtime.active.id, state.id)
 
     def test_arguments_are_canonicalized_before_binding(self) -> None:
-        # bool and int must bind distinctly, even as run() arguments.
-        state = function_only(("eq", ("arg", "x"), ("lit", True)), params=("x",))
+        state = function_only(
+            ("eq", ("arg", "x"), ("lit", True)),
+            params=("x",),
+        )
 
         self.assertIs(run(Runtime(state), F, True), True)
         self.assertIs(run(Runtime(state), F, 1), False)
+
+
+class MetaprogrammingOperationTests(unittest.TestCase):
+    def test_quote_without_holes_equals_lit(self) -> None:
+        template = (
+            "add",
+            ("lit", 2),
+            ("mul", ("lit", 3), ("lit", 4)),
+        )
+        state = function_only(("quote", template))
+
+        self.assertEqual(
+            run(Runtime(state), F),
+            template,
+        )
+
+    def test_quote_and_unquote_use_function_scope(self) -> None:
+        state = function_only(
+            (
+                "quote",
+                (
+                    "add",
+                    ("unquote", ("arg", "x")),
+                    ("lit", 2),
+                ),
+            ),
+            params=("x",),
+        )
+
+        self.assertEqual(
+            run(Runtime(state), F, 5),
+            ("add", 5, ("lit", 2)),
+        )
+
+    def test_quote_rejects_malformed_unquote(self) -> None:
+        state = function_only(
+            ("quote", ("add", ("unquote",), ("lit", 1)))
+        )
+
+        with self.assertRaises(LanguageError):
+            run(Runtime(state), F)
+
+    def test_function_operation_builds_function(self) -> None:
+        body = ("add", ("arg", "x"), ("lit", 1))
+        state = function_only(
+            (
+                "function",
+                ("lit", ("x",)),
+                ("lit", body),
+            )
+        )
+
+        self.assertEqual(
+            run(Runtime(state), F),
+            Function(("x",), body),
+        )
+
+    def test_function_operation_rejects_bad_parameters(self) -> None:
+        state = function_only(
+            (
+                "function",
+                ("lit", (1,)),
+                ("lit", ("lit", 1)),
+            )
+        )
+
+        with self.assertRaises(LanguageError):
+            run(Runtime(state), F)
+
+    def test_function_operation_rejects_duplicate_parameters(self) -> None:
+        state = function_only(
+            (
+                "function",
+                ("lit", ("x", "x")),
+                ("lit", ("lit", 1)),
+            )
+        )
+
+        with self.assertRaises(LanguageError):
+            run(Runtime(state), F)
+
+    def test_function_operation_rejects_empty_body(self) -> None:
+        state = function_only(
+            (
+                "function",
+                ("lit", ("x",)),
+                ("lit", ()),
+            )
+        )
+
+        with self.assertRaises(LanguageError):
+            run(Runtime(state), F)
+
+    def test_activate_checks_operands_before_capability(self) -> None:
+        state = make_state({
+            F: Function((), ("activate", "missing", ("lit", 1))),
+            F_LINKS: links(F),
+        })
+
+        with self.assertRaises(LanguageError):
+            run(Runtime(state), F)
+
+    def test_activate_requires_capability_after_operand_checks(self) -> None:
+        target = EntityID("target")
+        target_links = EntityID("target.links")
+        replacement = Function((), ("lit", 2))
+
+        state = make_state({
+            F: Function(
+                (),
+                ("activate", "target", ("lit", replacement)),
+            ),
+            F_LINKS: links(F, target=target),
+            target: Function((), ("lit", 1)),
+            target_links: links(target),
+        })
+
+        with self.assertRaises(ActivationRejected):
+            run(Runtime(state), F)
+
+    def test_activate_rejects_non_function_value(self) -> None:
+        target = EntityID("target")
+
+        state = make_state({
+            F: Function(
+                (),
+                ("activate", "target", ("lit", 1)),
+            ),
+            F_LINKS: links(F, target=target),
+            target: Function((), ("lit", 1)),
+        })
+
+        with self.assertRaises(LanguageError):
+            run(Runtime(state), F, may_activate=True)
+
+    def test_activate_rejects_duplicate_targets(self) -> None:
+        target = EntityID("target")
+
+        state = make_state({
+            F: Function(
+                (),
+                (
+                    "activate",
+                    "target",
+                    ("lit", Function((), ("lit", 2))),
+                    "target",
+                    ("lit", Function((), ("lit", 3))),
+                ),
+            ),
+            F_LINKS: links(F, target=target),
+            target: Function((), ("lit", 1)),
+        })
+
+        with self.assertRaises(LanguageError):
+            run(Runtime(state), F, may_activate=True)
+
+    def test_activate_changes_code_atomically(self) -> None:
+        target = EntityID("target")
+        target_links = EntityID("target.links")
+        first = EntityID("first")
+        first_links = EntityID("first.links")
+
+        state = make_state({
+            F: Function(
+                (),
+                (
+                    "activate",
+                    "target",
+                    ("lit", Function((), ("lit", 2))),
+                ),
+            ),
+            F_LINKS: links(F, target=target),
+            target: Function((), ("lit", 1)),
+            target_links: links(target),
+            first: Function((), ("lit", 1)),
+            first_links: links(first),
+        })
+        runtime = Runtime(state)
+
+        self.assertIsNone(run(runtime, F, may_activate=True))
+        self.assertEqual(
+            function_of(runtime.active.state.values[target]),
+            Function((), ("lit", 2)),
+        )
+        self.assertEqual(
+            function_of(runtime.active.state.values[first]),
+            Function((), ("lit", 1)),
+        )
+
+    def test_canonical_function_argument_can_activate(self) -> None:
+        target = EntityID("target")
+
+        state = make_state({
+            F: Function(
+                ("replacement",),
+                ("activate", "target", ("arg", "replacement")),
+            ),
+            F_LINKS: links(F, target=target),
+            target: Function((), ("lit", 1)),
+        })
+        runtime = Runtime(state)
+        replacement = Function((), ("lit", 2))
+
+        self.assertIsNone(
+            run(runtime, F, replacement, may_activate=True)
+        )
+        self.assertEqual(
+            function_of(runtime.active.state.values[target]),
+            replacement,
+        )
+
+    def test_activate_preserves_runtime_cell_content(self) -> None:
+        target = EntityID("target")
+
+        state = make_state({
+            F: Function(
+                (),
+                ("activate", "target", ("lit", Function((), ("lit", 2)))),
+            ),
+            F_LINKS: links(F, target=target),
+            target: Function((), ("lit", 1)),
+            CELL: unbounded_cell(0),
+        })
+        runtime = Runtime(state)
+
+        runtime.write(CELL, 17)
+        run(runtime, F, may_activate=True)
+
+        self.assertEqual(runtime.read(CELL), 17)
+
+    def test_quote_preserves_nested_non_tuple_data(self) -> None:
+        literal = (
+            "outer",
+            [1, 2, {"x": 3}],
+            ("inner", ("lit", 4)),
+        )
+        state = function_only(("quote", literal))
+
+        self.assertEqual(run(Runtime(state), F), literal)
 
 
 class LanguageErrorTests(unittest.TestCase):
@@ -231,7 +470,7 @@ class LanguageErrorTests(unittest.TestCase):
         state = function_only(("arg", "x"), params=("x",))
 
         with self.assertRaises(LanguageError):
-            run(Runtime(state), F)  # SQUARE-style: missing the argument
+            run(Runtime(state), F)
 
     def test_calling_something_that_is_not_a_function(self) -> None:
         state = make_state({
@@ -323,15 +562,23 @@ def _int_expr(rng: random.Random, depth: int) -> tuple:
             _int_expr(rng, depth - 1),
         )
 
-    return (op, _int_expr(rng, depth - 1), _int_expr(rng, depth - 1))
+    return (
+        op,
+        _int_expr(rng, depth - 1),
+        _int_expr(rng, depth - 1),
+    )
 
 
 def _bool_expr(rng: random.Random, depth: int) -> tuple:
-    """A random expression that evaluates to a bool, from int operands."""
+    """A random expression that evaluates to a bool."""
 
     op = rng.choice(("lt", "eq"))
 
-    return (op, _int_expr(rng, depth), _int_expr(rng, depth))
+    return (
+        op,
+        _int_expr(rng, depth),
+        _int_expr(rng, depth),
+    )
 
 
 def _reference_eval(node: tuple) -> object:
@@ -366,7 +613,9 @@ def _reference_eval(node: tuple) -> object:
             else _reference_eval(otherwise)
         )
 
-    raise AssertionError(f"unhandled op in reference evaluator: {op}")
+    raise AssertionError(
+        f"unhandled op in reference evaluator: {op}"
+    )
 
 
 class ExpressionEvaluationProperties(unittest.TestCase):
@@ -383,5 +632,29 @@ class ExpressionEvaluationProperties(unittest.TestCase):
                 )
 
 
-if __name__ == "__main__":
-    unittest.main()
+class MetaprogrammingProperties(unittest.TestCase):
+    def test_quote_without_holes_matches_literal_for_nested_templates(self) -> None:
+        for seed in range(50):
+            with self.subTest(seed=seed):
+                rng = random.Random(seed)
+
+                def template(depth: int) -> tuple:
+                    if depth <= 0 or rng.random() < 0.35:
+                        return (
+                            "lit",
+                            rng.randint(-10, 10),
+                        )
+
+                    return (
+                        rng.choice(("add", "sub", "mul")),
+                        template(depth - 1),
+                        template(depth - 1),
+                    )
+
+                value = template(4)
+                state = function_only(("quote", value))
+
+                self.assertEqual(
+                    run(Runtime(state), F),
+                    value,
+                )

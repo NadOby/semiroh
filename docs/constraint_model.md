@@ -493,22 +493,23 @@ The Python reference model currently provides:
         Satisfied, Violated, Unknown, and whether a result is decisive
         (is_known)
 
-    semantic constraints
+    Constraint
+        base of all constraints, which are semantic values:
         IsKind, IntRange, Length, OneOf       primitive constraints
         AllOf, AnyOf, Not                     composition (section 9)
         External                              a named constraint evaluated
-                                              by an executable evaluator
+                                              by an Evaluator
 
     EvaluationContext
         registered evaluators for External constraints and an optional
         computation-step budget
 
-    Constraint
+    Evaluator
         an executable evaluator wrapping a Python predicate; it is not a
         semantic value and is referenced by name through External
 
-Semantic constraints are semantic values with canonical identity and can
-appear in program state. An External constraint without a registered
+Constraints are semantic values with canonical identity and can appear in
+program state. An External constraint without a registered
 evaluator evaluates to Unknown, as does evaluation that exhausts its budget.
 
 Every subject is canonicalized before evaluation. Executable evaluators

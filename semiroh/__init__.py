@@ -5,7 +5,7 @@ from .cells import CellDeclaration, cell_declaration, cells_of
 from .constraints import (
     AllOf,
     AnyOf,
-    Constraint,
+    Evaluator,
     ConstraintResult,
     EvaluationContext,
     External,
@@ -14,7 +14,7 @@ from .constraints import (
     Length,
     Not,
     OneOf,
-    SemanticConstraint,
+    Constraint,
     kind_of,
 )
 from .equality import semantic_equal, same_entity, same_version
@@ -72,9 +72,9 @@ __all__ = [
     "KeptReference",
     "CellError",
     "CellDeclaration",
-    "Constraint",
+    "Evaluator",
     "ConstraintResult",
-    "SemanticConstraint",
+    "Constraint",
     "EvaluationContext",
     "IsKind",
     "IntRange",

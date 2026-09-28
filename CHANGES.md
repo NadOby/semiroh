@@ -246,7 +246,7 @@ Composition APIs are specified in terms of these three result classes.
 - Added semantic constraints with canonical identity: `IsKind`, `IntRange`,
   `Length`, `OneOf`, `AllOf`, `AnyOf`, `Not`, and `External`. Constraints can
   appear in program state.
-- Kept the executable `Constraint` as an evaluator that `External`
+- Kept the executable predicate wrapper as an evaluator that `External`
   constraints reference by name; a missing evaluator yields `Unknown`.
 - Added a computation-step budget; exhausting it yields `Unknown`.
 - Decided that a cell write whose constraint evaluates to `Unknown` is

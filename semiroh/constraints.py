@@ -34,7 +34,7 @@ ConstraintPredicate = Callable[[Any], ConstraintResult]
 
 
 @dataclass(frozen=True)
-class Constraint:
+class Evaluator:
     """Executable constraint evaluator.
 
     The predicate is an executable evaluation mechanism. It is not a semantic
@@ -130,17 +130,17 @@ class EvaluationContext:
     exhausted, the remaining evaluation yields ``UNKNOWN``.
     """
 
-    externals: Mapping[str, Constraint] = field(default_factory=dict)
+    externals: Mapping[str, Evaluator] = field(default_factory=dict)
     budget: int | None = None
 
     def __post_init__(self) -> None:
         for name, evaluator in self.externals.items():
             if not isinstance(name, str) or not isinstance(
                 evaluator,
-                Constraint,
+                Evaluator,
             ):
                 raise TypeError(
-                    "externals must map names to Constraint evaluators"
+                    "externals must map names to Evaluator instances"
                 )
 
         if self.budget is not None and (
@@ -173,7 +173,7 @@ class _Evaluation:
         return True
 
 
-class SemanticConstraint(SemanticRecord):
+class Constraint(SemanticRecord):
     """A constraint represented as a semantic value.
 
     Semantic constraints have canonical identity, so they can appear in
@@ -218,7 +218,7 @@ class SemanticConstraint(SemanticRecord):
         return _node("constraint", (self._name, *self._payload()))
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, SemanticConstraint):
+        if not isinstance(other, Constraint):
             return NotImplemented
 
         return canonical_serialize(self) == canonical_serialize(other)
@@ -227,7 +227,7 @@ class SemanticConstraint(SemanticRecord):
         return hash(canonical_serialize(self))
 
     @staticmethod
-    def from_content(content: Any) -> "SemanticConstraint":
+    def from_content(content: Any) -> "Constraint":
         """Rebuild a semantic constraint from its canonical content."""
 
         if not (
@@ -252,16 +252,16 @@ class SemanticConstraint(SemanticRecord):
 
         if name == "all_of":
             return AllOf(
-                *(SemanticConstraint.from_content(part) for part in payload[0])
+                *(Constraint.from_content(part) for part in payload[0])
             )
 
         if name == "any_of":
             return AnyOf(
-                *(SemanticConstraint.from_content(part) for part in payload[0])
+                *(Constraint.from_content(part) for part in payload[0])
             )
 
         if name == "not":
-            return Not(SemanticConstraint.from_content(payload[0]))
+            return Not(Constraint.from_content(payload[0]))
 
         if name == "external":
             return External(*payload)
@@ -285,7 +285,7 @@ def _check_bound(value: Any, name: str) -> None:
 
 
 @dataclass(frozen=True, eq=False)
-class IsKind(SemanticConstraint):
+class IsKind(Constraint):
     """The subject has the given semantic kind (``bool`` is not ``int``)."""
 
     kind: str
@@ -303,7 +303,7 @@ class IsKind(SemanticConstraint):
 
 
 @dataclass(frozen=True, eq=False)
-class IntRange(SemanticConstraint):
+class IntRange(Constraint):
     """The subject is an integer within inclusive bounds."""
 
     min: int | None = None
@@ -335,7 +335,7 @@ class IntRange(SemanticConstraint):
 
 
 @dataclass(frozen=True, eq=False)
-class Length(SemanticConstraint):
+class Length(Constraint):
     """The subject's length is within inclusive bounds.
 
     Length applies to text (code points), bytes, tuples, lists, and maps
@@ -387,7 +387,7 @@ def _set_of_contents(values: tuple[Any, ...]) -> tuple[Any, ...]:
 
 
 @dataclass(frozen=True, eq=False, init=False)
-class OneOf(SemanticConstraint):
+class OneOf(Constraint):
     """The subject is semantically equal to one of the given values."""
 
     values: tuple[Any, ...]
@@ -408,10 +408,10 @@ class OneOf(SemanticConstraint):
 
 
 def _set_of_constraints(
-    parts: tuple[SemanticConstraint, ...],
-) -> tuple[SemanticConstraint, ...]:
+    parts: tuple[Constraint, ...],
+) -> tuple[Constraint, ...]:
     for part in parts:
-        if not isinstance(part, SemanticConstraint):
+        if not isinstance(part, Constraint):
             raise TypeError("components must be semantic constraints")
 
     unique = {canonical_serialize(part): part for part in parts}
@@ -420,13 +420,13 @@ def _set_of_constraints(
 
 
 @dataclass(frozen=True, eq=False, init=False)
-class AllOf(SemanticConstraint):
+class AllOf(Constraint):
     """Conjunction under strong Kleene logic (constraint_model.md §9)."""
 
-    parts: tuple[SemanticConstraint, ...]
+    parts: tuple[Constraint, ...]
     _name = "all_of"
 
-    def __init__(self, *parts: SemanticConstraint) -> None:
+    def __init__(self, *parts: Constraint) -> None:
         object.__setattr__(self, "parts", _set_of_constraints(parts))
 
     def _payload(self) -> tuple[Any, ...]:
@@ -452,13 +452,13 @@ class AllOf(SemanticConstraint):
 
 
 @dataclass(frozen=True, eq=False, init=False)
-class AnyOf(SemanticConstraint):
+class AnyOf(Constraint):
     """Disjunction under strong Kleene logic (constraint_model.md §9)."""
 
-    parts: tuple[SemanticConstraint, ...]
+    parts: tuple[Constraint, ...]
     _name = "any_of"
 
-    def __init__(self, *parts: SemanticConstraint) -> None:
+    def __init__(self, *parts: Constraint) -> None:
         object.__setattr__(self, "parts", _set_of_constraints(parts))
 
     def _payload(self) -> tuple[Any, ...]:
@@ -484,14 +484,14 @@ class AnyOf(SemanticConstraint):
 
 
 @dataclass(frozen=True, eq=False)
-class Not(SemanticConstraint):
+class Not(Constraint):
     """Negation: swaps Satisfied and Violated; Unknown stays Unknown."""
 
-    part: SemanticConstraint
+    part: Constraint
     _name = "not"
 
     def __post_init__(self) -> None:
-        if not isinstance(self.part, SemanticConstraint):
+        if not isinstance(self.part, Constraint):
             raise TypeError("component must be a semantic constraint")
 
     def _payload(self) -> tuple[Any, ...]:
@@ -510,7 +510,7 @@ class Not(SemanticConstraint):
 
 
 @dataclass(frozen=True, eq=False)
-class External(SemanticConstraint):
+class External(Constraint):
     """A named constraint evaluated by an executable evaluator.
 
     The evaluator is looked up in the evaluation context and receives the

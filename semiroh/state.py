@@ -142,11 +142,15 @@ class State:
             dict(values)
         )
 
-        normalized_ownership = normalize_ownership(
-            ownership or {}
-        )
+        supplied_ownership = {
+            owner: tuple(children)
+            for owner, children in (ownership or {}).items()
+        }
 
-        for owner, children in normalized_ownership.items():
+        # Presence is checked on the supplied relation, before normalization
+        # drops owners with no children, so that an absent entity is rejected
+        # even when it is listed with an empty child collection.
+        for owner, children in supplied_ownership.items():
             if owner not in immutable_values:
                 raise OwnershipError(
                     f"owner {owner.value} is absent from state"
@@ -157,6 +161,10 @@ class State:
                     raise OwnershipError(
                         f"owned entity {child.value} is absent from state"
                     )
+
+        normalized_ownership = normalize_ownership(
+            supplied_ownership
+        )
 
         immutable_ownership = MappingProxyType(
             dict(normalized_ownership)

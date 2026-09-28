@@ -193,3 +193,39 @@ class OwnershipTests(unittest.TestCase):
 
         self.assertEqual(state.owner_of(b), a)
         self.assertIsNone(state.owner_of(a))
+
+
+class OwnershipNormalizationTests(unittest.TestCase):
+    def test_empty_ownership_entry_does_not_change_state_identity(
+        self,
+    ) -> None:
+        foo = EntityID("foo")
+
+        values = {
+            foo: Value.create(foo, 1),
+        }
+
+        self.assertEqual(
+            State.create(values, {foo: ()}).id,
+            State.create(values).id,
+        )
+        self.assertEqual(
+            State.create(values, {foo: []}).ownership,
+            {},
+        )
+
+    def test_empty_ownership_entry_for_absent_owner_is_rejected(
+        self,
+    ) -> None:
+        foo = EntityID("foo")
+        ghost = EntityID("ghost")
+
+        with self.assertRaises(OwnershipError):
+            State.create(
+                {
+                    foo: Value.create(foo, 1),
+                },
+                {
+                    ghost: (),
+                },
+            )

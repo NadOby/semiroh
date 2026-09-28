@@ -20,11 +20,21 @@ OwnershipMap = Mapping[
 def normalize_ownership(
     ownership: OwnershipMap,
 ) -> dict[EntityID, tuple[EntityID, ...]]:
-    """Validate and canonicalize an ownership forest."""
+    """Validate and canonicalize an ownership forest.
+
+    Owners with no children are omitted: ``{owner: ()}`` and ``{}`` describe
+    the same ownership relation and therefore have the same canonical form.
+    """
 
     normalized = {
         owner: tuple(sorted(set(children)))
         for owner, children in ownership.items()
+    }
+
+    normalized = {
+        owner: children
+        for owner, children in normalized.items()
+        if children
     }
 
     parents: dict[EntityID, EntityID] = {}

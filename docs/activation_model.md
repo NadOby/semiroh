@@ -303,7 +303,9 @@ The Python reference model currently provides:
     Runtime
         mutable runtime state of one program: the runtime root owns the
         loaded versions, each Version owns the content of its cells, and
-        reads and writes never change program state or StateID
+        reads and writes never change program state or StateID; cell
+        content is checked against the cell's constraint on load and on
+        every write, and anything but Satisfied is rejected
 
     Hold, Frame, KeptReference
         runtime-internal holds on a version from simulated frames and from

@@ -290,6 +290,12 @@ state. Writing to a cell changes its content in place; it does not produce a
 new semantic state and does not change `StateID`. Otherwise every write would
 make every reference pinned to that state stale.
 
+Content written to a cell must satisfy the cell's constraint. A runtime
+checks each cell's initial content when it loads a version and checks every
+write; only `Satisfied` is accepted, so `Violated` and `Unknown` are both
+rejected. Program state itself stays pure data: declaring a cell does not
+evaluate its constraint.
+
 ## 13. Effects and capabilities
 
 An effect describes observable behaviour or dependency.

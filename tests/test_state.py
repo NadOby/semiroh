@@ -257,3 +257,19 @@ class StateTests(unittest.TestCase):
 
         self.assertEqual(first, second)
         self.assertEqual(first.id, second.id)
+
+
+class StateContentStabilityTests(unittest.TestCase):
+    def test_reapplying_existing_content_keeps_state_identity(self) -> None:
+        foo = EntityID("foo")
+
+        state = State.create({
+            foo: Value.create(foo, (1, [2, 3])),
+        })
+
+        again = state.with_changes({
+            foo: state.values[foo].content,
+        })
+
+        self.assertEqual(again.id, state.id)
+        self.assertEqual(again, state)

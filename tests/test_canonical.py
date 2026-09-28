@@ -1,8 +1,11 @@
 """Tests for canonical semantic serialization."""
 
+import dataclasses
 import unittest
 
 from semiroh import (
+    semantic_equal,
+    canonicalize,
     EntityID,
     State,
     Value,
@@ -209,3 +212,67 @@ class CanonicalTests(unittest.TestCase):
             first.id,
             second.id,
         )
+
+
+class CanonicalIdempotenceTests(unittest.TestCase):
+    def test_canonicalize_is_idempotent(self) -> None:
+        samples = [
+            None,
+            True,
+            7,
+            "text",
+            b"bytes",
+            EntityID("e"),
+            (1, (2, 3)),
+            [1, (2, b"x")],
+            {"k": [1, 2], 3: (True,)},
+        ]
+
+        for sample in samples:
+            with self.subTest(sample=sample):
+                once = canonicalize(sample)
+                twice = canonicalize(once)
+
+                self.assertEqual(twice, once)
+                self.assertEqual(
+                    canonical_serialize(twice),
+                    canonical_serialize(once),
+                )
+
+    def test_value_built_from_existing_content_is_the_same_version(
+        self,
+    ) -> None:
+        foo = EntityID("foo")
+
+        original = Value(foo, (1, (2, 3)))
+        rebuilt = Value(foo, original.content)
+
+        self.assertEqual(rebuilt, original)
+        self.assertEqual(rebuilt.version_id, original.version_id)
+
+    def test_existing_content_can_be_embedded_in_new_content(self) -> None:
+        foo = EntityID("foo")
+
+        inner = Value(foo, (1, (2, 3)))
+
+        self.assertEqual(
+            Value(foo, (inner.content, 4)),
+            Value(foo, ((1, (2, 3)), 4)),
+        )
+
+    def test_canonical_nodes_serialize_like_plain_tuples(self) -> None:
+        # Recognising canonical content must not change semantic identity.
+        self.assertEqual(
+            canonical_serialize(canonicalize((1, 2))),
+            canonical_serialize(("__type__", "tuple", (1, 2))),
+        )
+
+    def test_replacing_entity_preserves_content(self) -> None:
+        foo = EntityID("foo")
+        bar = EntityID("bar")
+
+        original = Value(foo, (1, [2, 3]))
+        renamed = dataclasses.replace(original, entity=bar)
+
+        self.assertEqual(renamed.entity, bar)
+        self.assertTrue(semantic_equal(original, renamed))

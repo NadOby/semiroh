@@ -7,6 +7,26 @@ from typing import Any, Mapping
 from .identity import EntityID, StateID, VersionID
 
 
+class CanonicalNode(tuple):
+    """Tagged node produced by :func:`canonicalize`.
+
+    A ``CanonicalNode`` is an ordinary immutable tuple of the form
+    ``("__type__", kind, payload)``. It compares and serializes exactly like
+    the equivalent plain tuple, so it does not change any semantic identity.
+
+    The distinct type exists only so that already-canonical content can be
+    recognised: ``canonicalize`` returns a ``CanonicalNode`` unchanged instead
+    of wrapping it again as a user tuple. This makes canonicalization
+    idempotent.
+    """
+
+    __slots__ = ()
+
+
+def _node(kind: str, payload: Any) -> CanonicalNode:
+    return CanonicalNode(("__type__", kind, payload))
+
+
 def _encode_length(length: int) -> bytes:
     return length.to_bytes(
         8,
@@ -116,7 +136,14 @@ def canonical_serialize(value: Any) -> bytes:
 
 
 def canonicalize(value: Any) -> Any:
-    """Convert supported semantic values to immutable deterministic data."""
+    """Convert supported semantic values to immutable deterministic data.
+
+    Canonicalization is idempotent: already-canonical content is returned
+    unchanged, so ``canonicalize(canonicalize(x)) == canonicalize(x)``.
+    """
+
+    if isinstance(value, CanonicalNode):
+        return value
 
     if value is None or isinstance(
         value,
@@ -125,36 +152,31 @@ def canonicalize(value: Any) -> Any:
         return value
 
     if isinstance(value, bytes):
-        return (
-            "__type__",
+        return _node(
             "bytes",
             value.hex(),
         )
 
     if isinstance(value, EntityID):
-        return (
-            "__type__",
+        return _node(
             "entity_id",
             value.value,
         )
 
     if isinstance(value, VersionID):
-        return (
-            "__type__",
+        return _node(
             "version_id",
             value.value,
         )
 
     if isinstance(value, StateID):
-        return (
-            "__type__",
+        return _node(
             "state_id",
             value.value,
         )
 
     if isinstance(value, tuple):
-        return (
-            "__type__",
+        return _node(
             "tuple",
             tuple(
                 canonicalize(item)
@@ -163,8 +185,7 @@ def canonicalize(value: Any) -> Any:
         )
 
     if isinstance(value, list):
-        return (
-            "__type__",
+        return _node(
             "list",
             tuple(
                 canonicalize(item)
@@ -185,8 +206,7 @@ def canonicalize(value: Any) -> Any:
             key=lambda item: canonical_serialize(item[0])
         )
 
-        return (
-            "__type__",
+        return _node(
             "map",
             tuple(items),
         )

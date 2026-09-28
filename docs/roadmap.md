@@ -184,6 +184,8 @@ a program recompiles and hot swaps part of itself with its own compiler.
 
 ### 9. A compiler pass that keeps continuity (one session)
 
+**Done.** The design is in constant_folding.md.
+
 For example, constant folding written as a graph transformation that
 declares its merges. Optimised, hot-swapped code keeps a mapping to its
 source nodes, which a test checks. Independent of task 8.

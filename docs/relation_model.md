@@ -194,12 +194,27 @@ pressures in `priors.md`:
 
 ## 10. Current implementation status
 
-Nothing in this document is implemented yet.
+The Python reference model currently provides:
 
-A first implementation would add, in order: the relation record and its
-canonical form; the integrity check in state construction; relation handling
-in transformation application (section 5); a derived index; and constraint
-relations with the first role-map primitives.
+    Relation
+        the relation record (kind, named roles, payload) as a semantic
+        value; relation_of and relations_of read relations from values
+        and states
+
+    endpoint integrity
+        state construction rejects a relation with an absent endpoint
+        (DanglingRelation), which also makes destroy fail when a relation
+        outside the destroyed subtree points into it
+
+    relations across transformations
+        applying a definition rewrites mapped endpoints of every relation
+        the definition does not change, and rejects a mapped endpoint that
+        disappears or splits (section 5)
+
+    relation_index
+        the derived index from entity to (relation, role) pairs
+
+Constraint relations (section 7) are not yet implemented.
 
 ## 11. Unresolved areas
 

@@ -5,12 +5,27 @@
 SEMIROH is a minimalist systems programming language built around a semantic
 graph as the canonical representation of a program.
 
-> Graph is the program. Values are immutable. Identity is not equality. States
-> are immutable. Transformations produce states. References are state-relative.
-> Continuity is explicit. Runtime and semantic computation use the same function
-> model. Capabilities describe authority. Effects describe behaviour.
-> Constraints establish what is known. Contracts describe values. Source and
-> machine code are representations. Tooling operates on semantics.
+Every SEMIROH program carries its own compiler. A running program retains its
+semantic graph and the transformation machinery that produced its executable
+representation, so it keeps the ability to modify itself: it can produce a new
+version of its own program state, validate it, and activate it.
+
+Much of the design follows from this goal:
+
+- immutable states and separate produce and activate steps make
+  self-modification safe, because a new version is built and checked before it
+  replaces anything;
+- explicit continuity tells the running program how live state in the old
+  version corresponds to the new one;
+- capabilities decide whether a program may modify itself at all.
+
+> Graph is the program. Every program carries its compiler. Values are
+> immutable. Identity is not equality. States are immutable. Transformations
+> produce states. References are state-relative. Continuity is explicit.
+> Runtime and semantic computation use the same function model. Capabilities
+> describe authority. Effects describe behaviour. Constraints establish what
+> is known. Contracts describe values. Source and machine code are
+> representations. Tooling operates on semantics.
 
 ## Contents
 
@@ -60,9 +75,14 @@ Source code, intermediate representations, machine code, documentation, debug
 information, and other artifacts are representations or derived products of
 the semantic program.
 
-A program image may contain:
+Every program image contains:
 
 - the semantic graph;
+- the compiler and transformation machinery needed to transform the semantic
+  graph and regenerate the program's executable representation.
+
+A program image may also contain:
+
 - semantic states;
 - transformations and metaprograms;
 - dependency information;
@@ -263,6 +283,13 @@ The language distinguishes between:
 
 These operations are not interchangeable.
 
+A mutable cell is itself a semantic entity: its existence, identity, and type
+are part of semantic program state and are versioned like any other entity.
+The cell's current content is runtime state. Writing to a cell changes its
+content in place; it does not produce a new semantic state and does not change
+`StateID`. Otherwise every write would make every reference pinned to that
+state stale.
+
 ## 13. Effects and capabilities
 
 An effect describes observable behaviour or dependency.
@@ -423,6 +450,10 @@ Expansion is an explicit transformation.
 The compiler is primarily a transformation layer operating on the semantic
 graph.
 
+The compiler is not only an external build tool. It is part of every program
+image, so a running program can apply the same transformation pipeline to its
+own semantic graph and regenerate its own executable representation.
+
 Conceptually:
 
     semantic graph
@@ -513,6 +544,10 @@ The current architecture is organized around several high-value invariants:
 19. Unknown continuity is distinct from known disappearance.
 20. Full semantic transformation composition is not implied by continuity
     composition.
+21. Every program image carries the compiler needed to transform and
+    recompile itself.
+22. A mutable cell is versioned semantic state; its current content is
+    runtime state and does not contribute to `StateID`.
 
 ## 28. State identity and provenance
 
@@ -544,6 +579,21 @@ program state.
 
 The resulting state can then be inspected, validated, transformed, compared,
 stored, or activated.
+
+Program modification is available to the running program itself, not only to
+external tools. Self-modification follows the same path: the program produces
+a new state, validates it, and activates it. Whether a program may modify
+itself is governed by capabilities.
+
+Activating a new program state while the program runs requires carrying live
+runtime state across the change. The intended direction follows Erlang's hot
+code loading in spirit: explicit continuity mappings state which entities of
+the new state continue which entities of the old one, and the content of
+mutable cells is transferred along those mappings at activation, possibly
+through an explicit conversion function.
+
+When activation is safe, how long superseded code versions remain alive, and
+how they are reclaimed without garbage collection remain open.
 
 ## 31. Metaprogramming
 
@@ -671,7 +721,11 @@ Important open areas include:
 - serialization format;
 - foreign export ABI model;
 - representation-level guarantees;
-- formal operational semantics.
+- formal operational semantics;
+- runtime activation: safe update points, live-state transfer, and
+  reclamation of superseded code versions;
+- footprint of the compiler embedded in every program;
+- self-modification on platforms that restrict runtime code generation.
 
 These are not assumed to be solved merely because a plausible syntax exists.
 

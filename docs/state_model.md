@@ -46,6 +46,11 @@ Transformation mappings and provenance are not state content.
 
 They belong to transitions between states.
 
+The current content of an explicitly mutable cell is not semantic state
+content either. The cell itself (its existence, identity, and type) is a
+semantic entity and belongs to the state; the content it currently holds is
+runtime state, changed in place without producing a new semantic state.
+
 ## 3. Value membership
 
 A state contains zero or more semantic values.
@@ -67,6 +72,8 @@ The current content used for state identity includes:
 
 - all entity/value pairs;
 - the ownership relation.
+
+It does not include the current content of mutable cells.
 
 The ordering of semantically unordered mappings does not affect state identity.
 
@@ -130,6 +137,12 @@ Conceptually:
 Activation selects a state for subsequent execution or observation.
 
 It does not mutate the selected state and does not invalidate previous states.
+
+Because every program carries its compiler and may modify itself, activation
+can happen while the program is running. Runtime activation must carry live
+runtime state, such as the content of mutable cells, across the change along
+explicit continuity mappings. Its complete semantics belong to a future
+activation model.
 
 ## 8. Ownership
 

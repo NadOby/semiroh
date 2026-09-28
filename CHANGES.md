@@ -175,3 +175,19 @@ Composition APIs are specified in terms of these three result classes.
   canonicalization, ownership normalization, application rules, associativity
   of composition, and agreement between chained reference transfer and
   continuity composition.
+
+### Self-modification direction
+
+- Stated the motivating goal in the README: every SEMIROH program carries its
+  own compiler and retains the ability to modify itself by producing,
+  validating, and activating a new version of its program state.
+- Made the embedded compiler part of every program image and added it to the
+  high-value invariants.
+- Established that a mutable cell is versioned semantic state while its
+  current content is runtime state that does not contribute to `StateID`.
+- Adopted Erlang-style hot code loading, in spirit, as the direction for
+  runtime activation: live state, including mutable cell content, is carried
+  across activation along explicit continuity mappings, optionally through a
+  conversion function.
+- Recorded runtime activation, embedded compiler footprint, and platforms
+  that restrict runtime code generation as open design areas.

@@ -221,9 +221,6 @@ At minimum, the model is expected to support logical composition such as:
     OR
     NOT
 
-The exact representation and evaluation semantics of composed constraints
-remain to be finalized.
-
 Composition must preserve the distinction between:
 
     Satisfied
@@ -234,8 +231,33 @@ In particular, an implementation must not collapse an unresolved component
 into a definitive result merely because a definitive result would be
 convenient.
 
-Three-valued composition rules must be specified explicitly before the
-composition API is implemented.
+The composition rules are those of strong Kleene logic. A composed result is
+definitive only when it holds for every possible resolution of its `Unknown`
+components:
+
+    AND (all of)
+        Violated   if any component is Violated
+        Satisfied  if every component is Satisfied
+        Unknown    otherwise
+
+    OR (any of)
+        Satisfied  if any component is Satisfied
+        Violated   if every component is Violated
+        Unknown    otherwise
+
+    NOT
+        Satisfied  ↔  Violated
+        Unknown    →  Unknown
+
+For example, `Violated AND Unknown` is `Violated`: whatever the unknown
+component turns out to be, the conjunction cannot be satisfied. `Satisfied
+AND Unknown` stays `Unknown`.
+
+An empty AND is `Satisfied`; an empty OR is `Violated`.
+
+AND and OR are commutative and idempotent, so their components have set
+semantics: the order and repetition of components do not affect constraint
+identity.
 
 ## 10. Constraint dependencies
 

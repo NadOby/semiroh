@@ -595,6 +595,8 @@ through an explicit conversion function.
 When activation is safe, how long superseded code versions remain alive, and
 how they are reclaimed without garbage collection remain open.
 
+See [`docs/activation_model.md`](docs/activation_model.md).
+
 ## 31. Metaprogramming
 
 Metaprogramming is performed through ordinary semantic functions.

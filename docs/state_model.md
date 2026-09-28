@@ -141,8 +141,8 @@ It does not mutate the selected state and does not invalidate previous states.
 Because every program carries its compiler and may modify itself, activation
 can happen while the program is running. Runtime activation must carry live
 runtime state, such as the content of mutable cells, across the change along
-explicit continuity mappings. Its complete semantics belong to a future
-activation model.
+explicit continuity mappings. See
+[`activation_model.md`](activation_model.md).
 
 ## 8. Ownership
 
@@ -208,7 +208,8 @@ reference.
 
 The following remain open:
 
-- the complete semantic definition of state activation;
+- the complete semantic definition of state activation (see
+  [`activation_model.md`](activation_model.md));
 - persistent state representation;
 - structural sharing requirements;
 - the final generalized graph representation;

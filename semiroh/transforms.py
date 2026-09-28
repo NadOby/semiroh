@@ -13,7 +13,7 @@ from .references import (
     Reference,
     StaleReference,
 )
-from .ownership import follow_ownership
+from .ownership import OwnershipError, follow_ownership
 from .relations import DanglingRelation, relation_of
 from .state import State
 from .values import Value, version_id_for
@@ -90,6 +90,77 @@ def _validate_conversions(conversions: Conversions) -> None:
             )
 
 
+Placements = tuple[tuple[EntityID, EntityID], ...]
+
+
+def _validate_placements(placements: Placements) -> None:
+    placed_entities = tuple(
+        placed
+        for placed, _ in placements
+    )
+
+    if len(placed_entities) != len(set(placed_entities)):
+        raise ValueError(
+            "multiple placements for the same entity"
+        )
+
+    if placed_entities != tuple(sorted(placed_entities)):
+        raise ValueError(
+            "placements are not canonically ordered"
+        )
+
+    for placed, owner in placements:
+        if not isinstance(placed, EntityID):
+            raise TypeError(
+                "placement entity must be an EntityID"
+            )
+
+        if not isinstance(owner, EntityID):
+            raise TypeError(
+                "placement owner must be an EntityID"
+            )
+
+
+def _cascaded_disappearances(
+    ownership: Mapping[EntityID, tuple[EntityID, ...]],
+    mappings: Mapping[EntityID, tuple[EntityID, ...]],
+) -> frozenset[EntityID]:
+    """Entities that disappear because an ended owner's subtree ends with it.
+
+    ownership_model.md section 7 / transformation_model.md section 13: when
+    a mapping ends an owner (maps it to zero destinations), every entity in
+    its owned subtree, computed from the source ownership, that the
+    mappings do not name as a source or a destination disappears too,
+    recursively. The cascade does not descend past a named entity: a named
+    descendant keeps what its own mapping says (section 9/10 there).
+    """
+
+    named: set[EntityID] = set(mappings)
+
+    for destinations in mappings.values():
+        named.update(destinations)
+
+    stack = [
+        child
+        for source, destinations in mappings.items()
+        if not destinations
+        for child in ownership.get(source, ())
+    ]
+
+    cascaded: set[EntityID] = set()
+
+    while stack:
+        entity = stack.pop()
+
+        if entity in named or entity in cascaded:
+            continue
+
+        cascaded.add(entity)
+        stack.extend(ownership.get(entity, ()))
+
+    return frozenset(cascaded)
+
+
 @dataclass(frozen=True)
 class TransformationDefinition:
     """Immutable semantic definition of a state transformation.
@@ -99,11 +170,18 @@ class TransformationDefinition:
     result is activated. They are provisional (activation_model.md section 4)
     and refer to executable converters by name, so the definition stays pure
     data.
+
+    ``placements`` declare, per created entity, the owner it is placed under
+    (ownership_model.md section 10): ``created entity -> owner``. A placed
+    entity must not be a mapping destination; the rest of what makes it
+    "created" (absent from the source, present in the destination) can only
+    be checked once a source state is known, so `apply` checks it.
     """
 
     changes: tuple[EntityChange, ...]
     mappings: tuple[TransformationMapping, ...]
     conversions: Conversions = ()
+    placements: Placements = ()
 
     def __post_init__(self) -> None:
         change_entities = tuple(
@@ -137,6 +215,26 @@ class TransformationDefinition:
             )
 
         _validate_conversions(self.conversions)
+        _validate_placements(self.placements)
+
+        mapped_destinations = {
+            destination
+            for mapping in self.mappings
+            for destination in mapping.destination_entities
+        }
+
+        placed_destinations = sorted(
+            placed
+            for placed, _ in self.placements
+            if placed in mapped_destinations
+        )
+
+        if placed_destinations:
+            raise OwnershipError(
+                f"placement target(s) "
+                f"{', '.join(entity.value for entity in placed_destinations)} "
+                f"are mapping destinations, not created entities"
+            )
 
         contradictory = sorted(
             set(change_entities) & self.removed_entities
@@ -183,6 +281,7 @@ class TransformationDefinition:
             EntityID | tuple[EntityID, ...],
         ] | None = None,
         conversions: Mapping[EntityID, str] | None = None,
+        placements: Mapping[EntityID, EntityID] | None = None,
     ) -> "TransformationDefinition":
         """Create an immutable transformation definition."""
 
@@ -231,6 +330,12 @@ class TransformationDefinition:
             conversions=tuple(
                 sorted(
                     (conversions or {}).items(),
+                    key=lambda item: item[0],
+                )
+            ),
+            placements=tuple(
+                sorted(
+                    (placements or {}).items(),
                     key=lambda item: item[0],
                 )
             ),
@@ -306,12 +411,19 @@ class TransformationDefinition:
     ) -> "TransformResult":
         """Apply the definition and produce an immutable transformation result."""
 
+        if self.placements and ownership is not None:
+            raise ValueError(
+                "placements cannot be combined with explicit destination "
+                "ownership, which already states the whole relation"
+            )
+
         values = dict(state.values)
 
         for change in self.changes:
             values[change.entity] = change.value
 
         mapped_destinations: set[EntityID] = set()
+        declared_mappings: dict[EntityID, tuple[EntityID, ...]] = {}
 
         for mapping in self.mappings:
             if mapping.source_entity not in state.values:
@@ -321,11 +433,33 @@ class TransformationDefinition:
                 )
 
             mapped_destinations.update(mapping.destination_entities)
+            declared_mappings[mapping.source_entity] = mapping.destination_entities
+
+        # An owner mapped to zero destinations ends its owned subtree: every
+        # entity in it that the mappings do not name disappears too, and the
+        # cascade does not descend past a named entity (ownership_model.md
+        # section 7, transformation_model.md section 13).
+        cascaded = _cascaded_disappearances(state.ownership, declared_mappings)
+
+        changed_cascaded = sorted(
+            {change.entity for change in self.changes} & cascaded
+        )
+
+        if changed_cascaded:
+            raise ValueError(
+                f"definition changes "
+                f"{', '.join(entity.value for entity in changed_cascaded)}, "
+                f"which disappears because its owner's subtree ended"
+            )
 
         # Presence of an explicitly mapped source is decided by the mappings
         # alone (removed_entities). A definition that also changes a removed
-        # entity is contradictory and was rejected at construction.
+        # entity is contradictory and was rejected at construction. Cascaded
+        # entities disappear the same way.
         for entity in self.removed_entities:
+            values.pop(entity, None)
+
+        for entity in cascaded:
             values.pop(entity, None)
 
         normalized_mappings: list[EntityMapping] = []
@@ -346,6 +480,17 @@ class TransformationDefinition:
                 )
             )
 
+        for entity in cascaded:
+            normalized_mappings.append(
+                EntityMapping(
+                    source_state=state.id,
+                    source_entity=entity,
+                    destination_entities=(),
+                )
+            )
+
+        normalized_mappings.sort(key=lambda mapping: mapping.source_entity)
+
         for destination_entity, _ in self.conversions:
             if destination_entity not in mapped_destinations:
                 raise ValueError(
@@ -360,15 +505,48 @@ class TransformationDefinition:
         if ownership is None:
             # Ownership follows declared continuity; no remaining entity
             # changes owner implicitly (transformation_model.md section 13).
+            # Cascaded entities are folded in as disappearances so their
+            # ownership edges are dropped like any other declared one.
+            ownership_mapping = dict(declared_mappings)
+
+            for entity in cascaded:
+                ownership_mapping[entity] = ()
+
             destination_ownership = follow_ownership(
                 state.ownership,
-                {
-                    mapping.source_entity: mapping.destination_entities
-                    for mapping in self.mappings
-                },
+                ownership_mapping,
             )
         else:
             destination_ownership = ownership
+
+        if self.placements:
+            # ownership is None here (checked above), so destination_ownership
+            # is the dict of lists follow_ownership produced; placed edges
+            # are appended after the owner's existing children.
+            for placed_entity, owner in self.placements:
+                if placed_entity in state.values:
+                    raise OwnershipError(
+                        f"placement target {placed_entity.value} exists in "
+                        f"the source state; it is a reparenting, not a "
+                        f"creation"
+                    )
+
+                if placed_entity not in values:
+                    raise OwnershipError(
+                        f"placement target {placed_entity.value} is absent "
+                        f"from the destination state"
+                    )
+
+                if owner not in values:
+                    raise OwnershipError(
+                        f"owner {owner.value} of placement target "
+                        f"{placed_entity.value} is absent from the "
+                        f"destination state"
+                    )
+
+                destination_ownership.setdefault(owner, []).append(
+                    placed_entity
+                )
 
         destination = State.create(
             values,
@@ -789,6 +967,7 @@ def transform_with_mapping(
     provenance: Any = None,
     ownership: Mapping[EntityID, Any] | None = None,
     conversions: Mapping[EntityID, str] | None = None,
+    placements: Mapping[EntityID, EntityID] | None = None,
 ) -> TransformResult:
     """Produce a state transition with an explicit continuity mapping."""
 
@@ -796,6 +975,7 @@ def transform_with_mapping(
         changes=changes,
         mappings=entity_mappings,
         conversions=conversions,
+        placements=placements,
     )
 
     return definition.apply(

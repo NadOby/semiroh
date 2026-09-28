@@ -29,6 +29,7 @@ from semiroh import (
     same_version,
     semantic_equal,
     transfer_reference,
+    transform_with_mapping,
 )
 
 CASES = 300
@@ -236,6 +237,54 @@ def removed_by(
     }
 
 
+def cascaded_disappearances(
+    ownership: Any,
+    mappings: dict[EntityID, tuple[EntityID, ...]],
+) -> set[EntityID]:
+    """Entities that disappear because an ended owner's subtree ends with it.
+
+    Computed independently from the source ownership and the definition's
+    mappings, never by calling the implementation: ownership_model.md
+    section 7 / transformation_model.md section 13 say every entity in a
+    disappearing owner's owned subtree that the mappings do not name, as a
+    source or a destination, disappears too, recursively, and the cascade
+    does not descend past a named entity.
+    """
+
+    # Derived bottom-up, unlike the implementation's top-down walk, so the
+    # two do not share a traversal: an unnamed entity ends when the nearest
+    # ancestor that is either named or explicitly disappearing is the latter.
+    named = set(mappings)
+
+    for targets in mappings.values():
+        named.update(targets)
+
+    parent = {
+        child: owner
+        for owner, children in ownership.items()
+        for child in children
+    }
+    cascaded: set[EntityID] = set()
+
+    for entity in parent:
+        if entity in named:
+            continue
+
+        ancestor = parent.get(entity)
+
+        while ancestor is not None:
+            if mappings.get(ancestor) == ():
+                cascaded.add(entity)
+                break
+
+            if ancestor in named:
+                break
+
+            ancestor = parent.get(ancestor)
+
+    return cascaded
+
+
 def followed_ownership(
     ownership: Any,
     mappings: dict[EntityID, tuple[EntityID, ...]],
@@ -245,19 +294,27 @@ def followed_ownership(
     transformation_model.md §13: mapped endpoints follow their mapping; an
     edge whose child disappears goes; an owner that disappears or splits
     while its child remains, or a child that splits, is rejected; the result
-    must be a forest.
+    must be a forest. ownership_model.md §7: an entity that cascades away
+    because its owner's subtree ended counts as disappearing here too, for
+    both ends of an edge.
     """
+
+    cascaded = cascaded_disappearances(ownership, mappings)
+    effective = dict(mappings)
+
+    for entity in cascaded:
+        effective[entity] = ()
 
     parent: dict[EntityID, EntityID] = {}
 
     for owner, children in ownership.items():
         for child in children:
-            child_targets = mappings.get(child, (child,))
+            child_targets = effective.get(child, (child,))
 
             if not child_targets:
                 continue
 
-            owner_targets = mappings.get(owner, (owner,))
+            owner_targets = effective.get(owner, (owner,))
 
             if len(child_targets) != 1 or len(owner_targets) != 1:
                 return None
@@ -298,8 +355,33 @@ def apply_stating_ownership(
     """Apply, stating empty destination ownership if following rejects.
 
     For properties about continuity rather than ownership: a rejected
-    implicit ownership change is replaced by an explicit one.
+    implicit ownership change is replaced by an explicit one. A change to an
+    entity that cascades away because its owner's subtree ended is dropped
+    first (computed independently, as in `cascaded_disappearances`): these
+    properties are about continuity, not about that change/disappearance
+    contradiction, which `test_apply_follows_the_presence_and_validity_rules`
+    already covers.
     """
+
+    cascaded = cascaded_disappearances(
+        state.ownership,
+        {
+            mapping.source_entity: mapping.destination_entities
+            for mapping in definition.mappings
+        },
+    )
+
+    if {change.entity for change in definition.changes} & cascaded:
+        definition = TransformationDefinition(
+            changes=tuple(
+                change
+                for change in definition.changes
+                if change.entity not in cascaded
+            ),
+            mappings=definition.mappings,
+            conversions=definition.conversions,
+            placements=definition.placements,
+        )
 
     try:
         return definition.apply(state)
@@ -449,9 +531,70 @@ class OwnershipProperties(unittest.TestCase):
                     )
 
 
+
+def random_forest(rng: random.Random) -> State:
+    """A state whose ownership is a random forest, often several levels deep."""
+
+    entities = entity_names(rng.randrange(2, 12))
+    ownership: dict[EntityID, list[EntityID]] = {}
+
+    for index, entity in enumerate(entities[1:], start=1):
+        if rng.random() < 0.8:
+            ownership.setdefault(entities[rng.randrange(index)], []).append(entity)
+
+    return State.create(
+        {entity: Value(entity, index) for index, entity in enumerate(entities)},
+        {owner: tuple(children) for owner, children in ownership.items()},
+    )
+
+
+class EndedSubtreeProperties(unittest.TestCase):
+    """ownership_model.md section 7: an owner's disappearance ends its subtree."""
+
+    def test_disappearance_matches_destruction(self) -> None:
+        for seed in range(CASES):
+            with self.subTest(seed=seed):
+                rng = random.Random(seed)
+                state = random_forest(rng)
+                ended = rng.choice(sorted(state.values))
+                result = transform_with_mapping(state, {}, {ended: ()})
+                destroyed = state.destroy(ended)
+
+                self.assertEqual(result.destination.id, destroyed.id)
+
+                for entity in set(state.values) - set(destroyed.values):
+                    self.assertEqual(
+                        result.mapping_for(entity).destination_entities, ()
+                    )
+
+    def test_named_entities_stop_the_cascade(self) -> None:
+        for seed in range(CASES):
+            with self.subTest(seed=seed):
+                rng = random.Random(seed)
+                state = random_forest(rng)
+                entities = sorted(state.values)
+                ended = rng.choice(entities)
+                kept = [
+                    entity
+                    for entity in entities
+                    if entity != ended and rng.random() < 0.3
+                ]
+                mappings = {ended: (), **{entity: (entity,) for entity in kept}}
+                expected_gone = {ended} | cascaded_disappearances(
+                    state.ownership, mappings
+                )
+
+                result = transform_with_mapping(state, {}, mappings, ownership={})
+
+                self.assertEqual(
+                    set(result.destination.values),
+                    set(entities) - expected_gone,
+                )
+
+
 class TransformationProperties(unittest.TestCase):
     def test_apply_follows_the_presence_and_validity_rules(self) -> None:
-        # transformation_model.md §4, §6, §13.
+        # transformation_model.md §4, §6, §13; ownership_model.md §7.
         for seed in range(CASES):
             with self.subTest(seed=seed):
                 rng = random.Random(seed)
@@ -473,7 +616,24 @@ class TransformationProperties(unittest.TestCase):
                     mapping.source_entity
                     for mapping in definition.mappings
                 }
+                declared = {
+                    mapping.source_entity: mapping.destination_entities
+                    for mapping in definition.mappings
+                }
+                cascaded = cascaded_disappearances(state.ownership, declared)
                 available = set(sources) | created
+
+                changed_cascaded = {
+                    change.entity for change in definition.changes
+                } & cascaded
+
+                if changed_cascaded:
+                    # A change to an entity that cascades away because its
+                    # owner's subtree ended is rejected the same way as a
+                    # change to an explicitly removed entity.
+                    with self.assertRaises(ValueError):
+                        definition.apply(state)
+                    continue
 
                 expected_valid = (
                     destinations <= available
@@ -487,10 +647,7 @@ class TransformationProperties(unittest.TestCase):
 
                 expected_ownership = followed_ownership(
                     state.ownership,
-                    {
-                        mapping.source_entity: mapping.destination_entities
-                        for mapping in definition.mappings
-                    },
+                    declared,
                 )
 
                 if expected_ownership is None:
@@ -506,8 +663,10 @@ class TransformationProperties(unittest.TestCase):
                 }
 
                 for entity in sources:
-                    present = entity not in disappearing and (
-                        entity not in mapped or entity in destinations
+                    present = (
+                        entity not in disappearing
+                        and entity not in cascaded
+                        and (entity not in mapped or entity in destinations)
                     )
 
                     self.assertEqual(destination.contains(entity), present)

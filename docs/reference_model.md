@@ -154,6 +154,11 @@ Conceptually:
 
 Rebinding therefore does not establish continuity.
 
+Because rebinding asserts no relation to the original reference, the original
+reference is neither validated nor consulted. A stale, cross-state, or
+untransferable reference can be rebound; that is usually why rebinding is
+needed.
+
 ## 9. One-step composition
 
 Transformations are not implicitly composable for reference transfer.

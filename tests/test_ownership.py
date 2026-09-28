@@ -229,3 +229,39 @@ class OwnershipNormalizationTests(unittest.TestCase):
                     ghost: (),
                 },
             )
+
+    def test_deep_ownership_chain_is_supported(self) -> None:
+        depth = 5000
+        entities = [EntityID(f"e{index:05d}") for index in range(depth)]
+
+        state = State.create(
+            {
+                entity: Value.create(entity, index)
+                for index, entity in enumerate(entities)
+            },
+            {
+                entities[index]: (entities[index + 1],)
+                for index in range(depth - 1)
+            },
+        )
+
+        self.assertEqual(
+            len(state.owned_subtree(entities[0])),
+            depth - 1,
+        )
+
+    def test_deep_ownership_cycle_is_detected(self) -> None:
+        depth = 5000
+        entities = [EntityID(f"e{index:05d}") for index in range(depth)]
+
+        with self.assertRaises(OwnershipError):
+            State.create(
+                {
+                    entity: Value.create(entity, index)
+                    for index, entity in enumerate(entities)
+                },
+                {
+                    entities[index]: (entities[(index + 1) % depth],)
+                    for index in range(depth)
+                },
+            )

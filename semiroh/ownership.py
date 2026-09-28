@@ -57,29 +57,30 @@ def normalize_ownership(
             parents[child] = owner
 
     # Ownership must be acyclic.
-    # 0 = unvisited, 1 = currently visiting, 2 = completely visited.
+    #
+    # Every entity has at most one owner (checked above), so a cycle exists
+    # exactly when walking up the owner chain from some entity revisits an
+    # entity on the current walk. The walk is iterative so that deep ownership
+    # chains do not hit the interpreter recursion limit.
+    # 1 = on the current walk, 2 = already verified acyclic.
     status: dict[EntityID, int] = {}
 
-    def visit(entity: EntityID) -> None:
-        current_status = status.get(entity, 0)
+    for start in parents:
+        path: list[EntityID] = []
+        entity: EntityID | None = start
 
-        if current_status == 1:
+        while entity is not None and entity not in status:
+            status[entity] = 1
+            path.append(entity)
+            entity = parents.get(entity)
+
+        if entity is not None and status[entity] == 1:
             raise OwnershipError(
                 f"ownership cycle detected at {entity.value}"
             )
 
-        if current_status == 2:
-            return
-
-        status[entity] = 1
-
-        for child in normalized.get(entity, ()):
-            visit(child)
-
-        status[entity] = 2
-
-    for owner in normalized:
-        visit(owner)
+        for visited in path:
+            status[visited] = 2
 
     return normalized
 

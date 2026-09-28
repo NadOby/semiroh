@@ -336,36 +336,50 @@ def _function(
         raise LanguageError(str(exc)) from exc
 
 
-def _activate(
+def _activation_pairs(
     context: _RunContext,
     function_entity: EntityID,
     links_relation: Relation | None,
     bindings: dict[str, Any],
-    rest: tuple[Any, ...],
-) -> None:
-    if not rest or len(rest) % 2:
+    pairs: tuple[Any, ...],
+    op: str,
+    *,
+    require_pairs: bool = True,
+) -> tuple[State, dict[EntityID, Function]]:
+    """Evaluate and check ``activate``/``trial``'s link/value pairs.
+
+    Shared by ``activate`` (metaprogramming.md section 4) and ``trial``
+    (language_trials.md section 2, whose pairs "are checked as for
+    activate"). Evaluates the value expressions first, then reads the
+    active state and resolves and checks every pair against it: each link
+    resolves through the running function's links to an entity whose value
+    in that state is a function, no entity is named twice, and each value
+    is a function. Reading the active state only after evaluation matters
+    because evaluating a value expression can itself activate
+    (language_trials.md section 8).
+    """
+
+    if len(pairs) % 2 or (require_pairs and not pairs):
         raise LanguageError(
-            f"{function_entity.value}: activate needs link/value pairs"
+            f"{function_entity.value}: {op} needs link/value pairs"
         )
 
-    runtime = context.runtime
-    state = runtime.active.state
-
-    evaluated_functions = [
+    evaluated_values = [
         _eval(
             context,
             function_entity,
             links_relation,
             bindings,
-            rest[index],
+            pairs[index],
         )
-        for index in range(1, len(rest), 2)
+        for index in range(1, len(pairs), 2)
     ]
 
+    state = context.runtime.active.state
     targets: list[EntityID] = []
 
-    for index in range(0, len(rest), 2):
-        link_name = rest[index]
+    for index in range(0, len(pairs), 2):
+        link_name = pairs[index]
         target = _resolve_link(
             function_entity,
             links_relation,
@@ -374,40 +388,58 @@ def _activate(
 
         if target in targets:
             raise LanguageError(
-                f"{function_entity.value}: activation target appears twice: "
+                f"{function_entity.value}: {op} target appears twice: "
                 f"{target.value}"
             )
 
         if target not in state.values:
             raise LanguageError(
-                f"{function_entity.value}: activation target does not exist: "
+                f"{function_entity.value}: {op} target does not exist: "
                 f"{target.value}"
             )
 
         if function_of(state.values[target]) is None:
             raise LanguageError(
-                f"{function_entity.value}: activation target is not a "
-                f"function: {target.value}"
+                f"{function_entity.value}: {op} target is not a function: "
+                f"{target.value}"
             )
 
         targets.append(target)
 
     functions: list[Function] = []
 
-    for value in evaluated_functions:
+    for value in evaluated_values:
         function = _function_value(value)
 
         if function is None:
             raise LanguageError(
-                f"{function_entity.value}: activation value is not a function"
+                f"{function_entity.value}: {op} value is not a function"
             )
 
         functions.append(function)
 
+    return state, dict(zip(targets, functions))
+
+
+def _activate(
+    context: _RunContext,
+    function_entity: EntityID,
+    links_relation: Relation | None,
+    bindings: dict[str, Any],
+    rest: tuple[Any, ...],
+) -> None:
+    state, changes = _activation_pairs(
+        context,
+        function_entity,
+        links_relation,
+        bindings,
+        rest,
+        "activate",
+    )
+
     if not context.may_activate:
         raise ActivationRejected("activation capability not granted")
 
-    changes = dict(zip(targets, functions))
     mappings = {
         entity: (entity,)
         for entity in state.values
@@ -419,8 +451,95 @@ def _activate(
         entity_mappings=mappings,
     )
 
-    runtime.activate(result)
+    context.runtime.activate(result)
     return None
+
+
+def _trial(
+    context: _RunContext,
+    function_entity: EntityID,
+    links_relation: Relation | None,
+    bindings: dict[str, Any],
+    rest: tuple[Any, ...],
+) -> Any:
+    """Exercise a candidate in an isolated runtime (language_trials.md).
+
+    The first operand names the call to make against the candidate; the
+    rest are link/value pairs checked exactly as ``activate``'s
+    (:func:`_activation_pairs`). The call's arguments are evaluated first,
+    then the pairs' values, both in the running function's scope and the
+    real runtime; only once that is done is the active state read to build
+    the transformation and hand it to ``Runtime.trial``. The linked
+    function then runs in the isolated runtime, without the activation
+    capability, and its result is returned; the real runtime is never
+    touched.
+    """
+
+    if not rest:
+        raise LanguageError(
+            f"{function_entity.value}: trial needs a call form"
+        )
+
+    call_form, *pairs = rest
+    pairs = tuple(pairs)
+
+    if (
+        not isinstance(call_form, tuple)
+        or len(call_form) < 2
+        or call_form[0] != "call"
+    ):
+        raise LanguageError(
+            f"{function_entity.value}: trial's first operand must be a "
+            f"call form"
+        )
+
+    _, link_name, *arg_exprs = call_form
+
+    args = tuple(
+        _eval(
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            expr,
+        )
+        for expr in arg_exprs
+    )
+
+    state, changes = _activation_pairs(
+        context,
+        function_entity,
+        links_relation,
+        bindings,
+        pairs,
+        "trial",
+        require_pairs=False,
+    )
+
+    call_target = _resolve_link(
+        function_entity,
+        links_relation,
+        link_name,
+    )
+
+    if not context.may_activate:
+        raise ActivationRejected("activation capability not granted")
+
+    mappings = {
+        entity: (entity,)
+        for entity in state.values
+    }
+
+    result = transform_with_mapping(
+        state,
+        changes=changes,
+        entity_mappings=mappings,
+    )
+
+    candidate = context.runtime.trial(result)
+    candidate_context = _RunContext(runtime=candidate, may_activate=False)
+
+    return _call(candidate_context, call_target, args)
 
 
 def _eval(
@@ -658,6 +777,15 @@ def _eval(
             tuple(rest),
         )
         return None
+
+    if op == "trial":
+        return _trial(
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            tuple(rest),
+        )
 
     raise LanguageError(
         f"{function_entity.value}: unknown operation {op!r}"

@@ -283,6 +283,13 @@ The language distinguishes between:
 
 These operations are not interchangeable.
 
+A mutable cell is itself a semantic entity: its existence, identity, and type
+are part of semantic program state and are versioned like any other entity.
+The cell's current content is runtime state. Writing to a cell changes its
+content in place; it does not produce a new semantic state and does not change
+`StateID`. Otherwise every write would make every reference pinned to that
+state stale.
+
 ## 13. Effects and capabilities
 
 An effect describes observable behaviour or dependency.
@@ -539,6 +546,8 @@ The current architecture is organized around several high-value invariants:
     composition.
 21. Every program image carries the compiler needed to transform and
     recompile itself.
+22. A mutable cell is versioned semantic state; its current content is
+    runtime state and does not contribute to `StateID`.
 
 ## 28. State identity and provenance
 

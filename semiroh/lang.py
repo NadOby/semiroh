@@ -4,8 +4,8 @@ A **function** is an entity whose value is a :class:`Function`: parameter
 names plus a body expression tree of plain tuples. A function never holds
 raw ``EntityID``\\ s; it names the functions and cells it uses through link
 names, resolved via its own **links relation** (:func:`links`). Running a
-function never changes program state: :func:`run` only reads and writes
-mutable cells through the ``Runtime`` it is given.
+function can change program state only through ``activate``, and only when
+the run was granted the activation capability.
 
 This module is a layer on top of the core model, not part of it: it is not
 re-exported from ``semiroh/__init__.py``.
@@ -25,12 +25,11 @@ from .canonical import (
 )
 from .identity import EntityID
 from .relations import Relation, relation_index, relation_of
-from .runtime import CellError, Runtime
+from .runtime import ActivationRejected, CellError, Runtime
 from .state import State
+from .transforms import transform_with_mapping
 from .values import Value
 
-# The role a function plays in its own links relation; reserved as a link
-# name (first_program.md section 2).
 FUNCTION_ROLE = "function"
 LINKS_KIND = "links"
 
@@ -46,14 +45,7 @@ class LanguageError(ValueError):
 
 @dataclass(frozen=True, eq=False)
 class Function(SemanticRecord):
-    """Semantic record: a function's parameters and body.
-
-    ``body`` is a plain tuple expression tree (first_program.md section 2).
-    Both fields stay ordinary Python data while the record is held live;
-    only :meth:`canonical_node` canonicalizes them, so a body read back from
-    a ``Value`` arrives as tagged canonical nodes and must be decoded (see
-    :func:`function_of`) before it is evaluated.
-    """
+    """Semantic record: a function's parameters and body."""
 
     params: tuple[str, ...]
     body: tuple
@@ -91,7 +83,7 @@ class Function(SemanticRecord):
 
 
 def _decode(node: Any) -> Any:
-    """Undo canonicalization of a tuple/list-shaped expression tree."""
+    """Undo canonicalization of a tuple/list/map-shaped expression tree."""
 
     if isinstance(node, CanonicalNode):
         kind = node[1]
@@ -102,31 +94,46 @@ def _decode(node: Any) -> Any:
         if kind == "list":
             return [_decode(item) for item in node[2]]
 
+        if kind == "map":
+            return {_decode(key): _decode(value) for key, value in node[2]}
+
     return node
 
 
-def function_of(value: Value) -> Function | None:
-    """Return the Function held by a value, or None if it does not hold one."""
-
-    content = value.content
+def _function_from_canonical(content: Any) -> Function | None:
+    """Decode a Function from its own canonical tagged node, if it is one."""
 
     if isinstance(content, CanonicalNode) and content[1] == "function":
         params, body = content[2]
-
         return Function(_decode(params), _decode(body))
 
     return None
 
 
-def links(function: EntityID, **targets: EntityID) -> Relation:
-    """The links relation of a function: link name to target entity.
+def function_of(value: Value) -> Function | None:
+    """Return the Function held by a value, or None if it does not hold one."""
 
-    ``function`` is the function entity itself, stored under the reserved
-    ``function`` role so its links relation can be found from either side
-    (section 2). Because that role is also this parameter's name, passing a
-    ``function=`` link target raises ``TypeError`` before this body runs;
-    nothing here needs to guard against it separately.
+    return _function_from_canonical(value.content)
+
+
+def _function_value(value: Any) -> Function | None:
+    """Decode a value that should be a Function value, live or canonical.
+
+    A value built by ``("function", ...)`` in the same evaluation is already
+    a live ``Function``. One read from a cell, matched from an ``arg``, or
+    embedded as a ``lit`` literal that was canonicalized into state instead
+    arrives as its canonical tagged node and must be decoded the same way
+    (metaprogramming.md section 8).
     """
+
+    if isinstance(value, Function):
+        return value
+
+    return _function_from_canonical(value)
+
+
+def links(function: EntityID, **targets: EntityID) -> Relation:
+    """The links relation of a function: link name to target entity."""
 
     return Relation(LINKS_KIND, {FUNCTION_ROLE: function, **targets})
 
@@ -204,15 +211,27 @@ def _arity(
         )
 
 
+@dataclass(frozen=True)
+class _RunContext:
+    runtime: Runtime
+    may_activate: bool
+
+
 def _eval_int(
-    runtime: Runtime,
+    context: _RunContext,
     function_entity: EntityID,
     links_relation: Relation | None,
     bindings: dict[str, Any],
     node: Any,
     op: str,
 ) -> int:
-    value = _eval(runtime, function_entity, links_relation, bindings, node)
+    value = _eval(
+        context,
+        function_entity,
+        links_relation,
+        bindings,
+        node,
+    )
 
     if not _is_int(value):
         raise LanguageError(
@@ -222,8 +241,174 @@ def _eval_int(
     return value
 
 
+def _quote(
+    context: _RunContext,
+    function_entity: EntityID,
+    links_relation: Relation | None,
+    bindings: dict[str, Any],
+    template: Any,
+) -> Any:
+    if not isinstance(template, tuple):
+        return template
+
+    if template and template[0] == "unquote":
+        if len(template) != 2:
+            raise LanguageError(
+                f"{function_entity.value}: unquote takes exactly one operand"
+            )
+
+        return _eval(
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            template[1],
+        )
+
+    return tuple(
+        _quote(
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            item,
+        )
+        for item in template
+    )
+
+
+def _function(
+    context: _RunContext,
+    function_entity: EntityID,
+    links_relation: Relation | None,
+    bindings: dict[str, Any],
+    rest: tuple[Any, ...],
+) -> Function:
+    _arity(function_entity, "function", rest, 2)
+
+    params = _eval(
+        context,
+        function_entity,
+        links_relation,
+        bindings,
+        rest[0],
+    )
+    body = _eval(
+        context,
+        function_entity,
+        links_relation,
+        bindings,
+        rest[1],
+    )
+
+    params = _decode(params)
+    body = _decode(body)
+
+    if not isinstance(params, tuple):
+        raise LanguageError(
+            f"{function_entity.value}: function parameters must be a tuple"
+        )
+
+    if not isinstance(body, tuple):
+        raise LanguageError(
+            f"{function_entity.value}: function body must be a tuple"
+        )
+
+    try:
+        return Function(params, body)
+    except (TypeError, ValueError) as exc:
+        raise LanguageError(str(exc)) from exc
+
+
+def _activate(
+    context: _RunContext,
+    function_entity: EntityID,
+    links_relation: Relation | None,
+    bindings: dict[str, Any],
+    rest: tuple[Any, ...],
+) -> None:
+    if not rest or len(rest) % 2:
+        raise LanguageError(
+            f"{function_entity.value}: activate needs link/value pairs"
+        )
+
+    runtime = context.runtime
+    state = runtime.active.state
+
+    evaluated_functions = [
+        _eval(
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            rest[index],
+        )
+        for index in range(1, len(rest), 2)
+    ]
+
+    targets: list[EntityID] = []
+
+    for index in range(0, len(rest), 2):
+        link_name = rest[index]
+        target = _resolve_link(
+            function_entity,
+            links_relation,
+            link_name,
+        )
+
+        if target in targets:
+            raise LanguageError(
+                f"{function_entity.value}: activation target appears twice: "
+                f"{target.value}"
+            )
+
+        if target not in state.values:
+            raise LanguageError(
+                f"{function_entity.value}: activation target does not exist: "
+                f"{target.value}"
+            )
+
+        if function_of(state.values[target]) is None:
+            raise LanguageError(
+                f"{function_entity.value}: activation target is not a "
+                f"function: {target.value}"
+            )
+
+        targets.append(target)
+
+    functions: list[Function] = []
+
+    for value in evaluated_functions:
+        function = _function_value(value)
+
+        if function is None:
+            raise LanguageError(
+                f"{function_entity.value}: activation value is not a function"
+            )
+
+        functions.append(function)
+
+    if not context.may_activate:
+        raise ActivationRejected("activation capability not granted")
+
+    changes = dict(zip(targets, functions))
+    mappings = {
+        entity: (entity,)
+        for entity in state.values
+    }
+
+    result = transform_with_mapping(
+        state,
+        changes=changes,
+        entity_mappings=mappings,
+    )
+
+    runtime.activate(result)
+    return None
+
+
 def _eval(
-    runtime: Runtime,
+    context: _RunContext,
     function_entity: EntityID,
     links_relation: Relation | None,
     bindings: dict[str, Any],
@@ -240,7 +425,6 @@ def _eval(
 
     if op == "lit":
         _arity(function_entity, op, rest, 1)
-
         return rest[0]
 
     if op == "arg":
@@ -257,10 +441,20 @@ def _eval(
     if op in ("add", "sub", "mul"):
         _arity(function_entity, op, rest, 2)
         left = _eval_int(
-            runtime, function_entity, links_relation, bindings, rest[0], op
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            rest[0],
+            op,
         )
         right = _eval_int(
-            runtime, function_entity, links_relation, bindings, rest[1], op
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            rest[1],
+            op,
         )
 
         if op == "add":
@@ -274,19 +468,39 @@ def _eval(
     if op == "lt":
         _arity(function_entity, op, rest, 2)
         left = _eval_int(
-            runtime, function_entity, links_relation, bindings, rest[0], op
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            rest[0],
+            op,
         )
         right = _eval_int(
-            runtime, function_entity, links_relation, bindings, rest[1], op
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            rest[1],
+            op,
         )
 
         return left < right
 
     if op == "eq":
         _arity(function_entity, op, rest, 2)
-        left = _eval(runtime, function_entity, links_relation, bindings, rest[0])
+        left = _eval(
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            rest[0],
+        )
         right = _eval(
-            runtime, function_entity, links_relation, bindings, rest[1]
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            rest[1],
         )
 
         return _semantically_equal(left, right)
@@ -294,7 +508,11 @@ def _eval(
     if op == "if":
         _arity(function_entity, op, rest, 3)
         condition = _eval(
-            runtime, function_entity, links_relation, bindings, rest[0]
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            rest[0],
         )
 
         if not isinstance(condition, bool):
@@ -304,7 +522,13 @@ def _eval(
 
         branch = rest[1] if condition else rest[2]
 
-        return _eval(runtime, function_entity, links_relation, bindings, branch)
+        return _eval(
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            branch,
+        )
 
     if op == "seq":
         if not rest:
@@ -316,7 +540,11 @@ def _eval(
 
         for expr in rest:
             result = _eval(
-                runtime, function_entity, links_relation, bindings, expr
+                context,
+                function_entity,
+                links_relation,
+                bindings,
+                expr,
             )
 
         return result
@@ -326,57 +554,112 @@ def _eval(
             raise LanguageError(f"{function_entity.value}: call needs a link")
 
         link_name, *arg_exprs = rest
-        target = _resolve_link(function_entity, links_relation, link_name)
+        target = _resolve_link(
+            function_entity,
+            links_relation,
+            link_name,
+        )
         args = tuple(
-            _eval(runtime, function_entity, links_relation, bindings, expr)
+            _eval(
+                context,
+                function_entity,
+                links_relation,
+                bindings,
+                expr,
+            )
             for expr in arg_exprs
         )
 
-        return _call(runtime, target, args)
+        return _call(context, target, args)
 
     if op == "read":
         _arity(function_entity, op, rest, 1)
-        cell = _resolve_link(function_entity, links_relation, rest[0])
+        cell = _resolve_link(
+            function_entity,
+            links_relation,
+            rest[0],
+        )
 
-        # CellError means the link names something that is not a cell: a
-        # language mistake (section 3), not a constraint rejection, so it
-        # becomes a LanguageError. CellContentRejected and
-        # RelationConstraintRejected are constraint failures and are left to
-        # propagate unchanged.
         try:
-            return runtime.read(cell)
+            return context.runtime.read(cell)
         except CellError as exc:
             raise LanguageError(str(exc)) from exc
 
     if op == "write":
         _arity(function_entity, op, rest, 2)
-        cell = _resolve_link(function_entity, links_relation, rest[0])
+        cell = _resolve_link(
+            function_entity,
+            links_relation,
+            rest[0],
+        )
         value = _eval(
-            runtime, function_entity, links_relation, bindings, rest[1]
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            rest[1],
         )
 
-        # Same distinction as "read" above.
         try:
-            runtime.write(cell, value)
+            context.runtime.write(cell, value)
         except CellError as exc:
             raise LanguageError(str(exc)) from exc
 
         return value
 
-    raise LanguageError(f"{function_entity.value}: unknown operation {op!r}")
+    if op == "quote":
+        _arity(function_entity, op, rest, 1)
+
+        return _quote(
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            rest[0],
+        )
+
+    if op == "function":
+        return _function(
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            tuple(rest),
+        )
+
+    if op == "activate":
+        _activate(
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            tuple(rest),
+        )
+        return None
+
+    raise LanguageError(
+        f"{function_entity.value}: unknown operation {op!r}"
+    )
 
 
-def _call(runtime: Runtime, function_entity: EntityID, args: tuple[Any, ...]) -> Any:
+def _call(
+    context: _RunContext,
+    function_entity: EntityID,
+    args: tuple[Any, ...],
+) -> Any:
     """Call a function entity with already-evaluated arguments."""
 
+    runtime = context.runtime
     frame = runtime.enter(function_entity)
 
     try:
-        state = runtime.active.state
+        state = frame.version.state
         function = function_of(state.values[function_entity])
 
         if function is None:
-            raise LanguageError(f"{function_entity.value} is not a function")
+            raise LanguageError(
+                f"{function_entity.value} is not a function"
+            )
 
         if len(args) != len(function.params):
             raise LanguageError(
@@ -388,19 +671,40 @@ def _call(runtime: Runtime, function_entity: EntityID, args: tuple[Any, ...]) ->
         links_relation = _links_of(state, function_entity)
 
         return _eval(
-            runtime, function_entity, links_relation, bindings, function.body
+            context,
+            function_entity,
+            links_relation,
+            bindings,
+            function.body,
         )
     finally:
         frame.release()
 
 
-def run(runtime: Runtime, entry: EntityID, *args: Any) -> Any:
-    """Evaluate ``entry`` in ``runtime.active`` and return the result.
+def run(
+    runtime: Runtime,
+    entry: EntityID,
+    *args: Any,
+    may_activate: bool = False,
+) -> Any:
+    """Evaluate ``entry`` and return its result.
 
     Arguments are canonicalized before being bound to the entry function's
-    parameters. Every call, including the entry, enters and releases a
-    frame, so a finished run leaves no holds; a run that raises releases its
-    frames too. Running never changes program state or ``StateID``.
+    parameters. Every call enters and releases a frame, so a finished run
+    leaves no holds; a run that raises releases its frames too.
+
+    By default a run cannot activate a new program state. Passing
+    ``may_activate=True`` grants the run the provisional activation
+    capability described in metaprogramming.md section 4.
     """
 
-    return _call(runtime, entry, tuple(canonicalize(arg) for arg in args))
+    context = _RunContext(
+        runtime=runtime,
+        may_activate=may_activate,
+    )
+
+    return _call(
+        context,
+        entry,
+        tuple(canonicalize(arg) for arg in args),
+        )

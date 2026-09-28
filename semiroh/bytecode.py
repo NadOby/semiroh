@@ -37,6 +37,7 @@ from .lang import (
     _fill,
     _function_value,
     define,
+    function_at,
     function_of,
 )
 from .relations import Relation, relation_of
@@ -162,6 +163,8 @@ def lower(node: Relation) -> Chunk:
         ]
     elif kind == "ref":
         code = [("REF", roles["target"], _decode(node.payload))]
+    elif kind == "code":
+        code = [("CODE", roles["target"], _decode(node.payload))]
     elif kind == "apply":
         args = roles["args"]
         code = [
@@ -698,6 +701,16 @@ def _execute(
                     )
 
                 stack.append(instr[1])
+            elif op == "CODE":
+                function = function_at(runtime.active.state, instr[1])
+
+                if function is None:
+                    raise LanguageError(
+                        f"{activation.entity.value}: code {instr[2]!r} does "
+                        f"not name a function"
+                    )
+
+                stack.append((function.params, function.body))
             elif op == "REFCHECK":
                 target = _reference(stack.pop())
 

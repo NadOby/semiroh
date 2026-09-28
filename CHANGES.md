@@ -354,3 +354,9 @@ Composition APIs are specified in terms of these three result classes.
 - Transformation results list every relation whose endpoints followed
   continuity (`RelationRewrite`), checked against the source and destination
   states.
+- Stated that the semantic graph generalizes a hypergraph: there are no
+  nodes and edges, only entities, and a relation is itself an entity.
+- Deferred until the first program implementations need them: how ownership
+  becomes part of the graph, whether deletion and disappearance are one
+  operation, the root of the ownership forest, and how creation places an
+  entity under its owner.

@@ -188,6 +188,19 @@ The following remain open:
 - capability-based ownership authority;
 - representation-level lifetime guarantees.
 
+Deferred until the first program implementations need them:
+
+- how ownership becomes part of the graph: one relation per ownership, one
+  member list per owner, or the current store with the same rules;
+- whether deletion and disappearance are one operation, differing only
+  between the semantic and runtime regimes, so that an owner's disappearance
+  ends its owned subtree;
+- whether the top of the forest is owned by a virtual runtime root or by an
+  explicit program root entity, to which modules, libraries, and entry points
+  attach;
+- how creation places a new entity under its owner, including as a
+  guarantee that every transformation carries.
+
 ## 14. Design principle
 
 Ownership determines lifetime authority.

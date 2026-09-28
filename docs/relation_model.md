@@ -153,9 +153,10 @@ section 13.
 **Decided.** Ownership stays a separate relation in state for now.
 
 Ownership has lifetime semantics and structural invariants (one owner,
-acyclic, recursive destruction) that general relations do not. Expressing it
-as a relation kind with extra constraints is possible later; nothing in this
-model depends on it.
+acyclic, recursive destruction) that general relations do not. It already
+follows declared continuity by the same rule as relations. How it becomes
+part of the graph is deferred until the first program implementations need
+it; see ownership_model.md section 13.
 
 ## 7. Constraints over several entities
 

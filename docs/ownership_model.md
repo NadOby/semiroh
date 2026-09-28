@@ -179,8 +179,7 @@ The following remain open:
 - explicit ownership transfer semantics;
 - physical move semantics;
 - pinning;
-- borrowing (first concrete use: retirement of superseded program versions,
-  see [`activation_model.md`](activation_model.md) section 7);
+- borrowing;
 - alias analysis;
 - lifetime analysis;
 - interaction with concurrency;

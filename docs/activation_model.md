@@ -178,8 +178,8 @@ rejects activation when any live reference cannot be transferred.
 
 ## 7. Retiring superseded versions
 
-**Proposed** (ownership and borrows). **Open** (version bound and purge
-policy).
+**Proposed** (ownership and runtime holds). **Open** (version bound and
+purge policy).
 
 Retirement of old versions uses the ownership model rather than a separate
 lifetime mechanism. The same rules apply to runtime state as to program
@@ -200,28 +200,30 @@ and are destroyed with it.
 
 Ownership alone cannot say when retirement is allowed. Many threads, frames
 and pinned references can depend on the same old version, and ownership
-permits only one owner. These dependencies are therefore borrows: they do not
-own the version, but it cannot be destroyed while any borrow is live.
+permits only one owner. These dependencies are therefore recorded as holds on
+the version:
 
-    frame executing old code             borrows its version
-    reference pinned to S₀ (section 6)   borrows the version of S₀
-    function pointer, return address     borrows the version it points into
+    frame executing old code             holds its version
+    reference pinned to S₀ (section 6)   holds the version of S₀
+    function pointer, return address     holds the version it points into
 
-A superseded version is retired when its last borrow ends.
+A superseded version is retired when nothing holds it any more.
 
-Borrows of running code are dynamic, so the runtime tracks them. An epoch or
-RCU-style grace period is one cheap way to detect that no thread still
-borrows an old version. That is an implementation of borrow tracking, not a
-separate semantic concept.
+A hold is deliberately much narrower than a borrow:
+
+- it is coarse: it applies to a whole version, not to individual objects;
+- it is dynamic: the runtime tracks it, for example with an epoch or
+  RCU-style grace period, or a count per version;
+- it is internal: it does not appear in types, has no lifetimes or aliasing
+  rules, and user code never creates or checks one.
+
+SEMIROH does not introduce a general borrowing system to retire versions.
 
 Open: how many versions may coexist, and what happens when that bound is
-reached while the oldest version still has live borrows. The options are to
-wait, to reject the activation, or to terminate the borrowers, as Erlang
-terminates processes still running purged code. Terminating a thread would
+reached while the oldest version is still held. The options are to wait, to
+reject the activation, or to terminate the holders, as Erlang terminates
+processes still running purged code. Terminating a thread would
 itself be destruction of what that thread owns.
-
-Borrowing is an open area of the ownership model. Retirement is its first
-concrete use case.
 
 ## 8. Rollback
 
@@ -254,7 +256,8 @@ areas in the README.
 - **Reference model**: activation is the one-step transfer for runtime-held
   references.
 - **Ownership model**: retirement of superseded versions is recursive
-  destruction of an owned subtree, gated by borrows (section 7).
+  destruction of an owned subtree, gated by runtime holds (section 7). No
+  general borrowing system is introduced.
 - **Constraint and contract models**: supply the validation performed before
   activation.
 - **State model**: activation selects a state; it does not mutate any state.
@@ -273,8 +276,7 @@ transformation result, and release of `S₀` once nothing is pinned to it.
 
 - switching strategy for code in flight (section 5);
 - where conversion and transfer functions live (section 4);
-- borrow semantics for runtime dependencies on superseded versions
-  (section 7);
+- how the runtime tracks holds on versions (section 7);
 - version bound and purge policy (section 7);
 - concurrency: per-thread switching and its memory model;
 - native code installation under platform restrictions.

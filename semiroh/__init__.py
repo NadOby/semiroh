@@ -29,6 +29,7 @@ from .ownership import (
 from .relations import (
     DanglingRelation,
     Relation,
+    constraint_relations,
     relation_index,
     relation_of,
     relations_of,
@@ -49,6 +50,7 @@ from .runtime import (
     Frame,
     Hold,
     KeptReference,
+    RelationConstraintRejected,
     Runtime,
     Version,
 )
@@ -87,6 +89,7 @@ __all__ = [
     "CellContentRejected",
     "Converter",
     "ActivationRejected",
+    "RelationConstraintRejected",
     "CellDeclaration",
     "Evaluator",
     "ConstraintResult",
@@ -120,6 +123,7 @@ __all__ = [
     "relation_of",
     "relations_of",
     "relation_index",
+    "constraint_relations",
     "version_id_for",
     "semantic_equal",
     "same_entity",

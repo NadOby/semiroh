@@ -13,6 +13,10 @@ content of every cell when it loads a version, and checks every write, using
 its evaluation context. Only ``SATISFIED`` is accepted: ``VIOLATED`` and
 ``UNKNOWN`` are both rejected.
 
+Constraint relations (relation_model.md section 7) are checked the same way:
+when a version loads, when a write changes one of their endpoint cells, and
+against the staged content of an activation or trial run.
+
 Activation (activation_model.md) switches the runtime to the destination of a
 transformation result. Everything is staged first and the switch is atomic:
 a rejected activation leaves the runtime unchanged.
@@ -28,6 +32,7 @@ from .canonical import canonicalize
 from .cells import CellDeclaration, cells_of
 from .constraints import ConstraintResult, EvaluationContext
 from .identity import EntityID, StateID
+from .relations import constraint_relations, role_subject
 from .references import (
     AmbiguousEntityMapping,
     CrossStateReference,
@@ -59,6 +64,23 @@ class CellContentRejected(ValueError):
         self.result = result
 
 
+class RelationConstraintRejected(ValueError):
+    """A constraint relation was not established to be satisfied."""
+
+    def __init__(
+        self,
+        relation: EntityID,
+        result: ConstraintResult,
+        operation: str,
+    ) -> None:
+        super().__init__(
+            f"{operation} rejected: constraint relation {relation.value} is "
+            f"{result.value}"
+        )
+        self.relation = relation
+        self.result = result
+
+
 class ActivationRejected(ValueError):
     """An activation was rejected; the runtime is unchanged."""
 
@@ -67,11 +89,47 @@ class ActivationRejected(ValueError):
         reason: str,
         cell: EntityID | None = None,
         result: ConstraintResult | None = None,
+        relation: EntityID | None = None,
     ) -> None:
         super().__init__(reason)
         self.reason = reason
         self.cell = cell
         self.result = result
+        self.relation = relation
+
+
+def _failed_constraint_relation(
+    state: State,
+    cells: Mapping[EntityID, Any],
+    context: EvaluationContext,
+    touching: EntityID | None = None,
+) -> tuple[EntityID, ConstraintResult] | None:
+    """Return the first constraint relation not established as satisfied.
+
+    Endpoint content is the runtime content of a cell, or the value content
+    of any other entity. With ``touching``, only relations that have that
+    entity as an endpoint are checked.
+    """
+
+    def content_of(entity: EntityID) -> Any:
+        if entity in cells:
+            return cells[entity]
+
+        return state.values[entity].content
+
+    for entity, (relation, constraint) in constraint_relations(state).items():
+        if touching is not None and touching not in relation.endpoints:
+            continue
+
+        outcome = constraint.evaluate(
+            role_subject(relation, content_of),
+            context,
+        )
+
+        if outcome is not ConstraintResult.SATISFIED:
+            return entity, outcome
+
+    return None
 
 
 @dataclass(frozen=True)
@@ -147,13 +205,16 @@ class Version:
                 "initial content",
             )
 
-        return Version(
-            state,
-            {
-                entity: declaration.initial
-                for entity, declaration in declarations.items()
-            },
-        )
+        contents = {
+            entity: declaration.initial
+            for entity, declaration in declarations.items()
+        }
+        failure = _failed_constraint_relation(state, contents, context)
+
+        if failure is not None:
+            raise RelationConstraintRejected(*failure, "load")
+
+        return Version(state, contents)
 
     @property
     def state(self) -> State:
@@ -338,6 +399,19 @@ class Runtime:
             self._context,
             "write",
         )
+
+        staged = dict(self._active._cells)
+        staged[cell] = canonical
+        failure = _failed_constraint_relation(
+            self._active.state,
+            staged,
+            self._context,
+            touching=cell,
+        )
+
+        if failure is not None:
+            raise RelationConstraintRejected(*failure, f"write of {cell.value}")
+
         self._active._cells[cell] = canonical
 
     def enter(self, entity: EntityID) -> Frame:
@@ -390,6 +464,7 @@ class Runtime:
             )
 
         contents = self._stage_cells(result, available, self._context)
+        self._check_staged_relations(result, contents, self._context)
         references = self._stage_references(
             result,
             reject_untransferable_references,
@@ -432,6 +507,7 @@ class Runtime:
         result, available = self._prepare(target, converters)
         trial_context = context or self._context
         contents = self._stage_cells(result, available, trial_context)
+        self._check_staged_relations(result, contents, trial_context)
 
         return Runtime._isolated(
             result.destination,
@@ -583,6 +659,27 @@ class Runtime:
             staged[cell] = content
 
         return staged
+
+    def _check_staged_relations(
+        self,
+        result: TransformResult,
+        contents: Mapping[EntityID, Any],
+        context: EvaluationContext,
+    ) -> None:
+        failure = _failed_constraint_relation(
+            result.destination,
+            contents,
+            context,
+        )
+
+        if failure is not None:
+            relation, outcome = failure
+            raise ActivationRejected(
+                f"constraint relation {relation.value} is {outcome.value} "
+                f"against the staged content",
+                result=outcome,
+                relation=relation,
+            )
 
     def _stage_references(
         self,

@@ -10,9 +10,15 @@ from .canonical import canonical_serialize, canonicalize
 from .identity import EntityID, VersionID
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Value:
-    """Immutable semantic value."""
+    """Immutable semantic value.
+
+    Equality and hashing are defined by entity identity plus canonical
+    serialization of the content, not by Python equality of the content.
+    Python considers ``True == 1``; SEMIROH does not, because their canonical
+    serializations differ.
+    """
 
     entity: EntityID
     content: Any
@@ -23,6 +29,21 @@ class Value:
             "content",
             canonicalize(self.content),
         )
+
+    def _identity_key(self) -> tuple[EntityID, bytes]:
+        return (
+            self.entity,
+            canonical_serialize(self.content),
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Value):
+            return NotImplemented
+
+        return self._identity_key() == other._identity_key()
+
+    def __hash__(self) -> int:
+        return hash(self._identity_key())
 
     @staticmethod
     def create(

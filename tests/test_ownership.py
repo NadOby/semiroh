@@ -193,3 +193,75 @@ class OwnershipTests(unittest.TestCase):
 
         self.assertEqual(state.owner_of(b), a)
         self.assertIsNone(state.owner_of(a))
+
+
+class OwnershipNormalizationTests(unittest.TestCase):
+    def test_empty_ownership_entry_does_not_change_state_identity(
+        self,
+    ) -> None:
+        foo = EntityID("foo")
+
+        values = {
+            foo: Value.create(foo, 1),
+        }
+
+        self.assertEqual(
+            State.create(values, {foo: ()}).id,
+            State.create(values).id,
+        )
+        self.assertEqual(
+            State.create(values, {foo: []}).ownership,
+            {},
+        )
+
+    def test_empty_ownership_entry_for_absent_owner_is_rejected(
+        self,
+    ) -> None:
+        foo = EntityID("foo")
+        ghost = EntityID("ghost")
+
+        with self.assertRaises(OwnershipError):
+            State.create(
+                {
+                    foo: Value.create(foo, 1),
+                },
+                {
+                    ghost: (),
+                },
+            )
+
+    def test_deep_ownership_chain_is_supported(self) -> None:
+        depth = 5000
+        entities = [EntityID(f"e{index:05d}") for index in range(depth)]
+
+        state = State.create(
+            {
+                entity: Value.create(entity, index)
+                for index, entity in enumerate(entities)
+            },
+            {
+                entities[index]: (entities[index + 1],)
+                for index in range(depth - 1)
+            },
+        )
+
+        self.assertEqual(
+            len(state.owned_subtree(entities[0])),
+            depth - 1,
+        )
+
+    def test_deep_ownership_cycle_is_detected(self) -> None:
+        depth = 5000
+        entities = [EntityID(f"e{index:05d}") for index in range(depth)]
+
+        with self.assertRaises(OwnershipError):
+            State.create(
+                {
+                    entity: Value.create(entity, index)
+                    for index, entity in enumerate(entities)
+                },
+                {
+                    entities[index]: (entities[(index + 1) % depth],)
+                    for index in range(depth)
+                },
+            )

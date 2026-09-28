@@ -154,6 +154,15 @@ iteration order.
 Canonicalization is therefore part of the identity mechanism rather than
 merely a formatting convention.
 
+Canonicalization is idempotent: canonicalizing already-canonical content
+returns it unchanged. Content taken from an existing value can therefore be
+reused to construct another value without changing its semantic identity.
+
+Semantic equality is decided by canonical serialization, not by the equality
+of the host language. For example, the Python reference model must treat
+`True` and `1` as distinct values even though Python considers them equal,
+because their canonical serializations differ.
+
 ## 7. Current implementation model
 
 The Python reference implementation currently represents these identities as

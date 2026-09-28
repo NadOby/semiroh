@@ -58,6 +58,13 @@ relation.
 Canonical ordering therefore ensures deterministic state identity and
 deterministic inspection.
 
+An owner listed with no children describes the same ownership relation as an
+owner that is not listed. Such entries are omitted from the canonical
+representation and therefore do not affect state identity.
+
+An entry naming an entity absent from the state is still rejected, even when
+its child collection is empty.
+
 ## 5. Ownership queries
 
 The semantic state provides the following conceptual queries:

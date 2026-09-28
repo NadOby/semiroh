@@ -3,6 +3,7 @@
 import unittest
 
 from semiroh import (
+    transfer_reference,
     AmbiguousEntityMapping,
     EntityID,
     EntityMapping,
@@ -609,3 +610,119 @@ class TransformMappingTests(unittest.TestCase):
                     ),
                 ),
     )
+
+
+class MappedSourcePresenceTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.a = EntityID("a")
+        self.b = EntityID("b")
+        self.c = EntityID("c")
+
+        self.state = State.create({
+            self.a: Value.create(self.a, 1),
+            self.b: Value.create(self.b, 2),
+        })
+
+    def test_swap_mapping_can_be_applied(self) -> None:
+        result = transform_with_mapping(
+            self.state,
+            {},
+            {
+                self.a: self.b,
+                self.b: self.a,
+            },
+        )
+
+        self.assertTrue(result.destination.contains(self.a))
+        self.assertTrue(result.destination.contains(self.b))
+
+        # Content is unchanged; only declared continuity differs.
+        self.assertEqual(result.destination.id, self.state.id)
+
+        transferred = transfer_reference(
+            self.state.reference(self.a),
+            result,
+        )
+
+        self.assertEqual(transferred.entity, self.b)
+
+    def test_shift_chain_can_be_applied(self) -> None:
+        result = transform_with_mapping(
+            self.state,
+            {
+                self.c: 3,
+            },
+            {
+                self.a: self.b,
+                self.b: self.c,
+            },
+        )
+
+        self.assertFalse(result.destination.contains(self.a))
+        self.assertTrue(result.destination.contains(self.b))
+        self.assertTrue(result.destination.contains(self.c))
+
+        self.assertEqual(
+            transfer_reference(
+                self.state.reference(self.a),
+                result,
+            ).entity,
+            self.b,
+        )
+        self.assertEqual(
+            transfer_reference(
+                self.state.reference(self.b),
+                result,
+            ).entity,
+            self.c,
+        )
+
+    def test_destination_declared_to_disappear_is_rejected(self) -> None:
+        with self.assertRaises(KeyError):
+            transform_with_mapping(
+                self.state,
+                {},
+                {
+                    self.a: self.b,
+                    self.b: (),
+                },
+            )
+
+    def test_retained_mapped_source_receives_its_change(self) -> None:
+        result = transform_with_mapping(
+            self.state,
+            {
+                self.a: 10,
+            },
+            {
+                self.a: self.b,
+                self.b: self.a,
+            },
+        )
+
+        self.assertEqual(
+            result.destination.values[self.a],
+            Value.create(self.a, 10),
+        )
+
+    def test_change_to_source_removed_by_mapping_has_no_effect(
+        self,
+    ) -> None:
+        # Presence is decided by mappings; this generalizes the rule that
+        # explicit disappearance takes precedence over a value change.
+        result = transform_with_mapping(
+            self.state,
+            {
+                self.a: 99,
+                self.c: 3,
+            },
+            {
+                self.a: self.c,
+            },
+        )
+
+        self.assertFalse(result.destination.contains(self.a))
+        self.assertEqual(
+            result.destination.values[self.c],
+            Value.create(self.c, 3),
+        )

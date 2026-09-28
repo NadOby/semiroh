@@ -148,6 +148,29 @@ For an entity explicitly mapped to zero destinations:
 An explicit disappearance mapping therefore takes precedence over a value
 change for the same source entity: the entity is absent from the destination.
 
+More generally, the presence of an explicitly mapped source entity in the
+destination is decided by the mappings alone (see section 6). A value change
+for a source entity that the mappings remove from the destination has no
+effect.
+
+This precedence rule is provisional. A definition that both changes an entity
+and removes it through its mappings makes two incompatible statements about
+the destination state:
+
+    changes:  A has a new version
+    mappings: A → ∅   or   A → B (A itself absent)
+
+Silently discarding the change hides what is most likely a mistake in the
+definition. A future revision is expected to reject such definitions as
+invalid, consistent with section 16, for both explicit disappearance and
+continuation into other entities. The current behaviour and its tests are
+kept until that change is made deliberately.
+
+This concerns semantic program state only. For explicitly mutable cells,
+carrying the current content of `A` into `B` during activation is a
+legitimate state-transfer operation rather than a contradiction; its
+semantics belong to the activation model.
+
 ## 5. Transformation mappings
 
 A transformation definition may contain explicit continuity mappings.
@@ -201,8 +224,34 @@ Destination entities may be introduced by the definition's changes.
 A source mapped to an empty destination tuple disappears from the destination
 state.
 
+A source mapped to one or more destinations is present in the destination
+state if and only if it is itself a destination of some mapping in the same
+definition. Therefore:
+
+    A → A
+        A remains present
+
+    A → B
+        A is absent (B continues A)
+
+    A → B
+    B → A
+        both remain present (a swap)
+
+    A → B
+    B → C
+        A is absent; B and C are present (a shift)
+
+An explicit disappearance is not overridden by appearing as a destination.
+A mapping whose destinations include an entity explicitly mapped to zero
+destinations therefore names an entity absent from the destination state and
+is invalid.
+
 A source entity that is not explicitly mapped remains in the destination
 state, subject to any value change explicitly specified for that entity.
+
+Destination validation is performed against the resulting destination state,
+after changes have been applied and mapped sources have been removed.
 
 A destination entity with no incoming mapping is a newly created destination
 entity.
@@ -429,6 +478,10 @@ of entities that disappear.
 An entity disappearing from the destination removes ownership edges involving
 that entity.
 
+An explicitly mapped entity that remains present in the destination (for
+example `A → A`, or the target of a merge or swap) keeps its ownership edges.
+Being mentioned in a mapping is not itself a reason to change ownership.
+
 This does not imply recursive deletion of its owned descendants.
 
 Recursive subtree destruction is a separate state operation.
@@ -600,7 +653,9 @@ The following are intentionally not fully specified yet:
 - whether transformation definitions should have their own persistent semantic
   representation;
 - interaction between transformations and contract guarantees;
-- formal constraint-preservation semantics.
+- formal constraint-preservation semantics;
+- rejection of definitions that change an entity also removed by their
+  mappings (currently the change has no effect; see section 4).
 
 These questions must be resolved before they are treated as stable semantics.
 

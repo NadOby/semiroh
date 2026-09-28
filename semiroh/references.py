@@ -46,6 +46,12 @@ def make_reference(
 ) -> Reference:
     """Create a reference to one exact value in one state."""
 
+    if value.entity != entity:
+        raise ValueError(
+            f"value entity {value.entity.value} does not match "
+            f"reference entity {entity.value}"
+        )
+
     return Reference(
         state=state_id,
         entity=entity,

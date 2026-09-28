@@ -238,3 +238,16 @@ Composition APIs are specified in terms of these three result classes.
   its cell content, and cell reads and writes never change program state.
 - Added runtime-internal holds on versions from simulated frames and kept
   references.
+
+### Semantic constraints
+
+- Specified three-valued composition as strong Kleene logic in the
+  constraint model.
+- Added semantic constraints with canonical identity: `IsKind`, `IntRange`,
+  `Length`, `OneOf`, `AllOf`, `AnyOf`, `Not`, and `External`. Constraints can
+  appear in program state.
+- Kept the executable `Constraint` as an evaluator that `External`
+  constraints reference by name; a missing evaluator yields `Unknown`.
+- Added a computation-step budget; exhausting it yields `Unknown`.
+- Decided that a cell write whose constraint evaluates to `Unknown` is
+  rejected, like activation; this applies once cells declare constraints.

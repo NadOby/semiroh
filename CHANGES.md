@@ -204,11 +204,11 @@ Composition APIs are specified in terms of these three result classes.
   rejection of live cells without declared continuity, pinning of
   untransferable references by default, validation before an atomic switch,
   and rollback as a new activation.
-- Proposed retiring superseded versions through the ownership model: a
+- Decided to retire superseded versions through the ownership model: a
   version owns its code and untransferred resources and is destroyed once
   nothing holds it. Holds are coarse, runtime-internal, per-version records,
   deliberately not a general borrowing system.
-- Proposed a bound of two running versions per runtime (active and previous),
+- Decided on a bound of two running versions per runtime (active and previous),
   with speculative candidates exercised in isolated runtimes rather than as
   additional running versions.
 - Decided that a new activation is rejected by default while the previous

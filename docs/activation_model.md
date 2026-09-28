@@ -178,8 +178,7 @@ rejects activation when any live reference cannot be transferred.
 
 ## 7. Retiring superseded versions
 
-**Proposed** (ownership, runtime holds, two-version bound). **Decided**
-(activation while the previous version is still held).
+**Decided.**
 
 Retirement of old versions uses the ownership model rather than a separate
 lifetime mechanism. The same rules apply to runtime state as to program
@@ -236,7 +235,7 @@ destruction of what that thread owns.
 
 ## 8. Speculative versions
 
-**Proposed.**
+**Decided.**
 
 The two-version bound applies to versions running in one runtime, not to
 produced states. Candidate states are immutable values: any number of them can

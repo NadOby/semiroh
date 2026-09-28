@@ -280,6 +280,12 @@ A trial run therefore also tests the state-transfer functions before the real
 activation. A candidate becomes a version of the main runtime only through
 activation (section 2).
 
+A trial copies cell content only. Runtime-held references and frames belong
+to the main runtime and are not copied, so the isolated runtime starts with
+no holds. Until capabilities are modelled, what a trial grants is its
+evaluation context, which defaults to the main runtime's, and the converters
+it is given.
+
 ## 9. Rollback
 
 **Decided.**
@@ -344,17 +350,22 @@ The Python reference model currently provides:
         retirement of a superseded version when its last hold is released
         (section 7)
 
+    Runtime.trial
+        runs a candidate in an isolated runtime with its own root: cell
+        content is staged exactly as activation would stage it, the trial
+        is rejected whenever the activation would be, and the main runtime
+        is unchanged and not limited by its two-version bound (section 8)
+
 Frames keep executing in the version they started in; the switching strategy
 for code in flight (section 5) is not modelled beyond that.
-
-Trial runs in isolated runtimes (section 8) are not yet implemented.
 
 ## 13. Unresolved areas
 
 - switching strategy for code in flight (section 5);
 - conversion rule and placement, currently provisional (section 4);
 - how the runtime tracks holds on versions (section 7);
-- isolation and state copying for trial runs (section 8);
+- capability isolation for trial runs, once capabilities are modelled
+  (section 8);
 - concurrency: per-thread switching and its memory model;
 - native code installation under platform restrictions.
 

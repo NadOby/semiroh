@@ -1,8 +1,8 @@
 # First Program
 
-**Status: plan.** Everything here is provisional. The goal is to exercise the
-model with a tiny language and one program that runs and modifies itself,
-and to find out which deferred design questions a real program forces.
+**Status: done.** `semiroh/lang.py` implements this document; the acceptance
+tests in `tests/test_first_program.py` pass unchanged, and no design question
+deferred by ownership_model.md §13 turned out to be needed (section 8).
 
 ## 1. Scope
 
@@ -110,3 +110,14 @@ it fits.
 - When done: add a `CHANGES.md` entry, mark this document's status, and
   list which deferred questions the implementation needed, with the
   simplest answer it used.
+
+## 8. Deferred questions this program needed
+
+None of ownership_model.md §13's unresolved areas or deferred items came up.
+Section 2 already decided ownership is not used by this program: functions
+and cells sit in `State.values` with an empty ownership relation, entity
+continuity for activation is declared through `transform_with_mapping`'s
+`entity_mappings` alone (`identity()` in the tests), and nothing in
+`semiroh/lang.py` reads or writes ownership. A future program that needs a
+module or program root, explicit ownership transfer, or creation placing a
+new entity under an owner would be the first to force an answer there.

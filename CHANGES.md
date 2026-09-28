@@ -360,3 +360,31 @@ Composition APIs are specified in terms of these three result classes.
   becomes part of the graph, whether deletion and disappearance are one
   operation, the root of the ownership forest, and how creation places an
   entity under its owner.
+
+### First program
+
+- Added `semiroh/lang.py`: a tiny expression language interpreted directly
+  over semantic state (docs/first_program.md), as a layer on top of the core
+  model rather than part of it. `Function(params, body)` is a semantic
+  record whose body is a plain tuple expression tree; functions name the
+  functions and cells they use through link names resolved via their own
+  `links` relation, never through raw `EntityID`s, so renaming a linked
+  function or cell follows declared continuity instead of changing the
+  function's body.
+- `run(runtime, entry, *args)` evaluates a function under a `Runtime`: every
+  call, including the entry, holds a frame for its duration and releases it
+  on return or failure, `read`/`write` go through the runtime so cell and
+  relation constraints apply and their errors (`CellContentRejected`, and
+  so on) propagate unchanged, and running itself never changes program state
+  or `StateID`. `LanguageError` covers the language's own mistakes: unknown
+  operations and link names, wrong argument counts, calling a non-function,
+  reading or writing a non-cell, and operands of the wrong kind (`bool` is
+  never `int`).
+- Self-modification stays entirely host-driven, as scoped: the host produces
+  a new program state with an ordinary transformation and activates it: the
+  acceptance tests cover a behaviour change, a rename that keeps callers
+  working through their links relation, and a rejected activation that
+  leaves the running program alone.
+- Ownership turned out to be unnecessary for this program, exactly as
+  section 2 anticipated: none of ownership_model.md §13's deferred questions
+  needed an answer (first_program.md section 8).

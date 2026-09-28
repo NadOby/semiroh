@@ -256,6 +256,27 @@ class CacheTests(unittest.TestCase):
         self.assertEqual(self.lowered_by(lambda: run(runtime, self.F, 4)), 9)
         self.assertEqual(self.lowered_by(lambda: run(runtime, self.F, 5)), 0)
 
+    def test_nodes_reached_by_if_seq_and_let_are_lowered_once(self) -> None:
+        # if, seq and let hand over to a child without suspending (GOTO,
+        # BRANCH, LETBIND); that child's chunk must come from the cache too.
+        runtime = runtime_of({
+            "mixed": Function(
+                ("n",),
+                (
+                    "if",
+                    ("lt", arg("n"), lit(5)),
+                    ("seq", ("write", "c", arg("n")), ("let", "m", lit(2), ("mul", arg("m"), arg("n")))),
+                    ("let", "k", lit(7), arg("k")),
+                ),
+            ),
+        })
+        mixed = EntityID("mixed")
+
+        for n, expected in ((1, 2), (9, 7)):
+            with self.subTest(n=n):
+                self.assertEqual(run(runtime, mixed, n), expected)
+                self.assertEqual(self.lowered_by(lambda: run(runtime, mixed, n)), 0)
+
     def test_only_the_nodes_that_ran_are_lowered(self) -> None:
         runtime = runtime_of({
             "pick": Function(

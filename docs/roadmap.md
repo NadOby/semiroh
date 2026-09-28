@@ -47,9 +47,28 @@ problem task 2 fixes. A hybrid would have meant two representations, two
 interpreters and conversions in both directions, against a vision whose
 first line is that the graph is the source of truth.
 
+## Decision D2: compile to bytecode
+
+**Decided.** Task 7 lowers graph form to a small bytecode, plain tuples of
+instructions such as `ARG x`, `MUL`, `CALL f`, run by a VM with its own
+explicit stack, rather than to Python closures. A SEMIROH program can emit
+bytecode as data, which the self-hosting milestone (task 8) needs; it
+cannot emit Python closures. An explicit stack also removes the recursion
+limit the corpus found (about 200 levels of non-tail recursion). The
+bytecode is the executable IR layer of the syntax notes and the shape an
+MLIR dialect could later map from.
+
+## Pending decisions
+
+- Constraint relations see an owner endpoint with its owned subtree
+  (relation_model.md §7, Provisional since task 4). The owner decides
+  whether it stays.
+
 ## A. Foundations
 
 ### 1. Canary corpus, tier 1 (handoff, independent)
+
+**Done** (#20).
 
 A library of small programs with expected results, in
 `semiroh/examples/`. Every interpreter and representation must run them
@@ -72,6 +91,8 @@ least 10 programs and a list of the missing features.
 
 ### 2. Cheap StateID (handoff)
 
+**Done** (#19).
+
 Derive `StateID` from each entity's `VersionID` (cached per `Value`) plus
 ownership, instead of re-serializing every entity's content. `StateID`
 stays derived from content and cannot be supplied; only its hash input
@@ -82,6 +103,8 @@ different one (seeded property test); the spike's `COMPILE(12)` install on
 graph form is no slower than on `lang.py`; the full suite passes.
 
 ### 3. Creation places entities under an owner (handoff)
+
+**Done** (#21).
 
 Answers ownership_model.md §13, "how creation places a new entity under its
 owner". The owner leans towards a guarantee of the transformation. A
@@ -97,6 +120,8 @@ full ownership map.
 
 ### 4. Adopt graph form (one session)
 
+**Done** (#22).
+
 Code is stored as graph form (D1). Tuple bodies with links become the input format
 that converts into it, so `test_first_program.py`,
 `test_metaprogramming.py` and `test_language_trials.py` keep running,
@@ -110,6 +135,8 @@ corpus; PR #17 is closed in favour of this task.
 
 ### 5. Node-level self-modification (handoff)
 
+**Done** (#24).
+
 `activate` and `trial` can target a single node, so hot swapping at the
 language level has the same granularity as identity. This is the piece
 the spike did not build.
@@ -118,6 +145,8 @@ Done when: a program replaces one subexpression of a running function, and
 only that node's version changes.
 
 ### 6. Canary corpus, tier 2: data and higher order (handoff)
+
+**Done** (#25).
 
 Add what task 1 found missing, probably: taking tuples apart, local
 bindings, and applying a function value. Then add programs for map, fold
@@ -129,24 +158,28 @@ updated.
 
 ## C. The payoff
 
-### 7. Incremental compilation (one session)
+### 7. Incremental compilation to bytecode (one session)
 
-Lower graph form to an executable form (Python closures are enough). The
-result is cached as a derived artifact keyed by node version, so after a
-self-modification only changed nodes are lowered again. If this is not
-simpler and more precise than re-pointing dependents per function, record
-that per-node identity is not paying for itself.
+Lower graph form to bytecode (D2) and run it on a VM with an explicit
+stack. The bytecode is cached as a derived artifact keyed by node version,
+so after a self-modification only changed nodes are lowered again. The
+corpus and the acceptance suites run unchanged on the VM, and the
+non-tail recursion entry leaves `MISSING`. If caching per node version is
+not simpler and more precise than re-pointing dependents per function,
+record that per-node identity is not paying for itself.
 
-### 8. A compiler pass that keeps continuity (one session)
+### 8. Self-hosting milestone (one session)
+
+First, an operation that reads a function's code as data (input form or
+nodes), so a program can see the code it compiles; today only the host has
+`function_at`. Then write the lowering pass from task 7 in SEMIROH itself:
+a program recompiles and hot swaps part of itself with its own compiler.
+
+### 9. A compiler pass that keeps continuity (one session)
 
 For example, constant folding written as a graph transformation that
 declares its merges. Optimised, hot-swapped code keeps a mapping to its
-source nodes, which a test checks.
-
-### 9. Self-hosting milestone (one session)
-
-Write the lowering pass from task 7 in SEMIROH itself. A program then
-recompiles and hot swaps part of itself with its own compiler.
+source nodes, which a test checks. Independent of task 8.
 
 ## Later
 
@@ -155,5 +188,10 @@ recompiles and hot swaps part of itself with its own compiler.
 - Systems data: structs, arrays and references between cells, with layout
   changes handled by converters.
 - Error handling inside the language, when a corpus program needs it.
-- The program root (ownership_model.md §13), when modules or libraries
-  need one.
+- Closures: a function built at run time cannot be applied (corpus
+  `MISSING`).
+- Function references held in cells follow renames (language_data.md §3).
+- Syntax and tooling notes: human source, graph and IR views of one
+  program (owner's notes, exploratory).
+- The program root and modules (ownership_model.md §13), when text syntax
+  or libraries need name resolution.

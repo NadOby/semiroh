@@ -611,3 +611,13 @@ Composition APIs are specified in terms of these three result classes.
   existing test was edited.
 - Provisional: a reference is the function's `EntityID`; held in cell
   content it does not follow a rename (docs/language_data.md section 3).
+
+### Roadmap update
+
+- Marked tasks 1 to 6 done. Decided D2: task 7 compiles graph form to a
+  bytecode run by a VM with an explicit stack, instead of Python closures,
+  so the self-hosting milestone can emit it and deep recursion stops
+  depending on Python's stack. Swapped tasks 8 and 9, so self-hosting comes
+  first, and gave it a prerequisite: an operation that reads code as data.
+  Recorded the pending decision on owned-subtree constraint subjects, and
+  added the new corpus gaps and the syntax notes to Later.

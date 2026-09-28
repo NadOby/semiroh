@@ -173,7 +173,7 @@ record that per-node identity is not paying for itself.
 
 ### 8. Self-hosting milestone (one session)
 
-**Done.** The design is in self_hosting.md. The owner chose the scope:
+**Done** (#30). The design is in self_hosting.md. The owner chose the scope:
 the compiler emits bytecode as data and is checked against the host's;
 what it emits is not run yet (task 10).
 

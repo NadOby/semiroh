@@ -227,3 +227,14 @@ Composition APIs are specified in terms of these three result classes.
 - Removed the placeholder composition specification tests, superseded by
   the implemented composition tests.
 - Updated the constraint model's implementation status.
+
+### Executable activation model, stage 1
+
+- Added `CellDeclaration`: a mutable cell's type and initializer are values
+  in program state and contribute to `StateID`.
+- Added `SemanticRecord`, a base for model records that define their own
+  tagged canonical node.
+- Added `Runtime`: the runtime root owns loaded versions, each `Version` owns
+  its cell content, and cell reads and writes never change program state.
+- Added runtime-internal holds on versions from simulated frames and kept
+  references.

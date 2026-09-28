@@ -527,8 +527,9 @@ whether they are called directly or through External.
 
 The following remain future work:
 
-- constraints relating several entities (naturally hyperedges of the semantic
-  graph);
+- constraint primitives over role maps beyond `Role` and `External`
+  (constraints relating several entities are constraint relations; see
+  relation_model.md section 7);
 - evidence representation;
 - evaluation conditions beyond registered evaluators;
 - budget dimensions beyond computation steps;

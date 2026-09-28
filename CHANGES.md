@@ -327,3 +327,14 @@ Composition APIs are specified in terms of these three result classes.
   relation is changed or removed explicitly. Following an endpoint does not
   declare the relation's own continuity.
 - Added `relation_index`, a derived index from entity to relation and role.
+
+### Constraint relations
+
+- Added `Role(name, constraint)`, projecting into the role map that is the
+  subject of a constraint relation.
+- A relation whose payload is a constraint is a constraint relation; its kind
+  keeps no built-in meaning.
+- A runtime evaluates constraint relations when a version loads, when a
+  write changes one of their endpoint cells, and against the staged content
+  of activation and trial runs. Anything but `Satisfied` rejects, and the
+  runtime stays unchanged.

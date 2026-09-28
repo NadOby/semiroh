@@ -17,7 +17,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping
 
-from .. import EntityID, EvaluationContext, Runtime, State, canonical_serialize, canonicalize
+from .. import (
+    EntityID,
+    EvaluationContext,
+    Runtime,
+    State,
+    canonical_serialize,
+    canonicalize,
+)
 
 TAGS = frozenset({"recursion", "side effects", "control", "self-modification"})
 

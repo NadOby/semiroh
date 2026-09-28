@@ -153,6 +153,24 @@ destination is decided by the mappings alone (see section 6). A value change
 for a source entity that the mappings remove from the destination has no
 effect.
 
+This precedence rule is provisional. A definition that both changes an entity
+and removes it through its mappings makes two incompatible statements about
+the destination state:
+
+    changes:  A has a new version
+    mappings: A → ∅   or   A → B (A itself absent)
+
+Silently discarding the change hides what is most likely a mistake in the
+definition. A future revision is expected to reject such definitions as
+invalid, consistent with section 16, for both explicit disappearance and
+continuation into other entities. The current behaviour and its tests are
+kept until that change is made deliberately.
+
+This concerns semantic program state only. For explicitly mutable cells,
+carrying the current content of `A` into `B` during activation is a
+legitimate state-transfer operation rather than a contradiction; its
+semantics belong to the activation model.
+
 ## 5. Transformation mappings
 
 A transformation definition may contain explicit continuity mappings.
@@ -635,7 +653,9 @@ The following are intentionally not fully specified yet:
 - whether transformation definitions should have their own persistent semantic
   representation;
 - interaction between transformations and contract guarantees;
-- formal constraint-preservation semantics.
+- formal constraint-preservation semantics;
+- rejection of definitions that change an entity also removed by their
+  mappings (currently the change has no effect; see section 4).
 
 These questions must be resolved before they are treated as stable semantics.
 

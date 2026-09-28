@@ -148,7 +148,9 @@ Composition APIs are specified in terms of these three result classes.
   mapping into an entity that is explicitly mapped to zero destinations is
   rejected as a missing destination.
 - Documented that a value change for a source removed by the mappings has no
-  effect, generalizing the existing disappearance-precedence rule.
+  effect, generalizing the existing disappearance-precedence rule. The rule
+  is marked provisional: rejecting such contradictory definitions is the
+  expected future direction.
 - Transformations without explicit destination ownership now remove only
   ownership edges involving entities absent from the destination. Explicitly
   mapped entities that remain present (such as `A → A`) keep their ownership,

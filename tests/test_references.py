@@ -18,6 +18,8 @@ from semiroh import (
     version_id_for,
 )
 
+from semiroh.references import make_reference
+
 
 class ReferenceTests(unittest.TestCase):
     def test_reference_is_version_pinned(self) -> None:
@@ -213,3 +215,21 @@ class ReferenceTests(unittest.TestCase):
                 second.resolve(destination),
             )
         )
+
+
+class ReferenceConstructionTests(unittest.TestCase):
+    def test_make_reference_rejects_value_of_another_entity(self) -> None:
+        foo = EntityID("foo")
+        bar = EntityID("bar")
+
+        state = State.create({
+            foo: Value.create(foo, 1),
+            bar: Value.create(bar, 2),
+        })
+
+        with self.assertRaises(ValueError):
+            make_reference(
+                state.id,
+                foo,
+                state.values[bar],
+            )

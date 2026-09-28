@@ -30,6 +30,8 @@ from .state import State
 from .transforms import transform_with_mapping
 from .values import Value
 
+# The role a function plays in its own links relation; reserved as a link
+# name (first_program.md section 2).
 FUNCTION_ROLE = "function"
 LINKS_KIND = "links"
 
@@ -45,7 +47,14 @@ class LanguageError(ValueError):
 
 @dataclass(frozen=True, eq=False)
 class Function(SemanticRecord):
-    """Semantic record: a function's parameters and body."""
+    """Semantic record: a function's parameters and body.
+
+    ``body`` is a plain tuple expression tree (first_program.md section 2).
+    Both fields stay ordinary Python data while the record is held live;
+    only :meth:`canonical_node` canonicalizes them, so a body read back from
+    a ``Value`` arrives as tagged canonical nodes and must be decoded (see
+    :func:`function_of`) before it is evaluated.
+    """
 
     params: tuple[str, ...]
     body: tuple
@@ -133,7 +142,14 @@ def _function_value(value: Any) -> Function | None:
 
 
 def links(function: EntityID, **targets: EntityID) -> Relation:
-    """The links relation of a function: link name to target entity."""
+    """The links relation of a function: link name to target entity.
+
+    ``function`` is the function entity itself, stored under the reserved
+    ``function`` role so its links relation can be found from either side
+    (section 2). Because that role is also this parameter's name, passing a
+    ``function=`` link target raises ``TypeError`` before this body runs;
+    nothing here needs to guard against it separately.
+    """
 
     return Relation(LINKS_KIND, {FUNCTION_ROLE: function, **targets})
 
@@ -580,6 +596,11 @@ def _eval(
             rest[0],
         )
 
+        # CellError means the link names something that is not a cell: a
+        # language mistake (section 3), not a constraint rejection, so it
+        # becomes a LanguageError. CellContentRejected and
+        # RelationConstraintRejected are constraint failures and are left to
+        # propagate unchanged.
         try:
             return context.runtime.read(cell)
         except CellError as exc:
@@ -600,6 +621,7 @@ def _eval(
             rest[1],
         )
 
+        # Same distinction as "read" above.
         try:
             context.runtime.write(cell, value)
         except CellError as exc:
@@ -707,4 +729,4 @@ def run(
         context,
         entry,
         tuple(canonicalize(arg) for arg in args),
-        )
+    )

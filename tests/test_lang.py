@@ -3,7 +3,9 @@
 The acceptance tests in ``test_first_program.py`` pin the language's
 observable behaviour end to end. These tests exercise the interpreter and
 the ``Function``/``links`` records directly: every operation, every
-``LanguageError`` case, and seeded properties.
+``LanguageError`` case, a seeded property comparing ``run`` against a
+plain reference evaluator, and one comparing ``quote`` without holes with
+``lit``.
 """
 
 import random
@@ -94,6 +96,9 @@ class LinksTests(unittest.TestCase):
         self.assertEqual(relation.roles["double"], G)
 
     def test_function_is_a_reserved_link_name(self) -> None:
+        # "function" is both the reserved role and links()'s own first
+        # parameter, so passing it as a link target collides at the call
+        # site itself.
         with self.assertRaises(TypeError):
             links(F, function=G)
 
@@ -180,6 +185,7 @@ class OperationTests(unittest.TestCase):
         self.assertEqual(runtime.active.id, state.id)
 
     def test_arguments_are_canonicalized_before_binding(self) -> None:
+        # bool and int must bind distinctly, even as run() arguments.
         state = function_only(
             ("eq", ("arg", "x"), ("lit", True)),
             params=("x",),
@@ -470,7 +476,7 @@ class LanguageErrorTests(unittest.TestCase):
         state = function_only(("arg", "x"), params=("x",))
 
         with self.assertRaises(LanguageError):
-            run(Runtime(state), F)
+            run(Runtime(state), F)  # SQUARE-style: missing the argument
 
     def test_calling_something_that_is_not_a_function(self) -> None:
         state = make_state({
@@ -570,7 +576,7 @@ def _int_expr(rng: random.Random, depth: int) -> tuple:
 
 
 def _bool_expr(rng: random.Random, depth: int) -> tuple:
-    """A random expression that evaluates to a bool."""
+    """A random expression that evaluates to a bool, from int operands."""
 
     op = rng.choice(("lt", "eq"))
 
@@ -652,9 +658,15 @@ class MetaprogrammingProperties(unittest.TestCase):
                     )
 
                 value = template(4)
-                state = function_only(("quote", value))
+                quoted = function_only(("quote", value))
+                literal = function_only(("lit", value))
 
                 self.assertEqual(
-                    run(Runtime(state), F),
-                    value,
+                    run(Runtime(quoted), F),
+                    run(Runtime(literal), F),
                 )
+                self.assertEqual(run(Runtime(quoted), F), value)
+
+
+if __name__ == "__main__":
+    unittest.main()

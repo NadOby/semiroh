@@ -290,3 +290,15 @@ Composition APIs are specified in terms of these three result classes.
 - Activation is rejected while the previous version is held. A superseded
   version is retired, destroying its cell content, when its last hold is
   released.
+
+### Trial runs
+
+- Recorded as decided: a cell continuing as a non-cell rejects activation; a
+  cell fed only by non-cells starts from its initializer and a conversion
+  for it is rejected; a declared one-to-one conversion is always used; a
+  frame keeps executing in the version it started in.
+- Added `Runtime.trial`: a candidate runs in an isolated runtime with its own
+  root. Cell content is staged exactly as activation would stage it, with
+  the same converters and checks, so a trial is rejected whenever the
+  activation would be. The main runtime is unchanged and its two-version
+  bound does not apply; holds are not copied.

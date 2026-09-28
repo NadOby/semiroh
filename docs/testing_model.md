@@ -206,6 +206,14 @@ Property-based tests must still be derived from explicit semantic properties.
 
 Random generation must not manufacture semantic rules.
 
+The current property tests (`tests/test_properties.py`) use seeded generators
+from the standard library, so every failure is reproducible from its reported
+seed and the test suite has no third-party dependencies.
+
+A particularly useful property compares two independent parts of the model.
+For example, following a reference one transition at a time must agree with
+the result of continuity composition.
+
 ## 13. Formal verification
 
 The executable test corpus is not a substitute for eventual formal semantics
@@ -231,7 +239,8 @@ Current semantic areas include:
 - transformations;
 - transformation mapping;
 - reference transfer;
-- transformation composition.
+- transformation composition;
+- cross-cutting semantic properties.
 
 The test organization should follow semantic concerns rather than individual
 implementation modules where those differ.

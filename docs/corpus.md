@@ -91,7 +91,11 @@ Tier 2 (roadmap.md task 6, language_data.md section 5) adds:
 - higher order: `map` and `fold`, run with function references passed as
   arguments;
 - recursion: `deep_loop`, tail-recursive loops thousands of calls deep,
-  through `call`, through `apply` and between two functions;
+  through `call`, through `apply` and between two functions; and, after
+  roadmap.md task 7, `deep_recursion`, a sum by recursion that is not a
+  tail call, ten thousand calls deep;
+- higher order and recursion: `map_long_tuple`, `map` over tuples of a
+  thousand and two thousand elements;
 - self-modification: `sort_swap`, which sorts a tuple in a cell with the
   function `order` refers to, activates a different `order` between two
   runs, and sorts again with the data still in its cell.
@@ -99,21 +103,23 @@ Tier 2 (roadmap.md task 6, language_data.md section 5) adds:
 ## 4. Wanted programs
 
 **Open.** Recorded in `semiroh/examples/missing.py` (`MISSING`). Writing the
-tier 2 programs found two gaps:
+tier 2 programs found two gaps; one is closed, and one remains:
 
-- `map_long_tuple` needs non-tail recursion deeper than the Python stack.
-  Tail calls made loops unbounded, but a call not in tail position still
-  nests about 5 Python frames. Under the default recursion limit of 1000
-  the `map` example succeeds on a tuple of 190 elements and raises
-  `RecursionError` on 200, and `insertion_sort` succeeds on 150 and raises
-  on 200. It needs an evaluator whose stack is not the Python stack, or a
-  primitive that walks a tuple without recursion.
 - `make_adder` needs function values that capture local names, such as
   `make_adder(n)` or `compose(f, g)`. `ref` gives only the identity of a
   function that already exists and `apply` takes only such a reference; a
   function built by `function` is code as data and runs only after
   `activate` installs it under an existing entity. It needs anonymous
   function values with captured bindings, or partial application.
+
+**Closed** by roadmap.md task 7: `map_long_tuple`, which needed non-tail
+recursion deeper than the Python stack. Tail calls (task 6) made loops
+unbounded, but a call that was not in tail position still nested about 5
+Python frames, so `map` failed from a tuple of 200 elements and
+`insertion_sort` from 200. The bytecode machine keeps its calls on its own
+stack (bytecode.md), and the examples `map_long_tuple` (a thousand and two
+thousand elements) and `deep_recursion` (a sum ten thousand calls deep) are
+tier 2.
 
 **Closed** by roadmap.md task 6: the four programs this list first
 recorded, now tier 2 examples. What each needed, as first written:

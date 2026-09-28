@@ -231,8 +231,59 @@ def _sort_swap() -> Example:
     )
 
 
+def _map_long_tuple() -> Example:
+    map_ = EntityID("map")
+    double = EntityID("double")
+    square = EntityID("square")
+    f, t = ("arg", "f"), ("arg", "t")
+    entities = {
+        map_: Function(
+            ("f", "t"),
+            (
+                "if",
+                ("eq", ("len", t), ("lit", 0)),
+                t,
+                (
+                    "concat",
+                    ("tuple", ("apply", f, ("item", t, ("lit", 0)))),
+                    (
+                        "call",
+                        "map",
+                        f,
+                        ("slice", t, ("lit", 1), ("len", t)),
+                    ),
+                ),
+            ),
+        ),
+        EntityID("map.links"): links(map_, map=map_),
+        double: Function(("x",), ("add", ("arg", "x"), ("arg", "x"))),
+        square: Function(("x",), ("mul", ("arg", "x"), ("arg", "x"))),
+    }
+    long = tuple(range(1000))
+    longer = tuple(range(2000))
+
+    return Example(
+        name="map_long_tuple",
+        tags=frozenset({"data", "higher order", "recursion"}),
+        program=program(entities),
+        scenarios=(
+            (
+                Step(map_, (double, long), tuple(2 * x for x in long)),
+                Step(map_, (square, longer), tuple(x * x for x in longer)),
+            ),
+        ),
+        description=(
+            "map over tuples of a thousand and two thousand elements: "
+            "recursion that is not a tail call, as deep as the tuple is "
+            "long. It once failed from about 200 elements, when a call "
+            "used the host's stack (the wanted program of the same name)."
+        ),
+    )
+
+
 EXAMPLES: tuple[Example, ...] = (
     _map(),
     _fold(),
     _sort_swap(),
+    _map_long_tuple(),
 )

@@ -21,6 +21,9 @@ Code as data stays in the input format: ``quote`` builds tuples,
 change program state only through ``activate``, and only when the run was
 granted the activation capability.
 
+:func:`run` lowers each node to bytecode and runs it on a virtual machine
+(``semiroh/bytecode.py``, docs/bytecode.md).
+
 This module is a layer on top of the core model, not part of it: it is not
 re-exported from ``semiroh/__init__.py``.
 """
@@ -39,7 +42,7 @@ from .canonical import (
 )
 from .identity import EntityID
 from .relations import Endpoint, Relation, relation_index, relation_of
-from .runtime import ActivationRejected, CellError, Runtime
+from .runtime import Runtime
 from .state import State
 from .transforms import TransformResult, transform_with_mapping
 from .values import Value
@@ -114,6 +117,12 @@ class LanguageError(ValueError):
     Covers an unknown operation, an unknown link name, a wrong number of
     arguments, calling something that is not a function, reading or writing
     something that is not a cell, and operands of the wrong kind.
+    """
+
+
+class CallDepthExceeded(LanguageError):
+    """A run has more calls waiting on each other than the machine allows
+    (``semiroh.bytecode.CALL_DEPTH_LIMIT``, bytecode.md section 4).
     """
 
 
@@ -308,9 +317,29 @@ class _Definition:
         )
 
 
-def _definition_of(value: Value) -> _Definition | None:
-    """Return the definition held by a value, or None if it holds none."""
+_UNREAD = object()
 
+
+def _definition_of(value: Value) -> _Definition | None:
+    """Return the definition held by a value, or None if it holds none.
+
+    Every call reads its function's definition, so the record is kept with
+    the value, like the decoded relation (relations.relation_of). Values
+    are immutable, so it can never disagree with the content.
+    """
+
+    cached = value.__dict__.get("_definition", _UNREAD)
+
+    if cached is not _UNREAD:
+        return cached
+
+    definition = _read_definition(value)
+    object.__setattr__(value, "_definition", definition)
+
+    return definition
+
+
+def _read_definition(value: Value) -> _Definition | None:
     node = relation_of(value)
 
     if node is None or node.kind != DEFINITION_KIND:
@@ -1136,656 +1165,8 @@ def function_at(state: State, entity: EntityID) -> Function | None:
 
 
 # ---------------------------------------------------------------------------
-# Interpreter
+# Running
 # ---------------------------------------------------------------------------
-
-
-def _is_int(value: Any) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool)
-
-
-def _semantically_equal(left: Any, right: Any) -> bool:
-    return canonical_serialize(canonicalize(left)) == canonical_serialize(
-        canonicalize(right)
-    )
-
-
-@dataclass(frozen=True)
-class _RunContext:
-    runtime: Runtime
-    may_activate: bool
-
-
-@dataclass(frozen=True)
-class _TailCall:
-    """A call in tail position, handed back to :func:`_call`'s loop instead
-    of nesting another interpreter frame (language_data.md section 4).
-    """
-
-    entity: EntityID
-    args: tuple[Any, ...]
-
-
-def _items(value: Any) -> tuple[Any, ...] | None:
-    """The items of a tuple value, live or canonical; None if not a tuple."""
-
-    if isinstance(value, CanonicalNode):
-        return value[2] if value[1] == "tuple" else None
-
-    if isinstance(value, tuple):
-        return value
-
-    return None
-
-
-def _reference(value: Any) -> EntityID | None:
-    """The entity a function reference value names, live or canonical."""
-
-    if isinstance(value, EntityID):
-        return value
-
-    if isinstance(value, CanonicalNode) and value[1] == "entity_id":
-        return EntityID(value[2])
-
-    return None
-
-
-def _eval_int(
-    context: _RunContext,
-    state: State,
-    function_entity: EntityID,
-    bindings: dict[str, Any],
-    entity: EntityID,
-    op: str,
-) -> int:
-    value = _eval(context, state, function_entity, bindings, entity)
-
-    if not _is_int(value):
-        raise LanguageError(
-            f"{function_entity.value}: {op} operands must be int"
-        )
-
-    return value
-
-
-def _eval_tuple(
-    context: _RunContext,
-    state: State,
-    function_entity: EntityID,
-    bindings: dict[str, Any],
-    entity: EntityID,
-    op: str,
-) -> tuple[Any, ...]:
-    value = _eval(context, state, function_entity, bindings, entity)
-    items = _items(value)
-
-    if items is None:
-        raise LanguageError(
-            f"{function_entity.value}: {op} operands must be tuples"
-        )
-
-    return items
-
-
-def _quote(
-    context: _RunContext,
-    state: State,
-    function_entity: EntityID,
-    bindings: dict[str, Any],
-    node: Relation,
-) -> Any:
-    """Fill a quote's holes, in template order, with their values."""
-
-    def holes() -> Any:
-        for hole in node.roles["holes"]:
-            hole_node = _node_at(state, function_entity, hole)
-
-            if hole_node.kind == INVALID_KIND:
-                problem = _decode(hole_node.payload)[0]
-                raise LanguageError(f"{function_entity.value}: {problem}")
-
-            yield _eval(
-                context,
-                state,
-                function_entity,
-                bindings,
-                hole_node.roles["expr"],
-            )
-
-    return _fill(_decode(node.payload), holes())
-
-
-def _function(
-    context: _RunContext,
-    state: State,
-    function_entity: EntityID,
-    bindings: dict[str, Any],
-    node: Relation,
-) -> Function:
-    params = _eval(
-        context,
-        state,
-        function_entity,
-        bindings,
-        node.roles["params"],
-    )
-    body = _eval(
-        context,
-        state,
-        function_entity,
-        bindings,
-        node.roles["body"],
-    )
-
-    params = _decode(params)
-    body = _decode(body)
-
-    if not isinstance(params, tuple):
-        raise LanguageError(
-            f"{function_entity.value}: function parameters must be a tuple"
-        )
-
-    if not isinstance(body, tuple):
-        raise LanguageError(
-            f"{function_entity.value}: function body must be a tuple"
-        )
-
-    try:
-        return Function(params, body)
-    except (TypeError, ValueError) as exc:
-        raise LanguageError(str(exc)) from exc
-
-
-def _activation_pairs(
-    context: _RunContext,
-    state: State,
-    function_entity: EntityID,
-    bindings: dict[str, Any],
-    node: Relation,
-    op: str,
-) -> tuple[State, dict[EntityID | tuple[EntityID, str], Any]]:
-    """Evaluate and check ``activate``/``trial``'s link/value pairs.
-
-    Shared by ``activate`` (metaprogramming.md section 4) and ``trial``
-    (language_trials.md section 2, whose pairs "are checked as for
-    activate"). Evaluates the value expressions first, then reads the
-    active state and checks every pair against it: each link resolved
-    through the running function's link table to an entity whose value in
-    that state is a function, no target named twice, and each value a
-    Function for a whole-function target or an expression (code as data,
-    not a Function value) for a ``(link, label)`` node target
-    (graph_form.md section 9). Reading the active state only after
-    evaluation matters because evaluating a value expression can itself
-    activate (language_trials.md section 8). Returns the active state and
-    the edits to hand to :func:`define`.
-    """
-
-    entries = _decode(node.payload)["links"]
-    value_nodes = node.roles["values"]
-
-    if len(entries) != len(value_nodes):
-        raise LanguageError(
-            f"{function_entity.value}: {op} needs link/value pairs"
-        )
-
-    evaluated_values = [
-        _eval(context, state, function_entity, bindings, value_node)
-        for value_node in value_nodes
-    ]
-
-    active = context.runtime.active.state
-    resolved = iter(node.roles["targets"])
-    seen: set[Any] = set()
-    edits: dict[EntityID | tuple[EntityID, str], Any] = {}
-
-    for (name, problem), value in zip(entries, evaluated_values):
-        if problem is not None:
-            raise LanguageError(f"{function_entity.value}: {problem}")
-
-        target = next(resolved)
-        label = name[1] if isinstance(name, tuple) else None
-        key: EntityID | tuple[EntityID, str] = (
-            (target, label) if label is not None else target
-        )
-
-        if key in seen:
-            raise LanguageError(
-                f"{function_entity.value}: {op} target appears twice: "
-                f"{target.value}"
-            )
-
-        seen.add(key)
-
-        if target not in active.values:
-            raise LanguageError(
-                f"{function_entity.value}: {op} target does not exist: "
-                f"{target.value}"
-            )
-
-        if _definition_of(active.values[target]) is None:
-            raise LanguageError(
-                f"{function_entity.value}: {op} target is not a function: "
-                f"{target.value}"
-            )
-
-        function = _function_value(value)
-
-        if label is not None:
-            if function is not None:
-                raise LanguageError(
-                    f"{function_entity.value}: {op} value is not an "
-                    f"expression: {target.value}"
-                )
-
-            edits[key] = value
-        else:
-            if function is None:
-                raise LanguageError(
-                    f"{function_entity.value}: {op} value is not a "
-                    f"function: {target.value}"
-                )
-
-            edits[key] = function
-
-    return active, edits
-
-
-def _activate(
-    context: _RunContext,
-    state: State,
-    function_entity: EntityID,
-    bindings: dict[str, Any],
-    node: Relation,
-) -> None:
-    active, edits = _activation_pairs(
-        context,
-        state,
-        function_entity,
-        bindings,
-        node,
-        "activate",
-    )
-
-    if not context.may_activate:
-        raise ActivationRejected("activation capability not granted")
-
-    context.runtime.activate(define(active, edits))
-    return None
-
-
-def _trial(
-    context: _RunContext,
-    state: State,
-    function_entity: EntityID,
-    bindings: dict[str, Any],
-    node: Relation,
-) -> Any:
-    """Exercise a candidate in an isolated runtime (language_trials.md).
-
-    The node names the call to make against the candidate, and its pairs
-    are checked exactly as ``activate``'s (:func:`_activation_pairs`). The
-    call's arguments are evaluated first, then the pairs' values, both in
-    the running function's scope and the real runtime; only once that is
-    done is the active state read to build the transformation, as
-    :func:`define` does, and hand it to ``Runtime.trial``. The linked
-    function then runs in the isolated runtime, without the activation
-    capability, and its result is returned; the real runtime is never
-    touched.
-    """
-
-    args = tuple(
-        _eval(context, state, function_entity, bindings, arg)
-        for arg in node.roles["args"]
-    )
-
-    active, edits = _activation_pairs(
-        context,
-        state,
-        function_entity,
-        bindings,
-        node,
-        "trial",
-    )
-
-    _, problem = _decode(node.payload)["call"]
-
-    if problem is not None:
-        raise LanguageError(f"{function_entity.value}: {problem}")
-
-    if not context.may_activate:
-        raise ActivationRejected("activation capability not granted")
-
-    candidate = context.runtime.trial(define(active, edits))
-    candidate_context = _RunContext(runtime=candidate, may_activate=False)
-
-    return _call(candidate_context, node.roles["target"], args)
-
-
-def _eval(
-    context: _RunContext,
-    state: State,
-    function_entity: EntityID,
-    bindings: dict[str, Any],
-    entity: EntityID,
-    tail: bool = False,
-) -> Any:
-    """Evaluate one expression node of a function body.
-
-    In tail position (``tail``, language_data.md section 4) a ``call`` or
-    ``apply`` returns a :class:`_TailCall` for :func:`_call` to run instead
-    of making the call itself.
-    """
-
-    node = _node_at(state, function_entity, entity)
-    op = node.kind
-    roles = node.roles
-
-    if op == "lit":
-        return _decode(node.payload)
-
-    if op == "arg":
-        name = _decode(node.payload)
-
-        if not isinstance(name, str) or name not in bindings:
-            raise LanguageError(
-                f"{function_entity.value}: unknown parameter {name!r}"
-            )
-
-        return bindings[name]
-
-    if op in ("add", "sub", "mul"):
-        left = _eval_int(
-            context, state, function_entity, bindings, roles["left"], op
-        )
-        right = _eval_int(
-            context, state, function_entity, bindings, roles["right"], op
-        )
-
-        if op == "add":
-            return left + right
-
-        if op == "sub":
-            return left - right
-
-        return left * right
-
-    if op == "lt":
-        left = _eval_int(
-            context, state, function_entity, bindings, roles["left"], op
-        )
-        right = _eval_int(
-            context, state, function_entity, bindings, roles["right"], op
-        )
-
-        return left < right
-
-    if op == "eq":
-        left = _eval(context, state, function_entity, bindings, roles["left"])
-        right = _eval(context, state, function_entity, bindings, roles["right"])
-
-        return _semantically_equal(left, right)
-
-    if op == "if":
-        condition = _eval(
-            context, state, function_entity, bindings, roles["cond"]
-        )
-
-        if not isinstance(condition, bool):
-            raise LanguageError(
-                f"{function_entity.value}: if condition must be bool"
-            )
-
-        branch = roles["then"] if condition else roles["else"]
-
-        return _eval(context, state, function_entity, bindings, branch, tail)
-
-    if op == "seq":
-        result: Any = None
-        items = roles["items"]
-
-        for index, item in enumerate(items):
-            result = _eval(
-                context,
-                state,
-                function_entity,
-                bindings,
-                item,
-                tail and index == len(items) - 1,
-            )
-
-        return result
-
-    if op == "call":
-        args = tuple(
-            _eval(context, state, function_entity, bindings, arg)
-            for arg in roles["args"]
-        )
-
-        if tail:
-            return _TailCall(roles["target"], args)
-
-        return _call(context, roles["target"], args)
-
-    if op == "tuple":
-        return tuple(
-            _eval(context, state, function_entity, bindings, item)
-            for item in roles["items"]
-        )
-
-    if op == "len":
-        return len(
-            _eval_tuple(
-                context, state, function_entity, bindings, roles["tuple"], op
-            )
-        )
-
-    if op == "item":
-        items = _eval_tuple(
-            context, state, function_entity, bindings, roles["tuple"], op
-        )
-        index = _eval_int(
-            context, state, function_entity, bindings, roles["index"], op
-        )
-
-        if not 0 <= index < len(items):
-            raise LanguageError(
-                f"{function_entity.value}: item index {index} is outside a "
-                f"tuple of {len(items)}"
-            )
-
-        return items[index]
-
-    if op == "slice":
-        items = _eval_tuple(
-            context, state, function_entity, bindings, roles["tuple"], op
-        )
-        start = _eval_int(
-            context, state, function_entity, bindings, roles["start"], op
-        )
-        stop = _eval_int(
-            context, state, function_entity, bindings, roles["stop"], op
-        )
-
-        if not 0 <= start <= stop <= len(items):
-            raise LanguageError(
-                f"{function_entity.value}: slice {start}:{stop} is outside "
-                f"a tuple of {len(items)}"
-            )
-
-        return items[start:stop]
-
-    if op == "concat":
-        left = _eval_tuple(
-            context, state, function_entity, bindings, roles["left"], op
-        )
-        right = _eval_tuple(
-            context, state, function_entity, bindings, roles["right"], op
-        )
-
-        return left + right
-
-    if op == "let":
-        name = _decode(node.payload)
-
-        if name in bindings:
-            raise LanguageError(
-                f"{function_entity.value}: let name {name!r} is already in "
-                f"scope"
-            )
-
-        value = _eval(context, state, function_entity, bindings, roles["value"])
-
-        return _eval(
-            context,
-            state,
-            function_entity,
-            {**bindings, name: value},
-            roles["body"],
-            tail,
-        )
-
-    if op == "ref":
-        target = roles["target"]
-        held = state.values.get(target)
-
-        if held is None or _definition_of(held) is None:
-            raise LanguageError(
-                f"{function_entity.value}: ref {_decode(node.payload)!r} "
-                f"does not name a function"
-            )
-
-        return target
-
-    if op == "apply":
-        target = _reference(
-            _eval(context, state, function_entity, bindings, roles["function"])
-        )
-
-        if target is None:
-            raise LanguageError(
-                f"{function_entity.value}: apply needs a reference to a "
-                f"function"
-            )
-
-        args = tuple(
-            _eval(context, state, function_entity, bindings, arg)
-            for arg in roles["args"]
-        )
-
-        # A reference is an EntityID, so it does not follow a rename
-        # (language_data.md section 3); the check is against the active
-        # state, as `call` enters its target there.
-        if not context.runtime.active.state.contains(target):
-            raise LanguageError(
-                f"{function_entity.value}: apply of {target.value}, which is "
-                f"not in the active state"
-            )
-
-        if tail:
-            return _TailCall(target, args)
-
-        return _call(context, target, args)
-
-    if op == "read":
-        # CellError means the link names something that is not a cell: a
-        # language mistake (section 3), not a constraint rejection, so it
-        # becomes a LanguageError. CellContentRejected and
-        # RelationConstraintRejected are constraint failures and are left to
-        # propagate unchanged.
-        try:
-            return context.runtime.read(roles["cell"])
-        except CellError as exc:
-            raise LanguageError(str(exc)) from exc
-
-    if op == "write":
-        value = _eval(context, state, function_entity, bindings, roles["value"])
-
-        # Same distinction as "read" above.
-        try:
-            context.runtime.write(roles["cell"], value)
-        except CellError as exc:
-            raise LanguageError(str(exc)) from exc
-
-        return value
-
-    if op == "quote":
-        return _quote(context, state, function_entity, bindings, node)
-
-    if op == "function":
-        return _function(context, state, function_entity, bindings, node)
-
-    if op == "activate":
-        return _activate(context, state, function_entity, bindings, node)
-
-    if op == "trial":
-        return _trial(context, state, function_entity, bindings, node)
-
-    if op == INVALID_KIND:
-        problem = _decode(node.payload)[0]
-        raise LanguageError(f"{function_entity.value}: {problem}")
-
-    # An unquote node is only ever a quote's hole.
-    raise LanguageError(
-        f"{function_entity.value}: unknown operation {op!r}"
-    )
-
-
-def _call(
-    context: _RunContext,
-    function_entity: EntityID,
-    args: tuple[Any, ...],
-) -> Any:
-    """Call a function entity with already-evaluated arguments.
-
-    A call in tail position comes back from the body as a
-    :class:`_TailCall`; the loop enters the callee's frame and only then
-    releases the caller's, so a chain of tail calls keeps one frame and one
-    interpreter stack level (language_data.md section 4). Whichever frame
-    is current when the loop ends or raises is released.
-    """
-
-    runtime = context.runtime
-    frame = runtime.enter(function_entity)
-
-    try:
-        while True:
-            state = frame.version.state
-            value = state.values[function_entity]
-            definition = _definition_of(value)
-
-            if definition is None:
-                unloaded = function_of(value) is not None
-                raise LanguageError(
-                    f"{function_entity.value} is not a function"
-                    + ("; load the program first" if unloaded else "")
-                )
-
-            if len(args) != len(definition.params):
-                raise LanguageError(
-                    f"{function_entity.value} takes {len(definition.params)} "
-                    f"argument(s), got {len(args)}"
-                )
-
-            bindings = dict(zip(definition.params, args))
-
-            result = _eval(
-                context,
-                state,
-                function_entity,
-                bindings,
-                definition.body,
-                True,
-            )
-
-            if not isinstance(result, _TailCall):
-                return result
-
-            entered = runtime.enter(result.entity)
-            released, frame = frame, entered
-            released.release()
-            function_entity, args = result.entity, result.args
-    finally:
-        frame.release()
 
 
 def run(
@@ -1796,8 +1177,12 @@ def run(
 ) -> Any:
     """Evaluate ``entry`` and return its result.
 
-    The runtime's program must be in graph form (:func:`load`). Arguments
-    are canonicalized before being bound to the entry function's
+    The runtime's program must be in graph form (:func:`load`). Nodes lower
+    to bytecode that a virtual machine runs (bytecode.md); see
+    :func:`semiroh.bytecode.run`, which this calls, for the details of a
+    run.
+
+    Arguments are canonicalized before being bound to the entry function's
     parameters. Every call enters and releases a frame, so a finished run
     leaves no holds; a run that raises releases its frames too.
 
@@ -1806,13 +1191,6 @@ def run(
     capability described in metaprogramming.md section 4.
     """
 
-    context = _RunContext(
-        runtime=runtime,
-        may_activate=may_activate,
-    )
+    from .bytecode import run as run_bytecode
 
-    return _call(
-        context,
-        entry,
-        tuple(canonicalize(arg) for arg in args),
-    )
+    return run_bytecode(runtime, entry, *args, may_activate=may_activate)

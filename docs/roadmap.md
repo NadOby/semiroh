@@ -160,6 +160,10 @@ updated.
 
 ### 7. Incremental compilation to bytecode (one session)
 
+**Done.** The design is in bytecode.md, which also records the answer to
+the last question below: per-node caching is simpler than re-pointing
+dependents and more precise, so per-node identity is paying for itself.
+
 Lower graph form to bytecode (D2) and run it on a VM with an explicit
 stack. The bytecode is cached as a derived artifact keyed by node version,
 so after a self-modification only changed nodes are lowered again. The

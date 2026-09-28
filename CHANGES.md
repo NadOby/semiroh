@@ -621,3 +621,64 @@ Composition APIs are specified in terms of these three result classes.
   first, and gave it a prerequisite: an operation that reads code as data.
   Recorded the pending decision on owned-subtree constraint subjects, and
   added the new corpus gaps and the syntax notes to Later.
+
+
+### Bytecode and the VM
+
+- `semiroh/bytecode.py` replaces the tree interpreter (roadmap.md task 7,
+  D2; docs/bytecode.md). Each graph-form node lowers to a chunk, a tuple of
+  plain-tuple instructions (`("ARG", "x")`, `("MUL",)`, `("CALL", f, 2)`)
+  that names the nodes below it by `EntityID`, so it depends on its node's
+  value alone. It is kept with the node's `Value`, like its `VersionID`,
+  and lowered the first time the node runs. `lang.run` calls the machine;
+  `_eval`, `_call` and their helpers are gone from `lang.py`, which keeps
+  the graph form (`load`, `define`, `function_at`). One interpreter
+  remains.
+- The machine keeps an operand stack and a control stack of cursors, so a
+  call does not use the host stack: recursion that is not a tail call is
+  bounded by memory, not by the recursion limit. Tail position is a flag of
+  the cursor, and a call there reuses its activation (frame entered, then
+  the caller's released), so a chain of tail calls keeps one hold. Frames
+  are still entered and released per call, code in flight still runs the
+  state its frame was entered in, and a run that raises releases every
+  frame.
+- Differential check before removing the tree interpreter: 4000 seeded
+  random programs (19,764 steps, 35% succeeding; activations, node edits and
+  trials among them) gave the same results, exception types and messages,
+  cells, collapsed functions, versions and holds on `main` and here. One
+  program differed, where the old interpreter reached its Python recursion
+  limit; with the limit raised it agreed. The harness is not kept.
+- Speed on the same machine, old interpreter to VM: `fact(15)` 326 to 183
+  µs, a tail loop of 3000 calls 54.5 to 41.5 ms, `map` over 100 elements
+  5.6 to 3.5 ms, the whole corpus 847 to 615 ms.
+- Corpus: `map_long_tuple` leaves `MISSING` (docs/corpus.md section 4) and
+  becomes a tier 2 example, with `deep_recursion`; each fails on the old
+  interpreter (`RecursionError`). `make_adder` remains. `tests/test_corpus.py`
+  is unchanged.
+- Per-node caching against re-pointing dependents per function (bytecode.md
+  section 7): a leaf edit lowers 1 node where a function-level artifact
+  lowers the whole function (41, 401), a replaced function lowers its new
+  nodes and no other function's, a rename lowers the call nodes that name
+  it. It is simpler, since a chunk is valid as long as its value exists and
+  nothing is invalidated. Lowering costs about 0.8 µs a node, so the time
+  saved is small next to the activation; per-node identity pays for itself,
+  modestly.
+- **Provisional:** the instruction set and the chunk per node (bytecode.md
+  sections 2 and 3). An `unquote` node evaluates its operand; only a quote
+  reaches it. `_definition_of` keeps the definition with the function's
+  value, since every call read it.
+- New `tests/test_bytecode.py`: exact chunks, the order of checks and
+  effects (a write planted beside each check), which nodes are lowered
+  again after a leaf edit, a bigger edit, a whole-body swap and a rename,
+  recursion 5000 calls deep under a recursion limit far too low for the
+  old interpreter, holds during a tail chain and a waiting chain (through
+  a cell evaluator), error names, code in flight through three ways a node
+  is reached, and a seeded property test that warm chunks, cold chunks and
+  an independent evaluator agree through random node edits. Fourteen
+  planted bugs (a check moved, a cache keyed by entity, no cache, a
+  frame reading the active state, a tail call that nests, frames not
+  released, the wrong function in an error, and others) each fail at
+  least one test. No existing test was edited.
+- Known limit, not the machine's: `canonical_serialize` still recurses on
+  the host stack, so a function body nested about 244 levels or a value
+  nested as deep fails to load or to write (bytecode.md section 8).

@@ -602,7 +602,12 @@ Composition APIs are specified in terms of these three result classes.
   stack, `map` fails from about 200 elements) and `make_adder` (no function
   values that capture names).
 - New `tests/test_data_graph_form.py` (roles, round trip, holds after a
-  raising tail call, `apply` of an absent entity). `tests/test_data_ops.py`
-  and `tests/test_corpus.py` are unchanged; no existing test was edited.
+  raising tail call, `apply` of an absent entity) and
+  `tests/test_data_regressions.py` (a `slice` stop below the length, wrong
+  argument counts that an unbound parameter would hide, `let` scope, tail
+  calls in the then-branch of an `if` and before the last item of a `seq`;
+  each fails on a planted bug the acceptance suite let through).
+  `tests/test_data_ops.py` and `tests/test_corpus.py` are unchanged; no
+  existing test was edited.
 - Provisional: a reference is the function's `EntityID`; held in cell
   content it does not follow a rename (docs/language_data.md section 3).

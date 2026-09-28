@@ -47,6 +47,10 @@ cells mapped into it. A conversion must target a destination of the
 definition's mappings. See
 [`activation_model.md`](activation_model.md) section 4.
 
+Relation entities that a definition does not change follow the declared
+continuity of their endpoints when the definition is applied; see
+[`relation_model.md`](relation_model.md) section 5.
+
 The current definition does not yet include contracts, constraints, effects,
 capabilities, or provenance as semantic components. Those are separate
 models whose interaction with transformations remains to be specified.

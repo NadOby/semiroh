@@ -25,6 +25,13 @@ from .ownership import (
     owned_subtree,
     owner_of,
 )
+from .relations import (
+    DanglingRelation,
+    Relation,
+    relation_index,
+    relation_of,
+    relations_of,
+)
 from .references import (
     AmbiguousEntityMapping,
     CrossStateReference,
@@ -68,6 +75,8 @@ __all__ = [
     "Value",
     "Reference",
     "State",
+    "Relation",
+    "DanglingRelation",
     "Runtime",
     "Version",
     "Hold",
@@ -106,6 +115,9 @@ __all__ = [
     "canonicalize",
     "cell_declaration",
     "cells_of",
+    "relation_of",
+    "relations_of",
+    "relation_index",
     "version_id_for",
     "semantic_equal",
     "same_entity",

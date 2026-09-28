@@ -13,6 +13,7 @@ from .references import (
     Reference,
     StaleReference,
 )
+from .relations import DanglingRelation, relation_of
 from .state import State
 from .values import Value, version_id_for
 
@@ -197,6 +198,61 @@ class TransformationDefinition:
             ),
         )
 
+    def _follow_relation_endpoints(
+        self,
+        values: dict[EntityID, Value],
+    ) -> None:
+        """Rewrite endpoints of unchanged relations along declared continuity.
+
+        An endpoint whose entity the definition maps follows that mapping,
+        even when the entity is still present (a swap or shift). A mapped
+        endpoint that disappears or splits cannot be followed; the relation
+        must then be changed or removed explicitly. Unmapped endpoints stay
+        unchanged. See relation_model.md section 5.
+        """
+
+        changed = {change.entity for change in self.changes}
+        declared = {
+            mapping.source_entity: mapping.destination_entities
+            for mapping in self.mappings
+        }
+
+        for entity in sorted(values):
+            if entity in changed:
+                continue
+
+            relation = relation_of(values[entity])
+
+            if relation is None:
+                continue
+
+            replacement: dict[EntityID, EntityID] = {}
+
+            for endpoint in sorted(relation.endpoints):
+                if endpoint not in declared:
+                    continue
+
+                destinations = declared[endpoint]
+
+                if len(destinations) != 1:
+                    outcome = "disappears" if not destinations else "splits"
+                    raise DanglingRelation(
+                        f"relation {entity.value} points to "
+                        f"{endpoint.value}, which {outcome}; change or "
+                        f"remove the relation explicitly"
+                    )
+
+                replacement[endpoint] = destinations[0]
+
+            if any(
+                source != target
+                for source, target in replacement.items()
+            ):
+                values[entity] = Value(
+                    entity,
+                    relation.with_endpoints(replacement),
+                )
+
     def apply(
         self,
         state: State,
@@ -271,6 +327,8 @@ class TransformationDefinition:
                     f"conversion for {destination_entity.value} does not "
                     f"target a mapping destination"
                 )
+
+        self._follow_relation_endpoints(values)
 
         destination_ownership: Mapping[EntityID, Any]
 

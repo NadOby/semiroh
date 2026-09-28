@@ -313,3 +313,17 @@ Composition APIs are specified in terms of these three result classes.
   relations follow declared continuity across transformations and are never
   removed implicitly; and that constraint relations are evaluated over a
   role map in the runtime, starting with `Role` and `External`.
+
+### Relations, stage 1
+
+- Recorded the remaining relation model proposals as decided, and clarified
+  that every mapped endpoint follows its mapping, even when its entity is
+  still present, so relations stay correct across swaps and shifts.
+- Added `Relation` records with endpoint integrity in state construction:
+  a relation with an absent endpoint cannot exist, and `destroy` fails when a
+  relation outside the destroyed subtree points into it.
+- Applying a transformation rewrites mapped endpoints of unchanged
+  relations, and rejects endpoints that disappear or split unless the
+  relation is changed or removed explicitly. Following an endpoint does not
+  declare the relation's own continuity.
+- Added `relation_index`, a derived index from entity to relation and role.

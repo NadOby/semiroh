@@ -271,3 +271,22 @@ Composition APIs are specified in terms of these three result classes.
 - Only `Satisfied` content is accepted; `Violated` and `Unknown` are both
   rejected with `CellContentRejected`, and a rejected write leaves the cell
   unchanged.
+
+### Executable activation
+
+- Transformation definitions and results carry named conversions, keyed by
+  destination cell (provisional). Executable `Converter`s are supplied at
+  activation, like evaluators for External constraints.
+- Added `Runtime.activate`: staged and atomic. Cell content crosses along
+  declared continuity; one-to-one content transfers unchanged when it
+  satisfies the destination cell's constraint, and otherwise needs a
+  conversion (provisional rule). Splits and merges always need conversions.
+  Every content reaching a cell is checked, and anything but `Satisfied`
+  rejects the activation.
+- A cell without declared continuity, or continuing as a non-cell, rejects
+  the activation. A bare state has unknown continuity.
+- Kept references transfer along unique continuations or stay pinned to the
+  previous version; a strict policy rejects instead.
+- Activation is rejected while the previous version is held. A superseded
+  version is retired, destroying its cell content, when its last hold is
+  released.

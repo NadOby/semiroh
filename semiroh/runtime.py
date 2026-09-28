@@ -12,19 +12,30 @@ Cell content must satisfy the cell's constraint. A runtime checks the initial
 content of every cell when it loads a version, and checks every write, using
 its evaluation context. Only ``SATISFIED`` is accepted: ``VIOLATED`` and
 ``UNKNOWN`` are both rejected.
+
+Activation (activation_model.md) switches the runtime to the destination of a
+transformation result. Everything is staged first and the switch is atomic:
+a rejected activation leaves the runtime unchanged.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from .canonical import canonicalize
 from .cells import CellDeclaration, cells_of
 from .constraints import ConstraintResult, EvaluationContext
 from .identity import EntityID, StateID
-from .references import CrossStateReference, Reference
+from .references import (
+    AmbiguousEntityMapping,
+    CrossStateReference,
+    MissingEntityMapping,
+    Reference,
+)
 from .state import State
+from .transforms import TransformResult, transfer_reference
 
 
 class CellError(ValueError):
@@ -48,6 +59,47 @@ class CellContentRejected(ValueError):
         self.result = result
 
 
+class ActivationRejected(ValueError):
+    """An activation was rejected; the runtime is unchanged."""
+
+    def __init__(
+        self,
+        reason: str,
+        cell: EntityID | None = None,
+        result: ConstraintResult | None = None,
+    ) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.cell = cell
+        self.result = result
+
+
+@dataclass(frozen=True)
+class Converter:
+    """Executable conversion of cell content at activation.
+
+    A converter receives the canonical content of every source cell mapped
+    into one destination cell, keyed by source entity, and returns that
+    cell's new content. Like an ``Evaluator``, it is not a semantic value:
+    transformation definitions refer to converters by name.
+    """
+
+    function: Callable[[Mapping[EntityID, Any]], Any]
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        if not callable(self.function):
+            raise TypeError("converter function must be callable")
+
+        if not isinstance(self.description, str):
+            raise TypeError("converter description must be a string")
+
+    def convert(self, sources: Mapping[EntityID, Any]) -> Any:
+        return canonicalize(
+            self.function(MappingProxyType(dict(sources)))
+        )
+
+
 def _check_content(
     cell: EntityID,
     declaration: CellDeclaration,
@@ -66,10 +118,24 @@ class Version:
 
     A version is owned by the runtime root and owns the content of its
     mutable cells. Cell content is runtime state: writing it never changes the
-    version's program state or ``StateID``.
+    version's program state or ``StateID``. A retired version has been
+    destroyed together with the cell content it owned.
     """
 
-    def __init__(self, state: State, context: EvaluationContext) -> None:
+    def __init__(
+        self,
+        state: State,
+        contents: Mapping[EntityID, Any],
+    ) -> None:
+        self._state = state
+        self._declarations = cells_of(state)
+        self._cells: dict[EntityID, Any] = dict(contents)
+        self._holds: set[Hold] = set()
+        self._runtime: Runtime | None = None
+        self._retired = False
+
+    @staticmethod
+    def _load(state: State, context: EvaluationContext) -> "Version":
         declarations = cells_of(state)
 
         for entity, declaration in declarations.items():
@@ -81,13 +147,13 @@ class Version:
                 "initial content",
             )
 
-        self._state = state
-        self._declarations = declarations
-        self._cells: dict[EntityID, Any] = {
-            entity: declaration.initial
-            for entity, declaration in declarations.items()
-        }
-        self._holds: set[Hold] = set()
+        return Version(
+            state,
+            {
+                entity: declaration.initial
+                for entity, declaration in declarations.items()
+            },
+        )
 
     @property
     def state(self) -> State:
@@ -108,6 +174,10 @@ class Version:
         """Holds currently recorded on this version."""
 
         return frozenset(self._holds)
+
+    @property
+    def retired(self) -> bool:
+        return self._retired
 
     def __repr__(self) -> str:
         return f"Version({self.id.value[:12]}, holds={len(self._holds)})"
@@ -141,6 +211,16 @@ class Hold:
         self._version._holds.discard(self)
         self._released = True
 
+        runtime = self._version._runtime
+
+        if runtime is not None:
+            runtime._retire_if_unused(self._version)
+
+    def _move(self, version: Version) -> None:
+        self._version._holds.discard(self)
+        version._holds.add(self)
+        self._version = version
+
 
 class Frame(Hold):
     """Simulated frame executing the code of an entity in a version."""
@@ -169,9 +249,10 @@ class KeptReference(Hold):
 class Runtime:
     """Mutable runtime state of one running program.
 
-    The runtime root owns the loaded versions. Until activation is modelled,
-    the only loaded version is the active one, created from the initial
-    program state with every cell set to its declared initial content.
+    The runtime root owns the loaded versions: the active version and, after
+    an activation, the previous version for as long as something holds it.
+    The initial version is loaded from a program state with every cell set to
+    its declared initial content.
     """
 
     def __init__(
@@ -180,7 +261,8 @@ class Runtime:
         context: EvaluationContext | None = None,
     ) -> None:
         self._context = context or EvaluationContext()
-        self._active = Version(state, self._context)
+        self._active = Version._load(state, self._context)
+        self._active._runtime = self
         self._versions: list[Version] = [self._active]
 
     @property
@@ -198,6 +280,29 @@ class Runtime:
         """Loaded versions owned by the runtime root, active first."""
 
         return tuple(self._versions)
+
+    @property
+    def previous(self) -> Version | None:
+        """The superseded version still held, if any."""
+
+        for version in self._versions:
+            if version is not self._active:
+                return version
+
+        return None
+
+    def _retire_if_unused(self, version: Version) -> None:
+        # Retirement destroys the version's owned subtree: its cell content.
+        if (
+            version is self._active
+            or version._holds
+            or version not in self._versions
+        ):
+            return
+
+        self._versions.remove(version)
+        version._cells.clear()
+        version._retired = True
 
     def _active_cell(self, cell: EntityID) -> None:
         if not self._active.state.contains(cell):
@@ -261,3 +366,191 @@ class Runtime:
             f"reference belongs to {reference.state.value}, "
             f"which is not loaded in this runtime"
         )
+
+    def activate(
+        self,
+        target: TransformResult | State,
+        converters: Mapping[str, Converter] | None = None,
+        *,
+        reject_untransferable_references: bool = False,
+    ) -> Version:
+        """Activate the destination of a transformation result.
+
+        A bare ``State`` has no transformation record, so every live entity
+        has unknown continuity. Everything is staged before the switch; any
+        rejection or failure leaves the runtime unchanged.
+        """
+
+        active = self._active
+
+        if isinstance(target, State):
+            result = TransformResult(
+                source=active.state,
+                destination=target,
+                mappings=(),
+            )
+        elif isinstance(target, TransformResult):
+            result = target
+        else:
+            raise TypeError(
+                "activate expects a TransformResult or a State"
+            )
+
+        if result.source.id != active.id:
+            raise ActivationRejected(
+                "transformation does not start from the active state"
+            )
+
+        if self.previous is not None:
+            raise ActivationRejected(
+                "the previous version is still held"
+            )
+
+        available = dict(converters or {})
+
+        for name, converter in available.items():
+            if not isinstance(name, str) or not isinstance(
+                converter,
+                Converter,
+            ):
+                raise TypeError(
+                    "converters must map names to Converter instances"
+                )
+
+        contents = self._stage_cells(result, available)
+        references = self._stage_references(
+            result,
+            reject_untransferable_references,
+        )
+
+        new = Version(result.destination, contents)
+        new._runtime = self
+
+        for kept, reference in references:
+            kept._reference = reference
+            kept._move(new)
+
+        self._versions = [new, active]
+        self._active = new
+        self._retire_if_unused(active)
+
+        return new
+
+    def _stage_cells(
+        self,
+        result: TransformResult,
+        converters: Mapping[str, Converter],
+    ) -> dict[EntityID, Any]:
+        old = self._active
+        declarations = cells_of(result.destination)
+        incoming: dict[EntityID, list[EntityID]] = {
+            cell: []
+            for cell in declarations
+        }
+
+        for cell in old._declarations:
+            mapping = result.mapping_for(cell)
+
+            if mapping is None:
+                raise ActivationRejected(
+                    f"cell {cell.value} holds live content but has no "
+                    f"declared continuity",
+                    cell=cell,
+                )
+
+            for destination in mapping.destination_entities:
+                if destination not in declarations:
+                    raise ActivationRejected(
+                        f"cell {cell.value} continues as "
+                        f"{destination.value}, which is not a cell",
+                        cell=cell,
+                    )
+
+                incoming[destination].append(cell)
+
+        staged: dict[EntityID, Any] = {}
+
+        for cell, declaration in declarations.items():
+            sources = incoming[cell]
+            name = result.conversion_for(cell)
+
+            if name is not None:
+                if not sources:
+                    raise ActivationRejected(
+                        f"conversion {name!r} for cell {cell.value} has "
+                        f"no source cells",
+                        cell=cell,
+                    )
+
+                converter = converters.get(name)
+
+                if converter is None:
+                    raise ActivationRejected(
+                        f"no converter named {name!r} is available",
+                        cell=cell,
+                    )
+
+                content = converter.convert({
+                    source: old._cells[source]
+                    for source in sources
+                })
+                origin = f"output of conversion {name!r}"
+                hint = ""
+            elif not sources:
+                content = declaration.initial
+                origin = "initial content"
+                hint = ""
+            elif (
+                len(sources) == 1
+                and result.mapping_for(sources[0]).destination_entities
+                == (cell,)
+            ):
+                content = old._cells[sources[0]]
+                origin = f"content transferred from {sources[0].value}"
+                hint = "; a conversion is required"
+            else:
+                raise ActivationRejected(
+                    f"cell {cell.value} receives a split or merge and "
+                    f"needs a conversion",
+                    cell=cell,
+                )
+
+            outcome = declaration.constraint.evaluate(content, self._context)
+
+            if outcome is not ConstraintResult.SATISFIED:
+                raise ActivationRejected(
+                    f"{origin} is {outcome.value} under the constraint of "
+                    f"cell {cell.value}{hint}",
+                    cell=cell,
+                    result=outcome,
+                )
+
+            staged[cell] = content
+
+        return staged
+
+    def _stage_references(
+        self,
+        result: TransformResult,
+        reject_untransferable: bool,
+    ) -> list[tuple[KeptReference, Reference]]:
+        staged = []
+
+        for hold in self._active._holds:
+            if not isinstance(hold, KeptReference):
+                continue
+
+            try:
+                reference = transfer_reference(hold.reference, result)
+            except (MissingEntityMapping, AmbiguousEntityMapping) as exc:
+                if reject_untransferable:
+                    raise ActivationRejected(
+                        f"reference to {hold.reference.entity.value} "
+                        f"cannot be transferred: {exc}"
+                    ) from exc
+
+                continue
+
+            staged.append((hold, reference))
+
+        return staged

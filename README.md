@@ -96,7 +96,8 @@ program.
 History and provenance may be retained for tooling, debugging, reproducibility,
 and analysis, but they are not inherently part of semantic identity.
 
-See [`docs/semantic_graph.md`](docs/semantic_graph.md).
+See [`docs/semantic_graph.md`](docs/semantic_graph.md) and
+[`docs/relation_model.md`](docs/relation_model.md).
 
 ## 2. Semantic values
 

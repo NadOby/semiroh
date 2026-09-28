@@ -131,6 +131,12 @@ Activation selects a state for subsequent execution or observation.
 
 It does not mutate the selected state and does not invalidate previous states.
 
+Because every program carries its compiler and may modify itself, activation
+can happen while the program is running. Runtime activation must carry live
+runtime state, such as the content of mutable cells, across the change along
+explicit continuity mappings. Its complete semantics belong to a future
+activation model.
+
 ## 8. Ownership
 
 Ownership is part of semantic state content.

@@ -190,7 +190,7 @@ the version it started in, so code in flight is unchanged
 
 ## 7. Constraints over code
 
-**Provisional.**
+**Decided.**
 
 A function's value holds only its definition, so a constraint relation over
 a function would no longer see its code. The core now gives an owner

@@ -60,9 +60,8 @@ MLIR dialect could later map from.
 
 ## Pending decisions
 
-- Constraint relations see an owner endpoint with its owned subtree
-  (relation_model.md §7, Provisional since task 4). The owner decides
-  whether it stays.
+None. Decided since: constraint relations see an owner endpoint with its
+owned subtree (relation_model.md §7).
 
 ## A. Foundations
 

@@ -257,10 +257,100 @@ def _collatz_step_count() -> Example:
     )
 
 
+def _deep_loop() -> Example:
+    sum_loop = EntityID("sum_loop")
+    sum_apply = EntityID("sum_apply")
+    sum_via_apply = EntityID("sum_via_apply")
+    is_even = EntityID("is_even")
+    is_odd = EntityID("is_odd")
+    n, acc = ("arg", "n"), ("arg", "acc")
+    entities = {
+        # Every recursive call is in tail position, so the loop's depth is
+        # not limited by the interpreter's stack (language_data.md
+        # section 4).
+        sum_loop: Function(
+            ("n", "acc"),
+            (
+                "if",
+                ("eq", n, ("lit", 0)),
+                acc,
+                ("call", "sum_loop", ("sub", n, ("lit", 1)), ("add", acc, n)),
+            ),
+        ),
+        EntityID("sum_loop.links"): links(sum_loop, sum_loop=sum_loop),
+        # The same loop through apply: the function passes a reference to
+        # itself.
+        sum_apply: Function(
+            ("f", "n", "acc"),
+            (
+                "if",
+                ("eq", n, ("lit", 0)),
+                acc,
+                (
+                    "apply",
+                    ("arg", "f"),
+                    ("arg", "f"),
+                    ("sub", n, ("lit", 1)),
+                    ("add", acc, n),
+                ),
+            ),
+        ),
+        sum_via_apply: Function(
+            ("n",),
+            ("call", "sum_apply", ("ref", "sum_apply"), n, ("lit", 0)),
+        ),
+        EntityID("sum_via_apply.links"): links(sum_via_apply, sum_apply=sum_apply),
+        # Two functions handing the loop to each other.
+        is_even: Function(
+            ("n",),
+            (
+                "if",
+                ("eq", n, ("lit", 0)),
+                ("lit", True),
+                ("call", "is_odd", ("sub", n, ("lit", 1))),
+            ),
+        ),
+        is_odd: Function(
+            ("n",),
+            (
+                "if",
+                ("eq", n, ("lit", 0)),
+                ("lit", False),
+                ("call", "is_even", ("sub", n, ("lit", 1))),
+            ),
+        ),
+        EntityID("is_even.links"): links(is_even, is_odd=is_odd),
+        EntityID("is_odd.links"): links(is_odd, is_even=is_even),
+    }
+
+    return Example(
+        name="deep_loop",
+        tags=frozenset({"recursion", "higher order"}),
+        program=program(entities),
+        scenarios=(
+            (
+                Step(sum_loop, (0, 0), 0),
+                Step(sum_loop, (10, 0), 55),
+                Step(sum_loop, (5000, 0), 12502500),
+                Step(sum_loop, (20000, 0), 200010000),
+                Step(sum_via_apply, (5000,), 12502500),
+                Step(is_even, (3000,), True),
+                Step(is_even, (3001,), False),
+            ),
+        ),
+        description=(
+            "Tail-recursive loops far deeper than the interpreter's stack: "
+            "a call, an apply of a reference to itself, and two functions "
+            "calling each other, each thousands of calls deep."
+        ),
+    )
+
+
 EXAMPLES: tuple[Example, ...] = (
     _factorial(),
     _fibonacci(),
     _sum_to_n(),
     _gcd(),
     _collatz_step_count(),
+    _deep_loop(),
 )

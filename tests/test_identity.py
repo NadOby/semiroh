@@ -86,3 +86,42 @@ class IdentityTests(unittest.TestCase):
             first.version_id,
             second.version_id,
         )
+
+
+class TypeDistinctEqualityTests(unittest.TestCase):
+    def test_bool_and_int_are_distinct_values(self) -> None:
+        foo = EntityID("foo")
+
+        as_bool = Value(foo, True)
+        as_int = Value(foo, 1)
+
+        self.assertNotEqual(as_bool, as_int)
+        self.assertEqual(len({as_bool, as_int}), 2)
+        self.assertFalse(semantic_equal(as_bool, as_int))
+        self.assertFalse(same_version(as_bool, as_int))
+
+    def test_nested_bool_and_int_are_distinct(self) -> None:
+        foo = EntityID("foo")
+
+        self.assertFalse(
+            semantic_equal(
+                Value(foo, (True, [False])),
+                Value(foo, (1, [0])),
+            )
+        )
+
+    def test_value_equality_agrees_with_version_identity(self) -> None:
+        foo = EntityID("foo")
+
+        pairs = [
+            (Value(foo, (1, 2)), Value(foo, (1, 2))),
+            (Value(foo, (1, 2)), Value(foo, [1, 2])),
+            (Value(foo, {"a": 1}), Value(foo, {"a": True})),
+        ]
+
+        for left, right in pairs:
+            with self.subTest(left=left, right=right):
+                self.assertEqual(
+                    left == right,
+                    same_version(left, right),
+                )

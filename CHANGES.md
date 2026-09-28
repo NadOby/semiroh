@@ -407,3 +407,16 @@ Composition APIs are specified in terms of these three result classes.
 - Added unit coverage for all new operations, malformed operands, activation
   check ordering, atomicity, canonical function values, cell-content
   preservation, and a seeded quotation property.
+
+### Spike: code as a semantic graph
+
+- Added `semiroh/graph_code.py` on `spike/code-as-graph`: a second
+  interpreter, over the unmodified core, representing every expression
+  node as its own entity (a `Relation` whose kind is the operation and
+  whose roles are its operand entities) instead of `lang.py`'s opaque
+  tuple tree per function. Converts `lang.py` programs into this form and
+  runs `test_metaprogramming.py`'s power compiler unchanged against it.
+  See `docs/spikes/code_as_graph.md` for what per-node identity bought,
+  what it cost, the ownership_model.md §13 questions it forced, and the
+  hybrid (explicit-expansion) recommendation. Not adopted; the spike may
+  be thrown away.

@@ -346,6 +346,42 @@ def _deep_loop() -> Example:
     )
 
 
+def _deep_recursion() -> Example:
+    entry = EntityID("deep_sum")
+    n = ("arg", "n")
+    entities = {
+        entry: Function(
+            ("n",),
+            (
+                "if",
+                ("lt", n, ("lit", 1)),
+                ("lit", 0),
+                ("add", n, ("call", "deep_sum", ("sub", n, ("lit", 1)))),
+            ),
+        ),
+        EntityID("deep_sum.links"): links(entry, deep_sum=entry),
+    }
+
+    return Example(
+        name="deep_recursion",
+        tags=frozenset({"recursion"}),
+        program=program(entities),
+        scenarios=(
+            (
+                Step(entry, (0,), 0),
+                Step(entry, (10,), 55),
+                Step(entry, (1000,), 500500),
+                Step(entry, (10000,), 50005000),
+            ),
+        ),
+        description=(
+            "1 + 2 + ... + n by recursion that is not a tail call, "
+            "thousands of calls deep: the pending additions of every call "
+            "wait on the stack, which is not the host's stack."
+        ),
+    )
+
+
 EXAMPLES: tuple[Example, ...] = (
     _factorial(),
     _fibonacci(),
@@ -353,4 +389,5 @@ EXAMPLES: tuple[Example, ...] = (
     _gcd(),
     _collatz_step_count(),
     _deep_loop(),
+    _deep_recursion(),
 )

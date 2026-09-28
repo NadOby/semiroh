@@ -447,7 +447,21 @@ def compose(
     correspond to intermediate entities reached by the first relation.
 
     Destination entities use set semantics, so duplicate endpoints collapse.
+
+    Only transformation definitions and composition results can be composed.
+    Transformation results are rejected: references move through results one
+    step at a time (transformation_composition_api.md).
     """
+
+    for relation in (first, second):
+        if not isinstance(
+            relation,
+            (TransformationDefinition, CompositionResult),
+        ):
+            raise TypeError(
+                "compose accepts TransformationDefinition or "
+                f"CompositionResult, not {type(relation).__name__}"
+            )
 
     second_mappings = {
         mapping.source_entity: mapping.destination_entities

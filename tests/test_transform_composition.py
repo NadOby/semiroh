@@ -2,7 +2,13 @@
 
 import unittest
 
-from semiroh import EntityID, TransformationDefinition, compose
+from semiroh import (
+    EntityID,
+    State,
+    TransformationDefinition,
+    Value,
+    compose,
+)
 
 
 class TransformationCompositionTests(unittest.TestCase):
@@ -391,3 +397,28 @@ class TransformationCompositionTests(unittest.TestCase):
             result.unknown_sources,
             frozenset({a}),
         )
+
+
+class CompositionInputTests(unittest.TestCase):
+    def test_transformation_results_are_rejected(self) -> None:
+        a = EntityID("A")
+        b = EntityID("B")
+
+        state = State.create({
+            a: Value.create(a, 1),
+        })
+
+        result = TransformationDefinition.create(
+            changes={b: 2},
+            mappings={a: b},
+        ).apply(state)
+
+        definition = TransformationDefinition.create(
+            mappings={b: b},
+        )
+
+        with self.assertRaises(TypeError):
+            compose(result, definition)  # type: ignore[arg-type]
+
+        with self.assertRaises(TypeError):
+            compose(definition, result)  # type: ignore[arg-type]

@@ -182,7 +182,6 @@ Program constraints over code (metaprogramming.md §4, language_trials.md
 
 ## 8. Open
 
-- Node-level `activate` and `trial` (roadmap task 5).
 - Whether a function should own its nodes as a tree shaped like the
   expression, which would let a subexpression be removed with its operands
   by one disappearance.
@@ -192,7 +191,7 @@ Program constraints over code (metaprogramming.md §4, language_trials.md
 
 ## 9. Node edits
 
-**Status: planned** (roadmap.md task 5). **Provisional** as a whole.
+**Status: implemented** (roadmap.md task 5). **Provisional** as a whole.
 
 A program replaces one subexpression of a function without replacing the
 function, so hot swapping has the granularity of node identity.

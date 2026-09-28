@@ -12,7 +12,8 @@ function entity's value is a ``definition`` relation holding its
 parameters, the root node of its body and its link table. Calls, reads and
 writes name their targets through relation roles, so a rename follows
 continuity in the core. :func:`function_at` collapses a function back to
-the input format, and :func:`define` replaces whole bodies.
+the input format, and :func:`define` replaces whole bodies or single
+labelled nodes (graph_form.md section 9).
 
 Code as data stays in the input format: ``quote`` builds tuples,
 ``function`` builds :class:`Function` values, and ``activate`` and
@@ -54,6 +55,7 @@ LINKS_KIND = "links"
 DEFINITION_KIND = "definition"
 BODY_ROLE = "body"
 LINK_ROLE_PREFIX = "link:"
+LABEL_ROLE_PREFIX = "label:"
 INVALID_KIND = "invalid"
 
 _BINARY = ("add", "sub", "mul", "lt", "eq")
@@ -262,14 +264,18 @@ class _Definition:
     """A function entity's value in graph form (graph_form.md section 2).
 
     ``links`` is the function's link table: the names its code may use,
-    which new bodies are resolved against. ``generation`` counts the bodies
-    the function has had, so the node entities of a new body never reuse
-    the names of an earlier one.
+    which new bodies are resolved against. ``labels`` is the function's
+    label table: each label name of its body to the node entity it marks
+    (graph_form.md section 9), stored as roles the same way as ``links`` so
+    a labelled node's rename or disappearance follows endpoint continuity.
+    ``generation`` counts the bodies the function has had, so the node
+    entities of a new body never reuse the names of an earlier one.
     """
 
     params: tuple[str, ...]
     body: EntityID
     links: Mapping[str, Endpoint]
+    labels: Mapping[str, EntityID]
     generation: int
 
     def relation(self) -> Relation:
@@ -277,6 +283,9 @@ class _Definition:
 
         for name, target in self.links.items():
             roles[LINK_ROLE_PREFIX + name] = target
+
+        for name, target in self.labels.items():
+            roles[LABEL_ROLE_PREFIX + name] = target
 
         return Relation(
             DEFINITION_KIND,
@@ -302,6 +311,11 @@ def _definition_of(value: Value) -> _Definition | None:
                 role[len(LINK_ROLE_PREFIX):]: endpoint
                 for role, endpoint in node.roles.items()
                 if role.startswith(LINK_ROLE_PREFIX)
+            },
+            {
+                role[len(LABEL_ROLE_PREFIX):]: endpoint
+                for role, endpoint in node.roles.items()
+                if role.startswith(LABEL_ROLE_PREFIX)
             },
             payload["generation"],
         )
@@ -330,17 +344,27 @@ class _Builder:
         function: EntityID,
         generation: int,
         scope: Mapping[str, Endpoint],
+        root: EntityID | None = None,
     ) -> None:
         self.function = function
         self.generation = generation
         self.scope = scope
         self.nodes: dict[EntityID, Relation] = {}
+        self.labels: dict[str, EntityID] = {}
         self._count = 0
+        # A node edit (graph_form.md section 9) reuses the labelled node's
+        # own EntityID for the root of its replacement instead of
+        # allocating a fresh one; every other allocation is as usual.
+        self._root = root
 
     def _allocate(self) -> EntityID:
-        entity = EntityID(
-            f"{self.function.value}/{self.generation}.{self._count}"
-        )
+        if self._count == 0 and self._root is not None:
+            entity = self._root
+        else:
+            entity = EntityID(
+                f"{self.function.value}/{self.generation}.{self._count}"
+            )
+
         self._count += 1
         return entity
 
@@ -367,16 +391,24 @@ class _Builder:
     ) -> tuple[tuple[EntityID, ...], tuple[tuple[Any, str | None], ...]]:
         """Resolve the link names of activate or trial pairs.
 
-        Returns the resolved targets, in order, and one ``(name, problem)``
-        entry per name; the problem is raised only when the pairs are
-        checked, after their values are evaluated.
+        A name is either a link name (a whole-function target) or a
+        ``(link, label)`` pair naming one node of that function
+        (graph_form.md section 9); only the link part is resolved here; a
+        node target's label is checked against the target's live labels
+        when the pair is checked (:func:`_activation_pairs`). Returns the
+        resolved targets, in order, and one ``(name, problem)`` entry per
+        name; the problem is raised only when the pairs are checked, after
+        their values are evaluated.
         """
 
         targets: list[EntityID] = []
         entries: list[tuple[Any, str | None]] = []
 
         for name in names:
-            target, problem = self.resolve(name)
+            link_name = (
+                name[0] if isinstance(name, tuple) and len(name) == 2 else name
+            )
+            target, problem = self.resolve(link_name)
 
             if target is not None:
                 targets.append(target)
@@ -386,8 +418,33 @@ class _Builder:
         return tuple(targets), tuple(entries)
 
     def expr(self, expr: Any) -> EntityID:
+        if isinstance(expr, tuple) and len(expr) == 3 and expr[0] == "label":
+            return self._label(expr[1], expr[2])
+
         entity = self._allocate()
         self.nodes[entity] = self._relation(expr)
+        return entity
+
+    def _label(self, name: Any, inner: Any) -> EntityID:
+        """Compile a ``("label", name, inner)`` form (graph_form.md section
+        9): transparent at run time, so it costs no node of its own; the
+        entity ``inner`` compiles to is simply also recorded under
+        ``name``.
+        """
+
+        if not isinstance(name, str) or not name:
+            raise LanguageError(
+                f"{self.function.value}: label name must be a non-empty "
+                f"string, got {name!r}"
+            )
+
+        if name in self.labels:
+            raise LanguageError(
+                f"{self.function.value}: duplicate label {name!r}"
+            )
+
+        entity = self.expr(inner)
+        self.labels[name] = entity
         return entity
 
     def exprs(self, exprs: tuple[Any, ...]) -> tuple[EntityID, ...]:
@@ -561,9 +618,62 @@ def _compile(
 
         generation += 1
 
-    definition = _Definition(function.params, root, dict(links_table), generation)
+    definition = _Definition(
+        function.params, root, dict(links_table), dict(builder.labels), generation
+    )
 
     return definition.relation(), builder.nodes
+
+
+def _compile_node(
+    entity: EntityID,
+    root: EntityID,
+    expr: Any,
+    links_table: Mapping[str, Endpoint],
+    generation: int,
+    taken: set[EntityID],
+) -> tuple[dict[EntityID, Relation], dict[str, EntityID]]:
+    """Build the replacement for one labelled node (graph_form.md section
+    9). ``root``, the labelled node, keeps its EntityID and takes ``expr``'s
+    compiled root content; any deeper nodes ``expr`` needs are fresh,
+    retried at a later generation if their names collide with ``taken``.
+    """
+
+    while True:
+        builder = _Builder(entity, generation, links_table, root=root)
+        builder.expr(expr)
+        fresh = set(builder.nodes) - {root}
+
+        if taken.isdisjoint(fresh):
+            break
+
+        generation += 1
+
+    return builder.nodes, builder.labels
+
+
+def _subtree(
+    state: State,
+    function_entity: EntityID,
+    owned: set[EntityID],
+    entity: EntityID,
+) -> set[EntityID]:
+    """The nodes of ``function_entity`` structurally below ``entity``
+    (itself included). Ownership is flat (section 4), so the old nodes a
+    node edit must remove are found by walking roles, not ownership.
+    """
+
+    found = {entity}
+    node = _node_at(state, function_entity, entity)
+
+    for value in node.roles.values():
+        children = value if isinstance(value, tuple) else (value,)
+
+        for child in children:
+            if child in owned and child not in found:
+                found |= _subtree(state, function_entity, owned, child)
+
+    return found
 
 
 def load(state: State) -> State:
@@ -625,13 +735,21 @@ def load(state: State) -> State:
 
 def define(
     state: State,
-    functions: Mapping[EntityID, Function],
+    edits: Mapping[EntityID | tuple[EntityID, str], Any],
 ) -> TransformResult:
-    """Replace the whole bodies of functions in a graph-form state.
+    """Replace whole function bodies, or single labelled nodes, in a
+    graph-form state (graph_form.md sections 5 and 9).
 
-    Each new body's link names resolve through its function's link table.
-    The function's old nodes disappear, its new nodes are placed under it,
-    and every other entity is continuous with itself (graph_form.md
+    A key is either a function entity, with a ``Function`` value, or a
+    ``(function, label)`` pair, with an expression (code as data) value.
+    Whole-function entries replace whole bodies: each new body's link
+    names resolve through its function's link table, the function's old
+    nodes disappear, its new nodes are placed under it, and it gets a new
+    definition. Node entries replace one labelled node: it keeps its
+    EntityID and takes the new expression's root content, the nodes below
+    it disappear, and any nodes the new expression needs are placed under
+    the function; the function's own value changes only if the edit adds a
+    label. Every other entity is continuous with itself (graph_form.md
     section 6). The caller activates the result.
     """
 
@@ -640,11 +758,39 @@ def define(
     placements: dict[EntityID, EntityID] = {}
     taken = set(state.values)
 
-    for entity in sorted(functions):
-        function = functions[entity]
+    whole: dict[EntityID, Function] = {}
+    node_edits: dict[EntityID, dict[str, Any]] = {}
 
-        if not isinstance(function, Function):
-            raise TypeError("define takes Function values")
+    for key, value in edits.items():
+        if isinstance(key, EntityID):
+            if not isinstance(value, Function):
+                raise LanguageError(
+                    f"{key.value}: define needs a Function for a whole "
+                    f"function, not an expression"
+                )
+
+            whole[key] = value
+            continue
+
+        if (
+            isinstance(key, tuple)
+            and len(key) == 2
+            and isinstance(key[0], EntityID)
+            and isinstance(key[1], str)
+        ):
+            if isinstance(value, Function):
+                raise LanguageError(
+                    f"{key[0].value}: define needs an expression for node "
+                    f"{key[1]!r}, not a Function"
+                )
+
+            node_edits.setdefault(key[0], {})[key[1]] = value
+            continue
+
+        raise LanguageError(f"not a define target: {key!r}")
+
+    for entity in sorted(whole):
+        function = whole[entity]
 
         if entity not in state.values:
             raise LanguageError(f"{entity.value} does not exist")
@@ -669,6 +815,63 @@ def define(
         changes[entity] = definition
         changes.update(nodes)
         placements.update(dict.fromkeys(nodes, entity))
+
+    for entity in sorted(node_edits):
+        if entity not in state.values:
+            raise LanguageError(f"{entity.value} does not exist")
+
+        current = _definition_of(state.values[entity])
+
+        if current is None:
+            raise LanguageError(f"{entity.value} is not a function")
+
+        owned = set(state.owned_children(entity))
+        new_labels: dict[str, EntityID] = {}
+
+        for label in sorted(node_edits[entity]):
+            root = current.labels.get(label)
+
+            if root is None:
+                raise LanguageError(f"{entity.value}: unknown label {label!r}")
+
+            nodes, introduced = _compile_node(
+                entity,
+                root,
+                node_edits[entity][label],
+                current.links,
+                current.generation + 1,
+                taken,
+            )
+
+            for name, target in introduced.items():
+                if name == label and target == root:
+                    continue
+
+                if name in current.labels or name in new_labels:
+                    raise LanguageError(
+                        f"{entity.value}: label {name!r} is already used "
+                        f"elsewhere in the function"
+                    )
+
+                new_labels[name] = target
+
+            taken.update(set(nodes) - {root})
+
+            for old in _subtree(state, entity, owned, root) - {root}:
+                mappings[old] = ()
+
+            changes.update(nodes)
+            placements.update(dict.fromkeys(set(nodes) - {root}, entity))
+
+        if new_labels:
+            updated = _Definition(
+                current.params,
+                current.body,
+                current.links,
+                {**current.labels, **new_labels},
+                current.generation,
+            )
+            changes[entity] = updated.relation()
 
     for entity in state.values:
         mappings.setdefault(entity, entity)
@@ -729,67 +932,81 @@ def _fill(template: Any, holes: Any) -> Any:
     return tuple(_fill(item, holes) for item in template)
 
 
-def _collapse(state: State, function_entity: EntityID, entity: EntityID) -> Any:
-    """Return the input-format expression of a node and its operands."""
+def _collapse(
+    state: State,
+    function_entity: EntityID,
+    entity: EntityID,
+    labels: Mapping[EntityID, str] | None = None,
+) -> Any:
+    """Return the input-format expression of a node and its operands.
+
+    ``labels`` maps a node entity to the label name that marks it
+    (graph_form.md section 9); when omitted (the top-level call), it is
+    read from ``function_entity``'s own definition. A labelled node
+    collapses back under a ``("label", name, ...)`` wrapper, since the
+    label costs no node of its own (:meth:`_Builder._label`).
+    """
+
+    if labels is None:
+        value = state.values.get(function_entity)
+        definition = _definition_of(value) if value is not None else None
+        labels = (
+            {target: name for name, target in definition.labels.items()}
+            if definition is not None
+            else {}
+        )
 
     node = _node_at(state, function_entity, entity)
     kind = node.kind
     roles = node.roles
 
     def collapse(child: EntityID) -> Any:
-        return _collapse(state, function_entity, child)
+        return _collapse(state, function_entity, child, labels)
 
     def collapse_all(children: tuple[EntityID, ...]) -> tuple[Any, ...]:
         return tuple(collapse(child) for child in children)
 
     if kind == INVALID_KIND:
-        return _decode(node.payload)[1]
-
-    if kind in ("lit", "arg"):
-        return (kind, _decode(node.payload))
-
-    if kind in _BINARY:
-        return (kind, collapse(roles["left"]), collapse(roles["right"]))
-
-    if kind == "if":
-        return (
+        expr = _decode(node.payload)[1]
+    elif kind in ("lit", "arg"):
+        expr = (kind, _decode(node.payload))
+    elif kind in _BINARY:
+        expr = (kind, collapse(roles["left"]), collapse(roles["right"]))
+    elif kind == "if":
+        expr = (
             "if",
             collapse(roles["cond"]),
             collapse(roles["then"]),
             collapse(roles["else"]),
         )
-
-    if kind == "seq":
-        return ("seq", *collapse_all(roles["items"]))
-
-    if kind == "call":
-        return ("call", _decode(node.payload), *collapse_all(roles["args"]))
-
-    if kind == "read":
-        return ("read", _decode(node.payload))
-
-    if kind == "write":
-        return ("write", _decode(node.payload), collapse(roles["value"]))
-
-    if kind == "quote":
+    elif kind == "seq":
+        expr = ("seq", *collapse_all(roles["items"]))
+    elif kind == "call":
+        expr = ("call", _decode(node.payload), *collapse_all(roles["args"]))
+    elif kind == "read":
+        expr = ("read", _decode(node.payload))
+    elif kind == "write":
+        expr = ("write", _decode(node.payload), collapse(roles["value"]))
+    elif kind == "quote":
         holes = iter(collapse_all(roles["holes"]))
-        return ("quote", _fill(_decode(node.payload), holes))
+        expr = ("quote", _fill(_decode(node.payload), holes))
+    elif kind == "unquote":
+        expr = ("unquote", collapse(roles["expr"]))
+    elif kind == "function":
+        expr = ("function", collapse(roles["params"]), collapse(roles["body"]))
+    else:
+        payload = _decode(node.payload)
+        names = tuple(name for name, _ in payload["links"])
+        pairs = _pairs(names, collapse_all(roles["values"]))
 
-    if kind == "unquote":
-        return ("unquote", collapse(roles["expr"]))
+        if kind == "activate":
+            expr = ("activate", *pairs)
+        else:
+            call = ("call", payload["call"][0], *collapse_all(roles["args"]))
+            expr = ("trial", call, *pairs)
 
-    if kind == "function":
-        return ("function", collapse(roles["params"]), collapse(roles["body"]))
-
-    payload = _decode(node.payload)
-    names = tuple(name for name, _ in payload["links"])
-    pairs = _pairs(names, collapse_all(roles["values"]))
-
-    if kind == "activate":
-        return ("activate", *pairs)
-
-    call = ("call", payload["call"][0], *collapse_all(roles["args"]))
-    return ("trial", call, *pairs)
+    name = labels.get(entity)
+    return ("label", name, expr) if name is not None else expr
 
 
 def function_at(state: State, entity: EntityID) -> Function | None:
@@ -931,7 +1148,7 @@ def _activation_pairs(
     bindings: dict[str, Any],
     node: Relation,
     op: str,
-) -> tuple[State, dict[EntityID, Function]]:
+) -> tuple[State, dict[EntityID | tuple[EntityID, str], Any]]:
     """Evaluate and check ``activate``/``trial``'s link/value pairs.
 
     Shared by ``activate`` (metaprogramming.md section 4) and ``trial``
@@ -939,10 +1156,13 @@ def _activation_pairs(
     activate"). Evaluates the value expressions first, then reads the
     active state and checks every pair against it: each link resolved
     through the running function's link table to an entity whose value in
-    that state is a function, no entity is named twice, and each value is
-    a function. Reading the active state only after evaluation matters
-    because evaluating a value expression can itself activate
-    (language_trials.md section 8).
+    that state is a function, no target named twice, and each value a
+    Function for a whole-function target or an expression (code as data,
+    not a Function value) for a ``(link, label)`` node target
+    (graph_form.md section 9). Reading the active state only after
+    evaluation matters because evaluating a value expression can itself
+    activate (language_trials.md section 8). Returns the active state and
+    the edits to hand to :func:`define`.
     """
 
     entries = _decode(node.payload)["links"]
@@ -960,19 +1180,26 @@ def _activation_pairs(
 
     active = context.runtime.active.state
     resolved = iter(node.roles["targets"])
-    targets: list[EntityID] = []
+    seen: set[Any] = set()
+    edits: dict[EntityID | tuple[EntityID, str], Any] = {}
 
-    for _, problem in entries:
+    for (name, problem), value in zip(entries, evaluated_values):
         if problem is not None:
             raise LanguageError(f"{function_entity.value}: {problem}")
 
         target = next(resolved)
+        label = name[1] if isinstance(name, tuple) else None
+        key: EntityID | tuple[EntityID, str] = (
+            (target, label) if label is not None else target
+        )
 
-        if target in targets:
+        if key in seen:
             raise LanguageError(
                 f"{function_entity.value}: {op} target appears twice: "
                 f"{target.value}"
             )
+
+        seen.add(key)
 
         if target not in active.values:
             raise LanguageError(
@@ -986,21 +1213,26 @@ def _activation_pairs(
                 f"{target.value}"
             )
 
-        targets.append(target)
-
-    functions: list[Function] = []
-
-    for value in evaluated_values:
         function = _function_value(value)
 
-        if function is None:
-            raise LanguageError(
-                f"{function_entity.value}: {op} value is not a function"
-            )
+        if label is not None:
+            if function is not None:
+                raise LanguageError(
+                    f"{function_entity.value}: {op} value is not an "
+                    f"expression: {target.value}"
+                )
 
-        functions.append(function)
+            edits[key] = value
+        else:
+            if function is None:
+                raise LanguageError(
+                    f"{function_entity.value}: {op} value is not a "
+                    f"function: {target.value}"
+                )
 
-    return active, dict(zip(targets, functions))
+            edits[key] = function
+
+    return active, edits
 
 
 def _activate(
@@ -1010,7 +1242,7 @@ def _activate(
     bindings: dict[str, Any],
     node: Relation,
 ) -> None:
-    active, functions = _activation_pairs(
+    active, edits = _activation_pairs(
         context,
         state,
         function_entity,
@@ -1022,7 +1254,7 @@ def _activate(
     if not context.may_activate:
         raise ActivationRejected("activation capability not granted")
 
-    context.runtime.activate(define(active, functions))
+    context.runtime.activate(define(active, edits))
     return None
 
 
@@ -1051,7 +1283,7 @@ def _trial(
         for arg in node.roles["args"]
     )
 
-    active, functions = _activation_pairs(
+    active, edits = _activation_pairs(
         context,
         state,
         function_entity,
@@ -1068,7 +1300,7 @@ def _trial(
     if not context.may_activate:
         raise ActivationRejected("activation capability not granted")
 
-    candidate = context.runtime.trial(define(active, functions))
+    candidate = context.runtime.trial(define(active, edits))
     candidate_context = _RunContext(runtime=candidate, may_activate=False)
 
     return _call(candidate_context, node.roles["target"], args)

@@ -28,6 +28,7 @@ TARGETS = (
     "semiroh/lang.py",
     "semiroh/runtime.py",
     "semiroh/examples/self_hosting.py",
+    "semiroh/fold.py",
 )
 
 # (target, kind, source line) -> why no test can tell the difference.
@@ -48,6 +49,12 @@ EQUIVALENT = {
     ("semiroh/examples/self_hosting.py", "constant",
      'step(("quote", ("lit", 1)), (("RAISE", "unknown operation"), end)),'):
         "the quoted template is not looked at",
+    ("semiroh/fold.py", "constant", "@dataclass(frozen=True)"):
+        "nothing mutates a _Constant",
+    ("semiroh/fold.py", "return", "return entity"):
+        "the only caller that uses the returned node gets a folded "
+        "constant only when its whole `if` is constant, and then the `if` "
+        "folds as a constant instead",
     ("semiroh/lang.py", "constant", "@dataclass(frozen=True, eq=False)"):
         "not equivalent, an open gap: Function equality by canonical "
         "content against by fields is not pinned by a test",

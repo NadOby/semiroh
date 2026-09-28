@@ -1,13 +1,18 @@
 """Tests for relations: records, integrity, index, and continuity."""
 
+import random
 import unittest
 
 from semiroh import (
     DanglingRelation,
     EntityID,
+    MissingEntityMapping,
     Relation,
     State,
+    TransformationDefinition,
     Value,
+    transfer_reference,
+    transform_with_mapping,
     relation_index,
     relation_of,
     relations_of,
@@ -164,6 +169,239 @@ class RelationIndexTests(unittest.TestCase):
             state.id,
             graph(a=1, r=edge(to=A)).id,
         )
+
+
+def relation_at(state: State, entity: EntityID) -> Relation:
+    record = relation_of(state.values[entity])
+    assert record is not None
+    return record
+
+
+class RelationContinuityTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.state = graph(a=1, b=2, r=edge(source=A, target=B))
+
+    def test_rename_rewrites_the_endpoint(self) -> None:
+        result = transform_with_mapping(self.state, {C: 3}, {A: C})
+
+        self.assertEqual(
+            relation_at(result.destination, R),
+            edge(source=C, target=B),
+        )
+
+    def test_merge_rewrites_every_merged_endpoint(self) -> None:
+        result = transform_with_mapping(self.state, {C: 3}, {A: C, B: C})
+
+        self.assertEqual(
+            relation_at(result.destination, R),
+            edge(source=C, target=C),
+        )
+
+    def test_swap_and_shift_follow_mapped_endpoints(self) -> None:
+        swapped = transform_with_mapping(self.state, {}, {A: B, B: A})
+        shifted = transform_with_mapping(self.state, {C: 3}, {A: B, B: C})
+
+        self.assertEqual(
+            relation_at(swapped.destination, R),
+            edge(source=B, target=A),
+        )
+        self.assertEqual(
+            relation_at(shifted.destination, R),
+            edge(source=B, target=C),
+        )
+
+    def test_unmapped_endpoints_are_unchanged(self) -> None:
+        result = transform_with_mapping(self.state, {C: 3}, {B: C})
+
+        self.assertEqual(
+            relation_at(result.destination, R),
+            edge(source=A, target=C),
+        )
+
+    def test_disappearing_endpoint_is_rejected(self) -> None:
+        with self.assertRaises(DanglingRelation):
+            transform_with_mapping(self.state, {}, {A: ()})
+
+    def test_split_endpoint_is_rejected(self) -> None:
+        with self.assertRaises(DanglingRelation):
+            transform_with_mapping(self.state, {C: 3}, {A: (A, C)})
+
+    def test_explicit_change_of_the_relation_wins(self) -> None:
+        result = transform_with_mapping(
+            self.state,
+            {R: edge(source=B, target=B)},
+            {A: ()},
+        )
+
+        self.assertEqual(
+            relation_at(result.destination, R),
+            edge(source=B, target=B),
+        )
+
+    def test_explicit_removal_of_the_relation_is_accepted(self) -> None:
+        result = transform_with_mapping(self.state, {}, {A: (), R: ()})
+
+        self.assertFalse(result.destination.contains(R))
+
+    def test_explicit_change_must_not_dangle(self) -> None:
+        with self.assertRaises(DanglingRelation):
+            transform_with_mapping(
+                self.state,
+                {R: edge(source=A, target=C)},
+                {},
+            )
+
+    def test_following_does_not_declare_the_relations_own_continuity(
+        self,
+    ) -> None:
+        reference = self.state.reference(R)
+        unmapped = transform_with_mapping(self.state, {C: 3}, {A: C})
+
+        with self.assertRaises(MissingEntityMapping):
+            transfer_reference(reference, unmapped)
+
+        mapped = transform_with_mapping(self.state, {C: 3}, {A: C, R: R})
+        transferred = transfer_reference(reference, mapped)
+
+        self.assertEqual(transferred.entity, R)
+        self.assertNotEqual(transferred.version, reference.version)
+
+    def test_relations_about_relations_follow_renamed_relations(self) -> None:
+        state = graph(
+            a=1,
+            b=2,
+            r=edge(source=A, target=B),
+            s=edge("about", subject=R),
+        )
+
+        result = transform_with_mapping(
+            state,
+            {C: edge(source=A, target=B)},
+            {R: C},
+        )
+
+        self.assertEqual(
+            relation_at(result.destination, S),
+            edge("about", subject=C),
+        )
+
+
+class RelationContinuityProperties(unittest.TestCase):
+    def test_apply_follows_mapped_endpoints_or_rejects(self) -> None:
+        plain = [EntityID(f"e{index}") for index in range(4)]
+        relations = [EntityID(f"r{index}") for index in range(3)]
+        created = [EntityID(f"n{index}") for index in range(2)]
+        outcomes = {"applied": 0, "dangling": 0}
+
+        for seed in range(500):
+            with self.subTest(seed=seed):
+                rng = random.Random(seed)
+                values = {entity: Value.create(entity, 0) for entity in plain}
+
+                for index, entity in enumerate(relations):
+                    targets = plain + relations[:index]
+                    values[entity] = Value.create(
+                        entity,
+                        edge(
+                            source=rng.choice(targets),
+                            target=rng.choice(targets),
+                        ),
+                    )
+
+                state = State.create(values)
+                sources = sorted(values)
+
+                changes = {entity: 0 for entity in created}
+
+                for entity in relations:
+                    if rng.random() < 0.15:
+                        changes[entity] = edge(
+                            source=rng.choice(plain + created),
+                            target=rng.choice(plain + created),
+                        )
+
+                mappings = {}
+
+                for entity in sources:
+                    roll = rng.random()
+
+                    if roll < 0.55:
+                        continue
+
+                    if roll < 0.65:
+                        mappings[entity] = ()
+                    else:
+                        mappings[entity] = tuple(
+                            rng.sample(
+                                sources + created,
+                                rng.choice([1, 1, 1, 2]),
+                            )
+                        )
+
+                disappearing = {
+                    entity for entity, targets in mappings.items()
+                    if not targets
+                }
+                destinations = {
+                    target
+                    for targets in mappings.values()
+                    for target in targets
+                }
+
+                if destinations & disappearing:
+                    continue  # rejected earlier as a missing destination
+
+                present = {
+                    entity for entity in sources
+                    if entity not in disappearing
+                    and (entity not in mappings or entity in destinations)
+                } | set(created)
+
+                expect_dangling = False
+
+                for entity in relations:
+                    if entity not in present:
+                        continue
+
+                    if entity in changes:
+                        record = changes[entity]
+                        if not record.endpoints <= present:
+                            expect_dangling = True
+                        continue
+
+                    for endpoint in relation_at(state, entity).endpoints:
+                        if endpoint in mappings and len(mappings[endpoint]) != 1:
+                            expect_dangling = True
+
+                definition = TransformationDefinition.create(
+                    changes=changes,
+                    mappings=mappings,
+                )
+
+                if expect_dangling:
+                    with self.assertRaises(DanglingRelation):
+                        definition.apply(state)
+                    outcomes["dangling"] += 1
+                    continue
+
+                destination = definition.apply(state).destination
+                outcomes["applied"] += 1
+
+                for entity in relations:
+                    if entity not in present or entity in changes:
+                        continue
+
+                    old = relation_at(state, entity)
+                    expected = old.with_endpoints({
+                        endpoint: mappings[endpoint][0]
+                        for endpoint in old.endpoints
+                        if endpoint in mappings
+                    })
+
+                    self.assertEqual(relation_at(destination, entity), expected)
+
+        self.assertGreater(outcomes["applied"], 50)
+        self.assertGreater(outcomes["dangling"], 50)
 
 
 if __name__ == "__main__":

@@ -160,7 +160,7 @@ updated.
 
 ### 7. Incremental compilation to bytecode (one session)
 
-**Done.** The design is in bytecode.md, which also records the answer to
+**Done** (#26). The design is in bytecode.md, which also records the answer to
 the last question below: per-node caching is simpler than re-pointing
 dependents and more precise, so per-node identity is paying for itself.
 

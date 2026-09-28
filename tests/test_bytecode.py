@@ -10,6 +10,7 @@ acceptance suites of the language, which run on the VM unchanged.
 import random
 import sys
 import unittest
+from unittest import mock
 
 from semiroh import (
     CellDeclaration,
@@ -19,14 +20,25 @@ from semiroh import (
     Evaluator,
     External,
     IntRange,
+    Relation,
     Runtime,
     State,
     Value,
     relation_of,
     transform_with_mapping,
 )
+from semiroh import bytecode
 from semiroh.bytecode import chunk_of, disassemble, lower, lowered_count
-from semiroh.lang import Function, LanguageError, define, function_at, links, load, run
+from semiroh.lang import (
+    CallDepthExceeded,
+    Function,
+    LanguageError,
+    define,
+    function_at,
+    links,
+    load,
+    run,
+)
 
 C = EntityID("c")
 
@@ -158,6 +170,14 @@ class LoweringTests(unittest.TestCase):
         self.assertEqual(
             [instruction[0] for instruction in chunk],
             ["EVAL", "POP", "EVAL", "POP", "GOTO", "END"],
+        )
+
+    def test_a_seq_without_items_is_none(self) -> None:
+        # Loading turns an empty seq into an invalid node, so this node is
+        # only ever built by hand; it still means what it always meant.
+        self.assertEqual(
+            lower(Relation("seq", {"items": ()})),
+            (("LIT", None), ("END",)),
         )
 
     def test_a_call_names_its_target_and_argument_count(self) -> None:
@@ -449,6 +469,82 @@ class DeepRecursionTests(unittest.TestCase):
             run(runtime, EntityID("outer"))
 
         self.assertEqual(runtime.active.holds, frozenset())
+
+    def test_runaway_recursion_stops_at_the_call_depth_limit(self) -> None:
+        runtime = runtime_of({
+            "runaway": Function((), ("add", lit(1), ("call", "runaway"))),
+        })
+
+        self.assertTrue(issubclass(CallDepthExceeded, LanguageError))
+
+        with mock.patch.object(bytecode, "CALL_DEPTH_LIMIT", 200):
+            with self.assertRaisesRegex(
+                CallDepthExceeded,
+                "^runaway: more than 200 calls",
+            ):
+                run(runtime, EntityID("runaway"))
+
+        self.assertEqual(runtime.active.holds, frozenset())
+
+    def test_the_limit_counts_calls_that_wait_and_the_entry(self) -> None:
+        runtime = runtime_of({"deep": self.DEEP})
+        deep = EntityID("deep")
+
+        with mock.patch.object(bytecode, "CALL_DEPTH_LIMIT", 100):
+            # deep(99) has a hundred calls waiting on each other at its
+            # bottom, the entry among them.
+            self.assertEqual(run(runtime, deep, 99), 99 * 100 // 2)
+
+            with self.assertRaises(CallDepthExceeded):
+                run(runtime, deep, 100)
+
+        self.assertEqual(runtime.active.holds, frozenset())
+
+    def test_tail_calls_do_not_count_towards_the_limit(self) -> None:
+        runtime = runtime_of({
+            "spin": Function(
+                ("n",),
+                (
+                    "if",
+                    ("lt", arg("n"), lit(1)),
+                    lit(0),
+                    ("call", "spin", ("sub", arg("n"), lit(1))),
+                ),
+            ),
+        })
+
+        with mock.patch.object(bytecode, "CALL_DEPTH_LIMIT", 50):
+            self.assertEqual(run(runtime, EntityID("spin"), 5000), 0)
+
+    def test_a_tail_call_at_the_limit_is_still_allowed(self) -> None:
+        runtime = runtime_of({
+            "dive": Function(
+                ("n",),
+                (
+                    "if",
+                    ("lt", arg("n"), lit(1)),
+                    ("call", "spin", lit(300)),
+                    ("add", lit(1), ("call", "dive", ("sub", arg("n"), lit(1)))),
+                ),
+            ),
+            "spin": Function(
+                ("n",),
+                (
+                    "if",
+                    ("lt", arg("n"), lit(1)),
+                    lit(0),
+                    ("call", "spin", ("sub", arg("n"), lit(1))),
+                ),
+            ),
+        })
+
+        with mock.patch.object(bytecode, "CALL_DEPTH_LIMIT", 100):
+            # A hundred calls wait on each other, and the last one ends in
+            # a tail call: it replaces its caller, so it is not a 101st.
+            self.assertEqual(run(runtime, EntityID("dive"), 99), 99)
+
+    def test_the_default_limit_leaves_room_for_deep_programs(self) -> None:
+        self.assertGreaterEqual(bytecode.CALL_DEPTH_LIMIT, 50_000)
 
     def test_a_tail_call_names_the_callee_in_its_errors(self) -> None:
         runtime = runtime_of({

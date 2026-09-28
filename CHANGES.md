@@ -538,6 +538,8 @@ Composition APIs are specified in terms of these three result classes.
   function's value no longer holds its code, and without this the program
   guards in `test_program_constraints_guard_self_modification` and
   `test_program_constraints_reject_a_candidate` stop rejecting anything.
+  New coverage in `tests/test_constraint_relations.py`'s
+  `OwnedSubtreeTests` (additions only; no existing assertion changed).
 - Core, performance: `check_relation_endpoints` looks endpoints up instead
   of hashing every entity once per relation (it was quadratic), and
   `relation_of` keeps the decoded record with the value. COMPILE(12)

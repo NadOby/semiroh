@@ -462,14 +462,24 @@ must be preferred to an unsupported definitive result.
 
 ## 20. Current implementation status
 
-The current Python reference model establishes the broader semantic
-architecture but does not yet constitute a complete constraint implementation.
+The Python reference model currently provides:
+
+    ConstraintResult
+        Satisfied, Violated, Unknown, and whether a result is decisive
+        (is_known)
+
+    Constraint
+        an immutable wrapper around an executable predicate and a
+        description; evaluate() requires the predicate to return a
+        ConstraintResult
+
+The predicate is only the executable evaluation mechanism. Constraint identity
+is intentionally not derived from Python callable identity, so the model does
+not yet provide a semantic constraint representation.
 
 The following remain future work:
 
-- concrete constraint representation;
-- constraint evaluation;
-- constraint result representation;
+- semantic constraint representation and canonical constraint identity;
 - evidence representation;
 - evaluation context;
 - evaluation budgets;

@@ -1,8 +1,9 @@
 # Graph Form
 
-**Status: implemented.** `semiroh/lang.py` stores and runs code in graph
-form (roadmap.md D1, task 4). `tests/test_graph_form.py` is the acceptance
-suite; the unit tests are at the end of `tests/test_lang.py`.
+**Status: implemented.** `semiroh/lang.py` stores code in graph form and
+`semiroh/bytecode.py` runs it (roadmap.md D1, tasks 4 and 7).
+`tests/test_graph_form.py` is the acceptance suite; the unit tests are at the
+end of `tests/test_lang.py`.
 
 Code is stored as graph form: every expression node is a relation entity
 owned by its function. Tuple bodies with links relations (first_program.md)

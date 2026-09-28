@@ -422,3 +422,7 @@ class CompositionInputTests(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             compose(definition, result)  # type: ignore[arg-type]
+
+
+if __name__ == "__main__":
+    unittest.main()

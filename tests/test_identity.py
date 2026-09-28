@@ -125,3 +125,7 @@ class TypeDistinctEqualityTests(unittest.TestCase):
                     left == right,
                     same_version(left, right),
                 )
+
+
+if __name__ == "__main__":
+    unittest.main()

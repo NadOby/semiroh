@@ -294,3 +294,7 @@ class RebindingTests(unittest.TestCase):
                 state,
                 EntityID("missing"),
             )
+
+
+if __name__ == "__main__":
+    unittest.main()

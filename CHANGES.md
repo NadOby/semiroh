@@ -557,3 +557,9 @@ Composition APIs are specified in terms of these three result classes.
   and `test_canonical_function_argument_can_activate` use `function_at`).
   No test was renamed; `test_graph_form.py` and `test_corpus.py` are
   unchanged.
+
+### Test module entry points
+
+- Added `if __name__ == "__main__": unittest.main()` to the 12 test modules
+  that lacked it, so every module runs alone with `python3 -m tests.test_x`;
+  CLAUDE.md now asks for it in new test modules.

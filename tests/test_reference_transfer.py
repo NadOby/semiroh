@@ -380,3 +380,7 @@ class ReferenceTransferTests(unittest.TestCase):
         )
 
         self.assertEqual(transferred.entity, third)
+
+
+if __name__ == "__main__":
+    unittest.main()

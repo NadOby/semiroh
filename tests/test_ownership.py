@@ -265,3 +265,7 @@ class OwnershipNormalizationTests(unittest.TestCase):
                     for index in range(depth)
                 },
             )
+
+
+if __name__ == "__main__":
+    unittest.main()

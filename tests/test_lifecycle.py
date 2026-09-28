@@ -97,3 +97,7 @@ class LifecycleTests(unittest.TestCase):
 
         self.assertEqual(destroyed.values, {})
         self.assertEqual(destroyed.ownership, {})
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -745,3 +745,7 @@ class MappedSourcePresenceTests(unittest.TestCase):
                     self.a: self.c,
                 },
             )
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -276,3 +276,7 @@ class CanonicalIdempotenceTests(unittest.TestCase):
 
         self.assertEqual(renamed.entity, bar)
         self.assertTrue(semantic_equal(original, renamed))
+
+
+if __name__ == "__main__":
+    unittest.main()

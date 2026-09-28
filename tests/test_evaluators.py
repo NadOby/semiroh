@@ -155,3 +155,7 @@ class EvaluatorTests(unittest.TestCase):
         self.assertTrue(
             ConstraintResult.VIOLATED.is_known
         )
+
+
+if __name__ == "__main__":
+    unittest.main()

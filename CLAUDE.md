@@ -53,6 +53,8 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 ## Testing
 
 - Run: `python3 -m unittest discover` (CI runs the same on Python 3.12).
+- Every test module ends with `if __name__ == "__main__": unittest.main()`,
+  so `python3 -m tests.test_x` runs one module.
 - Property tests use seeded `random.Random(seed)` with `subTest(seed=...)`, so
   failures are reproducible. No third-party test libraries.
 - A new regression test must fail on the old code. For a property test,

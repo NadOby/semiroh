@@ -211,3 +211,6 @@ Composition APIs are specified in terms of these three result classes.
 - Proposed a bound of two running versions per runtime (active and previous),
   with speculative candidates exercised in isolated runtimes rather than as
   additional running versions.
+- Decided that a new activation is rejected by default while the previous
+  version is still held; waiting or terminating the holders are explicit
+  alternatives.

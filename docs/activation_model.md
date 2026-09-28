@@ -178,7 +178,7 @@ rejects activation when any live reference cannot be transferred.
 
 ## 7. Retiring superseded versions
 
-**Proposed** (ownership, runtime holds, two-version bound). **Open**
+**Proposed** (ownership, runtime holds, two-version bound). **Decided**
 (activation while the previous version is still held).
 
 Retirement of old versions uses the ownership model rather than a separate
@@ -225,11 +225,14 @@ one, as in Erlang. Two is the minimum compatible with pinned references
 single-version bound would require every activation to wait until no thread
 runs old code, and to reject every reference it cannot transfer.
 
-Open: what happens when a new activation arrives while the previous version
-is still held. The options are to wait (possibly with a timeout), to reject
-the activation, or to terminate the holders, as Erlang terminates processes
-still running purged code. Terminating a thread would itself be destruction of
-what that thread owns.
+A new activation that arrives while the previous version is still held is
+rejected by default. The active version and runtime state stay unchanged,
+consistent with atomic activation (section 2).
+
+A program may explicitly choose another policy instead: wait for the holds
+to end (possibly with a timeout), or terminate the holders, as Erlang
+terminates processes still running purged code. Terminating a thread is
+destruction of what that thread owns.
 
 ## 8. Speculative versions
 
@@ -305,7 +308,6 @@ transformation result, and release of `S₀` once nothing is pinned to it.
 - switching strategy for code in flight (section 5);
 - where conversion and transfer functions live (section 4);
 - how the runtime tracks holds on versions (section 7);
-- activation while the previous version is still held (section 7);
 - isolation and state copying for trial runs (section 8);
 - concurrency: per-thread switching and its memory model;
 - native code installation under platform restrictions.

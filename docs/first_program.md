@@ -16,7 +16,7 @@ In scope:
 
 Out of scope: source syntax and parsing, compilation and native code,
 metaprogramming from inside the language (a program producing its own
-transformation; the natural next step), types beyond cell constraints,
+transformation; the natural next step, metaprogramming.md), types beyond cell constraints,
 concurrency, and switching code in flight.
 
 ## 2. Program representation
@@ -68,7 +68,8 @@ parameters bound to the canonicalized arguments, and returns the result.
   `RelationConstraintRejected`); a link naming something that is not a cell
   is a language mistake, not a constraint failure, and becomes a
   `LanguageError` instead (below).
-- Running never changes program state or `StateID`.
+- Running never changes program state or `StateID`, unless the host grants
+  the run activation (metaprogramming.md section 4).
 - `LanguageError` (a `ValueError`) covers: an unknown operation, an unknown
   link name, a wrong number of arguments, calling something that is not a
   function, reading or writing something that is not a cell, and operands of

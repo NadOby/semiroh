@@ -388,3 +388,22 @@ Composition APIs are specified in terms of these three result classes.
 - Ownership turned out to be unnecessary for this program, exactly as
   section 2 anticipated: none of ownership_model.md §13's deferred questions
   needed an answer (first_program.md section 8).
+
+### Metaprogramming
+
+- Implemented `quote` and `unquote` for constructing expression trees with
+  evaluated holes.
+- Implemented `function`, which builds `Function` values at run time; they
+  pass through ordinary values and cells.
+- Implemented `activate` as capability-gated self-modification through the
+  existing transformation and atomic runtime activation machinery.
+- Kept the semantic core unchanged: self-modification declares identity
+  continuity for every existing entity and changes only the selected
+  function values.
+- Provisionally, the language uses version coexistence: the frame running
+  an activation continues in its starting version, while subsequent linked
+  calls enter the active version. A second activation in the same run is
+  rejected by the two-version bound.
+- Added unit coverage for all new operations, malformed operands, activation
+  check ordering, atomicity, canonical function values, cell-content
+  preservation, and a seeded quotation property.

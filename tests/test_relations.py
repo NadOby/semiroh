@@ -1,6 +1,7 @@
 """Tests for relations: records, integrity, index, and continuity."""
 
 import random
+import time
 import unittest
 
 from semiroh import (
@@ -156,6 +157,31 @@ class RelationIntegrityTests(unittest.TestCase):
         )
 
         self.assertEqual(set(state.destroy(A).values), set())
+
+    def test_integrity_check_is_linear_in_the_number_of_relations(self) -> None:
+        def build_time(count: int) -> float:
+            values = {A: Value.create(A, 1)}
+
+            for index in range(count):
+                entity = EntityID(f"r{index}")
+                values[entity] = Value.create(entity, edge(to=A))
+
+            best = float("inf")
+
+            for _ in range(3):
+                start = time.perf_counter()
+                State.create(values)
+                best = min(best, time.perf_counter() - start)
+
+            return best
+
+        small = build_time(300)
+        large = build_time(1200)
+
+        # Four times the relations: about four times the work. Checking
+        # each relation against every entity of the state is quadratic and
+        # makes it about sixteen times.
+        self.assertLess(large / small, 8)
 
 
 class RelationIndexTests(unittest.TestCase):

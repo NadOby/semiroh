@@ -187,7 +187,14 @@ def check_relation_endpoints(
         if relation is None:
             continue
 
-        missing = sorted(relation.endpoints - values.keys())
+        # Look each endpoint up in ``values``: subtracting ``values.keys()``
+        # from the endpoints would hash every entity of the state once per
+        # relation.
+        missing = sorted(
+            endpoint
+            for endpoint in relation.endpoints
+            if endpoint not in values
+        )
 
         if missing:
             raise DanglingRelation(

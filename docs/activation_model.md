@@ -185,7 +185,9 @@ A reasonable starting point is version coexistence with switching at call
 boundaries or explicit update points. On-stack replacement can come later.
 
 **Provisional:** the language uses version coexistence with switching at
-every call (metaprogramming.md section 5).
+every call (metaprogramming.md section 5). The running language frame retains
+its starting version, while every subsequent linked call resolves and enters
+the function from the currently active version.
 
 ## 6. References across activation
 
@@ -361,8 +363,26 @@ The Python reference model currently provides:
         is rejected whenever the activation would be, and the main runtime
         is unchanged and not limited by its two-version bound (section 8)
 
+The language layer in `semiroh.lang` additionally provides:
+
+    Function
+        semantic function value containing parameter names and expression
+        body
+
+    quote / unquote
+        construction of expression trees with evaluated holes
+
+    function
+        construction of Function values from evaluated parameter and body
+        expressions
+
+    activate
+        capability-gated self-modification using an explicit identity mapping
+        for every entity and the existing atomic Runtime.activate path
+
 Frames keep executing in the version they started in; the switching strategy
-for code in flight (section 5) is not modelled beyond that.
+for code in flight (section 5) is implemented by the language as
+version coexistence with switching at every linked call.
 
 ## 13. Unresolved areas
 

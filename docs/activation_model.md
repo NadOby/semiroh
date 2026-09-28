@@ -293,6 +293,9 @@ no holds. Until capabilities are modelled, what a trial grants is its
 evaluation context, which defaults to the main runtime's, and the converters
 it is given.
 
+**Provisional:** the language runs code under trial without the activation
+capability (language_trials.md section 3).
+
 ## 9. Rollback
 
 **Decided.**

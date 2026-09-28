@@ -200,3 +200,10 @@ Composition APIs are specified in terms of these three result classes.
   Erlang-style transfer of mutable cell content along continuity, handling
   of code in flight and of references, and lifetime of superseded versions.
 - Added runtime self-modification prior art to `priors.md`.
+- Accepted the proposed activation rules: cardinality-based state transfer,
+  rejection of live cells without declared continuity, pinning of
+  untransferable references by default, validation before an atomic switch,
+  and rollback as a new activation.
+- Proposed retiring superseded versions through the ownership model: a
+  version owns its code and untransferred resources, running code and pinned
+  references borrow it, and it is destroyed when the last borrow ends.

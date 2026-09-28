@@ -729,3 +729,26 @@ Composition APIs are specified in terms of these three result classes.
   with their reason; one is an open gap (equality of `Function` by content
   against by fields).
 
+### Self-hosting: `code` and a compiler in SEMIROH
+
+- Added `("code", link)`, which returns `(params, body)` of a function in
+  input form, read from the active version (self_hosting.md section 1). In
+  graph form it is a node with a `target` role like `ref`; it lowers to
+  `CODE`. Reading needs no capability.
+- Wrote the lowering pass of bytecode.md in SEMIROH
+  (`semiroh/examples/self_hosting.py`): `lower(e)` gives the chunk of an
+  expression with each child's chunk in place of its reference and link names
+  in place of entities. It covers every operation but `quote`, `unquote`,
+  `function`, `activate` and `trial`, and is written in what it covers.
+  Tests compare it with the host's chunks on a curated list, 60 seeded
+  random expressions, each function of the compiler, and `self_lower`, which
+  reads and compiles its own `lower`.
+- Added the corpus examples `compiler` and `instrument`: a program reads its
+  own function, swaps in a version that counts its calls and compiles what
+  it installed. Provisional, at the owner's choice of scope: the compiler's
+  output is checked against the host's and not run; a bytecode interpreter
+  in SEMIROH is roadmap task 10, "probably".
+- Extended the mutation targets to `self_hosting.py` (two listed survivors)
+  and pinned the message of an unknown `code` link, which a mutant found
+  loose. No existing test was edited.
+

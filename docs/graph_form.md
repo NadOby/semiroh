@@ -72,6 +72,7 @@ so `function_at` gives back the link names as written.
     concat              left, right                        -
     let                 value, body                        name
     ref                 target                             link name
+    code                target                             link name
     apply               function, args (ordered)           -
     quote               holes (ordered)                    template, each
                                                            hole replaced
@@ -107,7 +108,8 @@ For `activate` and `trial`, a link that does not resolve is recorded as a
 `(name, problem)` entry and raised only when the pairs are checked, after
 their values are evaluated (metaprogramming.md §4, language_trials.md §2).
 
-**Data, let, references** (language_data.md). `ref` names its function by
+**Data, let, references** (language_data.md). `ref` and `code`
+(self_hosting.md) name their function by
 the `target` role, like `call`, so a rename of the function follows
 continuity; the value it produces, an `EntityID`, is runtime data and does
 not. A `let` whose name is not a non-empty string is an `invalid` node.

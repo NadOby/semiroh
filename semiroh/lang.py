@@ -79,6 +79,7 @@ _ARITY = {
     "concat": 2,
     "let": 3,
     "ref": 1,
+    "code": 1,
 }
 
 NODE_KINDS = frozenset({
@@ -102,6 +103,7 @@ NODE_KINDS = frozenset({
     "concat",
     "let",
     "ref",
+    "code",
     "apply",
     INVALID_KIND,
 })
@@ -641,6 +643,14 @@ class _Builder:
 
             return Relation("ref", {"target": target}, rest[0])
 
+        if op == "code":
+            target, problem = self.resolve(rest[0])
+
+            if problem is not None:
+                return _invalid(problem, expr)
+
+            return Relation("code", {"target": target}, rest[0])
+
         if op == "apply":
             if not rest:
                 return _invalid("apply needs a function", expr)
@@ -1108,6 +1118,8 @@ def _collapse(
         )
     elif kind == "ref":
         expr = ("ref", _decode(node.payload))
+    elif kind == "code":
+        expr = ("code", _decode(node.payload))
     elif kind == "apply":
         expr = (
             "apply",

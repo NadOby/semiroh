@@ -183,6 +183,7 @@ from . import (  # noqa: E402
     higher_order,
     missing,
     recursion,
+    self_hosting,
     self_modification,
     side_effects,
 )
@@ -194,6 +195,7 @@ EXAMPLES: tuple[Example, ...] = (
     + self_modification.EXAMPLES
     + data.EXAMPLES
     + higher_order.EXAMPLES
+    + self_hosting.EXAMPLES
 )
 
 MISSING: tuple[Wanted, ...] = missing.MISSING

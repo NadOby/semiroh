@@ -27,6 +27,7 @@ TARGETS = (
     "semiroh/bytecode.py",
     "semiroh/lang.py",
     "semiroh/runtime.py",
+    "semiroh/examples/self_hosting.py",
 )
 
 # (target, kind, source line) -> why no test can tell the difference.
@@ -41,6 +42,12 @@ EQUIVALENT = {
     ("semiroh/runtime.py", "constant",
      'return f"Version({self.id.value[:12]}, holds={len(self._holds)})"'):
         "repr text",
+    ("semiroh/examples/self_hosting.py", "constant",
+     "hits: CellDeclaration(IntRange(0, 100), 0),"):
+        "the bound of the cell is never reached",
+    ("semiroh/examples/self_hosting.py", "constant",
+     'step(("quote", ("lit", 1)), (("RAISE", "unknown operation"), end)),'):
+        "the quoted template is not looked at",
     ("semiroh/lang.py", "constant", "@dataclass(frozen=True, eq=False)"):
         "not equivalent, an open gap: Function equality by canonical "
         "content against by fields is not pinned by a test",

@@ -54,6 +54,80 @@ def snapshot(runtime: Runtime) -> tuple:
     )
 
 
+CONVERTERS = {
+    "zero": Converter(lambda _: 0),
+    "sum": Converter(lambda sources: sum(sources.values())),
+    "huge": Converter(lambda _: 10**6),
+}
+
+
+def random_activation_case(
+    rng: random.Random,
+) -> tuple[Runtime, Any] | None:
+    """A runtime with live content and a random result starting from it.
+
+    Returns None when the random definition itself is invalid.
+    """
+
+    names = [EntityID(f"c{index}") for index in range(4)]
+    constraints = [IsKind("int"), IntRange(0, 5), IntRange(3, 9)]
+
+    source = State.create({
+        name: Value.create(name, cell(IsKind("int"), 0))
+        for name in names
+    })
+    runtime = Runtime(source)
+
+    for name in names:
+        runtime.write(name, rng.randrange(-2, 12))
+
+    if rng.random() < 0.3:
+        runtime.keep(source.reference(names[0]))
+
+    changes = {
+        name: cell(rng.choice(constraints), rng.randrange(0, 4))
+        for name in names
+        if rng.random() < 0.5
+    }
+    mappings = {}
+
+    for name in names:
+        roll = rng.random()
+
+        if roll < 0.05:
+            continue  # no declared continuity
+
+        if roll < 0.2:
+            mappings[name] = ()
+        elif roll < 0.65:
+            mappings[name] = (name,)
+        else:
+            mappings[name] = tuple(rng.sample(names, rng.choice([1, 1, 2])))
+
+    destinations = {
+        destination
+        for targets in mappings.values()
+        for destination in targets
+    }
+    conversions = {
+        destination: rng.choice(sorted(CONVERTERS))
+        for destination in destinations
+        if rng.random() < 0.5
+    }
+
+    try:
+        result = transform_with_mapping(
+            source,
+            changes,
+            mappings,
+            conversions=conversions,
+        )
+    except KeyError:
+        return None
+
+    return runtime, result
+
+
 class CellTransferTests(unittest.TestCase):
     def test_one_to_one_transfers_content_unchanged(self) -> None:
         source = state(a=cell(), x=1)
@@ -445,77 +519,20 @@ class ActivationAtomicityTests(unittest.TestCase):
     def test_random_activations_are_atomic_and_keep_constraints(self) -> None:
         # Either an activation succeeds, and every cell of the new version
         # satisfies its constraint, or it is rejected and nothing changes.
-        names = [EntityID(f"c{index}") for index in range(4)]
-        constraints = [IsKind("int"), IntRange(0, 5), IntRange(3, 9)]
-        converters = {
-            "zero": Converter(lambda _: 0),
-            "sum": Converter(lambda sources: sum(sources.values())),
-            "huge": Converter(lambda _: 10**6),
-        }
         outcomes = {"accepted": 0, "rejected": 0}
 
         for seed in range(500):
             with self.subTest(seed=seed):
-                rng = random.Random(seed)
-                source = State.create({
-                    name: Value.create(name, cell(IsKind("int"), 0))
-                    for name in names
-                })
-                runtime = Runtime(source)
+                case = random_activation_case(random.Random(seed))
 
-                for name in names:
-                    runtime.write(name, rng.randrange(-2, 12))
-
-                if rng.random() < 0.3:
-                    runtime.keep(source.reference(names[0]))
-
-                changes = {
-                    name: cell(rng.choice(constraints), rng.randrange(0, 4))
-                    for name in names
-                    if rng.random() < 0.5
-                }
-                mappings = {}
-
-                for name in names:
-                    roll = rng.random()
-
-                    if roll < 0.05:
-                        continue  # no declared continuity
-
-                    if roll < 0.2:
-                        mappings[name] = ()
-                    elif roll < 0.65:
-                        mappings[name] = (name,)
-                    else:
-                        mappings[name] = tuple(
-                            rng.sample(names, rng.choice([1, 1, 2]))
-                        )
-
-                destinations = {
-                    destination
-                    for targets in mappings.values()
-                    for destination in targets
-                }
-                conversions = {
-                    destination: rng.choice(sorted(converters))
-                    for destination in destinations
-                    if rng.random() < 0.5
-                }
-
-                try:
-                    result = transform_with_mapping(
-                        source,
-                        changes,
-                        mappings,
-                        conversions=conversions,
-                    )
-                except KeyError:
+                if case is None:
                     continue
 
+                runtime, result = case
                 before = snapshot(runtime)
 
                 try:
-                    new = runtime.activate(result, converters)
+                    new = runtime.activate(result, CONVERTERS)
                 except ActivationRejected:
                     outcomes["rejected"] += 1
                     self.assertEqual(snapshot(runtime), before)

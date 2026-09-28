@@ -1,7 +1,7 @@
 # Metaprogramming
 
-**Status: planned.** `semiroh/lang.py` does not implement this yet; the
-acceptance tests in `tests/test_metaprogramming.py` fail until it does.
+**Status: implemented.** `semiroh/lang.py` implements the metaprogramming
+operations below, and `tests/test_metaprogramming.py` passes unchanged.
 
 The first program (first_program.md) changes only when the host changes it.
 This step lets a running program write code and install it into itself: the
@@ -91,8 +91,7 @@ replaces the functions named by `link1` ... `linkN` with the function values
 2. Check the operands. They come in link/expression pairs; each link
    resolves through the running function's links, as for `call`, to an
    entity whose value in the active state is a function; no entity is named
-   twice; each `fi` is a function value. A failed check is a
-   `LanguageError`.
+   twice; each `fi` is a function value. A failed check is a `LanguageError`.
 3. Check the capability (below). Without it: `ActivationRejected`.
 4. Build `transform_with_mapping(active_state, {target_i: f_i}, mappings)`,
    where `mappings` declares every entity of the active state continuous
@@ -129,10 +128,8 @@ activation.
 **Provisional.**
 
 activation_model.md §5 decided that a frame executing when an activation
-happens keeps executing in the version it started in and holds that
-version. The strategy for switching is open there; this language takes the
-starting point that section suggests, version coexistence with switching at
-call boundaries:
+happens keeps executing in the version it started in and holds that version.
+The language uses version coexistence with switching at call boundaries:
 
 - the frame that ran `activate`, and every caller still waiting on it,
   finishes the body it started with;
@@ -167,36 +164,37 @@ program state.
 
 ## 7. Acceptance tests
 
-`tests/test_metaprogramming.py` pins the behaviour above. It fails until
-`semiroh/lang.py` implements it; the implementation is done when it passes
-without changes, together with `tests/test_first_program.py`. The
-implementer adds unit tests for each new operation and each `LanguageError`
-case, for `lit` versus `quote`, and for the order of checks in `activate`
-(operand errors before the capability), plus a seeded property test where
-it fits (for example: a `quote` without holes equals `lit`).
+`tests/test_metaprogramming.py` pins the behaviour above. It passes unchanged,
+together with `tests/test_first_program.py`. The implementation also has
+unit tests for each new operation and each `LanguageError` case, for `lit`
+versus `quote`, and for the order of checks in `activate` (operand errors
+before the capability), plus a seeded property test where a `quote` without
+holes equals `lit`.
 
 ## 8. Implementation notes
 
-- The evaluator needs run-scoped context (the runtime and `may_activate`).
-  Passing one small object down instead of more parameters is fine.
+- The evaluator uses run-scoped context containing the runtime and
+  `may_activate`.
 - Values read from cells or passed as arguments are canonical: a tuple
-  arrives as a tagged node. Decode `params` and `body` before building a
-  `Function` (as `function_of` does), and accept a function value in
-  canonical form in `activate`.
-- Use `transform_with_mapping` and `Runtime.activate` as they are. No core
-  change should be needed; if one is, stop and say why in the PR.
-- Keep it small: roughly a hundred more lines in `semiroh/lang.py`.
-- When done: add a `CHANGES.md` entry, mark this document's status, update
-  the `lang.py` module docstring (a run can now change program state when
-  granted), update activation_model.md §12, and fill in section 9.
+  arrives as a tagged node. `params` and `body` are decoded before building a
+  `Function`, and canonical function values are accepted by `activate`.
+- `transform_with_mapping` and `Runtime.activate` are used unchanged.
+- No core semantic model changes were required.
+- The implementation keeps the evaluator small and leaves capability
+  representation provisional.
+- The module docstring now states that activation can change program state
+  when the run has been granted the capability.
+- `activation_model.md` §5 records that this language uses version
+  coexistence with switching at every call.
+- Section 9 records the deferred questions resolved by this program.
 
 ## 9. Deferred questions this program needed
 
-To be filled in by the implementation. The plan expects:
-
-- none of ownership_model.md §13: nothing is created, removed or re-owned;
+- ownership_model.md §13: none. The language creates no entities, removes no
+  entities, and changes no ownership.
 - activation_model.md §5, code in flight: answered provisionally for this
-  language (section 5);
-- activation_model.md §3, capabilities: the minimal per-run grant
-  (section 4);
-- evaluator references by name (`External`) work as they are.
+  language. Frames continue in their starting version; calls after activation
+  enter the active version.
+- activation_model.md §3, capabilities: answered provisionally with the
+  minimal per-run `may_activate=True` grant.
+- evaluator references by name (`External`) work unchanged.

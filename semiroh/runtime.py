@@ -382,42 +382,14 @@ class Runtime:
         """
 
         active = self._active
-
-        if isinstance(target, State):
-            result = TransformResult(
-                source=active.state,
-                destination=target,
-                mappings=(),
-            )
-        elif isinstance(target, TransformResult):
-            result = target
-        else:
-            raise TypeError(
-                "activate expects a TransformResult or a State"
-            )
-
-        if result.source.id != active.id:
-            raise ActivationRejected(
-                "transformation does not start from the active state"
-            )
+        result, available = self._prepare(target, converters)
 
         if self.previous is not None:
             raise ActivationRejected(
                 "the previous version is still held"
             )
 
-        available = dict(converters or {})
-
-        for name, converter in available.items():
-            if not isinstance(name, str) or not isinstance(
-                converter,
-                Converter,
-            ):
-                raise TypeError(
-                    "converters must map names to Converter instances"
-                )
-
-        contents = self._stage_cells(result, available)
+        contents = self._stage_cells(result, available, self._context)
         references = self._stage_references(
             result,
             reject_untransferable_references,
@@ -436,10 +408,93 @@ class Runtime:
 
         return new
 
+    def trial(
+        self,
+        target: TransformResult | State,
+        converters: Mapping[str, Converter] | None = None,
+        *,
+        context: EvaluationContext | None = None,
+    ) -> "Runtime":
+        """Run a candidate in an isolated runtime (activation_model.md §8).
+
+        Cell content is staged exactly as activation would stage it, with the
+        same converters and checks, into a new runtime with its own root. A
+        trial is rejected whenever the activation would be, for the same
+        reason. This runtime is unchanged, and its two-version bound does
+        not apply: the isolated runtime's version does not count against it.
+        Runtime-held references and frames are not copied.
+
+        The isolated runtime evaluates constraints in ``context``, which
+        defaults to this runtime's context. Capabilities are not modelled
+        yet; the context and the converters are what a trial grants.
+        """
+
+        result, available = self._prepare(target, converters)
+        trial_context = context or self._context
+        contents = self._stage_cells(result, available, trial_context)
+
+        return Runtime._isolated(
+            result.destination,
+            contents,
+            trial_context,
+        )
+
+    @classmethod
+    def _isolated(
+        cls,
+        state: State,
+        contents: Mapping[EntityID, Any],
+        context: EvaluationContext,
+    ) -> "Runtime":
+        runtime = cls.__new__(cls)
+        runtime._context = context
+        runtime._active = Version(state, contents)
+        runtime._active._runtime = runtime
+        runtime._versions = [runtime._active]
+
+        return runtime
+
+    def _prepare(
+        self,
+        target: TransformResult | State,
+        converters: Mapping[str, Converter] | None,
+    ) -> tuple[TransformResult, dict[str, Converter]]:
+        if isinstance(target, State):
+            result = TransformResult(
+                source=self._active.state,
+                destination=target,
+                mappings=(),
+            )
+        elif isinstance(target, TransformResult):
+            result = target
+        else:
+            raise TypeError(
+                "expected a TransformResult or a State"
+            )
+
+        if result.source.id != self._active.id:
+            raise ActivationRejected(
+                "transformation does not start from the active state"
+            )
+
+        available = dict(converters or {})
+
+        for name, converter in available.items():
+            if not isinstance(name, str) or not isinstance(
+                converter,
+                Converter,
+            ):
+                raise TypeError(
+                    "converters must map names to Converter instances"
+                )
+
+        return result, available
+
     def _stage_cells(
         self,
         result: TransformResult,
         converters: Mapping[str, Converter],
+        context: EvaluationContext,
     ) -> dict[EntityID, Any]:
         old = self._active
         declarations = cells_of(result.destination)
@@ -515,7 +570,7 @@ class Runtime:
                     cell=cell,
                 )
 
-            outcome = declaration.constraint.evaluate(content, self._context)
+            outcome = declaration.constraint.evaluate(content, context)
 
             if outcome is not ConstraintResult.SATISFIED:
                 raise ActivationRejected(

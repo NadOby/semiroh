@@ -34,10 +34,14 @@ def _state_content(
         tuple[EntityID, ...],
     ],
 ) -> bytes:
+    # StateID hashes each entity's VersionID (cached on the value once
+    # derived) rather than the entity's raw content, so this never
+    # re-serializes content a transformation leaves unchanged
+    # (docs/state_model.md section 4).
     canonical_values = [
         (
             canonical_serialize(entity),
-            canonical_serialize(values[entity].content),
+            canonical_serialize(values[entity].version_id),
         )
         for entity in sorted(values)
     ]

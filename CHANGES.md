@@ -442,3 +442,17 @@ Composition APIs are specified in terms of these three result classes.
   adopting graph form, node-level self-modification, a second corpus tier,
   incremental compilation, a compiler pass that keeps continuity, and
   self-hosting.
+
+### Cheap StateID
+
+- Changed `StateID` derivation to hash each entity's `VersionID` together
+  with the ownership relation, instead of re-serializing every entity's
+  content on every state construction (docs/state_model.md section 4).
+- Cached `VersionID` on `Value` itself, derived once on first use and kept
+  with the value; since a fresh `Value` never starts with a cached
+  identity, an entity a transformation carries forward unchanged reuses
+  its cached `VersionID` for free, while a changed entity gets a fresh
+  one from its new content.
+- The cost of deriving a new state's identity no longer depends on the
+  size of content a transformation leaves unchanged, only on the number
+  of entities.

@@ -106,7 +106,9 @@ When a transformation explicitly maps:
 the source entity disappears from the destination state.
 
 This does not automatically mean that every entity formerly owned by `E` is
-also removed.
+also removed. Because the entities it owns would otherwise change owner
+implicitly, such a transformation must state the destination ownership
+explicitly (section 9).
 
 Transformation semantics operate on the explicitly defined destination state.
 
@@ -114,28 +116,28 @@ Recursive subtree destruction is a separate state operation.
 
 ## 8. Transformation mappings
 
-Entity continuity mappings do not implicitly modify ownership.
-
-A transformation may therefore establish:
+Ownership edges follow declared continuity. When a transformation maps
 
     source entity -> destination entity
 
-without changing ownership merely because the source and destination entities
-are related by continuity.
+the destination entity continues the source entity, so it keeps the source's
+place in the ownership forest: it owns what the source owned and is owned by
+what owned the source. This matches how relation endpoints follow continuity
+(relation_model.md section 5).
 
-If ownership changes, that change must be represented by the destination
-ownership relation.
+This reverses an earlier rule that continuity mappings never modify
+ownership. That rule silently orphaned the children of a renamed owner, which
+is an implicit ownership change.
 
-## 9. Preserved ownership
+## 9. Omitted ownership
 
-When a transformation does not explicitly provide destination ownership, the
-current model preserves the existing ownership relation subject to removal of
-edges involving entities that disappear.
+When a transformation does not explicitly provide destination ownership,
+edges follow declared continuity, and no entity that remains may change owner
+implicitly. The exact rules are in transformation_model.md section 13.
 
-This preserves existing ownership where the relevant entities remain present.
-
-The exact semantics of omitted ownership for future transformation forms remain
-subject to refinement.
+An ownership change that following cannot express, such as orphaning,
+reparenting, or resolving a split, is stated by supplying the destination
+ownership explicitly (section 10).
 
 ## 10. Explicit destination ownership
 

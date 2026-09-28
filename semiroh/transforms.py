@@ -13,6 +13,7 @@ from .references import (
     Reference,
     StaleReference,
 )
+from .ownership import follow_ownership
 from .relations import DanglingRelation, relation_of
 from .state import State
 from .values import Value, version_id_for
@@ -357,17 +358,15 @@ class TransformationDefinition:
         destination_ownership: Mapping[EntityID, Any]
 
         if ownership is None:
-            # Mappings do not modify ownership. Only edges involving entities
-            # absent from the destination are removed.
-            destination_ownership = {
-                owner: tuple(
-                    child
-                    for child in children
-                    if child in values
-                )
-                for owner, children in state.ownership.items()
-                if owner in values
-            }
+            # Ownership follows declared continuity; no remaining entity
+            # changes owner implicitly (transformation_model.md section 13).
+            destination_ownership = follow_ownership(
+                state.ownership,
+                {
+                    mapping.source_entity: mapping.destination_entities
+                    for mapping in self.mappings
+                },
+            )
         else:
             destination_ownership = ownership
 

@@ -142,10 +142,10 @@ therefore points to `b` afterwards, and a relation to `b` points to `a` or
 like any entity, the relation's own continuity must still be declared by the
 transformation (tools generate `r → r`).
 
-Unlike ownership edges, relations are never removed implicitly. An ownership
-edge is not an entity, so dropping it when an endpoint disappears loses no
-declared identity. A relation is an entity, and removing it silently would
-be an undeclared disappearance.
+Relations are never removed implicitly: a relation is an entity, and
+removing it silently would be an undeclared disappearance. Ownership edges
+follow declared continuity by the same rule; see transformation_model.md
+section 13.
 
 ## 6. Ownership
 

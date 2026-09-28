@@ -144,7 +144,7 @@ class TransformTests(unittest.TestCase):
             },
         )
 
-    def test_transform_does_not_infer_ownership_from_entity_mapping(
+    def test_transform_carries_ownership_along_renames(
         self,
     ) -> None:
         root = EntityID("root")
@@ -176,7 +176,9 @@ class TransformTests(unittest.TestCase):
 
         self.assertEqual(
             result.destination.ownership,
-            {},
+            {
+                new_root: (new_child,),
+            },
         )
 
         self.assertFalse(
@@ -192,8 +194,9 @@ class TransformTests(unittest.TestCase):
             result.destination.contains(new_child),
         )
 
-        self.assertIsNone(
-            result.destination.owner_of(new_child)
+        self.assertEqual(
+            result.destination.owner_of(new_child),
+            new_root,
         )
 
     def test_transform_can_explicitly_preserve_ownership_after_rename(
@@ -398,7 +401,7 @@ class MappingOwnershipPreservationTests(unittest.TestCase):
 
         self.assertEqual(result.destination.owner_of(child), root)
 
-    def test_merge_target_keeps_its_ownership(self) -> None:
+    def test_merged_owner_takes_over_the_children(self) -> None:
         source = EntityID("source")
         source_child = EntityID("source_child")
         target = EntityID("target")
@@ -428,12 +431,11 @@ class MappingOwnershipPreservationTests(unittest.TestCase):
         self.assertEqual(
             result.destination.ownership,
             {
-                target: (target_child,),
+                target: (source_child, target_child),
             },
         )
-        self.assertIsNone(result.destination.owner_of(source_child))
 
-    def test_swap_preserves_ownership(self) -> None:
+    def test_swap_carries_ownership(self) -> None:
         a = EntityID("a")
         b = EntityID("b")
         child = EntityID("child")
@@ -458,4 +460,5 @@ class MappingOwnershipPreservationTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(result.destination.ownership, state.ownership)
+        # b continues a, so b owns a's child.
+        self.assertEqual(result.destination.ownership, {b: (child,)})

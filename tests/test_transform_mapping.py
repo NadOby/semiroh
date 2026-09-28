@@ -8,6 +8,7 @@ from semiroh import (
     EntityID,
     EntityMapping,
     MissingEntityMapping,
+    OwnershipError,
     State,
     TransformResult,
     Value,
@@ -160,7 +161,9 @@ class TransformMappingTests(unittest.TestCase):
                 {},
             ).mapped_entity(state.reference(source))
 
-    def test_disappearance_removes_ownership_edges(self) -> None:
+    def test_owner_disappearing_while_children_remain_is_rejected(
+        self,
+    ) -> None:
         root = EntityID("root")
         child = EntityID("child")
         sibling = EntityID("sibling")
@@ -176,12 +179,24 @@ class TransformMappingTests(unittest.TestCase):
             },
         )
 
+        # The children would change owner implicitly (become unowned).
+        with self.assertRaises(OwnershipError):
+            transform_with_mapping(
+                state,
+                {},
+                {
+                    root: (),
+                },
+            )
+
+        # Supplying destination ownership states the change explicitly.
         result = transform_with_mapping(
             state,
             {},
             {
                 root: (),
             },
+            ownership={},
         )
 
         self.assertFalse(
@@ -490,7 +505,7 @@ class TransformMappingTests(unittest.TestCase):
             unmapped.destination.id,
         )
 
-    def test_transition_mapping_does_not_preserve_ownership_implicitly(
+    def test_transition_mapping_carries_ownership_to_the_continuation(
         self,
     ) -> None:
         source = EntityID("source")
@@ -516,9 +531,12 @@ class TransformMappingTests(unittest.TestCase):
             },
         )
 
+        # destination continues source, so it keeps source's children.
         self.assertEqual(
             result.destination.ownership,
-            {},
+            {
+                destination: (child,),
+            },
         )
         self.assertFalse(
             result.destination.contains(source),

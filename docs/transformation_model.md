@@ -477,27 +477,37 @@ Rebinding therefore does not preserve conceptual identity.
 
 Ownership is part of semantic state content.
 
-Transformation mappings do not implicitly modify ownership.
+No entity that remains in the destination may change owner implicitly.
 
-When no destination ownership relation is explicitly supplied, the
-transformation preserves the existing ownership relation subject to removal
-of entities that disappear.
+When no destination ownership relation is explicitly supplied, ownership
+edges follow declared continuity, as relation endpoints do
+([`relation_model.md`](relation_model.md) section 5):
 
-An entity disappearing from the destination removes ownership edges involving
-that entity.
+    owner or child mapped to exactly one entity
+        the edge follows the mapping (renames, merges, swaps, shifts)
 
-An explicitly mapped entity that remains present in the destination (for
-example `A → A`, or the target of a merge or swap) keeps its ownership edges.
-Being mentioned in a mapping is not itself a reason to change ownership.
+    endpoint not mapped
+        unchanged
 
-This does not imply recursive deletion of its owned descendants.
+    child disappears
+        the edge goes with the child; its disappearance is declared
 
+    owner disappears or splits while its child remains
+        rejected: the child would change owner implicitly
+
+    child splits
+        rejected: which destination stays owned is ambiguous
+
+The followed edges must still form a forest. Merging children of different
+owners into one entity, or a child into its own owner, is rejected.
+
+Disappearance does not imply recursive deletion of owned descendants.
 Recursive subtree destruction is a separate state operation.
 
 When explicit destination ownership is supplied, it defines the destination
-ownership relation directly and must refer only to destination entities.
-
-Ownership and ordinary entity continuity are therefore separate relations.
+ownership relation directly and must refer only to destination entities. This
+is how a transformation states an ownership change that following cannot
+express, such as orphaning or reparenting.
 
 ## 14. State identity
 

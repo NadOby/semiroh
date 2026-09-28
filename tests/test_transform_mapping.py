@@ -161,9 +161,12 @@ class TransformMappingTests(unittest.TestCase):
                 {},
             ).mapped_entity(state.reference(source))
 
-    def test_owner_disappearing_while_children_remain_is_rejected(
+    def test_named_children_of_a_disappearing_owner_need_explicit_ownership(
         self,
     ) -> None:
+        # Was test_owner_disappearing_while_children_remain_is_rejected.
+        # Unnamed children now disappear with their owner (ownership_model.md
+        # section 7), so the children are named to keep them.
         root = EntityID("root")
         child = EntityID("child")
         sibling = EntityID("sibling")
@@ -186,6 +189,8 @@ class TransformMappingTests(unittest.TestCase):
                 {},
                 {
                     root: (),
+                    child: child,
+                    sibling: sibling,
                 },
             )
 
@@ -195,6 +200,8 @@ class TransformMappingTests(unittest.TestCase):
             {},
             {
                 root: (),
+                child: child,
+                sibling: sibling,
             },
             ownership={},
         )

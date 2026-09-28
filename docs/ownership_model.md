@@ -97,22 +97,26 @@ Destruction therefore differs from mutation.
 
 ## 7. Transformation disappearance
 
-Transformation disappearance is distinct from recursive destruction.
+**Decided.** Disappearance and destruction are one operation: an owner's
+disappearance ends its owned subtree.
 
 When a transformation explicitly maps:
 
     E -> ()
 
-the source entity disappears from the destination state.
+the source entity disappears from the destination state, and so does every
+entity in its owned subtree that the transformation does not name as a
+mapping source or destination. The transformation result records each of
+these disappearances as a mapping to nothing, so the continuity record stays
+complete. A named descendant keeps what its mapping says; if it remains, its
+owner has changed, and that change must be stated explicitly (section 9).
 
-This does not automatically mean that every entity formerly owned by `E` is
-also removed. Because the entities it owns would otherwise change owner
-implicitly, such a transformation must state the destination ownership
-explicitly (section 9).
+`State.destroy()` is the same operation without a continuity record. In the
+runtime regime, the content of cells that disappear is discarded at
+activation (activation_model.md section 4).
 
-Transformation semantics operate on the explicitly defined destination state.
-
-Recursive subtree destruction is a separate state operation.
+This reverses an earlier rule that disappearance never removed owned
+descendants and made the transformation restate ownership instead.
 
 ## 8. Transformation mappings
 
@@ -149,6 +153,14 @@ It must refer only to destination entities and must satisfy the ownership
 invariants.
 
 It is not interpreted as a continuity mapping.
+
+**Decided: placement of created entities.** A transformation may declare
+placements, `created entity -> owner`, for entities it creates: present in
+the destination, absent from the source, and not a mapping destination. The
+owner must be in the destination and may itself be created, so a
+transformation can create a whole owned subtree. A created entity without a
+placement is top-level. Placements cannot be combined with explicit
+destination ownership, which already states the whole relation.
 
 ## 11. Ownership transfer
 
@@ -188,18 +200,16 @@ The following remain open:
 - capability-based ownership authority;
 - representation-level lifetime guarantees.
 
+Answered: deletion and disappearance are one operation (section 7), and
+creation places an entity through placements (section 10).
+
 Deferred until the first program implementations need them:
 
 - how ownership becomes part of the graph: one relation per ownership, one
   member list per owner, or the current store with the same rules;
-- whether deletion and disappearance are one operation, differing only
-  between the semantic and runtime regimes, so that an owner's disappearance
-  ends its owned subtree;
 - whether the top of the forest is owned by a virtual runtime root or by an
   explicit program root entity, to which modules, libraries, and entry points
   attach;
-- how creation places a new entity under its owner, including as a
-  guarantee that every transformation carries.
 
 ## 14. Design principle
 

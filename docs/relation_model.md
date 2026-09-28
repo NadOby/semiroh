@@ -209,6 +209,11 @@ evaluators.
 index is derived implementation data: it is rebuilt from state content and
 never contributes to `StateID` (README §29).
 
+The decoded relation record of a value is derived data of the same kind: it
+is decoded once and kept with the value, like its `VersionID`
+(state_model.md §4), so a relation a transformation carries unchanged is
+not decoded again.
+
 ## 9. What this does not add
 
 Relations add structure, not a computational model. In line with the design

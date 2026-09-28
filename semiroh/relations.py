@@ -145,21 +145,40 @@ def _decode_endpoint(node: CanonicalNode) -> Endpoint:
     return tuple(EntityID(item[2]) for item in node[2])
 
 
+_UNDECODED = object()
+
+
 def relation_of(value: Value) -> Relation | None:
-    """Return the relation record held by a value, if it is a relation."""
+    """Return the relation record held by a value, if it is a relation.
+
+    The record is decoded once and kept with the value, like its
+    ``VersionID`` (state_model.md section 4): a value carried unchanged
+    into a new state is not decoded again by the integrity check, endpoint
+    following, or constraint lookup of that state. Values and relation
+    records are immutable, so the kept record can never disagree with the
+    value's content.
+    """
+
+    cached = value.__dict__.get("_relation", _UNDECODED)
+
+    if cached is not _UNDECODED:
+        return cached
 
     content = value.content
+    record = None
 
     if isinstance(content, CanonicalNode) and content[1] == "relation":
         kind, roles, payload = content[2]
 
-        return Relation(
+        record = Relation(
             kind,
             {role: _decode_endpoint(endpoint) for role, endpoint in roles},
             payload,
         )
 
-    return None
+    object.__setattr__(value, "_relation", record)
+
+    return record
 
 
 def relations_of(state: State) -> Mapping[EntityID, Relation]:

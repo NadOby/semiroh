@@ -8,17 +8,17 @@ from semiroh import (
     AllOf,
     AnyOf,
     CellDeclaration,
-    Evaluator,
+    Constraint,
     ConstraintResult,
     EntityID,
     EvaluationContext,
+    Evaluator,
     External,
     IntRange,
     IsKind,
     Length,
     Not,
     OneOf,
-    Constraint,
     State,
     StateID,
     Value,
@@ -299,6 +299,52 @@ def random_constraint(rng: random.Random, depth: int = 3) -> Constraint:
         return AnyOf(*parts)
 
     return Not(random_constraint(rng, depth - 1))
+
+
+def concrete_constraint_classes() -> set[type]:
+    found: set[type] = set()
+    pending = [Constraint]
+
+    while pending:
+        for subclass in pending.pop().__subclasses__():
+            pending.append(subclass)
+            found.add(subclass)
+
+    return found
+
+
+ONE_OF_EACH = [
+    IsKind("int"),
+    IntRange(0, 5),
+    Length(1, 3),
+    OneOf(1, "a", (2,)),
+    AllOf(IsKind("int"), IntRange(0)),
+    AnyOf(IsKind("str"), Not(Length(0, 0))),
+    Not(IsKind("none")),
+    External("even"),
+]
+
+
+class ConstraintRoundTripTests(unittest.TestCase):
+    def test_every_constraint_class_has_a_sample(self) -> None:
+        # A new constraint class must be added to ONE_OF_EACH, so that the
+        # round-trip test below covers it.
+        self.assertEqual(
+            {type(sample) for sample in ONE_OF_EACH},
+            concrete_constraint_classes(),
+        )
+
+    def test_every_constraint_round_trips_through_a_value(self) -> None:
+        entity = EntityID("rule")
+
+        for sample in ONE_OF_EACH:
+            with self.subTest(sample=sample):
+                rebuilt = Constraint.from_content(
+                    Value.create(entity, sample).content
+                )
+
+                self.assertIs(type(rebuilt), type(sample))
+                self.assertEqual(rebuilt, sample)
 
 
 class ConstraintProperties(unittest.TestCase):

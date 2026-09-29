@@ -9,9 +9,12 @@ view (syntax_notes.md, Direction A): `parse` reads text into the input
 format, which `load` turns into graph form, and `render` prints graph form
 back as text. The graph stays authoritative; text is a projection.
 
-Version 0 is **import-only**: editing text and parsing it again creates new
-nodes. A reconciler that turns an edited text into a transformation with
-continuity comes later (roadmap.md, Later).
+`parse` itself is import-only: parsing text produces input-format state and
+does not infer continuity with an existing graph. Editing an existing program
+uses `reconcile(state, text)`, specified in `name_resolution.md`: it resolves
+the edited text and expresses the change through `lang.define`, so task 13's
+continuity inference applies. Cell declaration edits remain outside the
+current reconciler.
 
 ## 1. Programs
 

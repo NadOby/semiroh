@@ -1,6 +1,7 @@
 name: Semantic model
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - "semiroh/**"

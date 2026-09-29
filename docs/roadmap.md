@@ -204,6 +204,8 @@ to call a function chosen at run time and to read a function by reference
 
 ### 11. Text syntax, version 0 (handoff)
 
+**Done** (#PR pending). The design is in syntax.md.
+
 A parser from text (syntax_notes.md, Direction A) into the input format and
 a printer from graph form, import-only (syntax.md). Done when the corpus
 round-trips through text by behaviour and by text, and the examples not

@@ -84,8 +84,8 @@ cells; the bytecode and VM shapes; the operations of constant folding; the
 output of the SEMIROH lowering pass and the pure-code limits of the SEMIROH
 VM.
 
-**Not touched yet:** human-writable syntax (programs are still nested
-tuples), systems data (structures, layout, references between cells),
+**Not touched yet:** editing text (the text syntax of docs/syntax.md is
+import-only), systems data (structures, layout, references between cells),
 modules and name resolution, closures, error handling inside the language,
 concurrency, native code, capabilities beyond one grant, and formal
 semantics.

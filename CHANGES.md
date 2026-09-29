@@ -803,3 +803,25 @@ Composition APIs are specified in terms of these three result classes.
   and 25 now name the language layer, the canary corpus and the mutation
   tests. Docs were checked for stale statuses and references; none needed
   changes.
+
+### Text syntax, version 0
+
+- Added `semiroh/syntax.py`: `parse(text, base=None)` reads program text
+  (cells, functions, blocks with `let` and `if`, expressions, `quote`,
+  `unquote`, `literal`, `fn`, `activate`, `trial`, `label`, `raw`) into the
+  input format, with a links relation made from the global names each body
+  uses; `render` and `render_program` print graph form back as text, with the
+  current target names, and `raw(...)` for what the syntax cannot write.
+  Import-only: editing text and parsing it again creates new nodes
+  (docs/syntax.md).
+- The corpus round-trips by behaviour and by text. Only `instrument` prints
+  `raw`, for a cell write inside a quote template.
+- Decided on contact with the corpus (syntax.md sections 1, 2, 4 and 8): a
+  `let` value may be a cell write; an `IntRange` bound may be left out; the
+  names in code installed by `activate` or `trial` into a function are also
+  links of that function (the links of a function declared in text come
+  only from the text, so a function that a self-modifying one rewrites
+  would otherwise lack the links its new code needs); a reserved word in
+  backquotes is an ordinary name.
+- `render_program` prints cells too, since a printed function is not a
+  program without the cells it names. No existing module or test changed.

@@ -2,7 +2,7 @@
 
 import unittest
 
-from semiroh import EntityID
+from semiroh import EntityID, State
 from semiroh.lang import function_at, load
 from semiroh.reconcile import ReconcileError, reconcile
 from semiroh.syntax import parse, render_program
@@ -269,12 +269,15 @@ class ReconcileTests(unittest.TestCase):
         collision = EntityID("use.reconcile.links")
         values = dict(state.values)
         values[collision] = state.values[F]
-        occupied = state.with_values(values)
+        occupied = State(values, state.ownership)
 
         destination = reconcile(occupied, after).destination
 
         self.assertIn(collision, destination.values)
-        self.assertEqual(destination.values[collision], occupied.values[collision])
+        self.assertEqual(
+            destination.values[collision],
+            occupied.values[collision],
+        )
         self.assertEqual(
             function_at(destination, USE),
             function_at(program(after), USE),

@@ -157,6 +157,22 @@ class RuleOneTests(unittest.TestCase):
         self.assertEqual(old[o(0)], same[n(0)])
         self.assertNotEqual(old[o(0)], differs[n(1)])
 
+    def test_the_order_of_operands_in_one_role_is_part_of_the_shape(self) -> None:
+        # `seq` holds its items in one role. Reordered, it is another shape:
+        # the items are kept on their own, each by its content, and are
+        # not paired by position under a matched `seq`.
+        old = side("o", lit(1), lit(2), Relation("seq", {"items": (o(0), o(1))}))
+        new = side("n", lit(2), lit(1), Relation("seq", {"items": (n(0), n(1))}))
+        table: dict = {}
+
+        self.assertNotEqual(
+            shapes(old, table)[o(2)], shapes(new, table)[n(2)]
+        )
+        self.assertEqual(
+            match(old, new, [(n(2), o(2))]),
+            {n(0): o(1), n(1): o(0), n(2): o(2)},
+        )
+
 
 class RuleTwoTests(unittest.TestCase):
     def test_the_position_is_kept_when_the_kind_is_the_same(self) -> None:

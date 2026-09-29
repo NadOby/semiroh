@@ -297,8 +297,6 @@ and `MISSING` is empty.
 - Systems data: structs, arrays and references between cells, with layout
   changes handled by converters.
 - Error handling inside the language, when a corpus program needs it.
-- Closures: a function built at run time cannot be applied (corpus
-  `MISSING`).
 - Function references held in cells follow renames (language_data.md §3).
 - Syntax and tooling notes (syntax_notes.md): graph and IR views next to
   the source view of task 11.

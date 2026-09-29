@@ -14,7 +14,7 @@ runs everything; the interpreter is one more program on it.
 
 ## 1. Two operations
 
-**Provisional.**
+**Provisional:**
 
     ("applyv", f, args)     call the function f refers to with the items of
                             the tuple args
@@ -41,7 +41,7 @@ what a function links and call what it finds. Neither reads or writes a cell.
 
 ## 2. The interpreter
 
-**Provisional.**
+**Provisional:**
 
 `vm(chunk, params, args, links)` runs a chunk as `lower` emits it
 (self_hosting.md section 2): `EVAL`, `GOTO`, `BRANCH` and `LETBIND` hold the
@@ -71,7 +71,9 @@ as data.
 
 ## 3. Where it differs from the machine
 
-**Provisional.** Each is a deviation for which a test says what happens.
+**Provisional:**
+
+Each is a deviation for which a test says what happens.
 
 - **Errors are made by doing.** The language has no way to raise, so a check
   is the operation itself: `INT` adds zero, `TUPLE` takes the length, an
@@ -92,7 +94,7 @@ as data.
 
 ## 4. Swapping onto the interpreter
 
-**Decided.**
+**Decided:**
 
 `semiroh/examples/vm.py` builds `swap_all()`. It reads each function of the
 compiler (`upper`, `evals`, `seq_code`, `lower`) with `code` and `linksof`,

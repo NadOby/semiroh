@@ -185,6 +185,41 @@ class RuleTwoTests(unittest.TestCase):
             {n(2): o(2), n(0): o(0), n(1): o(1)},
         )
 
+    def test_a_root_matched_by_rule_one_keeps_that_match(self) -> None:
+        # Unwrapping: the new body is the old body's inner `add`. Rule 1
+        # matches it to the inner node; the old root is free and has the
+        # same kind, but the position only serves a root nothing matched.
+        old = side(
+            "o", lit(1), lit(2), op("add", o(0), o(1)), lit(3),
+            op("add", o(2), o(3)),
+        )
+        new = side("n", lit(1), lit(2), op("add", n(0), n(1)))
+
+        self.assertEqual(
+            match(old, new, [(n(2), o(4))]),
+            {n(2): o(2), n(0): o(0), n(1): o(1)},
+        )
+
+    def test_unwrapping_a_body_keeps_the_inner_node_and_drops_the_old_root(
+        self,
+    ) -> None:
+        state = load(input_state({
+            F: Function(
+                ("x",),
+                ("add", ("add", ("arg", "x"), ("lit", 1)), ("lit", 2)),
+            ),
+        }))
+        root = _body(state)
+        inner = relation_of(state.values[root]).roles["left"]
+
+        result = define(state, {F: Function(("x",), ("add", ("arg", "x"), ("lit", 1)))})
+
+        self.assertEqual(_body(result.destination), inner)
+        self.assertFalse(result.destination.contains(root))
+        self.assertEqual(result.mapping_for(root).destination_entities, ())
+        self.assertEqual(result.mapping_for(inner).destination_entities, (inner,))
+        self.assertEqual(run(Runtime(result.destination), F, 5), 6)
+
 
 class MatchingProperties(unittest.TestCase):
     def test_the_result_does_not_depend_on_the_order_of_either_side(self) -> None:

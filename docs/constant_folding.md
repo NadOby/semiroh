@@ -11,7 +11,9 @@ about the pass enters identity; the continuity is metadata of the
 
 ## 1. What it does
 
-**Provisional** (the set of operations).
+**Provisional:**
+
+The set of operations.
 
 `fold_constants(state)` returns a `TransformResult` for every function of a
 graph-form state. It folds:
@@ -31,7 +33,7 @@ rest of the expression still folds.
 
 ## 2. The continuity it declares
 
-**Decided.**
+**Decided:**
 
 Every entity the pass does not touch maps to itself, so its `EntityID` and
 `VersionID` stay.
@@ -66,7 +68,7 @@ does not enter its identity.
 
 ## 3. Hot swap
 
-**Decided.**
+**Decided:**
 
 The result is activated like any other (`Runtime.activate`); a running
 program swaps to the folded code, and a frame in flight keeps the nodes it

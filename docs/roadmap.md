@@ -211,6 +211,40 @@ a printer from graph form, import-only (syntax.md). Done when the corpus
 round-trips through text by behaviour and by text, and the examples not
 tagged self-modification render without `raw`.
 
+## E. Continuity
+
+After an outside review (owner-relayed): the project's distinctive claim is
+semantic continuity, and continuity is specified where a transformation
+declares it but not where it must be inferred, as in ordinary edits. So
+the next wave makes continuity explicit before the reconciler.
+
+### 12. Continuity corpus (handoff)
+
+Cases with expected continuity for rename, move, insert, delete, split,
+merge, fold, activate and upgrade (continuity_corpus.md). Cases that hold
+today pin the current rules; cases that do not are recorded as gaps, and
+become the input of task 13.
+
+### 13. Continuity inference (one session)
+
+Deterministic rules for continuity nobody declares: keeping unchanged
+descendants in an edit, matching a new tree against an old one (an
+ambiguous match gets a new identity, never a guess), moves across
+functions, and merging or rejecting two transformations of the same state.
+Done when the gaps of task 12 hold.
+
+### 14. Where the graph earns its keep (one session)
+
+A short ledger comparing each capability of graph form with what an AST,
+a symbol table and a dependency index would need, with the measurements
+of tasks 7, 9, 12 and 13. Weak rows are recorded as such.
+
+### 15. Reconciler (one session)
+
+Text edits become transformations with continuity (task 13's rules), so
+editing text keeps the identity of everything the edit does not touch.
+Lexical and module name resolution are specified first.
+
 ## Later
 
 - Text syntax, with a reconciler that turns an edited text into a

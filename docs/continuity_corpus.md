@@ -149,31 +149,28 @@ closes fails the test until its status is flipped, which is the point.
 
 ## 5. What holds today
 
-**Provisional**, since it records the model as it is; task 13 flips gaps.
-No prediction of sections 2 and 4 was wrong. Each case's `note` says what
-the model does.
+**Provisional**, since it records the model as it is. No prediction of
+sections 2 and 4 was wrong. Each case's `note` says what the model does.
 
-Holds (11): `rename`, `delete_function`, `delete_called`, `merge_cells`,
-`split_cell`, `upgrade_cell`, `fold`, `activate_define`, `leaf_replace`,
-`ambiguous_duplicate`, `conflicting_edits`. Declared continuity and the
-label edit behave as specified. Two of them hold weakly:
+All 21 hold since task 13 (continuity_inference.md). The ten gaps of task
+12 were closed by inference in `define` (`insert`, `remove`, `wrap`,
+`unwrap`, `swap`, `shared_subtree`, `redefine_same`), by `rebase` in the
+runtime (`rebase_disjoint`), and by one `define` that creates, removes and
+relinks functions (`extract_function`, `inline_function`, whose operations
+changed; their sources and expectations did not). The two that held
+weakly under task 12 now hold for their own reason: `ambiguous_duplicate`
+by the uniqueness of rule 1, and `conflicting_edits` as a
+`TransformationConflict`, not a stale source.
 
-- `ambiguous_duplicate` holds because nothing is inferred, so the remaining
-  `x` is new like everything else; it must keep holding when inference
-  exists.
-- `conflicting_edits` holds because the runtime rejects any second result
-  from the same source as stale, whether or not it conflicts.
+Still weak:
 
-Gaps (10), in three kinds:
-
-- Whole-body `define` declares that every old node disappears and the new
-  ones are created (`f/1.n`), so nothing is kept that a tree match would
-  keep: `insert`, `remove`, `wrap`, `unwrap`, `swap`, `shared_subtree`, and
-  `redefine_same`, where a body equal to the old one still renews every
-  node.
-- Nothing re-bases a result onto a later state: `rebase_disjoint` (two
-  edits of different labels) is rejected as stale in either order.
-- No operation moves a node to another function: `extract_function` and
-  `inline_function`. Loading the edited program declares no continuity, and
-  because `load` names nodes by function, generation and index, the ids
-  `f/0.n` come back on other nodes.
+- `extract_function` and `inline_function` also pin the Provisional shape
+  of the operation (a links relation as a `define` entry, None to
+  remove); a different shape would change their operations, not their
+  expectations.
+- `rebase_disjoint` combines because both label edits keep their labelled
+  node (rule 2), so the function's value is unchanged. Two label edits of
+  one function that each give the position a new node change its label
+  table and conflict (continuity_inference.md §6).
+- `wrap` relies on `f` already linking `double`, since a new body
+  resolves link names through the function's existing link table.

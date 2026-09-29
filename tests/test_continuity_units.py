@@ -247,8 +247,13 @@ def leaf_edit(state: State) -> TransformResult:
     return define(state, {(F, "step"): ("lit", 10)})
 
 
-def whole_edit(state: State) -> TransformResult:
-    return define(state, {F: Function(("x",), ("arg", "x"))})
+def unrelated_edit(state: State) -> TransformResult:
+    """A whole-body edit that shares no subtree with the old body and
+    changes the root's kind, so inference keeps no node: every old node
+    disappears and every new one is created (continuity_inference.md §2).
+    """
+
+    return define(state, {F: Function(("x",), ("lit", 2))})
 
 
 def forgotten(state: State) -> TransformResult:
@@ -281,14 +286,14 @@ class CheckTests(unittest.TestCase):
 
     def test_a_node_that_is_absent_after_is_not_kept_or_changed(self) -> None:
         wrong = self.mismatches(
-            Expect(kept=("node:f@1",), changed=("node:f@",)), whole_edit
+            Expect(kept=("node:f@1",), changed=("node:f@",)), unrelated_edit
         )
 
         self.assertEqual(len(wrong), 2)
         self.assertTrue(all("absent after" in mismatch for mismatch in wrong))
 
     def test_gone_needs_a_recorded_disappearance(self) -> None:
-        self.assertEqual(self.mismatches(Expect(gone=("node:f@1",)), whole_edit), ())
+        self.assertEqual(self.mismatches(Expect(gone=("node:f@1",)), unrelated_edit), ())
 
         unrecorded = self.mismatches(Expect(gone=("node:f@1",)), forgotten)
         self.assertEqual(len(unrecorded), 1)
@@ -299,7 +304,7 @@ class CheckTests(unittest.TestCase):
         self.assertIn("still present", present[0])
 
     def test_new_means_absent_before_and_present_after(self) -> None:
-        self.assertEqual(self.mismatches(Expect(new=("after:f@",)), whole_edit), ())
+        self.assertEqual(self.mismatches(Expect(new=("after:f@",)), unrelated_edit), ())
 
         wrong = self.mismatches(Expect(new=("after:f@1",)), leaf_edit)
         self.assertEqual(len(wrong), 1)

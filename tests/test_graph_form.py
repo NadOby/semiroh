@@ -112,7 +112,9 @@ class LoadTests(unittest.TestCase):
 
 
 class EditTests(unittest.TestCase):
-    def test_define_replaces_one_body_and_nothing_else(self) -> None:
+    def test_define_edits_one_body_keeping_what_is_unchanged_and_nothing_else(
+        self,
+    ) -> None:
         state = load(source_program())
         old_nodes = nodes(state, INCREMENT)
         replacement = Function(
@@ -122,15 +124,34 @@ class EditTests(unittest.TestCase):
 
         result = define(state, {INCREMENT: replacement})
         destination = result.destination
+        new_nodes = nodes(destination, INCREMENT)
 
         self.assertEqual(function_at(destination, INCREMENT), replacement)
 
         # Every entity define creates is a new node owned by the function.
         created = set(destination.values) - set(state.values)
         self.assertTrue(created)
-        self.assertEqual(created, set(nodes(destination, INCREMENT)))
+        self.assertLessEqual(created, set(new_nodes))
 
-        for node in old_nodes:
+        # Identity follows the expression (continuity_inference.md §2): the
+        # unchanged `read counter` keeps its node and version, the root
+        # keeps its node with new content, and the rest disappears.
+        def kind(state: State, node: EntityID) -> str:
+            return relation_of(state.values[node]).kind
+
+        kept = set(old_nodes) & set(new_nodes)
+        self.assertEqual(
+            {
+                kind(destination, node): old_nodes[node] == new_nodes[node]
+                for node in kept
+            },
+            {"write": False, "read": True},
+        )
+
+        gone = set(old_nodes) - set(new_nodes)
+        self.assertEqual(sorted(kind(state, node) for node in gone), ["add", "lit"])
+
+        for node in gone:
             self.assertFalse(destination.contains(node))
             self.assertEqual(result.mapping_for(node).destination_entities, ())
 

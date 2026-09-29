@@ -919,29 +919,53 @@ class GraphFormTests(unittest.TestCase):
         with self.assertRaisesRegex(LanguageError, "load"):
             run(Runtime(program), F)
 
-    def test_define_rejects_what_is_not_a_function(self) -> None:
+    def test_define_rejects_what_is_not_a_function_and_creates_an_absent_one(
+        self,
+    ) -> None:
+        # define may create a function (continuity_inference.md §4), so an
+        # absent entity is rejected only where there is nothing to create.
+        absent = EntityID("absent")
         state = make_state({F: Function((), ("lit", 1)), CELL: unbounded_cell()})
 
-        for target in (CELL, EntityID("absent")):
-            with self.subTest(target=target):
+        for edits in (
+            {CELL: Function((), ("lit", 2))},
+            {absent: None},
+            {(absent, "step"): ("lit", 2)},
+        ):
+            with self.subTest(edits=edits):
                 with self.assertRaises(LanguageError):
-                    define(state, {target: Function((), ("lit", 2))})
+                    define(state, edits)
 
-    def test_repeated_defines_never_reuse_a_node_entity(self) -> None:
-        # An unrelated entity already has the name the next body would use.
+        created = define(state, {absent: Function((), ("lit", 2))}).destination
+
+        self.assertEqual(function_at(created, absent), Function((), ("lit", 2)))
+        self.assertEqual(run(Runtime(created), absent), 2)
+
+    def test_repeated_defines_never_create_a_node_under_a_used_name(self) -> None:
+        # Inference keeps unchanged nodes (continuity_inference.md §2), but a
+        # created node never takes the name of an entity that exists or of a
+        # node that disappeared. An unrelated entity already has the name
+        # the next body would use.
         state = make_state({
             F: Function((), ("lit", 0)),
             EntityID("f/1.0"): 7,
         })
         seen = set(state.values)
+        created_any = False
 
         for step in range(1, 5):
             body = ("add", ("lit", step), ("lit", 1))
-            state = define(state, {F: Function((), body)}).destination
+            result = define(state, {F: Function((), body)})
+            created = set(result.destination.values) - set(state.values)
+            state = result.destination
 
-            self.assertTrue(set(nodes_of(state, F)).isdisjoint(seen))
+            self.assertTrue(created.isdisjoint(seen))
+            self.assertLessEqual(created, set(nodes_of(state, F)))
             self.assertEqual(run(Runtime(state), F), step + 1)
+            created_any = created_any or bool(created)
             seen |= set(state.values)
+
+        self.assertTrue(created_any)
 
     def test_define_depends_only_on_its_arguments(self) -> None:
         state = function_only(("lit", 1))
@@ -1095,7 +1119,12 @@ def _random_body(rng: random.Random, depth: int) -> tuple:
 
 
 class GraphFormProperties(unittest.TestCase):
-    def test_load_and_define_round_trip_any_body(self) -> None:
+    def test_load_and_define_round_trip_any_body_keeping_only_what_matches(
+        self,
+    ) -> None:
+        # A node survives define only by continuity_inference.md §2: with
+        # equal content (rule 1) or as the body root keeping its kind
+        # (rule 2); every other old node is a recorded disappearance.
         for seed in range(300):
             with self.subTest(seed=seed):
                 rng = random.Random(seed)
@@ -1110,12 +1139,23 @@ class GraphFormProperties(unittest.TestCase):
 
                 self.assertEqual(function_at(state, F), source)
 
-                defined = define(state, {F: replacement}).destination
+                result = define(state, {F: replacement})
+                defined = result.destination
+                root = relation_of(defined.values[F]).roles["body"]
 
                 self.assertEqual(function_at(defined, F), replacement)
-                self.assertTrue(
-                    set(nodes_of(defined, F)).isdisjoint(nodes_of(state, F))
-                )
+
+                for node in nodes_of(state, F):
+                    if node not in defined.values:
+                        self.assertEqual(
+                            result.mapping_for(node).destination_entities, ()
+                        )
+                    elif defined.values[node] != state.values[node]:
+                        self.assertEqual(node, root)
+                        self.assertEqual(
+                            relation_of(defined.values[node]).kind,
+                            relation_of(state.values[node]).kind,
+                        )
 
 
 if __name__ == "__main__":

@@ -54,6 +54,15 @@ Activation is atomic from the program's point of view: either `S₁` becomes
 active with every required transfer completed, or `S₀` stays active and
 runtime state is unchanged.
 
+A result must start from the active state. A result whose source is a
+state this runtime had active earlier is rebased over every result
+activated since, in order (continuity_inference.md §5): disjoint edits
+combine, and overlapping ones raise `ActivationConflict`, which is both
+`ActivationRejected` and `TransformationConflict`. A result from a state
+the runtime never had active is rejected as stale ("does not start from
+the active state"), not as a conflict. `trial` does the same.
+**Provisional**: the runtime remembers every result it activated.
+
 Activating a state for which no transformation from the active state
 exists gives every live entity unknown continuity. Such an activation is
 therefore rejected whenever any mutable cell holds live content (section 4),
@@ -358,7 +367,8 @@ The Python reference model currently provides:
         section 4 with named Converters, reference transfer or pinning
         (section 6), rejection while the previous version is held, and
         retirement of a superseded version when its last hold is released
-        (section 7)
+        (section 7); a result from an earlier active state is rebased over
+        the results activated since (section 2)
 
     Runtime.trial
         runs a candidate in an isolated runtime with its own root: cell

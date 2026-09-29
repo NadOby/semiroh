@@ -29,7 +29,7 @@ from .cells import CellDeclaration, cell_declaration
 from .constraints import EvaluationContext
 from .identity import EntityID
 from .fold import fold_constants
-from .lang import define, function_at, function_of, load
+from .lang import LINKS_KIND, define, function_at, function_of, links, load
 from .relations import DanglingRelation, relation_of
 from .runtime import ActivationRejected, Converter, Runtime
 from .state import State
@@ -529,18 +529,30 @@ def _competing(*edits: tuple[str, str, Any]) -> Operation:
     return operation
 
 
-def _reimport(program: str) -> Operation:
-    """The closest a host gets when no operation expresses an edit: load the
-    edited program as it is written (syntax.md: import-only), with no
-    continuity declared between the two states.
+def _restate(program: str, *removed: str) -> Operation:
+    """One ``define`` that gives every function of ``program`` its body and
+    link table there, creating a function the state does not have, and
+    removes the functions ``removed`` (continuity_inference.md section 4).
     """
 
     def operation(state: State) -> TransformResult:
-        return TransformResult(
-            source=state,
-            destination=load(parse(program)),
-            mappings=(),
-        )
+        edited = parse(program)
+        edits: dict[Any, Any] = {EntityID(name): None for name in removed}
+
+        for entity in sorted(edited.values):
+            function = function_of(edited.values[entity])
+
+            if function is not None:
+                edits[entity] = function
+                edits[EntityID(f"{entity.value}.links")] = links(entity)
+
+        for entity in sorted(edited.values):
+            relation = relation_of(edited.values[entity])
+
+            if relation is not None and relation.kind == LINKS_KIND:
+                edits[entity] = relation
+
+        return define(state, edits)
 
     return operation
 
@@ -788,12 +800,11 @@ CASES: tuple[Case, ...] = (
         writes={"cell:hits": 5},
         status="holds",
         note=(
-            "Holds. A `define` of one labelled node changes that node and "
-            "keeps every other node and the function's definition. The cell "
-            "maps to itself and keeps its runtime content (5, written before "
-            "the activation) instead of returning to its initial 0. (A "
-            "whole-body `define` would pin today's non-inference, which "
-            "roadmap task 13 changes; the inferred group covers that.)"
+            "Holds. A `define` of one labelled node keeps that node by rule 2 "
+            "(same kind, new content) and keeps every other node and the "
+            "function's definition. The cell maps to itself and keeps its "
+            "runtime content (5, written before the activation) instead of "
+            "returning to its initial 0."
         ),
     ),
     # -- inferred: an edit that declares no continuity for what it touches --
@@ -808,9 +819,9 @@ CASES: tuple[Case, ...] = (
         ),
         status="holds",
         note=(
-            "Holds. A label edit keeps the labelled node's EntityID with new "
-            "content; its parent, `x` and the function's own value keep their "
-            "versions."
+            "Holds. The labelled node keeps its EntityID by rule 2 (a literal "
+            "for a literal) with new content; its parent, `x` and the "
+            "function's own value keep their versions."
         ),
     ),
     Case(
@@ -823,13 +834,12 @@ CASES: tuple[Case, ...] = (
             at={"node:f@0": "after:f@0.0", "node:f@1": "after:f@1"},
             new=("after:f@0", "after:f@0.1"),
         ),
-        status="gap",
+        status="holds",
         note=(
-            "Gap. `define` replaces the whole body: every old node maps to "
-            "nothing and the new tree is created as `f/1.n`, so `a` and `b` are "
-            "gone and come back as new nodes. Nothing matches the old tree "
-            "against the new one. The expected `new` nodes are new only because "
-            "everything is."
+            "Holds. `a` and `b` are unique leaves on both sides and keep their "
+            "EntityID and VersionID by rule 1, `a` moving under the new inner "
+            "`add`; the root keeps its EntityID by rule 2 with new operands; "
+            "the inner `add` and `c` are created."
         ),
     ),
     Case(
@@ -842,10 +852,10 @@ CASES: tuple[Case, ...] = (
             at={"node:f@0.0": "after:f@0", "node:f@1": "after:f@1"},
             gone=("node:f@0.1", "node:f@0"),
         ),
-        status="gap",
+        status="holds",
         note=(
-            "Gap, as insert: `a` and `b` disappear with the rest of the old "
-            "body and the new `a` and `b` are new nodes."
+            "Holds. `a` and `b` are kept by rule 1 and the root by rule 2 with "
+            "new operands; the inner `add` and `c` disappear."
         ),
     ),
     Case(
@@ -858,12 +868,13 @@ CASES: tuple[Case, ...] = (
             at={"node:f@0": "after:f@0.0"},
             new=("after:f@0",),
         ),
-        status="gap",
+        status="holds",
         note=(
-            "Gap, as insert: the old `x` disappears and the `x` under the new "
-            "call is a new node. (`f` already calls `double` elsewhere, because "
-            "a new body resolves link names through the function's existing "
-            "link table.)"
+            "Holds. `double(1)` is kept whole and `x` is kept under the new "
+            "call, both by rule 1; the root keeps its EntityID by rule 2; the "
+            "new call is created. (`f` already calls `double` elsewhere, "
+            "because a new body resolves link names through the function's "
+            "existing link table.)"
         ),
     ),
     Case(
@@ -876,10 +887,11 @@ CASES: tuple[Case, ...] = (
             at={"node:f@0.0": "after:f@0"},
             gone=("node:f@0",),
         ),
-        status="gap",
+        status="holds",
         note=(
-            "Gap, as insert: the old `x` and the call both disappear and the "
-            "`x` left is a new node."
+            "Holds. `x` is kept by rule 1 and moves up to the root's operand; "
+            "`double(1)` is kept whole; the call around `x` disappears; the "
+            "root keeps its EntityID by rule 2."
         ),
     ),
     Case(
@@ -892,10 +904,11 @@ CASES: tuple[Case, ...] = (
             at={"node:f@0": "after:f@1", "node:f@1": "after:f@0"},
             changed=("node:f@",),
         ),
-        status="gap",
+        status="holds",
         note=(
-            "Gap, as insert: even the root `sub` disappears and comes back new, "
-            "so `changed` fails too."
+            "Holds. `a` and `b` keep their identities by rule 1 and trade "
+            "places; the root keeps its EntityID by rule 2 and is changed, "
+            "since its operands trade places."
         ),
     ),
     Case(
@@ -904,12 +917,11 @@ CASES: tuple[Case, ...] = (
         source="fn f(x):\n    x + 1\n",
         operation=_redefine_same,
         expect=Expect(kept=("node:f@", "node:f@0", "node:f@1")),
-        status="gap",
+        status="holds",
         note=(
-            "Gap. `define` with the function's own body (from `function_at`) "
-            "still gives fresh nodes `f/1.n`: every old node disappears and an "
-            "equal one is created, so an edit that changes nothing changes "
-            "every identity."
+            "Holds. The whole body is matched by rule 1, so no node changes, "
+            "the definition keeps its generation, and the destination is the "
+            "source state (same StateID)."
         ),
     ),
     Case(
@@ -918,10 +930,11 @@ CASES: tuple[Case, ...] = (
         source="fn f(x):\n    (x + 1) * 2\n",
         operation=_redefine("f", "fn f(x):\n    (x + 1) * 3\n"),
         expect=Expect(kept=("node:f@0", "node:f@0.0", "node:f@0.1")),
-        status="gap",
+        status="holds",
         note=(
-            "Gap, as insert: the unchanged `x + 1` disappears and is created "
-            "again."
+            "Holds. `x + 1` is the largest unique subtree and is kept whole by "
+            "rule 1; the root is kept by rule 2 with the literal `2` replaced "
+            "by a new `3`."
         ),
     ),
     Case(
@@ -935,10 +948,10 @@ CASES: tuple[Case, ...] = (
         ),
         status="holds",
         note=(
-            "Holds, vacuously: nothing is inferred today, so the remaining `x` "
-            "is new because every node of a redefined body is. It must still "
-            "hold once inference exists: two old nodes match, so neither may be "
-            "kept."
+            "Holds, now by the rules and no longer vacuously: the new `x` has "
+            "two candidates among the old nodes, so neither is kept (rule 1), "
+            "and rule 2 does not apply because the root's kind changes (`add` "
+            "to `arg`). The `x` left is created."
         ),
     ),
     # -- competing: two transformations built from the same state -----------
@@ -951,12 +964,12 @@ CASES: tuple[Case, ...] = (
             ("f", "right", ("lit", 20)),
         ),
         expect=Expect(changed=("node:f@0", "node:f@1")),
-        status="gap",
+        status="holds",
         note=(
-            "Gap. The second result was built from the initial state, not the "
-            "active one, so the runtime rejects it in either order "
-            "(ActivationRejected: transformation does not start from the active "
-            "state). Nothing re-bases a result onto a later state."
+            "Holds. The runtime rebases the second result over the first "
+            "(`transforms.rebase`): the two label edits touch disjoint nodes, "
+            "so in either order both apply, and the final state is the one a "
+            "single `define` of both edits gives."
         ),
     ),
     Case(
@@ -970,11 +983,10 @@ CASES: tuple[Case, ...] = (
         expect=Expect(rejected=ActivationRejected),
         status="holds",
         note=(
-            "Holds, but by the rule that fails rebase_disjoint: any second "
-            "result from the same source is rejected as stale, conflicting or "
-            "not. The case says nothing about detecting conflicts; a rebase "
-            "that makes rebase_disjoint apply must keep this one rejected, for "
-            "the right reason."
+            "Holds, now for the right reason: the runtime rebases the second "
+            "result over the first, both touch the labelled node, and the "
+            "activation raises ActivationConflict, which is both "
+            "ActivationRejected and TransformationConflict."
         ),
     ),
     # -- moved: a node changes its function ----------------------------------
@@ -982,7 +994,7 @@ CASES: tuple[Case, ...] = (
         name="extract_function",
         group="moved",
         source="fn f(x):\n    x * 2 + 1\n",
-        operation=_reimport(
+        operation=_restate(
             "fn g(x):\n    x * 2\n\nfn f(x):\n    g(x) + 1\n"
         ),
         expect=Expect(
@@ -994,20 +1006,22 @@ CASES: tuple[Case, ...] = (
             },
             new=("after:f@0",),
         ),
-        status="gap",
+        status="holds",
         note=(
-            "Gap. No operation moves a node to another function; the closest is "
-            "to import the edited program with no continuity declared. `g` and "
-            "the call are new and nothing of `x * 2` is kept: `load` numbers "
-            "nodes by function, generation and index, so the ids `f/0.n` come "
-            "back on other nodes with new versions."
+            "Holds. One `define` creates `g` with the body `x * 2`, gives `f` "
+            "its new body, and relinks `f` to `g` with a links relation. `x * "
+            "2` is the largest unique subtree of the pool and moves to `g` "
+            "whole, keeping its EntityIDs and VersionIDs (its content is equal, "
+            "and a chunk depends only on its node); its owner change is stated "
+            "in the result's explicit destination ownership. The call and its "
+            "`x` are created; `f`'s root and `1` are kept."
         ),
     ),
     Case(
         name="inline_function",
         group="moved",
         source="fn g(x):\n    x * 2\n\nfn f(x):\n    g(x) + 1\n",
-        operation=_reimport("fn f(x):\n    x * 2 + 1\n"),
+        operation=_restate("fn f(x):\n    x * 2 + 1\n", "g"),
         expect=Expect(
             kept=("node:g@", "node:g@0", "node:g@1"),
             at={
@@ -1017,11 +1031,13 @@ CASES: tuple[Case, ...] = (
             },
             gone=("fn:g",),
         ),
-        status="gap",
+        status="holds",
         note=(
-            "Gap, as extract_function: no mapping is declared, so `g` is absent "
-            "after without being recorded as a disappearance, and its body "
-            "comes back as new nodes `f/0.n`."
+            "Holds. One `define` removes `g` (None), gives `f` the inlined body "
+            "and an empty link table; `g`'s body `x * 2` is the largest unique "
+            "subtree of the pool and moves into `f` whole, keeping its versions "
+            "and changing owner explicitly. `g` is recorded as a disappearance, "
+            "and so is the call."
         ),
     ),
 )

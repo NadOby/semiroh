@@ -78,8 +78,10 @@ Consequences:
   `tests/test_matching.py`).
 - A whole-function entry's position is the old body root; a label entry's
   is the labelled node; a created function has none.
-- A function's generation advances only when the edit creates a node for
-  it; a created function starts at generation 0.
+- A whole-function edit advances the function's generation only when it
+  creates a node; a created function starts at generation 0. A label edit
+  never advances it (as before task 13), so its new nodes avoid only the
+  names that exist (section 6).
 
 ## 3. What `define` records
 
@@ -172,6 +174,11 @@ error when they overlap, not with the stale-source rejection.
   callee the other edit changes.
 - Moves between functions across two transformations.
 - A bound on what the runtime remembers for rebasing.
+- Name reuse by label edits: since a label edit leaves the generation as
+  it is, a node it creates can take the name of a node an earlier label
+  edit made disappear (`f/1.0` created, removed, created again). Advancing
+  the generation would change the definition, so two label edits of one
+  function that create nodes would then conflict in `rebase`.
 - Whether a constraint failure of a combined state should be a
   `TransformationConflict` (section 5 leaves it to activation).
 - Similarity matching; a changed subtree keeps its identity only by

@@ -875,8 +875,9 @@ Composition APIs are specified in terms of these three result classes.
   cases changed, not their sources or expectations.
 - Decided on contact: a label edit that changes the node's kind now gives
   the position a new node, and the node that named it is changed (graph
-  form §9 changed); a function's generation advances only when the edit
-  creates a node for it; no compiled chunk depends on the owning function,
+  form §9 changed); a whole-function edit advances the generation only
+  when it creates a node, and a label edit never does, so it can reuse
+  the name of a node an earlier label edit removed (Open); no compiled chunk depends on the owning function,
   so a moved node keeps its `VersionID`; the runtime remembers every
   activated result (unbounded, Open); a combined state's constraints are
   left to activation, not reported as a conflict.

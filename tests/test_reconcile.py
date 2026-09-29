@@ -10,6 +10,7 @@ from semiroh.syntax import parse, render_program
 
 F = EntityID("f")
 G = EntityID("g")
+USE = EntityID("use")
 
 
 def program(text):
@@ -35,12 +36,9 @@ class ReconcileTests(unittest.TestCase):
         state = program(before)
         old = owned(state, F)
 
-        result = reconcile(state, after)
-        destination = result.destination
+        destination = reconcile(state, after).destination
         new = owned(destination, F)
 
-        # The root changes kind, while the unchanged argument and literal
-        # retain their graph identities through continuity inference.
         self.assertEqual(len(old & new), 2)
         self.assertEqual(
             function_at(destination, F),
@@ -90,7 +88,63 @@ class ReconcileTests(unittest.TestCase):
         self.assertIsNone(function_at(destination, G))
         self.assertNotIn(G, destination.values)
 
-    def test_bare_top_level_rename_is_remove_and_create(self):
+    def test_remove_called_function_and_drop_call_is_atomic(self):
+        before = (
+            "fn f(x):\n"
+            "    x + 1\n"
+            "\n"
+            "fn use(x):\n"
+            "    f(x)\n"
+        )
+        after = (
+            "fn use(x):\n"
+            "    x\n"
+        )
+        state = program(before)
+
+        destination = reconcile(state, after).destination
+
+        self.assertIsNone(function_at(destination, F))
+        self.assertEqual(
+            function_at(destination, USE),
+            function_at(program(after), USE),
+        )
+        self.assertEqual(
+            render_program(destination),
+            render_program(program(after)),
+        )
+
+    def test_rename_called_function_and_update_caller_is_atomic(self):
+        before = (
+            "fn f(x):\n"
+            "    x + 1\n"
+            "\n"
+            "fn use(x):\n"
+            "    f(x)\n"
+        )
+        after = (
+            "fn g(x):\n"
+            "    x + 1\n"
+            "\n"
+            "fn use(x):\n"
+            "    g(x)\n"
+        )
+        state = program(before)
+
+        destination = reconcile(state, after).destination
+
+        self.assertIsNone(function_at(destination, F))
+        self.assertIsNotNone(function_at(destination, G))
+        self.assertEqual(
+            function_at(destination, USE),
+            function_at(program(after), USE),
+        )
+        self.assertEqual(
+            render_program(destination),
+            render_program(program(after)),
+        )
+
+    def test_bare_top_level_rename_replaces_function_entity(self):
         before = "fn f(x):\n    x + 1\n"
         after = "fn g(x):\n    x + 1\n"
         state = program(before)
@@ -100,7 +154,35 @@ class ReconcileTests(unittest.TestCase):
 
         self.assertIsNone(function_at(destination, F))
         self.assertIsNotNone(function_at(destination, G))
-        self.assertFalse(old_nodes & owned(destination, G))
+
+        # The declaration entity is new, but task 13 may infer continuity
+        # for the unchanged body nodes across the complete edit.
+        self.assertEqual(owned(destination, G), old_nodes)
+
+    def test_inline_function_keeps_moved_body_nodes(self):
+        before = (
+            "fn f(x):\n"
+            "    x + 1\n"
+            "\n"
+            "fn use(x):\n"
+            "    f(x) * 2\n"
+        )
+        after = (
+            "fn use(x):\n"
+            "    (x + 1) * 2\n"
+        )
+        state = program(before)
+        old_f = owned(state, F)
+
+        destination = reconcile(state, after).destination
+        new_use = owned(destination, USE)
+
+        self.assertIsNone(function_at(destination, F))
+        self.assertTrue(old_f & new_use)
+        self.assertEqual(
+            function_at(destination, USE),
+            function_at(program(after), USE),
+        )
 
     def test_reference_can_change_target(self):
         before = (
@@ -123,16 +205,18 @@ class ReconcileTests(unittest.TestCase):
             "fn use(x):\n"
             "    g(x)\n"
         )
-        use = EntityID("use")
         state = program(before)
 
         destination = reconcile(state, after).destination
 
         self.assertEqual(
-            function_at(destination, use),
-            function_at(program(after), use),
+            function_at(destination, USE),
+            function_at(program(after), USE),
         )
-        self.assertEqual(render_program(destination), render_program(program(after)))
+        self.assertEqual(
+            render_program(destination),
+            render_program(program(after)),
+        )
 
     def test_reference_can_be_removed_from_link_table(self):
         before = (
@@ -153,7 +237,48 @@ class ReconcileTests(unittest.TestCase):
 
         destination = reconcile(state, after).destination
 
-        self.assertEqual(render_program(destination), render_program(program(after)))
+        self.assertEqual(
+            render_program(destination),
+            render_program(program(after)),
+        )
+
+    def test_link_bookkeeping_does_not_use_user_entity_key(self):
+        before = (
+            "fn f(x):\n"
+            "    x\n"
+            "\n"
+            "fn g(x):\n"
+            "    x + 1\n"
+            "\n"
+            "fn use(x):\n"
+            "    f(x)\n"
+        )
+        after = (
+            "fn f(x):\n"
+            "    x\n"
+            "\n"
+            "fn g(x):\n"
+            "    x + 1\n"
+            "\n"
+            "fn use(x):\n"
+            "    g(x)\n"
+        )
+        state = program(before)
+
+        # Occupy the exact synthetic key used by the original reconciler.
+        collision = EntityID("use.reconcile.links")
+        values = dict(state.values)
+        values[collision] = state.values[F]
+        occupied = state.with_values(values)
+
+        destination = reconcile(occupied, after).destination
+
+        self.assertIn(collision, destination.values)
+        self.assertEqual(destination.values[collision], occupied.values[collision])
+        self.assertEqual(
+            function_at(destination, USE),
+            function_at(program(after), USE),
+        )
 
     def test_unchanged_other_function_keeps_all_nodes(self):
         before = (
@@ -176,6 +301,7 @@ class ReconcileTests(unittest.TestCase):
         destination = reconcile(state, after).destination
 
         self.assertEqual(owned(destination, G), old_g)
+
         for node in old_g:
             self.assertIs(destination.values[node], state.values[node])
 

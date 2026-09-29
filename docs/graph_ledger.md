@@ -28,16 +28,169 @@ Provisional. The capabilities and measurements are implemented; the
 comparative verdicts are architectural judgements and may change as the
 language grows.
 
-capability| graph form| ordinary compiler bookkeeping| measurement| verdict
-Node identity across edits| Every expression is an entity. "lang.define" and "matching.match" preserve an unchanged node's "EntityID" and, when its value is unchanged, its "VersionID". Shown by "tests/test_continuity_inference.py" and "tests/test_matching.py".| An AST needs stable node ids plus an edit/reconciliation algorithm that transfers those ids between old and new trees. A plain rebuilt AST has no continuity.| All 21 continuity cases hold; individual identity claims are recorded below.| Even. Stable AST node ids plus the same matcher can provide this. The graph makes identity fundamental rather than an auxiliary annotation, but does not eliminate the matching problem.
-Hot swap of one labelled node| A labelled expression is one graph entity. "lang.define" changes that entity or replaces the local subtree; "Runtime.activate" installs the resulting state. "tests/test_node_edits.py".| An AST needs a stable node id or source anchor, a way to rebuild the containing AST/function, and runtime version bookkeeping so code already executing stays on the old version.| A one-leaf edit of a 41-node and a 401-node function causes one node to be relowered in either case.| Even. Stable AST ids plus versioned functions can provide the same externally visible operation.
-Incremental compilation| "bytecode.chunk_of" caches one chunk on each node "Value"; unchanged values carry the cache into the next state. There is no invalidation walk. "tests/test_bytecode.py", "CacheTests".| A conventional compiler needs an AST, stable node identity or content keys, a derived-artifact cache, and either a dependency index/invalidation graph or equally fine-grained per-node cache keys.| 41-node leaf edit: 1 relowered. 401-node leaf edit: 1 relowered. Replacing one leaf with five nodes: 5 relowered.| Strong against function-level invalidation; Even against an AST with stable ids and a per-node artifact cache. The graph's main gain is that the cache key and dependency boundary already coincide with semantic node identity.
-A fold that declares its merges| "fold.fold_constants" returns an ordinary "TransformResult"; folded-away source nodes explicitly map into the surviving node, and "sources_of" reads that record. "tests/test_fold.py".| An AST optimiser normally rewrites a tree and separately needs origin/provenance metadata – source-node sets, debug-location unions, or an optimisation provenance table – if later tooling must know which nodes became which.| The corpus fold changes 2 nodes and records 6 source identities: 3 sources for each folded node.| Strong. The transformation relation used for program evolution is also the optimiser's provenance record; no second provenance mechanism is required.
-Continuity inference for ordinary edits| "matching.match" compares old and new graph subtrees: unique unchanged subtrees first, then same-kind edited positions; ambiguity gets a new identity. "lang.define" records the result as an ordinary transformation. "tests/test_continuity_inference.py".| An AST with stable ids needs essentially the same tree-diff/reconciliation pass. A symbol table is additionally needed where names resolve outside the tree.| 21 of 21 corpus cases hold. Insert keeps 2 explicitly checked identities; remove 2; wrap 1; unwrap 1; swap 3; shared subtree 3; ambiguous duplicate 0.| Weak. The graph supplies the identities to preserve, but not the inference algorithm. A stable-id AST with the same matcher does just as well.
-Moves between functions| All entries of one "define" form one matching pool. A matched node can keep its "EntityID" and "VersionID" while destination ownership changes to another function. "tests/test_matching.py", "MoveTests", and the "extract_function" / "inline_function" corpus cases.| An AST needs stable node ids across different function trees, a cross-tree matcher, updates to parent/function ownership, symbol-table scopes, and any dependency indexes keyed by containing function.| "extract_function" checks 3 retained identities; "inline_function" checks 3. Both corpus cases hold.| Even. The graph avoids treating containment as identity, which is useful, but an AST with detachable stable nodes and explicit ownership can represent the same move.
-Rebase of two edits of one state| "transforms.touched" identifies affected entities and "rebase" combines transformations with disjoint touched sets. "Runtime.activate" can rebase a result produced from an earlier active state. "tests/test_continuity_inference.py" and "tests/test_matching.py".| A compiler/editor stack needs versioned AST snapshots, stable ids, edit sets or structural diffs, conflict detection, and merge logic. Dependency/symbol changes may require additional semantic conflict checks.| "rebase_disjoint" holds and checks 2 preserved identities; "conflicting_edits" holds by rejecting the second transformation.| Even. Immutable graph states and explicit transformations make the inputs clean, but the conflict algorithm is still explicit machinery. Current touched-set rebasing is intentionally coarse.
-Relation endpoints and ownership follow renames| Core transformation application rewrites relation endpoints and ownership through declared continuity. Calls, links, constraints and ownership therefore follow the same rename mechanism. "transforms.py", "relations.py"; "tests/test_relations.py", "tests/test_transforms.py", and continuity case "rename".| An AST compiler needs a symbol table to distinguish references from textual names, plus use/def or reference indexes to update resolved references. Ownership/containment metadata needs its own update rules.| "rename" holds and the corpus checks 7 retained identities while dependent relation values change where their endpoints move.| Strong. One general endpoint-continuity rule replaces several feature-specific rename/update paths.
-Constraints over code| Code nodes are ordinary owned semantic entities. A constraint relation whose endpoint is a function receives its definition plus owned node subtree. "constraints.py", "relations.py", "runtime.py"; "tests/test_constraint_relations.py".| An AST compiler needs a constraint representation plus an adapter exposing AST structure to it, dependency tracking for which constraints depend on which declarations/nodes, and hooks to rerun affected checks after edits.| No scalar ledger measurement exists yet; the relevant acceptance tests exercise loading, writes and activation against owned subtrees.| Strong structurally, Provisional empirically. The same relation/ownership machinery used elsewhere exposes code to constraints without a separate code-query representation, but there is no comparative cost measurement yet.
+Node identity across edits
+
+Graph form: every expression is an entity. "lang.define" and
+"matching.match" preserve an unchanged node's "EntityID" and, when its value
+is unchanged, its "VersionID". Shown by "tests/test_continuity_inference.py"
+and "tests/test_matching.py".
+
+Ordinary compiler: an AST needs stable node ids plus an edit/reconciliation
+algorithm that transfers those ids between old and new trees. A plain rebuilt
+AST has no continuity.
+
+Measurement: all 21 continuity cases hold; individual identity claims are
+recorded below.
+
+Verdict: Even. Stable AST node ids plus the same matcher can provide this.
+The graph makes identity fundamental rather than an auxiliary annotation, but
+does not eliminate the matching problem.
+
+Hot swap of one labelled node
+
+Graph form: a labelled expression is one graph entity. "lang.define" changes
+that entity or replaces the local subtree; "Runtime.activate" installs the
+resulting state. Shown by "tests/test_node_edits.py".
+
+Ordinary compiler: an AST needs a stable node id or source anchor, a way to
+rebuild the containing AST/function, and runtime version bookkeeping so code
+already executing stays on the old version.
+
+Measurement: a one-leaf edit of a 41-node and a 401-node function causes one
+node to be relowered in either case.
+
+Verdict: Even. Stable AST ids plus versioned functions can provide the same
+externally visible operation.
+
+Incremental compilation
+
+Graph form: "bytecode.chunk_of" caches one chunk on each node "Value";
+unchanged values carry the cache into the next state. There is no invalidation
+walk. Shown by "tests/test_bytecode.py", "CacheTests".
+
+Ordinary compiler: an AST needs stable node identity or content keys, a
+derived-artifact cache, and either a dependency index/invalidation graph or
+equally fine-grained per-node cache keys.
+
+Measurement: a 41-node leaf edit relowers 1 node; a 401-node leaf edit also
+relowers 1; replacing one leaf with five nodes relowers 5.
+
+Verdict: Strong against function-level invalidation, but Even against
+an AST with stable ids and a per-node artifact cache. The graph's gain is that
+the cache key and dependency boundary already coincide with semantic node
+identity.
+
+A fold that declares its merges
+
+Graph form: "fold.fold_constants" returns an ordinary "TransformResult";
+folded-away source nodes explicitly map into the surviving node, and
+"sources_of" reads that record. Shown by "tests/test_fold.py".
+
+Ordinary compiler: an AST optimiser normally rewrites a tree and separately
+needs origin/provenance metadata – source-node sets, debug-location unions, or
+an optimisation provenance table – if later tooling must know which nodes
+became which.
+
+Measurement: the corpus fold changes 2 nodes and records 6 source identities,
+3 for each folded node.
+
+Verdict: Strong. The transformation relation used for program evolution is
+also the optimiser's provenance record; no second provenance mechanism is
+required.
+
+Continuity inference for ordinary edits
+
+Graph form: "matching.match" compares old and new graph subtrees – unique
+unchanged subtrees first, then same-kind edited positions; ambiguity gets a
+new identity. "lang.define" records the result as an ordinary transformation.
+Shown by "tests/test_continuity_inference.py".
+
+Ordinary compiler: an AST with stable ids needs essentially the same
+tree-diff/reconciliation pass. A symbol table is additionally needed where
+names resolve outside the tree.
+
+Measurement: 21 of 21 corpus cases hold. Insert keeps 2 explicitly checked
+identities; remove 2; wrap 1; unwrap 1; swap 3; shared subtree 3; ambiguous
+duplicate 0.
+
+Verdict: Weak. The graph supplies the identities to preserve, but not the
+inference algorithm. A stable-id AST with the same matcher does just as well.
+
+Moves between functions
+
+Graph form: all entries of one "define" form one matching pool. A matched node
+can keep its "EntityID" and "VersionID" while destination ownership changes to
+another function. Shown by "tests/test_matching.py", "MoveTests", and the
+"extract_function" / "inline_function" corpus cases.
+
+Ordinary compiler: an AST needs stable node ids across different function
+trees, a cross-tree matcher, updates to parent/function ownership, symbol-table
+scopes, and any dependency indexes keyed by containing function.
+
+Measurement: "extract_function" checks 3 retained identities;
+"inline_function" checks 3. Both corpus cases hold.
+
+Verdict: Even. The graph avoids treating containment as identity, but an
+AST with detachable stable nodes and explicit ownership can represent the
+same move.
+
+Rebase of two edits of one state
+
+Graph form: "transforms.touched" identifies affected entities and "rebase"
+combines transformations with disjoint touched sets. "Runtime.activate" can
+rebase a result produced from an earlier active state. Shown by
+"tests/test_continuity_inference.py" and "tests/test_matching.py".
+
+Ordinary compiler: a compiler/editor stack needs versioned AST snapshots,
+stable ids, edit sets or structural diffs, conflict detection, and merge
+logic. Dependency or symbol changes may require additional semantic conflict
+checks.
+
+Measurement: "rebase_disjoint" holds and checks 2 preserved identities;
+"conflicting_edits" holds by rejecting the second transformation.
+
+Verdict: Even. Immutable graph states and explicit transformations make
+the inputs clean, but the conflict algorithm is still explicit machinery.
+Current touched-set rebasing is intentionally coarse.
+
+Relation endpoints and ownership follow renames
+
+Graph form: core transformation application rewrites relation endpoints and
+ownership through declared continuity. Calls, links, constraints and
+ownership therefore follow the same rename mechanism. Implemented in
+"transforms.py" and "relations.py"; shown by "tests/test_relations.py",
+"tests/test_transforms.py", and continuity case "rename".
+
+Ordinary compiler: an AST compiler needs a symbol table to distinguish
+references from textual names, plus use/def or reference indexes to update
+resolved references. Ownership/containment metadata needs its own update
+rules.
+
+Measurement: "rename" holds and the corpus checks 7 retained identities while
+dependent relation values change where their endpoints move.
+
+Verdict: Strong. One general endpoint-continuity rule replaces several
+feature-specific rename/update paths.
+
+Constraints over code
+
+Graph form: code nodes are ordinary owned semantic entities. A constraint
+relation whose endpoint is a function receives its definition plus owned node
+subtree. Implemented in "constraints.py", "relations.py" and "runtime.py";
+shown by "tests/test_constraint_relations.py".
+
+Ordinary compiler: an AST compiler needs a constraint representation plus an
+adapter exposing AST structure to it, dependency tracking for which
+constraints depend on which declarations/nodes, and hooks to rerun affected
+checks after edits.
+
+Measurement: no scalar ledger measurement exists yet; the acceptance tests
+exercise loading, writes and activation against owned subtrees.
+
+Verdict: Strong structurally, Provisional empirically. The same
+relation/ownership machinery used elsewhere exposes code to constraints
+without a separate code-query representation, but there is no comparative
+cost measurement yet.
 
 3. Measurements
 

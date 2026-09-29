@@ -26,7 +26,9 @@ from tests import mutation
 TARGETS = (
     "semiroh/bytecode.py",
     "semiroh/lang.py",
+    "semiroh/matching.py",
     "semiroh/runtime.py",
+    "semiroh/transforms.py",
     "semiroh/examples/self_hosting.py",
     "semiroh/fold.py",
     "semiroh/examples/vm.py",

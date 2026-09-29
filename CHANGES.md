@@ -900,4 +900,10 @@ Composition APIs are specified in terms of these three result classes.
 - Added `tests/test_matching.py` (rules one by one, order independence and
   one-rule-per-kept-node as seeded properties, moves, touched sets,
   renaming, conflicts). `matching.py` and `transforms.py` joined the
-  mutation targets; one equivalent mutant is listed.
+  mutation targets.
+- Found by review and mutation (seed 13 on the four changed modules):
+  tests that rebase skips a name the other result removed, that the
+  runtime rebases from the last time the source was active, that three
+  disjoint edits of one state activate in turn, that a rebased result
+  keeps a cell the other one created, and that a label's matching stays
+  inside it. Three equivalent mutants are listed. No model code changed.

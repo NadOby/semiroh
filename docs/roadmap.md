@@ -258,7 +258,7 @@ Lexical and module name resolution are specified first.
 
 ### 16. Documentation coherence (one session)
 
-**Done.** (#40)
+**Done** (#40).
 
 Correct mechanical documentation drift without changing semantics. Normalize
 standalone `Decided`, `Provisional`, and `Open` status markers; check internal
@@ -270,6 +270,27 @@ resolved.
 
 Done when: the coherence tests pass, affected status markers are normalized,
 and `CHANGES.md` records the sweep.
+
+### 17. Closures (handoff)
+
+**Planned.**
+
+Close the last remaining corpus gap: anonymous callable values with lexical
+captures.
+
+Keep `Function` as code-as-data for program construction and activation.
+Introduce a distinct executable closure value containing code and its captured
+lexical environment. `apply` and `applyv` accept closures as well as existing
+function references.
+
+Captures are by value when the closure is created and do not depend on the
+caller's scope. A returned closure remains callable after its creating frame
+has finished. Creating or calling a closure requires no activation capability.
+
+Done when: `make_adder` and `compose` run as corpus examples, closures can be
+passed and returned as ordinary values, closure calls obey ordinary arity and
+tail-call rules, the existing self-modification semantics remain unchanged,
+and `MISSING` is empty.
 
 ## Later
 

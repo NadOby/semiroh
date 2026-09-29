@@ -794,3 +794,12 @@ Composition APIs are specified in terms of these three result classes.
   `True`). `vm.py` is a mutation target (two listed survivors, and the fast
   path of `eq`). No existing test was edited.
 
+### Checkpoint
+
+- README gained a status section: what the reference model demonstrates
+  (the graph is the program, programs modify themselves, programs carry
+  their compiler), how the vision changed on contact with code, which
+  decisions are still provisional, and what is not touched yet. Sections 24
+  and 25 now name the language layer, the canary corpus and the mutation
+  tests. Docs were checked for stale statuses and references; none needed
+  changes.

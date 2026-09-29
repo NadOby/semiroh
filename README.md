@@ -27,8 +27,72 @@ Much of the design follows from this goal:
 > is known. Contracts describe values. Source and machine code are
 > representations. Tooling operates on semantics.
 
+## Status of the reference model
+
+The executable reference model in `semiroh/` (section 24) now demonstrates
+three of the claims above. Design and history: [`docs/`](docs/),
+[`CHANGES.md`](CHANGES.md), [`docs/roadmap.md`](docs/roadmap.md).
+
+**The graph is the program.** Immutable states with content-derived
+identity; transformations with explicit continuity (renames, merges,
+splits, disappearance), which relation endpoints and ownership follow;
+three-valued constraints, including constraints over relations. Code itself
+is graph form: every expression node is a relation entity owned by its
+function, so an edit, a rename or a deletion keeps the identity of
+everything it does not touch ([`graph_form.md`](docs/graph_form.md)).
+
+**Programs modify themselves.** A running program builds code as data,
+tries it in an isolated runtime, and activates it atomically, for whole
+functions or single labelled nodes, under a capability grant and its own
+constraints. Mutable cells keep their content across activations; running
+frames finish in the version they started in
+([`metaprogramming.md`](docs/metaprogramming.md),
+[`language_trials.md`](docs/language_trials.md),
+[`activation_model.md`](docs/activation_model.md)).
+
+**Programs carry their compiler.** Graph form is lowered to bytecode, cached
+per node version, and run on a VM with an explicit stack. The lowering pass
+and a bytecode interpreter are also written in SEMIROH, and the compiler
+reaches a bootstrap fixpoint on its own source
+([`bytecode.md`](docs/bytecode.md), [`self_hosting.md`](docs/self_hosting.md),
+[`vm_in_semiroh.md`](docs/vm_in_semiroh.md)). Constant folding is a graph
+transformation that declares its merges
+([`constant_folding.md`](docs/constant_folding.md)).
+
+A canary corpus of small programs (`semiroh/examples/`,
+[`corpus.md`](docs/corpus.md)) and seeded mutation tests check all of this.
+
+**How the vision changed on contact with code.**
+
+- Code is stored as graph form, not as opaque function bodies; tuple bodies
+  with links remain only an input format (roadmap D1).
+- Deletion and disappearance are one operation: an owner's disappearance
+  ends what it owns, and a transformation places what it creates
+  ([`ownership_model.md`](docs/ownership_model.md) §7, §10).
+- A constraint over an owner sees its owned subtree
+  ([`relation_model.md`](docs/relation_model.md) §7), and a relation may
+  have no roles.
+- Ownership edges follow declared continuity, as relation endpoints do.
+- The compiler emits bytecode, data a program can produce itself, rather
+  than host closures (roadmap D2).
+
+**Provisional**, named where they are specified: switching code in flight
+at every call; the per-run activation grant and trials without it; a
+function's `definition` relation, node identities and flat node ownership;
+function references as `EntityID`s that do not follow renames when held in
+cells; the bytecode and VM shapes; the operations of constant folding; the
+output of the SEMIROH lowering pass and the pure-code limits of the SEMIROH
+VM.
+
+**Not touched yet:** human-writable syntax (programs are still nested
+tuples), systems data (structures, layout, references between cells),
+modules and name resolution, closures, error handling inside the language,
+concurrency, native code, capabilities beyond one grant, and formal
+semantics.
+
 ## Contents
 
+- [Status of the reference model](#status-of-the-reference-model)
 - [Canonical program representation](#1-canonical-program-representation)
 - [Semantic values](#2-semantic-values)
 - [Identity](#3-identity)
@@ -502,6 +566,11 @@ The Python model is not the language implementation.
 
 It is an executable model of the semantic rules.
 
+Besides the core, it contains a small language layer: `lang.py` (code as
+graph form), `bytecode.py` (lowering and the virtual machine), `fold.py`
+(constant folding), and `semiroh/examples/` (the canary corpus, and the
+compiler and VM written in SEMIROH).
+
 Where the architecture is unresolved, the reference model should expose that
 uncertainty rather than silently selecting an arbitrary interpretation.
 
@@ -515,6 +584,11 @@ canonicalization, and negative cases.
 
 Tests should target semantic contracts rather than incidental implementation
 details.
+
+A canary corpus of example programs with expected results
+([`docs/corpus.md`](docs/corpus.md)) runs under every interpreter and
+representation, and seeded mutation tests (`tests/test_mutation.py`) check
+that the suite notices planted bugs.
 
 See [`docs/testing_model.md`](docs/testing_model.md).
 

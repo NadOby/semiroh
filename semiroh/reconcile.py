@@ -3,7 +3,7 @@
 The graph is authoritative. ``reconcile`` parses a complete edited source
 view, compares its declarations with the graph, and expresses supported
 changes through :func:`semiroh.lang.define`. ``define`` performs continuity
-inference inside declarations that already have identity.
+inference across the complete edit.
 
 Task 15 deliberately keeps this layer small. Version 0 has one program
 namespace and supports function creation, removal, body edits and link-table
@@ -30,11 +30,7 @@ from .lang import (
 from .relations import Endpoint, Relation, relation_of
 from .state import State
 from .syntax import parse
-from .transforms import (
-    EntityMapping,
-    TransformResult,
-    transform_with_mapping,
-)
+from .transforms import TransformResult
 
 
 __all__ = ["ReconcileError", "reconcile"]
@@ -183,57 +179,32 @@ def _check_cells(current: State, edited: State) -> None:
     )
 
 
-def _remove_functions(
-    state: State,
-    removed: set[EntityID],
-) -> TransformResult:
-    """Remove top-level functions without cross-name continuity inference."""
-
-    gone: set[EntityID] = set()
-
-    for function in removed:
-        gone.add(function)
-        gone.update(state.owned_subtree(function))
-
-    mappings = {
-        entity: (() if entity in gone else entity)
-        for entity in state.values
-    }
-
-    ownership = {
-        owner: tuple(
-            child
-            for child in children
-            if child not in gone
-        )
-        for owner, children in state.ownership.items()
-        if owner not in gone
-    }
-
-    return transform_with_mapping(
-        state,
-        {},
-        mappings,
-        ownership=ownership,
-    )
-
-
 def _function_edits(
     state: State,
     before: dict[EntityID, Function],
     after: dict[EntityID, Function],
     parsed_links: dict[EntityID, Relation],
-) -> dict[EntityID, Any]:
-    """Build edits for functions present in the edited source."""
+) -> list[tuple[EntityID, Any]]:
+    """Build the complete function edit without synthetic entity names.
 
-    edits: dict[EntityID, Any] = {}
+    ``lang.define`` uses an arbitrary EntityID key for a links relation, so a
+    plain mapping cannot represent both a whole-function edit and a links
+    edit under the same function key. Return ordered pairs here; ``reconcile``
+    assigns collision-free temporary keys after considering every real entity
+    in both source and edited states.
+    """
+
+    edits: list[tuple[EntityID, Any]] = []
+
+    for entity in sorted(set(before) - set(after)):
+        edits.append((entity, None))
 
     for entity in sorted(after):
         desired_function = after[entity]
         current_function = before.get(entity)
 
         if current_function is None or current_function != desired_function:
-            edits[entity] = desired_function
+            edits.append((entity, desired_function))
 
         desired_links = _link_targets(parsed_links.get(entity))
         current_links = (
@@ -243,80 +214,58 @@ def _function_edits(
         )
 
         if desired_links != current_links:
-            edits[EntityID(f"{entity.value}.reconcile.links")] = links(
-                entity,
-                **desired_links,
-            )
+            edits.append((entity, links(entity, **desired_links)))
 
     return edits
 
 
-def _combine(
-    first: TransformResult,
-    second: TransformResult,
-) -> TransformResult:
-    """Combine two consecutive concrete transformation results.
+def _define_edits(
+    state: State,
+    edited: State,
+    edits: list[tuple[EntityID, Any]],
+) -> dict[EntityID, Any]:
+    """Give links-relation edits keys that cannot collide with user entities.
 
-    ``compose`` operates on transformation definitions, not applied
-    ``TransformResult`` objects. Reconciliation already has both concrete
-    results, so follow each explicit first-stage destination through the
-    second-stage mapping, using identity where the second stage does not name
-    it.
+    The key of a links relation is only an input slot to ``lang.define``; the
+    relation's ``function`` role identifies the function it edits. Temporary
+    keys are therefore chosen outside both the current and edited entity
+    namespaces and are never installed in the resulting state.
     """
 
-    if first.destination.id != second.source.id:
-        raise ValueError(
-            "cannot combine non-consecutive transformation results"
-        )
+    result: dict[EntityID, Any] = {}
+    occupied = set(state.values) | set(edited.values)
 
-    second_mappings = {
-        mapping.source_entity: mapping.destination_entities
-        for mapping in second.mappings
-    }
+    serial = 0
 
-    mappings: list[EntityMapping] = []
+    for entity, value in edits:
+        if not (isinstance(value, Relation) and value.kind == LINKS_KIND):
+            result[entity] = value
+            continue
 
-    for mapping in first.mappings:
-        destinations: set[EntityID] = set()
+        while True:
+            key = EntityID(f".reconcile/{serial}")
+            serial += 1
 
-        for intermediate in mapping.destination_entities:
-            destinations.update(
-                second_mappings.get(intermediate, (intermediate,))
-            )
+            if key not in occupied and key not in result:
+                break
 
-        mappings.append(
-            EntityMapping(
-                source_state=first.source.id,
-                source_entity=mapping.source_entity,
-                destination_entities=tuple(sorted(destinations)),
-            )
-        )
+        result[key] = value
 
-    return TransformResult(
-        source=first.source,
-        destination=second.destination,
-        mappings=tuple(
-            sorted(
-                mappings,
-                key=lambda mapping: mapping.source_entity,
-            )
-        ),
-        provenance=(first.provenance, second.provenance),
-        conversions=second.conversions,
-        relation_rewrites=second.relation_rewrites,
-    )
+    return result
 
 
 def reconcile(state: State, text: str) -> TransformResult:
     """Reconcile complete edited program ``text`` against graph ``state``.
 
     Parsing and name resolution use the complete edited text. Existing
-    declarations retain their top-level identity and changed function bodies
-    go through ``lang.define``, which infers continuity among their code nodes.
+    declarations retain their top-level identity. Function removals,
+    creations, body edits and link-table edits are submitted to one
+    ``lang.define`` call, so continuity inference sees the complete edit and
+    no intermediate state can contain dangling references.
 
-    A declaration absent from the edited source disappears. A declaration
-    with a new top-level name is created independently; spelling alone is not
-    evidence that it continues a removed declaration.
+    A declaration with a new top-level name is a new function entity. Its
+    body nodes may nevertheless retain identity when task 13's matcher finds
+    unambiguous continuity across the complete edit.
 
     Cell declarations must currently be identical to the graph's
     declarations.
@@ -329,26 +278,14 @@ def reconcile(state: State, text: str) -> TransformResult:
     after = _input_functions(edited)
     parsed_links = _input_links(edited)
 
-    removed = set(before) - set(after)
-
-    if removed:
-        removal = _remove_functions(state, removed)
-        intermediate = removal.destination
-    else:
-        removal = None
-        intermediate = state
-
-    intermediate_before = _graph_functions(intermediate)
     edits = _function_edits(
-        intermediate,
-        intermediate_before,
+        state,
+        before,
         after,
         parsed_links,
     )
 
-    update = define(intermediate, edits)
-
-    if removal is None:
-        return update
-
-    return _combine(removal, update)
+    return define(
+        state,
+        _define_edits(state, edited, edits),
+    )

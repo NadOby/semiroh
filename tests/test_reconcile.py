@@ -2,7 +2,7 @@
 
 import unittest
 
-from semiroh import EntityID, State
+from semiroh import EntityID, State, Value
 from semiroh.lang import function_at, load
 from semiroh.reconcile import ReconcileError, reconcile
 from semiroh.syntax import parse, render_program
@@ -96,10 +96,7 @@ class ReconcileTests(unittest.TestCase):
             "fn use(x):\n"
             "    f(x)\n"
         )
-        after = (
-            "fn use(x):\n"
-            "    x\n"
-        )
+        after = "fn use(x):\n    x\n"
         state = program(before)
 
         destination = reconcile(state, after).destination
@@ -167,10 +164,7 @@ class ReconcileTests(unittest.TestCase):
             "fn use(x):\n"
             "    f(x) * 2\n"
         )
-        after = (
-            "fn use(x):\n"
-            "    (x + 1) * 2\n"
-        )
+        after = "fn use(x):\n    (x + 1) * 2\n"
         state = program(before)
         old_f = owned(state, F)
 
@@ -265,10 +259,11 @@ class ReconcileTests(unittest.TestCase):
         )
         state = program(before)
 
-        # Occupy the exact synthetic key used by the original reconciler.
+        # Occupy the exact synthetic key used by the original reconciler
+        # with a legitimate unrelated user entity.
         collision = EntityID("use.reconcile.links")
         values = dict(state.values)
-        values[collision] = state.values[F]
+        values[collision] = Value(collision, ("user", "content"))
         occupied = State(values, state.ownership)
 
         destination = reconcile(occupied, after).destination

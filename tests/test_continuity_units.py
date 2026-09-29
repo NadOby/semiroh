@@ -434,7 +434,7 @@ def designators(expect: Expect) -> Iterator[str]:
 
 class CorpusTests(unittest.TestCase):
     def test_every_designator_of_every_case_resolves(self) -> None:
-        # A gap must fail on what it expects, not on a typo in a designator.
+        """A gap must fail on its expectation, not on a bad designator."""
         for case in CASES:
             if case.expect.rejected is not None:
                 continue
@@ -443,12 +443,18 @@ class CorpusTests(unittest.TestCase):
                 source = state_of(case.source)
                 produced = case.operation(source)
                 result = produced[0] if isinstance(produced, tuple) else produced
+                errors = []
 
                 for designator in designators(case.expect):
                     try:
                         resolve(designator, source, result.destination)
                     except DesignatorError as exc:
-                        self.fail(f"{designator}: {exc}")
+                        errors.append(f"{designator}: {exc}")
+
+                self.assertFalse(
+                    errors,
+                    "Unresolvable continuity designators:\n" + "\n".join(errors),
+                )
 
     def test_a_gap_fails_on_its_expectation_not_on_a_crash(self) -> None:
         for case in CASES:

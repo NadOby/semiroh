@@ -14,7 +14,13 @@ is a later step (section 5).
 
 ## 1. `code`
 
-**Decided**, except which version it reads (**Provisional**).
+**Decided:**
+
+The `code` operation, except which version it reads.
+
+**Provisional:**
+
+Which version `code` reads.
 
     ("code", link)      (params, body) of the linked function, in input form
 
@@ -44,7 +50,9 @@ continuity. It lowers to one instruction, `CODE f name`.
 
 ## 2. The compiler
 
-**Provisional** (the shape of the output and what is covered).
+**Provisional:**
+
+The shape of the output and what is covered.
 
 `lower(e)`, in `semiroh/examples/self_hosting.py`, takes an expression in
 input form and returns its chunk. The host's chunk names its children by
@@ -75,7 +83,7 @@ with `code`, and the test compares that with the host's chunk of `lower`.
 
 ## 3. Checks
 
-**Decided.**
+**Decided:**
 
 - Every operation it covers, in a curated list; 60 seeded random
   expressions over them.
@@ -89,7 +97,7 @@ with `code`, and the test compares that with the host's chunk of `lower`.
 
 ## 4. A program that rewrites itself
 
-**Decided.**
+**Decided:**
 
 The corpus example `instrument` has a cell `hits`, a function `work(x)` and
 a function `instrument()`. `instrument` reads `work` with `code`, builds a

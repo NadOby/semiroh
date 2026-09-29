@@ -204,7 +204,7 @@ to call a function chosen at run time and to read a function by reference
 
 ### 11. Text syntax, version 0 (handoff)
 
-**Done** (#PR pending). The design is in syntax.md.
+**Done** (#34). The design is in syntax.md.
 
 A parser from text (syntax_notes.md, Direction A) into the input format and
 a printer from graph form, import-only (syntax.md). Done when the corpus
@@ -220,7 +220,7 @@ the next wave makes continuity explicit before the reconciler.
 
 ### 12. Continuity corpus (handoff)
 
-**Done** (#PR pending). The design is in continuity_corpus.md; 11 cases
+**Done** (#35). The design is in continuity_corpus.md; 11 cases
 hold and 10 are gaps.
 
 Cases with expected continuity for rename, move, insert, delete, split,
@@ -230,7 +230,7 @@ become the input of task 13.
 
 ### 13. Continuity inference (one session)
 
-**Done** (#PR pending). The design is in continuity_inference.md; all 21
+**Done** (#36). The design is in continuity_inference.md; all 21
 corpus cases hold.
 
 Deterministic rules for continuity nobody declares: keeping unchanged
@@ -256,10 +256,23 @@ Text edits become transformations with continuity (task 13's rules), so
 editing text keeps the identity of everything the edit does not touch.
 Lexical and module name resolution are specified first.
 
+### 16. Documentation coherence (one session)
+
+**Done.** (#40)
+
+Correct mechanical documentation drift without changing semantics. Normalize
+standalone `Decided`, `Provisional`, and `Open` status markers; check internal
+Markdown links and numbered section references; and catch stale roadmap PR
+markers. Documentation-only changes run the coherence checks in CI.
+
+Substantive documentation/code mismatches are reported rather than silently
+resolved.
+
+Done when: the coherence tests pass, affected status markers are normalized,
+and `CHANGES.md` records the sweep.
+
 ## Later
 
-- Text syntax, with a reconciler that turns an edited text into a
-  transformation with continuity.
 - Systems data: structs, arrays and references between cells, with layout
   changes handled by converters.
 - Error handling inside the language, when a corpus program needs it.
@@ -268,5 +281,7 @@ Lexical and module name resolution are specified first.
 - Function references held in cells follow renames (language_data.md §3).
 - Syntax and tooling notes (syntax_notes.md): graph and IR views next to
   the source view of task 11.
-- The program root and modules (ownership_model.md §13), when text syntax
-  or libraries need name resolution.
+- The program root and modules (ownership_model.md §13), when explicit
+  modules or libraries need them.
+- Split CI into independent quality-of-life/coherence, unit/semantic,
+  regression/corpus, property/stress, and mutation/expensive test jobs.

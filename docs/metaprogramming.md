@@ -12,7 +12,7 @@ same activation, with the same checks, as the host's.
 
 ## 1. Scope
 
-**Decided.**
+**Decided:**
 
 In scope:
 
@@ -31,7 +31,13 @@ nested quotation; any capability model beyond one per-run grant.
 
 ## 2. Code as data
 
-**Decided**, except nesting (**Provisional**).
+**Decided:**
+
+Everything in this section except nesting.
+
+**Provisional:**
+
+Nesting.
 
 An expression tree is an ordinary tuple value, and `lit` already returns one
 verbatim. `quote` adds holes:
@@ -46,7 +52,9 @@ copied as it is. A tuple whose head is `"unquote"` and that does not have
 exactly one operand is a `LanguageError`. `lit` is unchanged and never fills
 holes.
 
-Provisional: quotation does not nest. A hole inside a quote inside a
+**Provisional:**
+
+Quotation does not nest. A hole inside a quote inside a
 template is still filled by the outer `quote`. To put a literal
 `("unquote", ...)` into generated code, unquote a `lit` of it:
 `("unquote", ("lit", ("unquote", e)))`.
@@ -64,7 +72,7 @@ Example: a compiler that emits the body of `x` to the power `n`.
 
 ## 3. Function values
 
-**Decided.**
+**Decided:**
 
     ("function", params, body)    a Function value
 
@@ -82,7 +90,13 @@ add kinds is open.
 
 ## 4. Self-modification
 
-**Decided**, except the representation of the capability (**Provisional**).
+**Decided:**
+
+Everything in this section except the representation of the capability.
+
+**Provisional:**
+
+The representation of the capability.
 
     ("activate", link1, f1, ..., linkN, fN)    N >= 1
 
@@ -135,7 +149,7 @@ subtree (relation_model.md §7, graph_form.md §7).
 
 ## 5. Code in flight
 
-**Provisional.**
+**Provisional:**
 
 activation_model.md §5 decided that a frame executing when an activation
 happens keeps executing in the version it started in and holds that version.

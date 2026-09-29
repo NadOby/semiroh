@@ -8,9 +8,10 @@ plain `EntityID`s that nothing tracks, so a rename or disappearance leaves
 them dangling. And constraints can only describe one entity, although many
 useful constraints relate several.
 
-Each section is marked:
+Status markers used in this document are:
 
 - **Given**: already stated by other documents;
+- **Decided**: agreed direction; later changes should be deliberate;
 - **Open**: options are listed; no direction is chosen.
 
 ## 1. Relations are entities
@@ -18,7 +19,7 @@ Each section is marked:
 **Given** (semantic_graph.md §2): there is no fundamental semantic
 distinction between nodes and edges.
 
-**Decided.**
+**Decided:**
 
 A relation is an entity whose value is a relation record. It has an
 `EntityID`, versions, and continuity like any other entity, and it lives in
@@ -44,7 +45,7 @@ Consequences:
 
 ## 2. Relation records
 
-**Decided.**
+**Decided:**
 
 A relation record is a semantic value with:
 
@@ -68,7 +69,7 @@ the tools, constraints, and metaprograms that use it.
 
 ## 3. Referential integrity
 
-**Decided.**
+**Decided:**
 
 Every endpoint of every relation must be present in the same state. A state
 with a dangling endpoint cannot be constructed.
@@ -86,7 +87,9 @@ changed or removed first, because relations are never removed implicitly
 
 ## 4. References inside ordinary values
 
-**Decided:** raw `EntityID`s in ordinary values are data.
+**Decided:**
+
+Raw `EntityID`s in ordinary values are data.
 
 An `EntityID` can also appear inside an ordinary value, for example a list of
 entity names held by a metaprogram. The options considered were:
@@ -110,7 +113,9 @@ valid is written as a relation.
 
 ## 5. Relations across transformations
 
-**Decided:** relations follow declared continuity.
+**Decided:**
+
+Relations follow declared continuity.
 
 A transformation can remove an entity that relations still point to, or
 declare that an entity continues as a different one. A relation that the
@@ -155,7 +160,9 @@ section 13.
 
 ## 6. Ownership
 
-**Decided.** Ownership stays a separate relation in state for now.
+**Decided:**
+
+Ownership stays a separate relation in state for now.
 
 Ownership has lifetime semantics and structural invariants (one owner,
 acyclic, recursive destruction) that general relations do not. It already
@@ -165,7 +172,13 @@ it; see ownership_model.md section 13.
 
 ## 7. Constraints over several entities
 
-**Decided** (direction). **Open** (the full set of constraint primitives).
+**Decided:**
+
+Direction.
+
+**Open:**
+
+The full set of constraint primitives.
 
 A constraint relation carries a constraint as its payload. The payload, not
 the kind, makes a relation a constraint relation, because the core gives
@@ -178,7 +191,9 @@ endpoints maps to the tuple of their contents.
              roles={low: min_cell, high: max_cell},
              payload=<constraint over {low: ..., high: ...}>)
 
-**Decided:** an endpoint that owns entities contributes its owned
+**Decided:**
+
+An endpoint that owns entities contributes its owned
 subtree with it, as the map `{"value": <its own content>, "owned": {child:
 <the child's contribution>, ...}}`, recursively; an endpoint that owns
 nothing contributes its content as before. Ownership bounds a composite,
@@ -215,7 +230,9 @@ evaluators.
 
 ## 8. Queries and indexes
 
-**Decided.** Finding the relations that touch an entity needs an index. An
+**Decided:**
+
+Finding the relations that touch an entity needs an index. An
 index is derived implementation data: it is rebuilt from state content and
 never contributes to `StateID` (README §29).
 

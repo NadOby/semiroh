@@ -8,15 +8,15 @@ modification produces a new immutable state (see
 [`transformation_model.md`](transformation_model.md)). Activation is the
 separate step that makes the running program execute that state.
 
-Each section is marked:
+Status markers used in this document are:
 
-- **Decided**: agreed direction; later changes should be deliberate.
-- **Proposed**: recommended direction, not yet agreed.
-- **Open**: options are listed; no direction is chosen.
+- **Decided:** agreed direction; later changes should be deliberate.
+- **Provisional:** current direction, not fully settled.
+- **Open:** options are listed; no direction is chosen.
 
 ## 1. Program state and runtime state
 
-**Decided.**
+**Decided:**
 
 A running program has two kinds of state:
 
@@ -36,7 +36,7 @@ become valid, or remain explicitly pinned, when `S₁` becomes active.
 
 ## 2. Activation as a transition
 
-**Decided.**
+**Decided:**
 
 Activation takes:
 
@@ -61,7 +61,10 @@ combine, and overlapping ones raise `ActivationConflict`, which is both
 `ActivationRejected` and `TransformationConflict`. A result from a state
 the runtime never had active is rejected as stale ("does not start from
 the active state"), not as a conflict. `trial` does the same.
-**Provisional**: the runtime remembers every result it activated.
+
+**Provisional:**
+
+The runtime remembers every result it activated.
 
 Activating a state for which no transformation from the active state
 exists gives every live entity unknown continuity. Such an activation is
@@ -70,7 +73,7 @@ and references into `S₀` stay pinned (section 6).
 
 ## 3. Validation and authority
 
-**Decided.**
+**Decided:**
 
 Producing a new state with the embedded compiler and activating a state are
 both governed by capabilities. A program without the activation capability
@@ -90,10 +93,15 @@ Any failure before step 4 leaves `S₀` active and runtime state unchanged.
 `Unknown` validation results do not permit activation unless an explicit
 policy says otherwise.
 
-## 4. Mutable cell content
+### 4. Mutable cell content
 
-**Decided.** The conversion rule and the placement of conversions are
-provisional.
+**Decided:**
+
+This section, except the conversion rule and the placement of conversions.
+
+**Provisional:**
+
+The conversion rule and the placement of conversions.
 
 A mutable cell is versioned program state; its content is runtime state. At
 activation, cell content is carried along explicit continuity:
@@ -163,9 +171,14 @@ output is checked like any other content.
 
 ## 5. Code in flight
 
-**Decided:** a frame that is executing when an activation happens keeps
-executing in the version it started in, and holds that version.
-**Open:** the strategy for switching code in flight, described below.
+**Decided:**
+
+A frame that is executing when an activation happens keeps executing in the
+version it started in, and holds that version.
+
+**Open:**
+
+The strategy for switching code in flight, described below.
 
 Some threads may be executing code of entities that the transformation
 changed or removed. Options:
@@ -193,14 +206,16 @@ point, as Linux kernel livepatch does per task.
 A reasonable starting point is version coexistence with switching at call
 boundaries or explicit update points. On-stack replacement can come later.
 
-**Provisional:** the language uses version coexistence with switching at
-every call (metaprogramming.md section 5). The running language frame retains
-its starting version, while every subsequent linked call resolves and enters
+**Provisional:**
+
+The language uses version coexistence with switching at every call
+(metaprogramming.md section 5). The running language frame retains its
+starting version, while every subsequent linked call resolves and enters
 the function from the currently active version.
 
 ## 6. References across activation
 
-**Decided.**
+**Decided:**
 
 References are state-pinned. Activation is exactly the one step through which
 runtime-held references into `S₀` are transferred:
@@ -219,7 +234,7 @@ rejects activation when any live reference cannot be transferred.
 
 ## 7. Retiring superseded versions
 
-**Decided.**
+**Decided:**
 
 Retirement of old versions uses the ownership model rather than a separate
 lifetime mechanism. The same rules apply to runtime state as to program
@@ -276,7 +291,7 @@ destruction of what that thread owns.
 
 ## 8. Speculative versions
 
-**Decided.**
+**Decided:**
 
 The two-version bound applies to versions running in one runtime, not to
 produced states. Candidate states are immutable values: any number of them can
@@ -302,12 +317,14 @@ no holds. Until capabilities are modelled, what a trial grants is its
 evaluation context, which defaults to the main runtime's, and the converters
 it is given.
 
-**Provisional:** the language runs code under trial without the activation
-capability (language_trials.md section 3).
+**Provisional:**
+
+The language runs code under trial without the activation capability
+(language_trials.md section 3).
 
 ## 9. Rollback
 
-**Decided.**
+**Decided:**
 
 `S₀` remains an immutable, valid state after activation. Returning to it is a
 new activation `S₁ → S₀` with its own continuity mappings and conversion
@@ -319,7 +336,7 @@ implied by the existence of a forward transformation.
 
 ## 10. Native code
 
-**Open.**
+**Open:**
 
 The embedded compiler regenerates the executable representation of `S₁`.
 Native code can be cached by `VersionID`, so entities whose version is

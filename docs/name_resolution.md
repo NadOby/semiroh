@@ -5,7 +5,7 @@ reconciler. It does not introduce new syntax.
 
 ## 1. Lexical names
 
-**Provisional.**
+**Provisional:**
 
 A function has one lexical namespace.
 
@@ -34,7 +34,7 @@ lexically invalid.
 
 ## 2. Program names
 
-**Provisional.**
+**Provisional:**
 
 Version 0 has one program-global namespace. Cells and functions occupy that
 same namespace and declaration names are unique.
@@ -52,7 +52,7 @@ therefore against the complete declaration set, not declaration order.
 
 ## 3. Modules
 
-**Provisional.**
+**Provisional:**
 
 There is one implicit root module: the program itself.
 
@@ -69,7 +69,7 @@ section 1 need not change.
 
 ## 4. Reconciliation
 
-**Provisional.**
+**Provisional:**
 
 The graph state is authoritative. Edited text is a proposed new source view
 of that state, not a second authoritative representation.
@@ -95,7 +95,7 @@ Adding or removing a function is an ordinary `define` creation or removal.
 
 ## 5. Renames
 
-**Provisional.**
+**Provisional:**
 
 A bare textual declaration rename is not enough evidence that two differently
 named top-level declarations are the same entity.
@@ -121,7 +121,7 @@ spelling names.
 
 ## 6. Cells
 
-**Provisional.**
+**Provisional:**
 
 Task 15 preserves existing cell declarations and their identity when their
 source declaration is unchanged.
@@ -137,7 +137,7 @@ Function edits may freely change which existing cells they reference.
 
 ## 7. Errors
 
-**Provisional.**
+**Provisional:**
 
 Syntax and name-resolution failures remain `SourceError`s with source
 positions.
@@ -149,7 +149,7 @@ No failed reconciliation changes the source graph state.
 
 ## 8. Open
 
-**Open.**
+**Open:**
 
 The following are deliberately not decided by task 15:
 
@@ -159,7 +159,7 @@ The following are deliberately not decided by task 15:
 - qualified names;
 - cross-module ambiguity;
 - source syntax for declaring top-level continuity, including renames;
-- cell migration and conversion syntax.
-- - `lang.define` input representation for multiple edits targeting one entity;
+- cell migration and conversion syntax;
+- `lang.define` input representation for multiple edits targeting one entity;
   reconciliation currently uses collision-free temporary `EntityID` keys for
   relation edits because `define` accepts a mapping with one value per key.

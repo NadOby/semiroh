@@ -21,15 +21,53 @@ REQUIRED = {
 class CorpusShapeTests(unittest.TestCase):
     def test_required_cases_and_groups(self) -> None:
         names = [case.name for case in CASES]
+        name_set = set(names)
+        case_groups = {case.group for case in CASES}
+        expected_groups = set(GROUPS)
+        errors = []
 
-        self.assertEqual(len(names), len(set(names)))
-        self.assertLessEqual(REQUIRED, set(names))
-        self.assertEqual({case.group for case in CASES}, set(GROUPS))
+        duplicates = sorted(
+            name
+            for name in name_set
+            if names.count(name) > 1
+        )
+        if duplicates:
+            errors.append(
+                "duplicate cases: " + ", ".join(duplicates)
+            )
+
+        missing = sorted(REQUIRED - name_set)
+        if missing:
+            errors.append(
+                "missing required cases: " + ", ".join(missing)
+            )
+
+        missing_groups = sorted(expected_groups - case_groups)
+        if missing_groups:
+            errors.append(
+                "missing groups: " + ", ".join(missing_groups)
+            )
+
+        unexpected_groups = sorted(case_groups - expected_groups)
+        if unexpected_groups:
+            errors.append(
+                "unexpected groups: " + ", ".join(unexpected_groups)
+            )
 
         for case in CASES:
-            with self.subTest(case=case.name):
-                self.assertIn(case.status, ("holds", "gap"))
-                self.assertTrue(case.note)
+            if case.status not in ("holds", "gap"):
+                errors.append(
+                    f"{case.name}: invalid status {case.status!r}"
+                )
+            if not case.note:
+                errors.append(
+                    f"{case.name}: missing note"
+                )
+
+        self.assertFalse(
+            errors,
+            "Continuity corpus shape errors:\n" + "\n".join(errors),
+        )
 
 
 class StatusTests(unittest.TestCase):

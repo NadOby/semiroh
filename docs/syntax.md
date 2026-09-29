@@ -9,13 +9,16 @@ view (syntax_notes.md, Direction A): `parse` reads text into the input
 format, which `load` turns into graph form, and `render` prints graph form
 back as text. The graph stays authoritative; text is a projection.
 
-Version 0 is **import-only**: editing text and parsing it again creates new
-nodes. A reconciler that turns an edited text into a transformation with
-continuity comes later (roadmap.md, Later).
+`parse` itself is import-only: parsing text produces input-format state and
+does not infer continuity with an existing graph. Editing an existing program
+uses `reconcile(state, text)`, specified in `name_resolution.md`: it resolves
+the edited text and expresses the change through `lang.define`, so task 13's
+continuity inference applies. Cell declaration edits remain outside the
+current reconciler.
 
 ## 1. Programs
 
-**Decided.**
+**Decided:**
 
 A program text is a sequence of declarations:
 
@@ -44,7 +47,7 @@ Indentation is by spaces, consistent within a block; tabs are rejected.
 
 ## 2. Names
 
-**Decided.**
+**Decided:**
 
 Inside a function, a name is a parameter, a `let` name (section 4), a
 declared global, or a name of the `base` state (section 7). A name that is
@@ -66,7 +69,7 @@ names, which a declaration, a parameter or a `let` may use.
 
 ## 3. Expressions
 
-**Decided.**
+**Decided:**
 
     1  -1  true  false  none  "text"   literals (strings as JSON strings)
     (a, b)  (a,)  ()                   tuple of values
@@ -101,7 +104,7 @@ ints, `true`, `false`, `none`, strings and tuples of data literals.
 
 ## 4. Blocks
 
-**Decided.**
+**Decided:**
 
 A block is one or more statements, one per line; its value is the value of
 the last. Statements are expressions, cell writes, `let` and block `if`:
@@ -118,7 +121,13 @@ make a `seq`; a `let` wraps the rest of its block.
 
 ## 5. Rendering
 
-**Decided**, the layout **Provisional**.
+**Decided:**
+
+Rendering semantics.
+
+**Provisional:**
+
+Layout.
 
 `render(state, function)` prints one function of a graph-form state as an
 `fn` declaration ending with a newline, and `render_program(state)` prints
@@ -140,7 +149,7 @@ whose value is well-formed code.
 
 ## 6. Round trip
 
-**Decided.**
+**Decided:**
 
 Text round-trips by behaviour and by text, not by exact input form (a
 tuple of literals and a literal tuple, for example, parse to different
@@ -167,7 +176,9 @@ Module `semiroh/syntax.py`, built on `semiroh.lang`.
 
 ## 8. Implementation notes
 
-**Decided**, found while making the corpus round-trip.
+**Decided:**
+
+Found while making the corpus round-trip.
 
 - One statement per line; there are no continuation lines. A tab anywhere
   outside a string or comment is a `SourceError`.

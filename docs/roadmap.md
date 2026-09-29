@@ -256,6 +256,21 @@ Text edits become transformations with continuity (task 13's rules), so
 editing text keeps the identity of everything the edit does not touch.
 Lexical and module name resolution are specified first.
 
+### 16. Documentation coherence (one session)
+
+**In progress.**
+
+Correct mechanical documentation drift without changing semantics. Normalize
+standalone `Decided`, `Provisional`, and `Open` status markers; check internal
+Markdown links and numbered section references; and catch stale roadmap PR
+markers. Documentation-only changes run the coherence checks in CI.
+
+Substantive documentation/code mismatches are reported rather than silently
+resolved.
+
+Done when: the coherence tests pass, affected status markers are normalized,
+and `CHANGES.md` records the sweep.
+
 ## Later
 
 - Systems data: structs, arrays and references between cells, with layout
@@ -268,3 +283,5 @@ Lexical and module name resolution are specified first.
   the source view of task 11.
 - The program root and modules (ownership_model.md §13), when explicit
   modules or libraries need them.
+- Split CI into independent quality-of-life/coherence, unit/semantic,
+  regression/corpus, property/stress, and mutation/expensive test jobs.

@@ -30,7 +30,11 @@ from .lang import (
 from .relations import Endpoint, Relation, relation_of
 from .state import State
 from .syntax import parse
-from .transforms import TransformResult, transform_with_mapping
+from .transforms import (
+    EntityMapping,
+    TransformResult,
+    transform_with_mapping,
+)
 
 
 __all__ = ["ReconcileError", "reconcile"]
@@ -183,12 +187,7 @@ def _remove_functions(
     state: State,
     removed: set[EntityID],
 ) -> TransformResult:
-    """Remove top-level functions without inferring cross-name continuity.
-
-    A source declaration disappearing supplies explicit evidence of
-    disappearance, not evidence that a newly named declaration is its
-    continuation. Descendant nodes disappear with their function.
-    """
+    """Remove top-level functions without cross-name continuity inference."""
 
     gone: set[EntityID] = set()
 
@@ -252,6 +251,62 @@ def _function_edits(
     return edits
 
 
+def _combine(
+    first: TransformResult,
+    second: TransformResult,
+) -> TransformResult:
+    """Combine two consecutive concrete transformation results.
+
+    ``compose`` operates on transformation definitions, not applied
+    ``TransformResult`` objects. Reconciliation already has both concrete
+    results, so follow each explicit first-stage destination through the
+    second-stage mapping, using identity where the second stage does not name
+    it.
+    """
+
+    if first.destination.id != second.source.id:
+        raise ValueError(
+            "cannot combine non-consecutive transformation results"
+        )
+
+    second_mappings = {
+        mapping.source_entity: mapping.destination_entities
+        for mapping in second.mappings
+    }
+
+    mappings: list[EntityMapping] = []
+
+    for mapping in first.mappings:
+        destinations: set[EntityID] = set()
+
+        for intermediate in mapping.destination_entities:
+            destinations.update(
+                second_mappings.get(intermediate, (intermediate,))
+            )
+
+        mappings.append(
+            EntityMapping(
+                source_state=first.source.id,
+                source_entity=mapping.source_entity,
+                destination_entities=tuple(sorted(destinations)),
+            )
+        )
+
+    return TransformResult(
+        source=first.source,
+        destination=second.destination,
+        mappings=tuple(
+            sorted(
+                mappings,
+                key=lambda mapping: mapping.source_entity,
+            )
+        ),
+        provenance=(first.provenance, second.provenance),
+        conversions=second.conversions,
+        relation_rewrites=second.relation_rewrites,
+    )
+
+
 def reconcile(state: State, text: str) -> TransformResult:
     """Reconcile complete edited program ``text`` against graph ``state``.
 
@@ -276,10 +331,6 @@ def reconcile(state: State, text: str) -> TransformResult:
 
     removed = set(before) - set(after)
 
-    # Removal is deliberately a separate transformation. If removed and new
-    # functions were submitted together to define(), its matcher could infer
-    # a move between differently named top-level declarations. Source syntax
-    # currently supplies no evidence for that continuity.
     if removed:
         removal = _remove_functions(state, removed)
         intermediate = removal.destination
@@ -300,4 +351,4 @@ def reconcile(state: State, text: str) -> TransformResult:
     if removal is None:
         return update
 
-    return removal.then(update)
+    return _combine(removal, update)

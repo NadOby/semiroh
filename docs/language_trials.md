@@ -12,7 +12,7 @@ result, and only then decides whether to `activate`.
 
 ## 1. Scope
 
-**Decided.**
+**Decided:**
 
 In scope: one operation, `trial`, over the same changes `activate` accepts,
 using `Runtime.trial` as it is.
@@ -24,7 +24,7 @@ change to the core model.
 
 ## 2. The operation
 
-**Decided.**
+**Decided:**
 
     ("trial", ("call", link, e1, ..., eK), link1, f1, ..., linkN, fN)
         N >= 0
@@ -57,7 +57,9 @@ not its holds.
 
 ## 3. Capability
 
-**Provisional**, until capabilities are modelled.
+**Provisional:**
+
+Until capabilities are modelled.
 
 A trial produces a candidate state, and activation_model.md §3 governs
 producing states with the embedded compiler as well as activating them. A
@@ -72,7 +74,7 @@ default.
 
 ## 4. Failures
 
-**Decided.**
+**Decided:**
 
 The language has no error handling, so a trial reports success through its
 value and failure by raising:
@@ -90,7 +92,9 @@ trial's value, for example
 
 ## 5. Trials and the two-version bound
 
-**Decided**, following activation_model.md §8.
+**Decided:**
+
+Following activation_model.md §8.
 
 The isolated runtime has its own root, so trials do not count against the
 main runtime's two-version bound. A run may make any number of trials,

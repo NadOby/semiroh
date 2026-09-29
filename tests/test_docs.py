@@ -134,7 +134,7 @@ class DocumentationCoherenceTests(unittest.TestCase):
             section_indexes = [
                 index
                 for index, line in enumerate(lines)
-                if re.match(r"^##+\s+", line)
+                if re.match(r"^##\s+", line)
             ]
 
             for position, index in enumerate(section_indexes):

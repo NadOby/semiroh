@@ -941,3 +941,23 @@ ledger measurement to match live model output.
   insertion, function creation/removal and rename, changed and removed
   references, untouched-function identity, and rejected cell declaration
   edits.
+
+### Documentation coherence
+
+- Started task 16, a documentation-coherence sweep with no intended semantic
+  model changes.
+- Normalized standalone `Decided`, `Provisional`, and `Open` markers across
+  the specification documents.
+- Added `tests/test_docs.py` to detect stale roadmap PR placeholders, broken
+  internal Markdown links, invalid numbered section references, missing
+  top-level headings, and noncanonical status markers.
+- Documentation checks accumulate independent errors so one CI run reports
+  the full set of mechanical problems instead of stopping at the first one.
+- Applied the same accumulated-diagnostic pattern where useful to graph-ledger
+  documentation measurements, continuity designators, and continuity-corpus
+  shape checks.
+- Extended the semantic-model workflow to run for changes anywhere under
+  `docs/` or to `README.md`, so documentation coherence is enforced on
+  documentation-only changes.
+- Recorded a later cleanup to split CI into independent coherence, semantic
+  unit, regression/corpus, property/stress, and expensive mutation jobs.

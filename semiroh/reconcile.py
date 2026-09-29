@@ -1,13 +1,13 @@
 """Reconcile edited source text with an existing graph-form program.
 
-The graph is authoritative.  ``reconcile`` parses a complete edited source
-view, compares its declarations with the graph, and expresses the supported
-difference through :func:`semiroh.lang.define`.  ``define`` performs the
-actual continuity inference.
+The graph is authoritative. ``reconcile`` parses a complete edited source
+view, compares its declarations with the graph, and expresses supported
+changes through :func:`semiroh.lang.define`. ``define`` performs continuity
+inference inside declarations that already have identity.
 
-Task 15 deliberately keeps this layer small.  Version 0 has one program
+Task 15 deliberately keeps this layer small. Version 0 has one program
 namespace and supports function creation, removal, body edits and link-table
-edits.  Cell declaration edits are rejected until cell migration semantics
+edits. Cell declaration edits are rejected until cell migration semantics
 are specified (docs/name_resolution.md).
 """
 
@@ -30,7 +30,7 @@ from .lang import (
 from .relations import Endpoint, Relation, relation_of
 from .state import State
 from .syntax import parse
-from .transforms import TransformResult
+from .transforms import TransformResult, transform_with_mapping
 
 
 __all__ = ["ReconcileError", "reconcile"]
@@ -140,12 +140,7 @@ def _graph_links(state: State, function: EntityID) -> dict[str, Endpoint]:
 
 
 def _check_cells(current: State, edited: State) -> None:
-    """Reject cell creation, removal or declaration changes.
-
-    Runtime cell contents and declaration migration need explicit semantics.
-    Treating an edited declaration as an ordinary replacement would silently
-    choose those semantics, so task 15 does not do it.
-    """
+    """Reject cell creation, removal or declaration changes."""
 
     before = _cells(current)
     after = _cells(edited)
@@ -184,22 +179,92 @@ def _check_cells(current: State, edited: State) -> None:
     )
 
 
+def _remove_functions(
+    state: State,
+    removed: set[EntityID],
+) -> TransformResult:
+    """Remove top-level functions without inferring cross-name continuity.
+
+    A source declaration disappearing supplies explicit evidence of
+    disappearance, not evidence that a newly named declaration is its
+    continuation. Descendant nodes disappear with their function.
+    """
+
+    gone: set[EntityID] = set()
+
+    for function in removed:
+        gone.add(function)
+        gone.update(state.owned_subtree(function))
+
+    mappings = {
+        entity: (() if entity in gone else entity)
+        for entity in state.values
+    }
+
+    ownership = {
+        owner: tuple(
+            child
+            for child in children
+            if child not in gone
+        )
+        for owner, children in state.ownership.items()
+        if owner not in gone
+    }
+
+    return transform_with_mapping(
+        state,
+        {},
+        mappings,
+        ownership=ownership,
+    )
+
+
+def _function_edits(
+    state: State,
+    before: dict[EntityID, Function],
+    after: dict[EntityID, Function],
+    parsed_links: dict[EntityID, Relation],
+) -> dict[EntityID, Any]:
+    """Build edits for functions present in the edited source."""
+
+    edits: dict[EntityID, Any] = {}
+
+    for entity in sorted(after):
+        desired_function = after[entity]
+        current_function = before.get(entity)
+
+        if current_function is None or current_function != desired_function:
+            edits[entity] = desired_function
+
+        desired_links = _link_targets(parsed_links.get(entity))
+        current_links = (
+            {}
+            if current_function is None
+            else _graph_links(state, entity)
+        )
+
+        if desired_links != current_links:
+            edits[EntityID(f"{entity.value}.reconcile.links")] = links(
+                entity,
+                **desired_links,
+            )
+
+    return edits
+
+
 def reconcile(state: State, text: str) -> TransformResult:
     """Reconcile complete edited program ``text`` against graph ``state``.
 
-    Parsing and name resolution are performed from the complete edited text,
-    not from the old graph.  Consequently a removed declaration cannot remain
-    accidentally resolvable merely because it existed before the edit.
+    Parsing and name resolution use the complete edited text. Existing
+    declarations retain their top-level identity and changed function bodies
+    go through ``lang.define``, which infers continuity among their code nodes.
 
-    Unchanged functions are omitted from the edit set.  Changed function
-    bodies are passed to :func:`lang.define`, whose continuity matcher keeps
-    unambiguous old nodes.  Link-table changes are supplied independently, so
-    changing a resolved global reference need not manufacture a different
-    function body.  Removed functions map to ``None`` and new functions are
-    ordinary whole-function definitions.
+    A declaration absent from the edited source disappears. A declaration
+    with a new top-level name is created independently; spelling alone is not
+    evidence that it continues a removed declaration.
 
-    Cell declarations must currently be identical to the graph's declarations;
-    see :class:`ReconcileError`.
+    Cell declarations must currently be identical to the graph's
+    declarations.
     """
 
     edited = parse(text)
@@ -209,37 +274,30 @@ def reconcile(state: State, text: str) -> TransformResult:
     after = _input_functions(edited)
     parsed_links = _input_links(edited)
 
-    edits: dict[EntityID, Any] = {}
+    removed = set(before) - set(after)
 
-    before_ids = set(before)
-    after_ids = set(after)
+    # Removal is deliberately a separate transformation. If removed and new
+    # functions were submitted together to define(), its matcher could infer
+    # a move between differently named top-level declarations. Source syntax
+    # currently supplies no evidence for that continuity.
+    if removed:
+        removal = _remove_functions(state, removed)
+        intermediate = removal.destination
+    else:
+        removal = None
+        intermediate = state
 
-    for entity in sorted(before_ids - after_ids):
-        edits[entity] = None
+    intermediate_before = _graph_functions(intermediate)
+    edits = _function_edits(
+        intermediate,
+        intermediate_before,
+        after,
+        parsed_links,
+    )
 
-    for entity in sorted(after_ids):
-        desired_function = after[entity]
-        current_function = before.get(entity)
+    update = define(intermediate, edits)
 
-        if current_function is None or current_function != desired_function:
-            edits[entity] = desired_function
+    if removal is None:
+        return update
 
-        desired_relation = parsed_links.get(entity)
-        desired_links = _link_targets(desired_relation)
-        current_links = (
-            {}
-            if current_function is None
-            else _graph_links(state, entity)
-        )
-
-        if desired_links != current_links:
-            # ``define`` accepts a links relation under any EntityID key and
-            # identifies its function through FUNCTION_ROLE.  Constructing it
-            # here also represents the important non-empty -> empty change,
-            # for which the parser naturally emits no links entity.
-            edits[EntityID(f"{entity.value}.reconcile.links")] = links(
-                entity,
-                **desired_links,
-            )
-
-    return define(state, edits)
+    return removal.then(update)

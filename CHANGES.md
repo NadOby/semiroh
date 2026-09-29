@@ -921,3 +921,23 @@ than estimating results: incremental bytecode lowering counts, continuity
 corpus identity claims and constant-fold provenance. Added
 `tests/test_ledger.py` to run the measurement script and require every quoted
 ledger measurement to match live model output.
+
+### Reconciler
+
+- Added `docs/name_resolution.md`: lexical names resolve through active
+  `let` bindings, parameters and then the program-global namespace; version
+  0 has one implicit root module and deliberately adds no module syntax.
+- Added `semiroh/reconcile.py`: complete edited source is parsed and compared
+  with the authoritative graph, and changed functions are applied through
+  `lang.define` so task 13's continuity inference preserves unambiguous
+  unchanged code nodes.
+- Unchanged functions are left untouched; functions may be added or removed,
+  while a bare top-level rename is deliberately remove plus create because
+  source spelling alone supplies no declaration-continuity evidence.
+- Function link tables are reconciled with their bodies, including removing
+  the last link. Cell declaration edits are rejected until cell migration
+  semantics are specified.
+- Added acceptance coverage for no-op edits, descendant continuity,
+  insertion, function creation/removal and rename, changed and removed
+  references, untouched-function identity, and rejected cell declaration
+  edits.

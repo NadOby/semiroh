@@ -1,6 +1,6 @@
 """Tests for the graph-ledger measurements and quoted documentation values."""
 
-from future import annotations
+from __future__ import annotations
 
 import json
 import re
@@ -11,31 +11,29 @@ from pathlib import Path
 
 from semiroh.examples.ledger import measurements
 
-ROOT = Path(file).resolve().parents[1]
+
+ROOT = Path(__file__).resolve().parents[1]
 LEDGER = ROOT / "docs" / "graph_ledger.md"
 
-class LedgerTests(unittest.TestCase):
-def test_script_runs_and_prints_its_measurements(self) -> None:
-completed = subprocess.run(
-[sys.executable, "-m", "semiroh.examples.ledger"],
-cwd=ROOT,
-check=True,
-capture_output=True,
-text=True,
-)
+
+def test_script_runs_and_prints_its_measurements() -> None:
+    completed = subprocess.run(
+        [sys.executable, "-m", "semiroh.examples.ledger"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
     printed = json.loads(completed.stdout)
-    self.assertEqual(printed, measurements())
+    if printed != measurements():
+        raise AssertionError("script output differs from measurements()")
 
-    # Leave the actual measured output visible in GitHub Actions so the
-    # documentation can be written from a real run, not an estimate.
     print("\nGRAPH LEDGER MEASUREMENTS")
     print(json.dumps(printed, indent=2, sort_keys=True))
 
-def test_documented_measurements_match_the_model(self) -> None:
-    if not LEDGER.exists():
-        self.skipTest("docs/graph_ledger.md has not been added yet")
 
+def test_documented_measurements_match_the_model() -> None:
     text = LEDGER.read_text(encoding="utf-8")
     actual = measurements()
 
@@ -84,7 +82,21 @@ def test_documented_measurements_match_the_model(self) -> None:
     ]["sources_per_folded_node"].items():
         expected[f"fold.{designator}.sources"] = count
 
-    self.assertEqual(quoted, expected)
+    if quoted != expected:
+        raise AssertionError(
+            "documented measurements differ from model\n"
+            f"quoted={quoted!r}\nexpected={expected!r}"
+        )
 
-if name == "main":
+
+class LedgerTests(unittest.TestCase):
+    test_script_runs_and_prints_its_measurements = staticmethod(
+        test_script_runs_and_prints_its_measurements
+    )
+    test_documented_measurements_match_the_model = staticmethod(
+        test_documented_measurements_match_the_model
+    )
+
+
+if __name__ == "__main__":
     unittest.main()

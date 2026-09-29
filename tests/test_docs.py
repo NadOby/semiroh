@@ -145,7 +145,6 @@ class DocumentationCoherenceTests(unittest.TestCase):
                             r"\*\*(Decided|Provisional|Open):\*\*",
                             line.strip(),
                         )
-                        )
                     )
                 }
                 self.assertTrue(

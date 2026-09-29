@@ -192,7 +192,7 @@ source nodes, which a test checks. Independent of task 8.
 
 ### 10. A bytecode interpreter in SEMIROH (one session)
 
-**Done.** The design is in vm_in_semiroh.md.
+**Done** (#32). The design is in vm_in_semiroh.md.
 
 Owner's direction after task 8: "probably". A small VM written in the
 language runs the chunks the compiler of task 8 emits, so a program compiles

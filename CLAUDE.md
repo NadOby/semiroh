@@ -85,6 +85,9 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   virtual machine with explicit stacks. `lang.run` calls it.
 - `fold.py`: constant folding as a graph transformation that declares its
   merges (`fold_constants`, `sources_of`).
+- `syntax.py`: text syntax version 0 over `lang.py`: `parse` (text to the
+  input format, over an optional base), `render` and `render_program` (graph
+  form to text, `raw(...)` for what the syntax cannot write). Import-only.
 - `cells.py`, `runtime.py`: `CellDeclaration(constraint, initial)`;
   `Runtime` holds cell content outside `StateID`, checks constraints
   (anything but Satisfied rejects), activates transformation results

@@ -501,7 +501,9 @@ edges follow declared continuity, as relation endpoints do
 The followed edges must still form a forest. Merging children of different
 owners into one entity, or a child into its own owner, is rejected.
 
-**Decided.** An owner's disappearance ends its owned subtree
+**Decided:**
+
+An owner's disappearance ends its owned subtree
 ([`ownership_model.md`](ownership_model.md) section 7). Every entity the
 disappearing owner owns that the transformation does not name as a mapping
 source or destination disappears too, recursively, and the result records
@@ -509,9 +511,9 @@ each as a mapping to nothing. A named descendant keeps what its mapping
 says, and the rules above apply to it. A transformation that changes an
 entity it ends this way is rejected.
 
-**Decided.** Placements, `created entity -> owner`, put created entities
-into the forest ([`ownership_model.md`](ownership_model.md) section 10). A
-placed entity must be created by the transformation (absent from the source,
+**Decided:**
+
+Placements, `created entity -> owner`, put created entities into the forest ([`ownership_model.md`](ownership_model.md) section 10). A placed entity must be created by the transformation (absent from the source,
 not a mapping destination), and its owner must be in the destination.
 
 When explicit destination ownership is supplied, it defines the destination

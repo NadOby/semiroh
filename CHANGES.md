@@ -847,3 +847,56 @@ Composition APIs are specified in terms of these three result classes.
   the same source is rejected as stale, which is also why `rebase_disjoint`
   fails; a program loaded again reuses the ids `f/0.n` for other nodes.
   No prediction was wrong. No existing module or test changed.
+
+### Continuity inference
+
+- Added `semiroh/matching.py`: `match` and `shapes`, the rules of
+  docs/continuity_inference.md §2. From the largest size down, a new
+  subtree whose shape is unique among the unmatched old and new subtrees
+  keeps the old identity whole; then each entry's new root keeps the node
+  at its position when the kind is the same. Nothing else is matched.
+- `define` infers by default (owner decision: identity follows the
+  expression), including the transformations `activate` and `trial`
+  build. All entries of one `define` form one pool, so a node can move
+  between functions, with its owner change stated in explicit destination
+  ownership. `define` also creates a function (a `Function` for an absent
+  entity), removes one (None) and replaces a link table (a links relation
+  as an entry), so `extract_function` and `inline_function` are one
+  `define`. An edit that changes nothing gives the source state.
+- Added `transforms.rebase`, `touched` and `TransformationConflict`: two
+  results of one state combine when their touched sets are disjoint;
+  colliding created node names move to the function's next free
+  generation. `Runtime.activate` and `trial` rebase a result from an
+  earlier active state over every result activated since;
+  `ActivationConflict` is both `ActivationRejected` and
+  `TransformationConflict`. A result from a state never active is stale,
+  as before.
+- All 21 continuity corpus cases hold; the operations of the two moved
+  cases changed, not their sources or expectations.
+- Decided on contact: a label edit that changes the node's kind now gives
+  the position a new node, and the node that named it is changed (graph
+  form §9 changed); a function's generation advances only when the edit
+  creates a node for it; no compiled chunk depends on the owning function,
+  so a moved node keeps its `VersionID`; the runtime remembers every
+  activated result (unbounded, Open); a combined state's constraints are
+  left to activation, not reported as a conflict.
+- Existing tests changed, each renamed to what it now checks:
+  `test_define_replaces_one_body_and_nothing_else` →
+  `test_define_edits_one_body_keeping_what_is_unchanged_and_nothing_else`
+  (the unchanged `read` and the root are kept);
+  `test_replacing_with_a_larger_expression_and_back` →
+  `..._renews_the_position` (a kind change gives a new node);
+  `test_define_rejects_what_is_not_a_function` →
+  `..._and_creates_an_absent_one` (define may create a function);
+  `test_repeated_defines_never_reuse_a_node_entity` →
+  `test_repeated_defines_never_create_a_node_under_a_used_name` (kept
+  nodes keep their names; created ones still never reuse one);
+  `test_load_and_define_round_trip_any_body` →
+  `..._keeping_only_what_matches` (it failed on 55 of 300 seeds, each a
+  unique unchanged subtree or a same-kind root correctly kept, not a bug).
+  The probes of three `CheckTests` in `test_continuity_units.py` now use a
+  whole-body edit that keeps no node; `check` did not change.
+- Added `tests/test_matching.py` (rules one by one, order independence and
+  one-rule-per-kept-node as seeded properties, moves, touched sets,
+  renaming, conflicts). `matching.py` and `transforms.py` joined the
+  mutation targets; one equivalent mutant is listed.

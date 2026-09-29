@@ -230,6 +230,9 @@ become the input of task 13.
 
 ### 13. Continuity inference (one session)
 
+**Done** (#PR pending). The design is in continuity_inference.md; all 21
+corpus cases hold.
+
 Deterministic rules for continuity nobody declares: keeping unchanged
 descendants in an edit, matching a new tree against an old one (an
 ambiguous match gets a new identity, never a guess), moves across

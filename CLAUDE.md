@@ -73,25 +73,32 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 - `transforms.py`: `TransformationDefinition` (changes, mappings, named
   conversions) → `TransformResult`. Mapped sources are removed unless they
   are mapping destinations; changing a removed entity is rejected; relation
-  endpoints and ownership follow declared continuity.
+  endpoints and ownership follow declared continuity. `rebase` combines
+  two results of one state when their `touched` sets are disjoint, else
+  `TransformationConflict`.
+- `matching.py`: continuity inference for `define` (`match`, `shapes`):
+  unique unchanged subtrees keep their identity, largest first, then the
+  edited position by kind (docs/continuity_inference.md).
 - `relations.py`: `Relation(kind, roles, payload)` entities; endpoints must
   exist; a constraint payload makes a constraint relation. Kinds have no
   core meaning.
 - `constraints.py`: three-valued semantic constraints (strong Kleene),
   `Evaluator` behind `External(name)`, step budgets.
 - `lang.py`, `bytecode.py`: the language layer. `lang.py` keeps code as
-  graph form (`load`, `define`, `function_at`); `bytecode.py` lowers each
+  graph form (`load`, `define`, `function_at`; `define` infers what an
+  edit keeps and can create, remove and relink functions); `bytecode.py` lowers each
   node to a chunk, kept with the node's `Value`, and runs chunks on a
   virtual machine with explicit stacks. `lang.run` calls it.
 - `fold.py`: constant folding as a graph transformation that declares its
   merges (`fold_constants`, `sources_of`).
 - `continuity.py`: the continuity corpus: cases with expected continuity
-  per operation (`CASES`, `check`); a `gap` case records inference still
-  missing (docs/continuity_corpus.md).
+  per operation (`CASES`, `check`); a `gap` case would record inference
+  still missing; all 21 hold (docs/continuity_corpus.md).
 - `syntax.py`: text syntax version 0 over `lang.py`: `parse` (text to the
   input format, over an optional base), `render` and `render_program` (graph
   form to text, `raw(...)` for what the syntax cannot write). Import-only.
 - `cells.py`, `runtime.py`: `CellDeclaration(constraint, initial)`;
   `Runtime` holds cell content outside `StateID`, checks constraints
   (anything but Satisfied rejects), activates transformation results
-  atomically (two-version bound, holds, retirement), and runs trials.
+  atomically (two-version bound, holds, retirement), rebases a result
+  from an earlier active state over those activated since, and runs trials.

@@ -6,13 +6,15 @@ on:
     paths:
       - "semiroh/**"
       - "tests/**"
-      - "docs/graph_ledger.md"
+      - "README.md"
+      - "docs/**"
       - ".github/workflows/semantic-model.yml"
   pull_request:
     paths:
       - "semiroh/**"
       - "tests/**"
-      - "docs/graph_ledger.md"
+      - "README.md"
+      - "docs/**"
       - ".github/workflows/semantic-model.yml"
 
 jobs:

@@ -239,13 +239,18 @@ ambiguous match gets a new identity, never a guess), moves across
 functions, and merging or rejecting two transformations of the same state.
 Done when the gaps of task 12 hold.
 
-### 14. Where the graph earns its keep (one session) — **Done** (#PR pending)
+### 14. Where the graph earns its keep (one session)
+
+**Done** (#PR pending).
 
 A short ledger comparing each capability of graph form with what an AST,
 a symbol table and a dependency index would need, with the measurements
 of tasks 7, 9, 12 and 13. Weak rows are recorded as such.
 
 ### 15. Reconciler (one session)
+
+**Done** (#PR pending). The name-resolution rules are in
+name_resolution.md.
 
 Text edits become transformations with continuity (task 13's rules), so
 editing text keeps the identity of everything the edit does not touch.

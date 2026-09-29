@@ -770,3 +770,27 @@ Composition APIs are specified in terms of these three result classes.
   at one that disappears.
 - Added `fold.py` to the mutation targets (two listed survivors).
 
+### A bytecode interpreter in SEMIROH
+
+- Added `("applyv", f, args)`, which calls a function reference with the
+  items of a tuple, and `("linksof", link)`, which returns a function's link
+  table as `(name, entity)` pairs. Both are nodes in graph form and lower to
+  `APPLYV` and `LINKS` (vm_in_semiroh.md section 1). The compiler in SEMIROH
+  covers them.
+- Wrote an interpreter for the chunks `lower` emits in SEMIROH
+  (`semiroh/examples/vm.py`): `vm(chunk, params, args, links)`, an operand
+  stack and an environment as tuples, tail calls kept tail. It runs every
+  operation that does not touch a cell or code as data; `READ`, `WRITE`,
+  `CODE`, `LINKS` and `RAISE` raise, `REFCHECK` does nothing, and its errors
+  are made by doing the operation (Provisional, section 3 of the doc).
+- `swap_all()` replaces the compiler's functions, in one activation, by
+  functions that hand their own chunk to the interpreter, and the compiler
+  then gives the same results running on it, including for its own source: a
+  bootstrap fixpoint. About 90 times slower than the machine. Corpus example
+  `bootstrap`.
+- Found by mutation testing: a call is always the last instruction before
+  `END`, so the interpreter never pushes its result. Sped `eq` up for
+  primitives in the machine, with a test that keeps kinds apart (`1` is not
+  `True`). `vm.py` is a mutation target (two listed survivors, and the fast
+  path of `eq`). No existing test was edited.
+

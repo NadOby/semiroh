@@ -10,8 +10,18 @@ from semiroh import (
     Runtime,
     State,
     Value,
+    relation_of,
 )
-from semiroh.lang import Function, LanguageError, define, function_at, links, load, run
+from semiroh.lang import (
+    Function,
+    LanguageError,
+    _definition_of,
+    define,
+    function_at,
+    links,
+    load,
+    run,
+)
 
 COUNTER = EntityID("counter")
 INCREMENT = EntityID("increment")
@@ -111,17 +121,32 @@ class HostNodeEditTests(unittest.TestCase):
 
         self.assertEqual(run(runtime, INCREMENT), 30)
 
-    def test_replacing_with_a_larger_expression_and_back(self) -> None:
+    def test_replacing_with_a_larger_expression_and_back_renews_the_position(
+        self,
+    ) -> None:
+        # A label edit that changes the node's kind gives the position a new
+        # node (continuity_inference.md §2): the old `lit` disappears and
+        # its parent changes to name the new one; nothing else changes.
         state = load(source())
         before = nodes(state, INCREMENT)
+        step = _definition_of(state.values[INCREMENT]).labels["step"]
+        parent = next(
+            node for node in before
+            if step in relation_of(state.values[node]).endpoints
+        )
 
         larger = define(state, {(INCREMENT, "step"): ("add", ("lit", 2), ("lit", 3))})
         grown = nodes(larger.destination, INCREMENT)
         created = set(grown) - set(before)
 
         self.assertTrue(created)
-        self.assertEqual(set(before) - set(grown), set())
-        self.assertEqual(len(changed(before, grown)), 1)
+        self.assertEqual(set(before) - set(grown), {step})
+        self.assertEqual(larger.mapping_for(step).destination_entities, ())
+        self.assertEqual(changed(before, grown), {step, parent})
+        self.assertIn(
+            _definition_of(larger.destination.values[INCREMENT]).labels["step"],
+            created,
+        )
         self.assertEqual(
             function_at(larger.destination, INCREMENT),
             Function(
@@ -144,7 +169,16 @@ class HostNodeEditTests(unittest.TestCase):
             self.assertFalse(smaller.destination.contains(node))
             self.assertEqual(smaller.mapping_for(node).destination_entities, ())
 
-        self.assertEqual(nodes(smaller.destination, INCREMENT), before)
+        # Back to a literal: the same program, with one new node at the
+        # position (the kind changed again), which the parent now names.
+        back = nodes(smaller.destination, INCREMENT)
+
+        self.assertEqual(
+            function_at(smaller.destination, INCREMENT),
+            function_at(state, INCREMENT),
+        )
+        self.assertEqual(changed(before, back), {step, parent})
+        self.assertEqual(len(set(back) - set(before) - created), 1)
 
     def test_host_errors(self) -> None:
         state = load(source())

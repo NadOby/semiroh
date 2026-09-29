@@ -320,6 +320,41 @@ class RebaseTests(unittest.TestCase):
         with self.assertRaises(TransformationConflict):
             rebase(two, one)
 
+    def test_a_created_owned_entity_that_is_not_a_node_name_conflicts(
+        self,
+    ) -> None:
+        # Only `<f>/<generation>.<index>` is renamed; any other created name
+        # both results take is a conflict, even when owned by the function.
+        state = load(parse("fn f(x):\n    x\n"))
+        same = {entity: entity for entity in state.values}
+
+        for name in ("f/1", "f/x.1", "f/1.x", "f/extra"):
+            with self.subTest(name=name):
+                entity = EntityID(name)
+                one = transform_with_mapping(state, {entity: 1}, same, placements={entity: F})
+                two = transform_with_mapping(state, {entity: 2}, same, placements={entity: F})
+
+                with self.assertRaises(TransformationConflict):
+                    rebase(two, one)
+
+    def test_results_and_their_records_are_frozen(self) -> None:
+        from dataclasses import FrozenInstanceError
+
+        from semiroh.transforms import TransformationDefinition
+
+        state = load(parse("fn f(x):\n    label(k, 1) + x\n"))
+        result = define(state, {(F, "k"): ("lit", 10)})
+        definition = TransformationDefinition.create({}, {F: F})
+
+        for record, field in (
+            (result, "destination"),
+            (result.mappings[0], "destination_entities"),
+            (definition, "changes"),
+        ):
+            with self.subTest(record=type(record).__name__):
+                with self.assertRaises(FrozenInstanceError):
+                    setattr(record, field, None)
+
     def test_a_combined_state_that_fails_a_check_conflicts(self) -> None:
         # Disjoint touched sets, but the new call in f names g, which the
         # other result removes.

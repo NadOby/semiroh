@@ -136,9 +136,13 @@ preorder, so the root is index 0. Names are derived from the owning
 function and the state being changed only, so `load` and `define` are
 deterministic. A new body uses the function's next generation; if any of
 its names is already taken by an entity of the state, the next free
-generation is used instead. A node name is therefore never reused while
-its function's definition records the generation, and never collides with
-an existing entity.
+generation is used instead, and a whole-function edit that creates a node
+records the generation it used in the definition. No edit creates a node
+under the name of an entity that exists, and a whole-function edit never
+takes a name of a generation the definition has recorded. A label edit
+leaves the recorded generation as it is (as before task 13), so a node a
+later edit creates can take the name of a node that an earlier label edit
+created and that has disappeared since (continuity_inference.md §6, Open).
 
 Nodes are not content-addressed: equal subexpressions in two places are two
 entities (identity_model.md; content-hashed ids would merge identity with

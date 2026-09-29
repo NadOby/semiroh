@@ -84,9 +84,15 @@ cells; the bytecode and VM shapes; the operations of constant folding; the
 output of the SEMIROH lowering pass and the pure-code limits of the SEMIROH
 VM.
 
-**Not touched yet:** editing text (the text syntax of docs/syntax.md is
-import-only), systems data (structures, layout, references between cells),
-modules and name resolution, closures, error handling inside the language,
+**Text editing now exists.** `parse` and `render` provide the text
+representation, and `reconcile(state, text)` turns edited text into a
+transformation using the same continuity inference as `define`. Lexical and
+program-global name resolution are specified for the current single-root
+program model. Cell declaration edits and explicit modules remain deferred
+([`syntax.md`](docs/syntax.md), [`name_resolution.md`](docs/name_resolution.md)).
+
+**Not touched yet:** systems data (structures, layout, references between
+cells), explicit modules, closures, error handling inside the language,
 concurrency, native code, capabilities beyond one grant, and formal
 semantics.
 

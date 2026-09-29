@@ -37,7 +37,7 @@ class DocumentationCoherenceTests(unittest.TestCase):
         self.assertNotIn("#PR pending", text)
 
     def test_markdown_links_resolve(self):
-        link_re = re.compile(r"[^]+\]([^)]+)")
+        link_re = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
         errors = []
 
         for source in _markdown_files():
@@ -119,7 +119,7 @@ class DocumentationCoherenceTests(unittest.TestCase):
             "syntax_notes.md",
         }
         marker_re = re.compile(
-            r"^\*\*(Decided|Provisional|Open)(.*?)\*\*(.*)$"
+            r"^(?:\*\*)?(Decided|Provisional|Open)(?:[.:]|\*\*).*$"
         )
         canonical_re = re.compile(
             r"^\*\*(Decided|Provisional|Open):\*\*$"
@@ -137,3 +137,19 @@ class DocumentationCoherenceTests(unittest.TestCase):
 
             for number, line in enumerate(lines, start=1):
                 stripped = line.strip()
+                if marker_re.fullmatch(stripped) and not canonical_re.fullmatch(
+                    stripped
+                ):
+                    errors.append(
+                        f"{path.name}:{number}: noncanonical status marker "
+                        f"{stripped!r}"
+                    )
+
+        self.assertFalse(
+            errors,
+            "Documentation coherence errors:\n" + "\n".join(errors),
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

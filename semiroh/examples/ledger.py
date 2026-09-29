@@ -4,8 +4,9 @@ Run from the repository root:
 
     python3 -m semiroh.examples.ledger
 
-The output is JSON so tests and documentation can compare measurements without
-depending on presentation text.
+Every reported number is derived from the live model.  Corpus expectations
+are used only by continuity.check to say whether a case holds; measurement
+counts themselves come from states and TransformResult mappings.
 """
 
 from __future__ import annotations
@@ -15,11 +16,12 @@ from typing import Any
 
 from semiroh import EntityID, State, Value
 from semiroh.bytecode import lowered_count
-from semiroh.continuity import CASES, check, resolve
+from semiroh.continuity import CASES, check
 from semiroh.fold import sources_of
 from semiroh.lang import Function, define, links, load, run
 from semiroh.runtime import Runtime
 from semiroh.syntax import parse
+from semiroh.transforms import TransformResult
 
 
 def _program(functions: dict[str, Function]) -> State:
@@ -58,6 +60,7 @@ def _leaf_edit_measurement(chain_length: int) -> dict[str, int]:
     run(runtime, function)
 
     node_count = len(runtime.active.state.owned_subtree(function))
+
     runtime.activate(
         define(
             runtime.active.state,
@@ -76,7 +79,12 @@ def _leaf_edit_measurement(chain_length: int) -> dict[str, int]:
 
 
 def _growing_edit_measurement() -> dict[str, int]:
-    """Replace one lowered leaf by a five-node expression."""
+    """Replace one lowered leaf by a larger expression.
+
+    ``created_nodes`` is measured from the source and destination ownership
+    sets.  It is deliberately not the syntactic size of ``replacement``:
+    continuity inference may retain the edited leaf as the new subtree root.
+    """
 
     function = EntityID("wide")
     runtime = _runtime({
@@ -96,29 +104,48 @@ def _growing_edit_measurement() -> dict[str, int]:
 
     run(runtime, function, 4)
 
+    source = runtime.active.state
+    source_nodes = set(source.owned_subtree(function))
+
     replacement = (
         "mul",
         _lit(2),
         ("add", _lit(1), _lit(1)),
     )
-    runtime.activate(
-        define(
-            runtime.active.state,
-            {(function, "edit"): replacement},
-        )
+    result = define(
+        source,
+        {(function, "edit"): replacement},
     )
+
+    destination_nodes = set(result.destination.owned_subtree(function))
+    created_nodes = len(destination_nodes - source_nodes)
+    retained_nodes = len(destination_nodes & source_nodes)
+
+    runtime.activate(result)
 
     before = lowered_count()
     run(runtime, function, 4)
     relowered = lowered_count() - before
 
     return {
-        "replacement_nodes": 5,
+        "created_nodes": created_nodes,
+        "retained_nodes": retained_nodes,
         "re_lowered": relowered,
     }
 
 
+def _kept_identities(result: TransformResult) -> int:
+    """Count source entities that map to the same EntityID."""
+
+    return sum(
+        mapping.source_entity in mapping.destination_entities
+        for mapping in result.mappings
+    )
+
+
 def _continuity_measurements() -> dict[str, Any]:
+    """Run every corpus operation and measure its actual identity retention."""
+
     cases: dict[str, dict[str, Any]] = {}
     holding = 0
 
@@ -129,22 +156,27 @@ def _continuity_measurements() -> dict[str, Any]:
             holding += 1
 
         source = load(parse(case.source))
-        same_identity: set[EntityID] = set()
 
-        # These expectation fields explicitly assert that a source entity
-        # retains its EntityID across the operation.  Deduplicate entities
-        # because a case may mention one both as kept/changed and with `at`.
-        for designator in (
-            *case.expect.kept,
-            *case.expect.changed,
-            *case.expect.at.keys(),
-        ):
-            same_identity.add(resolve(designator, source))
+        try:
+            result = case.operation(source)
+        except BaseException as error:
+            cases[case.name] = {
+                "group": case.group,
+                "holds": not problems,
+                "outcome": "rejected",
+                "exception": type(error).__name__,
+                "kept_identities": 0,
+            }
+            continue
+
+        results = result if isinstance(result, tuple) else (result,)
+        kept = [_kept_identities(item) for item in results]
 
         cases[case.name] = {
             "group": case.group,
             "holds": not problems,
-            "same_identity_claims": len(same_identity),
+            "outcome": "result",
+            "kept_identities": kept[0] if len(kept) == 1 else kept,
         }
 
     return {
@@ -155,23 +187,40 @@ def _continuity_measurements() -> dict[str, Any]:
 
 
 def _fold_measurements() -> dict[str, Any]:
+    """Measure folds from the actual transformation, not corpus expectations."""
+
     case = next(case for case in CASES if case.name == "fold")
     source = load(parse(case.source))
     result = case.operation(source)
 
     if isinstance(result, tuple):
-        raise AssertionError("fold corpus case unexpectedly produced multiple results")
+        raise AssertionError(
+            "fold corpus case unexpectedly produced multiple results"
+        )
 
-    counts: dict[str, int] = {}
+    folded: dict[str, int] = {}
 
-    for designator in case.expect.changed:
-        entity = resolve(designator, source, result.destination)
-        counts[designator] = len(sources_of(result, entity))
+    for entity in sorted(
+        set(source.values) & set(result.destination.values),
+        key=lambda item: item.value,
+    ):
+        before = source.values[entity]
+        after = result.destination.values[entity]
+
+        if before.version_id == after.version_id:
+            continue
+
+        sources = sources_of(result, entity)
+
+        if len(sources) <= 1:
+            continue
+
+        folded[entity.value] = len(sources)
 
     return {
-        "folded_nodes": len(counts),
-        "sources_per_folded_node": counts,
-        "recorded_sources": sum(counts.values()),
+        "folded_nodes": len(folded),
+        "sources_per_folded_node": folded,
+        "recorded_sources": sum(folded.values()),
     }
 
 
@@ -180,7 +229,7 @@ def measurements() -> dict[str, Any]:
         "incremental_compilation": {
             "leaf_edit_41": _leaf_edit_measurement(20),
             "leaf_edit_401": _leaf_edit_measurement(200),
-            "five_node_replacement": _growing_edit_measurement(),
+            "growing_replacement": _growing_edit_measurement(),
         },
         "continuity": _continuity_measurements(),
         "fold": _fold_measurements(),

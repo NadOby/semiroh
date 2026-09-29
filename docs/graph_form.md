@@ -12,7 +12,9 @@ runs graph form, after lowering each node to bytecode (bytecode.md).
 
 ## 1. Two forms
 
-**Decided** (D1).
+**Decided:**
+
+D1.
 
     input format      Function(params, body) values and links relations
                       (first_program.md §2); what programs are written in,
@@ -26,7 +28,7 @@ that was not loaded raises `LanguageError` saying so.
 
 ## 2. What a function entity holds
 
-**Provisional.**
+**Provisional:**
 
 A function keeps its `EntityID`; its value becomes a `definition` relation:
 
@@ -49,7 +51,13 @@ link name: a body generated at run time and activated into `f` calls what
 
 ## 3. Node kinds and roles
 
-**Decided** (kinds and roles), **Provisional** (payload shapes).
+**Decided:**
+
+Kinds and roles.
+
+**Provisional:**
+
+Payload shapes.
 
 The kind of a node is its operation. Operands that are code are nodes
 referenced by roles; values that are not code are the payload. Calls, reads
@@ -129,7 +137,7 @@ corpus or the suites depended on that.)
 
 ## 4. Node identity and ownership
 
-**Provisional.**
+**Provisional:**
 
 A node's `EntityID` is `<function>/<generation>.<index>`, numbered in
 preorder, so the root is index 0. Names are derived from the owning
@@ -159,8 +167,14 @@ continuity.
 
 ## 5. load, define, function_at
 
-**Decided**, except the `define` entries that create, remove and relink
-functions, which are **Provisional** (continuity_inference.md §4).
+**Decided:**
+
+`load`, `define`, and `function_at` as described below.
+
+**Provisional:**
+
+The `define` entries that create, remove and relink functions
+(continuity_inference.md §4).
 
     load(state) -> State
         every entity holding a Function keeps its EntityID and gets a
@@ -204,7 +218,7 @@ whole-function `activate` of an unchanged body leaves the state as it is.
 
 ## 6. How activate and trial build their transformation
 
-**Decided.**
+**Decided:**
 
 `activate` and `trial` keep their semantics (metaprogramming.md §4,
 language_trials.md §2): values are evaluated first, then the active state is
@@ -217,7 +231,7 @@ the version it started in, so code in flight is unchanged
 
 ## 7. Constraints over code
 
-**Decided.**
+**Decided:**
 
 A function's value holds only its definition, so a constraint relation over
 a function would no longer see its code. The core now gives an owner
@@ -237,7 +251,11 @@ Program constraints over code (metaprogramming.md §4, language_trials.md
 
 ## 9. Node edits
 
-**Status: implemented** (roadmap.md task 5). **Provisional** as a whole.
+**Status: implemented** (roadmap.md task 5).
+
+**Provisional:**
+
+The node-edit design as a whole.
 
 A program replaces one subexpression of a function without replacing the
 function, so hot swapping has the granularity of node identity.

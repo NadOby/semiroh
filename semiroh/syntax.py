@@ -660,8 +660,12 @@ class _Parser:
     def record(self, name: str) -> None:
         self.used[name] = None
 
-        for collector in self.collectors:
-            collector[name] = None
+        # A name in a hole, or in a call that computes the code, belongs to
+        # the enclosing function only; a name in the code being built (a
+        # quote or an fn body) is also a name of the target it is installed in.
+        if self.mode == _HOLES:
+            for collector in self.collectors:
+                collector[name] = None
 
     # -- expressions -------------------------------------------------------
 
@@ -912,7 +916,8 @@ class _Parser:
             self.expect_op("(")
             data = self.data()
             self.expect_op(")")
-            return _map_links(data, self.use_raw)
+            # Raw data is code as data: its names are names of the code built.
+            return self.in_mode(_HOLES, lambda: _map_links(data, self.use_raw))
 
         raise self.error(f"unexpected {name!r}", token)
 

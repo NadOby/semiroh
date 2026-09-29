@@ -33,8 +33,11 @@ write links.
 Either bound of `int in LO..HI` may be left out for a `None` bound
 (`int in 0..`), and `entity` is `IsKind("entity_id")`. The code that
 `activate(f = ...)` or `trial(..., f = ...)` installs into a global function
-`f` is resolved through the links of `f`, so the global names that code uses
-are also links of `f`.
+`f` is resolved through the links of `f`, so the global names in the quote or
+`fn` body it is built from are also links of `f`. Names that only compute the
+code (a call such as `emit(n)`, or the inside of `unquote(...)` and
+`literal(...)`) are links of the enclosing function only. A target that only
+`base` declares keeps its links.
 
 Indentation is by spaces, consistent within a block; tabs are rejected.
 `#` starts a comment to the end of the line.

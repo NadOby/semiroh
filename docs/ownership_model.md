@@ -97,7 +97,9 @@ Destruction therefore differs from mutation.
 
 ## 7. Transformation disappearance
 
-**Decided.** Disappearance and destruction are one operation: an owner's
+**Decided:**
+
+Disappearance and destruction are one operation: an owner's
 disappearance ends its owned subtree.
 
 When a transformation explicitly maps:
@@ -154,7 +156,9 @@ invariants.
 
 It is not interpreted as a continuity mapping.
 
-**Decided: placement of created entities.** A transformation may declare
+**Decided:**
+
+Placement of created entities. A transformation may declare
 placements, `created entity -> owner`, for entities it creates: present in
 the destination, absent from the source, and not a mapping destination. The
 owner must be in the destination and may itself be created, so a

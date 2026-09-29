@@ -13,7 +13,7 @@ they need, in input form; graph form gets one node kind per operation
 
 ## 1. Tuples
 
-**Decided.**
+**Decided:**
 
     ("tuple", e1, ..., en)      a tuple of the values, n >= 0
     ("len", t)                  the length of tuple t
@@ -28,7 +28,7 @@ are canonical and are accepted like any other tuple.
 
 ## 2. Local names
 
-**Decided.**
+**Decided:**
 
     ("let", name, e, body)
 
@@ -40,8 +40,14 @@ an ambiguity.
 
 ## 3. Function references
 
-**Decided**, except what a reference is and how it survives renames
-(**Provisional**).
+**Decided:**
+
+Everything in this section except what a reference is and how it survives
+renames.
+
+**Provisional:**
+
+What a reference is and how it survives renames.
 
     ("ref", link)               a reference to the linked function
     ("apply", f, e1, ..., en)   call the function f refers to
@@ -61,7 +67,7 @@ not follow a rename of its function; applying it afterwards is a
 
 ## 4. Tail calls
 
-**Decided.**
+**Decided:**
 
 A `call` or `apply` in tail position does not grow the machine's stacks
 (bytecode.md section 4).
@@ -73,7 +79,7 @@ otherwise unchanged.
 
 ## 5. Corpus tier 2
 
-**Decided.**
+**Decided:**
 
 `TAGS` gains `"data"` and `"higher order"`. The corpus gains at least:
 insertion sort, map, fold, a program using `let`, a tail-recursive loop

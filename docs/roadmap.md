@@ -258,7 +258,7 @@ Lexical and module name resolution are specified first.
 
 ### 16. Documentation coherence (one session)
 
-**Done.**
+**Done.** (#40)
 
 Correct mechanical documentation drift without changing semantics. Normalize
 standalone `Decided`, `Provisional`, and `Open` status markers; check internal

@@ -159,7 +159,7 @@ The following are deliberately not decided by task 15:
 - qualified names;
 - cross-module ambiguity;
 - source syntax for declaring top-level continuity, including renames;
-- cell migration and conversion syntax.
-- - `lang.define` input representation for multiple edits targeting one entity;
+- cell migration and conversion syntax;
+- `lang.define` input representation for multiple edits targeting one entity;
   reconciliation currently uses collision-free temporary `EntityID` keys for
   relation edits because `define` accepts a mapping with one value per key.

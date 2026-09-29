@@ -50,9 +50,8 @@ class LedgerTests(unittest.TestCase):
         }
 
         expected = {
-            "leaf_edit_41.re_lowered": 2,
-            #"leaf_edit_41.nodes":
-                #actual["incremental_compilation"]["leaf_edit_41"]["nodes"],
+            "leaf_edit_41.nodes":
+                actual["incremental_compilation"]["leaf_edit_41"]["nodes"],
             "leaf_edit_41.re_lowered":
                 actual["incremental_compilation"]["leaf_edit_41"]["re_lowered"],
             "leaf_edit_401.nodes":

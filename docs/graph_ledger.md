@@ -8,7 +8,7 @@ Measurements come from `semiroh/examples/ledger.py`, which runs the existing mod
 
 ## 1. Verdicts
 
-**Decided.**
+**Decided:**
 
 - **Strong** – graph form removes or materially simplifies bookkeeping that a conventional representation would otherwise need.
 - **Even** – graph form gives the capability directly, but an AST with the usual compiler indexes can provide substantially the same result.
@@ -18,7 +18,9 @@ These verdicts concern the present model, not what a future compiler might make 
 
 ## 2. Ledger
 
-**Provisional.** The capabilities and measurements are implemented; the comparative verdicts are architectural judgements and may change as the language grows.
+**Provisional:**
+
+The capabilities and measurements are implemented; the comparative verdicts are architectural judgements and may change as the language grows.
 
 ### Node identity across edits
 
@@ -112,7 +114,9 @@ These verdicts concern the present model, not what a future compiler might make 
 
 ## 3. Measurements
 
-**Decided.** These visible values are machine-checked by `tests/test_ledger.py`. Changing a quoted value without changing the model makes that test fail.
+**Decided:**
+
+These visible values are machine-checked by `tests/test_ledger.py`. Changing a quoted value without changing the model makes that test fail.
 
 ### Incremental compilation
 
@@ -161,7 +165,7 @@ The corpus fold contains 2 folded roots and their mappings record 6 source ident
 
 ## 4. What the graph is actually buying
 
-**Provisional.**
+**Provisional:**
 
 The strongest current result is not that graphs can do things trees cannot. Most rows can be reproduced with an AST once stable node ids, symbol tables, dependency indexes and provenance records are added.
 
@@ -176,7 +180,7 @@ Continuity inference itself is not a graph advantage. It remains a matching prob
 
 ## 5. Open
 
-**Open.**
+**Open:**
 
 - Measure constraints over code against a conventional dependency-indexed implementation if constraint checking becomes expensive enough to matter.
 - Revisit the rebase verdict when semantic conflicts beyond overlapping `touched` sets are implemented.

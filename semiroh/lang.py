@@ -41,6 +41,7 @@ from .canonical import (
     canonicalize,
 )
 from .identity import EntityID
+from .matching import match
 from .relations import Endpoint, Relation, relation_index, relation_of
 from .runtime import Runtime
 from .state import State
@@ -393,27 +394,17 @@ class _Builder:
         function: EntityID,
         generation: int,
         scope: Mapping[str, Endpoint],
-        root: EntityID | None = None,
     ) -> None:
         self.function = function
         self.generation = generation
         self.scope = scope
         self.nodes: dict[EntityID, Relation] = {}
         self.labels: dict[str, EntityID] = {}
+        self.root: EntityID | None = None
         self._count = 0
-        # A node edit (graph_form.md section 9) reuses the labelled node's
-        # own EntityID for the root of its replacement instead of
-        # allocating a fresh one; every other allocation is as usual.
-        self._root = root
 
     def _allocate(self) -> EntityID:
-        if self._count == 0 and self._root is not None:
-            entity = self._root
-        else:
-            entity = EntityID(
-                f"{self.function.value}/{self.generation}.{self._count}"
-            )
-
+        entity = EntityID(f"{self.function.value}/{self.generation}.{self._count}")
         self._count += 1
         return entity
 
@@ -719,12 +710,13 @@ class _Builder:
 
 def _compile(
     entity: EntityID,
-    function: Function,
+    expr: Any,
     links_table: Mapping[str, Endpoint],
     generation: int,
     taken: set[EntityID],
-) -> tuple[Relation, dict[EntityID, Relation]]:
-    """Build a function's definition and nodes; node names avoid ``taken``.
+) -> _Builder:
+    """Build the nodes of one expression of ``entity``; node names avoid
+    ``taken``.
 
     The first generation whose node names are all free is used, so the
     result depends only on the arguments.
@@ -732,45 +724,12 @@ def _compile(
 
     while True:
         builder = _Builder(entity, generation, links_table)
-        root = builder.expr(function.body)
+        builder.root = builder.expr(expr)
 
         if taken.isdisjoint(builder.nodes):
-            break
+            return builder
 
         generation += 1
-
-    definition = _Definition(
-        function.params, root, dict(links_table), dict(builder.labels), generation
-    )
-
-    return definition.relation(), builder.nodes
-
-
-def _compile_node(
-    entity: EntityID,
-    root: EntityID,
-    expr: Any,
-    links_table: Mapping[str, Endpoint],
-    generation: int,
-    taken: set[EntityID],
-) -> tuple[dict[EntityID, Relation], dict[str, EntityID]]:
-    """Build the replacement for one labelled node (graph_form.md section
-    9). ``root``, the labelled node, keeps its EntityID and takes ``expr``'s
-    compiled root content; any deeper nodes ``expr`` needs are fresh,
-    retried at a later generation if their names collide with ``taken``.
-    """
-
-    while True:
-        builder = _Builder(entity, generation, links_table, root=root)
-        builder.expr(expr)
-        fresh = set(builder.nodes) - {root}
-
-        if taken.isdisjoint(fresh):
-            break
-
-        generation += 1
-
-    return builder.nodes, builder.labels
 
 
 def _subtree(
@@ -840,9 +799,16 @@ def load(state: State) -> State:
                 if name != FUNCTION_ROLE
             }
 
-        definition, nodes = _compile(entity, function, links_table, 0, taken)
+        builder = _compile(entity, function.body, links_table, 0, taken)
+        nodes = builder.nodes
         taken.update(nodes)
-        changes[entity] = definition
+        changes[entity] = _Definition(
+            function.params,
+            builder.root,
+            dict(links_table),
+            dict(builder.labels),
+            builder.generation,
+        ).relation()
         changes.update(nodes)
         placements.update(dict.fromkeys(nodes, entity))
 
@@ -854,40 +820,58 @@ def load(state: State) -> State:
     ).destination
 
 
-def define(
-    state: State,
-    edits: Mapping[EntityID | tuple[EntityID, str], Any],
-) -> TransformResult:
-    """Replace whole function bodies, or single labelled nodes, in a
-    graph-form state (graph_form.md sections 5 and 9).
-
-    A key is either a function entity, with a ``Function`` value, or a
-    ``(function, label)`` pair, with an expression (code as data) value.
-    Whole-function entries replace whole bodies: each new body's link
-    names resolve through its function's link table, the function's old
-    nodes disappear, its new nodes are placed under it, and it gets a new
-    definition. Node entries replace one labelled node: it keeps its
-    EntityID and takes the new expression's root content, the nodes below
-    it disappear, and any nodes the new expression needs are placed under
-    the function; the function's own value changes only if the edit adds a
-    label. Every other entity is continuous with itself (graph_form.md
-    section 6). The caller activates the result.
+@dataclass(frozen=True)
+class _Entry:
+    """One side-by-side of an edit (continuity_inference.md §1): the old
+    nodes an entry of ``define`` replaces and the builder of the new side.
+    ``position`` is the old node at the new root's position, if any.
     """
 
-    changes: dict[EntityID, Any] = {}
-    mappings: dict[EntityID, Any] = {}
-    placements: dict[EntityID, EntityID] = {}
-    taken = set(state.values)
+    function: EntityID
+    old: dict[EntityID, Relation]
+    builder: _Builder | None
+    position: EntityID | None
+    label: str | None = None
 
-    whole: dict[EntityID, Function] = {}
-    node_edits: dict[EntityID, dict[str, Any]] = {}
+
+def _edits_of(
+    state: State,
+    edits: Mapping[EntityID | tuple[EntityID, str], Any],
+) -> tuple[
+    dict[EntityID, Function | None],
+    dict[EntityID, dict[str, Any]],
+    dict[EntityID, dict[str, Endpoint]],
+]:
+    """Sort the entries of ``define`` into whole functions (a ``Function``,
+    or None to remove one), label edits and link tables.
+    """
+
+    whole: dict[EntityID, Function | None] = {}
+    labelled: dict[EntityID, dict[str, Any]] = {}
+    tables: dict[EntityID, dict[str, Endpoint]] = {}
 
     for key, value in edits.items():
         if isinstance(key, EntityID):
-            if not isinstance(value, Function):
+            if isinstance(value, Relation) and value.kind == LINKS_KIND:
+                function = value.roles.get(FUNCTION_ROLE)
+
+                if not isinstance(function, EntityID) or function in tables:
+                    raise LanguageError(
+                        f"{key.value}: a links relation needs one function, "
+                        f"and a function one links relation"
+                    )
+
+                tables[function] = {
+                    name: target
+                    for name, target in value.roles.items()
+                    if name != FUNCTION_ROLE
+                }
+                continue
+
+            if value is not None and not isinstance(value, Function):
                 raise LanguageError(
-                    f"{key.value}: define needs a Function for a whole "
-                    f"function, not an expression"
+                    f"{key.value}: define needs a Function, None or a links "
+                    f"relation for a whole function, not an expression"
                 )
 
             whole[key] = value
@@ -905,104 +889,288 @@ def define(
                     f"{key[1]!r}, not a Function"
                 )
 
-            node_edits.setdefault(key[0], {})[key[1]] = value
+            labelled.setdefault(key[0], {})[key[1]] = value
             continue
 
         raise LanguageError(f"not a define target: {key!r}")
 
+    for entity in sorted({*whole, *labelled, *tables}):
+        value = state.values.get(entity)
+        current = None if value is None else _definition_of(value)
+        created = value is None and whole.get(entity) is not None
+
+        if value is not None and current is None:
+            raise LanguageError(f"{entity.value} is not a function")
+
+        if current is None and not created:
+            raise LanguageError(f"{entity.value} does not exist")
+
+        if entity in labelled and entity in whole:
+            raise LanguageError(
+                f"{entity.value}: define replaces a whole function or its "
+                f"labelled nodes, not both"
+            )
+
+        if entity in tables and whole.get(entity, entity) is None:
+            raise LanguageError(f"{entity.value}: a removed function has no links")
+
+    return whole, labelled, tables
+
+
+def _old_side(
+    state: State,
+    function: EntityID,
+    nodes: Any,
+) -> dict[EntityID, Relation]:
+    return {node: _node_at(state, function, node) for node in nodes}
+
+
+def define(
+    state: State,
+    edits: Mapping[EntityID | tuple[EntityID, str], Any],
+) -> TransformResult:
+    """Edit functions of a graph-form state, inferring what the edit keeps
+    (graph_form.md sections 5 and 9, continuity_inference.md).
+
+    A key is a function entity or a ``(function, label)`` pair. A function
+    entity takes a ``Function`` (its new body; a function absent from the
+    state is created) or None (the function is removed). Any entity key
+    may instead take a links relation (:func:`links`), which replaces the
+    link table of the function it names; new bodies resolve link names
+    through the new table. A ``(function, label)`` pair takes an expression
+    (code as data) that replaces the labelled node and the nodes below it.
+
+    Every entry's old nodes and new nodes form one pool, which
+    :func:`semiroh.matching.match` matches: a matched node keeps its
+    EntityID (and its VersionID when its content is equal), moving to the
+    function whose new side holds it; an unmatched old node disappears; an
+    unmatched new node is created, named ``<function>/<generation>.<index>``
+    (graph_form.md section 4). Ownership of the result is stated whole, so
+    a moved node's owner change is explicit. Every other entity is
+    continuous with itself. The caller activates the result.
+    """
+
+    whole, labelled, tables = _edits_of(state, edits)
+    taken = set(state.values)
+    entries: list[_Entry] = []
+
+    def compile_entry(function: EntityID, expr: Any, generation: int) -> _Builder:
+        table = tables.get(function)
+
+        if table is None:
+            value = state.values.get(function)
+            table = {} if value is None else _definition_of(value).links
+
+        builder = _compile(function, expr, table, generation, taken)
+        taken.update(builder.nodes)
+        return builder
+
     for entity in sorted(whole):
         function = whole[entity]
-
-        if entity not in state.values:
-            raise LanguageError(f"{entity.value} does not exist")
-
-        current = _definition_of(state.values[entity])
-
-        if current is None:
-            raise LanguageError(f"{entity.value} is not a function")
-
-        definition, nodes = _compile(
-            entity,
-            function,
-            current.links,
-            current.generation + 1,
-            taken,
+        current = (
+            _definition_of(state.values[entity]) if entity in state.values else None
         )
-        taken.update(nodes)
+        old = (
+            {} if current is None
+            else _old_side(state, entity, state.owned_children(entity))
+        )
+        builder = None if function is None else compile_entry(
+            entity,
+            function.body,
+            0 if current is None else current.generation + 1,
+        )
+        entries.append(
+            _Entry(entity, old, builder, None if current is None else current.body)
+        )
 
-        for old in state.owned_children(entity):
-            mappings[old] = ()
-
-        changes[entity] = definition
-        changes.update(nodes)
-        placements.update(dict.fromkeys(nodes, entity))
-
-    for entity in sorted(node_edits):
-        if entity not in state.values:
-            raise LanguageError(f"{entity.value} does not exist")
-
+    for entity in sorted(labelled):
         current = _definition_of(state.values[entity])
-
-        if current is None:
-            raise LanguageError(f"{entity.value} is not a function")
-
         owned = set(state.owned_children(entity))
-        new_labels: dict[str, EntityID] = {}
+        scopes: dict[str, set[EntityID]] = {}
 
-        for label in sorted(node_edits[entity]):
+        for label in sorted(labelled[entity]):
             root = current.labels.get(label)
 
             if root is None:
                 raise LanguageError(f"{entity.value}: unknown label {label!r}")
 
-            nodes, introduced = _compile_node(
+            scopes[label] = _subtree(state, entity, owned, root)
+
+        for label, scope in scopes.items():
+            for other, inner in scopes.items():
+                if other != label and current.labels[label] in inner:
+                    raise LanguageError(
+                        f"{entity.value}: node edits {label!r} and {other!r} "
+                        f"overlap"
+                    )
+
+            builder = compile_entry(
+                entity, labelled[entity][label], current.generation + 1
+            )
+            entries.append(_Entry(
                 entity,
-                root,
-                node_edits[entity][label],
-                current.links,
-                current.generation + 1,
-                taken,
+                _old_side(state, entity, scope),
+                builder,
+                current.labels[label],
+                label,
+            ))
+
+    old: dict[EntityID, Relation] = {}
+    new: dict[EntityID, Relation] = {}
+
+    for entry in entries:
+        old.update(entry.old)
+
+        if entry.builder is not None:
+            new.update(entry.builder.nodes)
+
+    kept = match(
+        old,
+        new,
+        [
+            (entry.builder.root, entry.position)
+            for entry in entries
+            if entry.builder is not None
+        ],
+    )
+    final = {node: kept.get(node, node) for node in new}
+    changes: dict[EntityID, Any] = {}
+    owners: dict[EntityID, EntityID] = {}
+    relink: dict[EntityID, dict[EntityID, EntityID]] = {}
+    labels: dict[EntityID, dict[str, EntityID]] = {}
+    fresh: set[EntityID] = set()
+
+    def change(entity: EntityID, content: Relation) -> None:
+        value = state.values.get(entity)
+
+        if value is None or Value(entity, content) != value:
+            changes[entity] = content
+
+    for entry in entries:
+        builder = entry.builder
+
+        if builder is None:
+            continue
+
+        for node, relation in builder.nodes.items():
+            owners[final[node]] = entry.function
+            change(final[node], relation.with_endpoints(final))
+
+            if node not in kept:
+                fresh.add(entry.function)
+
+        introduced = {name: final[node] for name, node in builder.labels.items()}
+        root = final[builder.root]
+
+        if entry.label is None:
+            labels[entry.function] = introduced
+            continue
+
+        table = labels.setdefault(entry.function, {})
+
+        for name, node in introduced.items():
+            if name in table or (name == entry.label and node != root):
+                raise LanguageError(
+                    f"{entry.function.value}: label {name!r} is already used "
+                    f"elsewhere in the function"
+                )
+
+            table[name] = node
+
+        if entry.label in table and table[entry.label] != root:
+            raise LanguageError(
+                f"{entry.function.value}: label {entry.label!r} is already "
+                f"used elsewhere in the function"
             )
 
-            for name, target in introduced.items():
-                if name == label and target == root:
-                    continue
+        table[entry.label] = root
 
-                if name in current.labels or name in new_labels:
+        if root != entry.position:
+            relink.setdefault(entry.function, {})[entry.position] = root
+
+    scoped = set(old)
+    removed = {entity for entity, function in whole.items() if function is None}
+
+    for entity in sorted({*whole, *labelled, *tables} - removed):
+        value = state.values.get(entity)
+        current = None if value is None else _definition_of(value)
+        replaced = relink.get(entity, {})
+        function = whole.get(entity)
+        entry_table = labels.get(entity, {})
+
+        if function is None:
+            for node in state.owned_children(entity):
+                if node not in scoped:
+                    relation = _node_at(state, entity, node)
+
+                    if relation.endpoints & replaced.keys():
+                        change(node, relation.with_endpoints(replaced))
+
+            outside = {
+                name: node
+                for name, node in current.labels.items()
+                if node not in scoped
+            }
+
+            for name in entry_table:
+                if name in outside:
                     raise LanguageError(
                         f"{entity.value}: label {name!r} is already used "
                         f"elsewhere in the function"
                     )
 
-                new_labels[name] = target
-
-            taken.update(set(nodes) - {root})
-
-            for old in _subtree(state, entity, owned, root) - {root}:
-                mappings[old] = ()
-
-            changes.update(nodes)
-            placements.update(dict.fromkeys(set(nodes) - {root}, entity))
-
-        if new_labels:
-            updated = _Definition(
-                current.params,
-                current.body,
-                current.links,
-                {**current.labels, **new_labels},
-                current.generation,
+            params = current.params
+            body = replaced.get(current.body, current.body)
+            entry_table = {**outside, **entry_table}
+        else:
+            params = function.params
+            body = next(
+                final[entry.builder.root]
+                for entry in entries
+                if entry.function == entity and entry.builder is not None
             )
-            changes[entity] = updated.relation()
 
-    for entity in state.values:
-        mappings.setdefault(entity, entity)
+        generation = (
+            next(
+                entry.builder.generation
+                for entry in entries
+                if entry.function == entity and entry.builder is not None
+            )
+            if function is not None and (entity in fresh or current is None)
+            else current.generation
+        )
+        change(
+            entity,
+            _Definition(
+                params,
+                body,
+                tables.get(entity, current.links if current else {}),
+                entry_table,
+                generation,
+            ).relation(),
+        )
 
-    return transform_with_mapping(
-        state,
-        changes,
-        mappings,
-        placements=placements,
-    )
+    mappings: dict[EntityID, Any] = {
+        entity: () if entity in removed or entity in scoped else entity
+        for entity in state.values
+    }
+
+    for node in kept.values():
+        mappings[node] = node
+
+    ownership: dict[EntityID, list[EntityID]] = {
+        owner: [
+            child for child in children
+            if child not in scoped and child not in removed
+        ]
+        for owner, children in state.ownership.items()
+        if owner not in removed
+    }
+
+    for node, owner in owners.items():
+        ownership.setdefault(owner, []).append(node)
+
+    return transform_with_mapping(state, changes, mappings, ownership=ownership)
 
 
 def _node_at(

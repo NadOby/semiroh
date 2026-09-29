@@ -1053,3 +1053,185 @@ def rebind_reference(
         )
 
     return destination.reference(destination_entity)
+
+
+class TransformationConflict(ValueError):
+    """Two transformations of one state cannot be combined: they touch a
+    common entity, or their combination fails a structural check
+    (continuity_inference.md section 5).
+    """
+
+
+def _parents(state: State) -> dict[EntityID, EntityID]:
+    return {
+        child: owner
+        for owner, children in state.ownership.items()
+        for child in children
+    }
+
+
+def touched(result: TransformResult) -> frozenset[EntityID]:
+    """The entities a result touches (continuity_inference.md section 5):
+    those of its source whose value or owner changes, that disappear or that
+    map to anything but themselves, and those it creates.
+    """
+
+    source, destination = result.source, result.destination
+    before, after = _parents(source), _parents(destination)
+    found = {
+        entity
+        for entity, value in source.values.items()
+        if destination.values.get(entity) != value
+        or before.get(entity) != after.get(entity)
+    }
+    found.update(
+        mapping.source_entity
+        for mapping in result.mappings
+        if mapping.destination_entities != (mapping.source_entity,)
+    )
+    found.update(set(destination.values) - set(source.values))
+
+    return frozenset(found)
+
+
+def _node_name(entity: EntityID, owner: EntityID | None) -> tuple[int, str] | None:
+    """``(generation, index)`` of a node named ``<owner>/<generation>.<index>``."""
+
+    if owner is None or not entity.value.startswith(owner.value + "/"):
+        return None
+
+    generation, dot, index = entity.value[len(owner.value) + 1:].partition(".")
+
+    if not (dot and generation.isdigit() and index.isdigit()):
+        return None
+
+    return int(generation), index
+
+
+def _renames(result: TransformResult, base: State) -> dict[EntityID, EntityID]:
+    """New names for what ``result`` creates under names ``base`` has.
+
+    A node ``<f>/<g>.<i>`` moves, with every node ``result`` created in
+    generation ``g`` of ``f``, to the first later generation of ``f`` whose
+    names are all free. Any other created entity whose name is taken is a
+    conflict.
+    """
+
+    created = set(result.destination.values) - set(result.source.values)
+    owners = _parents(result.destination)
+    groups: dict[tuple[EntityID, int], dict[EntityID, str]] = {}
+
+    for entity in sorted(created & set(base.values)):
+        owner = owners.get(entity)
+        name = _node_name(entity, owner)
+
+        if owner is None or name is None:
+            raise TransformationConflict(
+                f"both transformations create {entity.value}"
+            )
+
+        groups[(owner, name[0])] = {}
+
+    for entity in sorted(created):
+        owner = owners.get(entity)
+        name = _node_name(entity, owner)
+
+        if owner is not None and name is not None and (owner, name[0]) in groups:
+            groups[(owner, name[0])][entity] = name[1]
+
+    taken = set(base.values) | set(result.destination.values)
+    renames: dict[EntityID, EntityID] = {}
+
+    for (owner, generation), members in sorted(groups.items()):
+        while True:
+            generation += 1
+            names = {
+                entity: EntityID(f"{owner.value}/{generation}.{index}")
+                for entity, index in members.items()
+            }
+
+            if taken.isdisjoint(names.values()):
+                break
+
+        renames.update(names)
+        taken.update(names.values())
+
+    return renames
+
+
+def rebase(result: TransformResult, onto: TransformResult) -> TransformResult:
+    """Re-base ``result`` to start from ``onto.destination``.
+
+    Both must start from the same state, else ``ValueError``. They combine
+    only when the entities they touch (:func:`touched`) are disjoint;
+    otherwise, or when the combined state fails a structural check (an
+    endpoint or an owner that is gone), ``TransformationConflict``. What
+    ``result`` creates under a name ``onto`` already created is renamed
+    (``_renames``). Constraints are left to activation, as for any result.
+    """
+
+    if result.source.id != onto.source.id:
+        raise ValueError(
+            f"rebase needs two results from one state, not from "
+            f"{result.source.id.value} and {onto.source.id.value}"
+        )
+
+    source, base = result.source, onto.destination
+    renames = _renames(result, base)
+
+    def rename(entity: EntityID) -> EntityID:
+        return renames.get(entity, entity)
+
+    overlap = sorted({rename(entity) for entity in touched(result)} & touched(onto))
+
+    if overlap:
+        raise TransformationConflict(
+            f"both transformations touch "
+            f"{', '.join(entity.value for entity in overlap)}"
+        )
+
+    changes: dict[EntityID, Any] = {}
+
+    for entity, value in result.destination.values.items():
+        if source.values.get(entity) != value:
+            relation = relation_of(value)
+            changes[rename(entity)] = (
+                value.content if relation is None
+                else relation.with_endpoints(renames)
+            )
+
+    mappings: dict[EntityID, tuple[EntityID, ...]] = {
+        entity: (entity,) for entity in base.values if entity not in source.values
+    }
+
+    for mapping in result.mappings:
+        entity = mapping.source_entity
+
+        if mapping.destination_entities != (entity,) or entity in base.values:
+            mappings[entity] = tuple(sorted(map(rename, mapping.destination_entities)))
+
+    parents = _parents(base)
+    before, after = _parents(source), _parents(result.destination)
+
+    for entity in set(source.values) | set(result.destination.values):
+        if before.get(entity) != after.get(entity):
+            parents.pop(entity, None)
+
+            if entity in after:
+                parents[rename(entity)] = rename(after[entity])
+
+    ownership: dict[EntityID, list[EntityID]] = {}
+
+    for child, owner in parents.items():
+        ownership.setdefault(owner, []).append(child)
+
+    try:
+        return TransformationDefinition.create(
+            changes,
+            mappings,
+            {rename(entity): name for entity, name in result.conversions},
+        ).apply(base, result.provenance, ownership)
+    except (KeyError, ValueError) as exc:
+        raise TransformationConflict(
+            f"the two transformations do not combine: {exc}"
+        ) from exc

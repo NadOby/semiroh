@@ -41,7 +41,12 @@ from .references import (
     Reference,
 )
 from .state import State
-from .transforms import TransformResult, transfer_reference
+from .transforms import (
+    TransformationConflict,
+    TransformResult,
+    rebase,
+    transfer_reference,
+)
 
 
 class CellError(ValueError):
@@ -97,6 +102,13 @@ class ActivationRejected(ValueError):
         self.cell = cell
         self.result = result
         self.relation = relation
+
+
+class ActivationConflict(ActivationRejected, TransformationConflict):
+    """A result built from a state this runtime had active earlier does not
+    combine with a result activated since (continuity_inference.md section
+    5); the runtime is unchanged.
+    """
 
 
 def _failed_constraint_relation(
@@ -350,6 +362,9 @@ class Runtime:
         self._active = Version._load(state, self._context)
         self._active._runtime = self
         self._versions: list[Version] = [self._active]
+        # Every result activated, in order, so that a result built from an
+        # earlier active state can be rebased over those that followed it.
+        self._history: list[TransformResult] = []
 
     @property
     def context(self) -> EvaluationContext:
@@ -504,6 +519,7 @@ class Runtime:
 
         self._versions = [new, active]
         self._active = new
+        self._history.append(result)
         self._retire_if_unused(active)
 
         return new
@@ -552,6 +568,7 @@ class Runtime:
         runtime._active = Version(state, contents)
         runtime._active._runtime = runtime
         runtime._versions = [runtime._active]
+        runtime._history = []
 
         return runtime
 
@@ -574,9 +591,7 @@ class Runtime:
             )
 
         if result.source.id != self._active.id:
-            raise ActivationRejected(
-                "transformation does not start from the active state"
-            )
+            result = self._rebased(result)
 
         available = dict(converters or {})
 
@@ -590,6 +605,28 @@ class Runtime:
                 )
 
         return result, available
+
+    def _rebased(self, result: TransformResult) -> TransformResult:
+        """``result``, built from a state this runtime had active earlier,
+        rebased over every result activated since, in order.
+        """
+
+        starts = [past.source.id for past in self._history]
+
+        if result.source.id not in starts:
+            raise ActivationRejected(
+                "transformation does not start from the active state"
+            )
+
+        index = len(starts) - 1 - starts[::-1].index(result.source.id)
+
+        try:
+            for past in self._history[index:]:
+                result = rebase(result, past)
+        except TransformationConflict as exc:
+            raise ActivationConflict(str(exc)) from exc
+
+        return result
 
     def _stage_cells(
         self,

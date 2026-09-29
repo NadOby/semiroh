@@ -459,6 +459,78 @@ class RebaseTests(unittest.TestCase):
 
                 self.assertEqual(runtime.active.state.id, both)
 
+    def test_a_rename_skips_a_name_the_result_keeps_and_the_other_removed(
+        self,
+    ) -> None:
+        state = load(parse("fn f(x):\n    label(a, x + 1) + label(b, x + 2)\n"))
+        state = define(
+            state, {(F, "a"): ("add", ("mul", ("arg", "x"), ("lit", 3)), ("lit", 1))}
+        ).destination
+        # A second generation-2 node under `a`, while generation 1 is free.
+        state = define(
+            state, {(F, "a"): ("add", ("lit", 7), ("arg", "x"))}
+        ).destination
+        lone = EntityID("f/2.1")
+        b = ("add", ("mul", ("arg", "x"), ("lit", 4)), ("lit", 2))
+        a = ("add", ("arg", "x"), ("mul", ("arg", "x"), ("lit", 5)))
+        result = define(state, {(F, "b"): b})
+        onto = define(state, {(F, "a"): a})
+
+        self.assertIn(lone, state.values)
+        self.assertNotIn(lone, onto.destination.values)
+        self.assertIn(EntityID("f/1.1"), result.destination.values)
+        self.assertIn(EntityID("f/1.1"), onto.destination.values)
+
+        rebased = rebase(result, onto)
+        renamed = set(rebased.destination.values) - set(onto.destination.values)
+
+        self.assertEqual({entity.value.split(".")[0] for entity in renamed}, {"f/3"})
+        self.assertEqual(
+            function_at(rebased.destination, F),
+            function_at(define(state, {(F, "a"): a, (F, "b"): b}).destination, F),
+        )
+
+    def test_the_runtime_rebases_from_the_last_time_the_source_was_active(
+        self,
+    ) -> None:
+        state = load(parse("fn f(x):\n    label(left, 1) + label(right, 2)\n"))
+        away = define(state, {(F, "left"): ("lit", 10)})
+        back = define(away.destination, {(F, "left"): ("lit", 1)})
+        right = define(state, {(F, "right"): ("lit", 20)})
+        late = define(state, {(F, "left"): ("lit", 30)})
+        runtime = Runtime(state)
+
+        for result in (away, back, right):
+            runtime.activate(result)
+
+        self.assertEqual(back.destination.id, state.id)
+
+        runtime.activate(late)
+
+        self.assertEqual(
+            runtime.active.state.id,
+            define(
+                state, {(F, "left"): ("lit", 30), (F, "right"): ("lit", 20)}
+            ).destination.id,
+        )
+
+
+class LabelScopeTests(unittest.TestCase):
+    def test_a_node_outside_the_label_does_not_make_one_inside_ambiguous(
+        self,
+    ) -> None:
+        state = load(parse("fn f(x):\n    label(k, x) + x\n"))
+        inside, outside = EntityID("f/0.1"), EntityID("f/0.2")
+        result = define(state, {(F, "k"): ("mul", ("arg", "x"), ("lit", 2))})
+        after = result.destination
+        labelled = _definition_of(after.values[F]).labels["k"]
+
+        self.assertEqual(_definition_of(state.values[F]).labels["k"], inside)
+        self.assertNotEqual(labelled, inside)
+        self.assertIn(inside, relation_of(after.values[labelled]).roles.values())
+        self.assertEqual(after.values[inside], state.values[inside])
+        self.assertEqual(after.values[outside], state.values[outside])
+
 
 if __name__ == "__main__":
     unittest.main()

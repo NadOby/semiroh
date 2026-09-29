@@ -907,3 +907,17 @@ Composition APIs are specified in terms of these three result classes.
   disjoint edits of one state activate in turn, that a rebased result
   keeps a cell the other one created, and that a label's matching stays
   inside it. Three equivalent mutants are listed. No model code changed.
+
+### Graph ledger
+
+Added `docs/graph_ledger.md`, an evidence ledger for where graph form earns
+its keep relative to an ordinary compiler representation. It covers stable
+node identity, hot swap, incremental compilation, fold provenance,
+continuity inference, moves, rebasing, relation/ownership updates and
+constraints over code, with explicit Strong / Even / Weak verdicts.
+
+Added `semiroh/examples/ledger.py`, which measures the existing model rather
+than estimating results: incremental bytecode lowering counts, continuity
+corpus identity claims and constant-fold provenance. Added
+`tests/test_ledger.py` to run the measurement script and require every quoted
+ledger measurement to match live model output.

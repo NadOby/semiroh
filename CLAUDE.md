@@ -94,6 +94,9 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 - `continuity.py`: the continuity corpus: cases with expected continuity
   per operation (`CASES`, `check`); a `gap` case would record inference
   still missing; all 21 hold (docs/continuity_corpus.md).
+- `examples/ledger.py`: executable measurements for the graph ledger:
+  incremental lowering counts, continuity-corpus identity claims and fold
+  provenance (`docs/graph_ledger.md`).
 - `syntax.py`: text syntax version 0 over `lang.py`: `parse` (text to the
   input format, over an optional base), `render` and `render_program` (graph
   form to text, `raw(...)` for what the syntax cannot write). Import-only.

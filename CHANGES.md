@@ -825,3 +825,25 @@ Composition APIs are specified in terms of these three result classes.
   backquotes is an ordinary name.
 - `render_program` prints cells too, since a printed function is not a
   program without the cells it names. No existing module or test changed.
+
+### Continuity corpus
+
+- Added `semiroh/continuity.py`: 21 cases of expected continuity (groups
+  declared, inferred, competing, moved), each a program in text syntax, an
+  operation and an `Expect` over designators (`fn:`, `cell:`,
+  `node:NAME@PATH`, `after:NAME@PATH`, a path being the input-form position
+  of a node). `check` runs a case and names each mismatch
+  (docs/continuity_corpus.md). `Case` gained `writes`, cell content written
+  before the activation, so that a transfer differs from a reset.
+- 11 cases hold and pin the current rules: declared mappings, cell merge,
+  split and upgrade, folding, the label edit. 10 are gaps, the input of
+  task 13: a whole-body `define` keeps no node that a tree match would keep
+  (`insert`, `remove`, `wrap`, `unwrap`, `swap`, `shared_subtree`,
+  `redefine_same`), nothing re-bases a result (`rebase_disjoint`), and no
+  operation moves a node between functions (`extract_function`,
+  `inline_function`).
+- Found on contact: `define` of a body equal to the old one still renews
+  every node; `conflicting_edits` holds only because any second result from
+  the same source is rejected as stale, which is also why `rebase_disjoint`
+  fails; a program loaded again reuses the ids `f/0.n` for other nodes.
+  No prediction was wrong. No existing module or test changed.

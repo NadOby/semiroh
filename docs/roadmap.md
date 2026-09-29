@@ -220,6 +220,9 @@ the next wave makes continuity explicit before the reconciler.
 
 ### 12. Continuity corpus (handoff)
 
+**Done** (#PR pending). The design is in continuity_corpus.md; 11 cases
+hold and 10 are gaps.
+
 Cases with expected continuity for rename, move, insert, delete, split,
 merge, fold, activate and upgrade (continuity_corpus.md). Cases that hold
 today pin the current rules; cases that do not are recorded as gaps, and

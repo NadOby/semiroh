@@ -1,8 +1,9 @@
 # Continuity Corpus
 
-**Status: planned** (roadmap.md task 12). `semiroh/continuity.py` does not
-exist yet; the acceptance tests in `tests/test_continuity_corpus.py` fail
-until it does.
+**Status: implemented** (roadmap.md task 12). `semiroh/continuity.py` holds
+the format, the 21 cases and `check`; `tests/test_continuity_corpus.py` is
+the acceptance suite and `tests/test_continuity_units.py` pins designator
+resolution and what `check` reports. Section 5 lists which cases hold.
 
 The canary corpus (corpus.md) checks what programs compute. This corpus
 checks what a transformation does to identity: for each operation, which
@@ -19,7 +20,7 @@ Module `semiroh/continuity.py`:
     Expect(kept=(), changed=(), gone=(), new=(), at={}, merged={},
            split={}, rejected=None, cells={})
     Case(name, group, source, operation, expect, status, note,
-         converters={}, context=None)
+         converters={}, context=None, writes={})
     CASES: tuple[Case, ...]
     GROUPS = ("declared", "inferred", "competing", "moved")
     check(case) -> tuple[str, ...]
@@ -29,6 +30,18 @@ Module `semiroh/continuity.py`:
 competing group), or raises. `check` returns the mismatches between what
 happened and `expect`, each naming the designator involved; an empty result
 means the expectation holds. `status` is `"holds"` or `"gap"`.
+
+`writes` maps cell designators to content written into the running program
+before the result is activated, so that a transfer can be told from a reset
+to the declared initial content. `check` activates every result it gets; an
+activation that raises is a mismatch unless `rejected` names it. For a pair
+of results (group `competing`), `check` activates them one after the other
+in both orders on one runtime: `rejected` is what the second raises, and
+with none both must apply and the expectations are read on the final state,
+against the mapping records of both results. `resolve(designator, before,
+after=None)` gives the entity a designator names and raises `DesignatorError`
+when it names nothing, and a node designator also requires the node to be
+owned by its function.
 
 **Designators** name entities without writing generated ids:
 
@@ -129,5 +142,38 @@ closes fails the test until its status is flipped, which is the point.
   do not change `lang.py` for it.
 - The statuses in section 2 are predictions. Record what the model does;
   if a prediction is wrong, say so in the case's note and in the report.
-- When done: add a `CHANGES.md` entry, set this document's status, and
-  mark roadmap task 12 done.
+- The moved cases and the inferred ones cannot be written with an operation
+  that infers anything, so they use the closest thing there is: `define`
+  of the whole body, or (across functions) loading the edited program with
+  no continuity declared.
+
+## 5. What holds today
+
+**Provisional**, since it records the model as it is; task 13 flips gaps.
+No prediction of sections 2 and 4 was wrong. Each case's `note` says what
+the model does.
+
+Holds (11): `rename`, `delete_function`, `delete_called`, `merge_cells`,
+`split_cell`, `upgrade_cell`, `fold`, `activate_define`, `leaf_replace`,
+`ambiguous_duplicate`, `conflicting_edits`. Declared continuity and the
+label edit behave as specified. Two of them hold weakly:
+
+- `ambiguous_duplicate` holds because nothing is inferred, so the remaining
+  `x` is new like everything else; it must keep holding when inference
+  exists.
+- `conflicting_edits` holds because the runtime rejects any second result
+  from the same source as stale, whether or not it conflicts.
+
+Gaps (10), in three kinds:
+
+- Whole-body `define` declares that every old node disappears and the new
+  ones are created (`f/1.n`), so nothing is kept that a tree match would
+  keep: `insert`, `remove`, `wrap`, `unwrap`, `swap`, `shared_subtree`, and
+  `redefine_same`, where a body equal to the old one still renews every
+  node.
+- Nothing re-bases a result onto a later state: `rebase_disjoint` (two
+  edits of different labels) is rejected as stale in either order.
+- No operation moves a node to another function: `extract_function` and
+  `inline_function`. Loading the edited program declares no continuity, and
+  because `load` names nodes by function, generation and index, the ids
+  `f/0.n` come back on other nodes.

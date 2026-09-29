@@ -11,7 +11,7 @@ builds the two sides, and `transforms.rebase` combines two results.
 
 ## 1. Terms
 
-**Decided.**
+**Decided:**
 
 - An edit's **scope** is what one `define` entry replaces. For a
   whole-function entry, the old side is every node of the function and the
@@ -28,8 +28,10 @@ builds the two sides, and `transforms.rebase` combines two results.
 
 ## 2. Matching an edit
 
-**Decided** (owner, 2026-09-29: identity follows the expression, and the
-edited position keeps its identity only as a same-kind fallback).
+**Decided:**
+
+Owner, 2026-09-29: identity follows the expression, and the edited position
+keeps its identity only as a same-kind fallback.
 
 1. **Unchanged subtrees.** Taking new subtrees from the largest down, a
    new subtree is matched to an old one when its shape occurs exactly once
@@ -67,7 +69,9 @@ Consequences:
   The existing tests that pinned fresh nodes for an unchanged part were
   renamed to what they now check (CHANGES.md, Continuity inference).
 
-**Provisional** (settled by the code, not by the owner):
+**Provisional:**
+
+Settled by the code, not by the owner:
 
 - Leaves match like any subtree, so a unique literal or argument that
   moves to another position within the scope keeps its identity there.
@@ -85,26 +89,32 @@ Consequences:
 
 ## 3. What `define` records
 
-**Provisional.** The result stays an ordinary core transformation: kept
-nodes map to themselves, disappeared ones to nothing, created ones are
-placed. A matched node whose operands changed (rule 2) is a change of an
-existing entity. The result states the destination ownership whole
-(transformation_model.md §13), so the owner change of a node that moves
-between functions is explicit, never implicit. When a label entry's root
-is a new node, the node outside the scope that named the old position
-(or the body root reference in the definition) is changed to name the new
-root, and the label names the new root.
+**Provisional:**
+
+The result stays an ordinary core transformation: kept nodes map to
+themselves, disappeared ones to nothing, created ones are placed. A matched
+node whose operands changed (rule 2) is a change of an existing entity. The
+result states the destination ownership whole (transformation_model.md §13),
+so the owner change of a node that moves between functions is explicit,
+never implicit. When a label entry's root is a new node, the node outside
+the scope that named the old position (or the body root reference in the
+definition) is changed to name the new root, and the label names the new
+root.
 
 ## 4. Moves across functions
 
-**Decided** (scope): within one `define`, a node matched to a node of
-another function keeps its `EntityID` and changes its owner to the function
-whose new body holds it. It keeps its `VersionID` when its content is
-equal. No compiled chunk depends on the function a node belongs to (a
-parameter is an `arg` node naming the parameter), so a moved node is never
-changed for that reason.
+**Decided:**
 
-**Provisional** (operation, implemented as proposed):
+Scope: within one `define`, a node matched to a node of another function
+keeps its `EntityID` and changes its owner to the function whose new body
+holds it. It keeps its `VersionID` when its content is equal. No compiled
+chunk depends on the function a node belongs to (a parameter is an `arg`
+node naming the parameter), so a moved node is never changed for that
+reason.
+
+**Provisional:**
+
+Operation, implemented as proposed:
 
 - a `Function` for an entity absent from the state creates that function;
 - `None` for a function removes it (a mapping to nothing; its unmatched
@@ -121,11 +131,15 @@ changed for that reason.
 
 ## 5. Two transformations of the same state
 
-**Decided** (scope): two results built from the same state are combined
-when the entities they touch are disjoint, and rejected with their own
-error when they overlap, not with the stale-source rejection.
+**Decided:**
 
-**Provisional** (implemented):
+Scope: two results built from the same state are combined when the entities
+they touch are disjoint, and rejected with their own error when they overlap,
+not with the stale-source rejection.
+
+**Provisional:**
+
+Implemented:
 
     rebase(result, onto) -> TransformResult          (transforms.py)
         result and onto start from the same state, else ValueError.

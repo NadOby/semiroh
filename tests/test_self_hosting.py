@@ -44,7 +44,7 @@ def expand(state: State, entity: EntityID):
 
     node = relation_of(state.values[entity])
     name = _decode(node.payload) if node.kind in (
-        "call", "ref", "code", "read", "write",
+        "call", "ref", "code", "linksof", "read", "write",
     ) else None
     out = []
 
@@ -61,7 +61,7 @@ def expand(state: State, entity: EntityID):
             out.append(("LETBIND", instruction[1], expand(state, instruction[2])))
         elif op == "CALL":
             out.append(("CALL", name, instruction[2]))
-        elif op in ("REF", "CODE"):
+        elif op in ("REF", "CODE", "LINKS"):
             out.append((op, name))
         elif op in ("READ", "WRITE"):
             out.append((op, name))
@@ -216,6 +216,7 @@ class CompilerAgreesWithTheHostTests(unittest.TestCase):
             ("let", "a", one, ("arg", "a")), ("ref", "f"),
             ("apply", ("ref", "f")), ("apply", ("ref", "f"), x, one),
             ("read", "c"), ("write", "c", one), ("code", "f"),
+            ("linksof", "f"), ("applyv", ("ref", "f"), ("tuple", x, one)),
             ("label", "k", ("add", x, one)),
         ]
 
@@ -337,6 +338,7 @@ class Generator:
             ("read", "c"),
             ("ref", "f"),
             ("code", "f"),
+            ("linksof", "f"),
         ])
 
     def expression(self, depth: int) -> tuple:
@@ -348,8 +350,8 @@ class Generator:
         sub = lambda: self.expression(depth - 1)
         kind = rng.choice([
             "add", "sub", "mul", "lt", "eq", "if", "seq", "call", "tuple",
-            "len", "item", "slice", "concat", "let", "apply", "write", "label",
-            "leaf",
+            "len", "item", "slice", "concat", "let", "apply", "applyv", "write",
+            "label", "leaf",
         ])
 
         if kind in ("add", "sub", "mul", "lt", "eq"):
@@ -373,6 +375,8 @@ class Generator:
             return ("let", f"v{self.names}", sub(), sub())
         if kind == "apply":
             return ("apply", sub(), *(sub() for _ in range(rng.randint(0, 2))))
+        if kind == "applyv":
+            return ("applyv", sub(), sub())
         if kind == "write":
             return ("write", "c", sub())
         if kind == "label":

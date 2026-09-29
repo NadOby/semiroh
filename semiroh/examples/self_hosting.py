@@ -34,7 +34,7 @@ SELF_LOWER = EntityID("self_lower")
 LOWERED = frozenset({
     "lit", "arg", "add", "sub", "mul", "lt", "eq", "if", "seq", "call",
     "tuple", "len", "item", "slice", "concat", "let", "ref", "apply",
-    "read", "write", "code", "label",
+    "read", "write", "code", "label", "applyv", "linksof",
 })
 
 
@@ -178,6 +178,14 @@ def _lower_body() -> tuple:
                 _END_CHUNK,
             ),
         ),
+        (
+            "applyv",
+            _chunk(
+                _child(1), _op("REFCHECK"),
+                _child(2), _op("TUPLE", _lit("applyv")), _op("APPLYV"),
+            ),
+        ),
+        ("linksof", _chunk(_op("LINKS", _sub_expr(1)))),
         ("read", _chunk(_op("READ", _sub_expr(1)))),
         ("write", _chunk(_child(2), _op("WRITE", _sub_expr(1)))),
         ("code", _chunk(_op("CODE", _sub_expr(1)))),
@@ -242,21 +250,31 @@ def _seq_code_body() -> tuple:
     )
 
 
-def compiler_entities() -> dict[EntityID, Any]:
+def compiler_entities(extra: dict[str, EntityID] | None = None) -> dict[EntityID, Any]:
     """The compiler's functions and links, and ``self_lower``, which compiles
-    the compiler's own ``lower`` by reading it with ``code``.
+    the compiler's own ``lower`` by reading it with ``code``. ``extra`` adds
+    link names to every function (the interpreter of ``vm.py``, so that they
+    can be swapped for versions that run on it).
     """
+
+    more = extra or {}
 
     return {
         LOWER: Function(("e",), _lower_body()),
-        EntityID("lower.links"): links(LOWER, lower=LOWER, upper=UPPER, evals=EVALS, seq_code=SEQ_CODE),
+        EntityID("lower.links"): links(
+            LOWER, lower=LOWER, upper=UPPER, evals=EVALS, seq_code=SEQ_CODE,
+            **more,
+        ),
         UPPER: Function(("op",), _upper_body()),
+        EntityID("upper.links"): links(UPPER, **more),
         EVALS: Function(("e", "i", "acc"), _evals_body()),
-        EntityID("evals.links"): links(EVALS, evals=EVALS, lower=LOWER),
+        EntityID("evals.links"): links(EVALS, evals=EVALS, lower=LOWER, **more),
         SEQ_CODE: Function(("e", "i"), _seq_code_body()),
-        EntityID("seq_code.links"): links(SEQ_CODE, seq_code=SEQ_CODE, lower=LOWER),
+        EntityID("seq_code.links"): links(
+            SEQ_CODE, seq_code=SEQ_CODE, lower=LOWER, **more
+        ),
         SELF_LOWER: Function((), ("call", "lower", _item(("code", "lower"), 1))),
-        EntityID("self_lower.links"): links(SELF_LOWER, lower=LOWER),
+        EntityID("self_lower.links"): links(SELF_LOWER, lower=LOWER, **more),
     }
 
 

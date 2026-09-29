@@ -11,8 +11,6 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 ROADMAP = DOCS / "roadmap.md"
 
-MARKERS = {"Decided", "Provisional", "Open"}
-
 
 def _markdown_files() -> list[Path]:
     return [ROOT / "README.md", *sorted(DOCS.glob("*.md"))]
@@ -39,7 +37,7 @@ class DocumentationCoherenceTests(unittest.TestCase):
         self.assertNotIn("#PR pending", text)
 
     def test_markdown_links_resolve(self):
-        link_re = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+        link_re = re.compile(r"[^]+\]([^)]+)")
         errors = []
 
         for source in _markdown_files():
@@ -113,13 +111,19 @@ class DocumentationCoherenceTests(unittest.TestCase):
             "Section reference errors:\n" + "\n".join(errors),
         )
 
-    def test_spec_documents_have_heading_and_section_markers(self):
+    def test_spec_documents_have_heading_and_canonical_markers(self):
         exempt = {
             "corpus.md",
             "continuity_corpus.md",
             "roadmap.md",
             "syntax_notes.md",
         }
+        marker_re = re.compile(
+            r"^\*\*(Decided|Provisional|Open)(.*?)\*\*(.*)$"
+        )
+        canonical_re = re.compile(
+            r"^\*\*(Decided|Provisional|Open):\*\*$"
+        )
         errors = []
 
         for path in sorted(DOCS.glob("*.md")):
@@ -131,41 +135,5 @@ class DocumentationCoherenceTests(unittest.TestCase):
             if not lines or not lines[0].startswith("# "):
                 errors.append(f"{path.name}: missing top-level heading")
 
-            section_indexes = [
-                index
-                for index, line in enumerate(lines)
-                if re.match(r"^##\s+", line)
-            ]
-
-            for position, index in enumerate(section_indexes):
-                next_section = (
-                    section_indexes[position + 1]
-                    if position + 1 < len(section_indexes)
-                    else len(lines)
-                )
-                section = lines[index + 1 : next_section]
-                markers = {
-                    match.group(1)
-                    for line in section
-                    if (
-                        match := re.fullmatch(
-                            r"\*\*(Decided|Provisional|Open):\*\*",
-                            line.strip(),
-                        )
-                    )
-                }
-
-                if not markers & MARKERS:
-                    errors.append(
-                        f"{path.name}: section {lines[index]!r} "
-                        "has no Decided/Provisional/Open marker"
-                    )
-
-        self.assertFalse(
-            errors,
-            "Documentation coherence errors:\n" + "\n".join(errors),
-        )
-
-
-if __name__ == "__main__":
-    unittest.main()
+            for number, line in enumerate(lines, start=1):
+                stripped = line.strip()

@@ -3,18 +3,27 @@
 import unittest
 from unittest import mock
 
-from semiroh import CellDeclaration, EntityID, IntRange, Runtime
+from semiroh import (
+    AnyOf,
+    CellDeclaration,
+    EntityID,
+    IntRange,
+    IsKind,
+    Runtime,
+)
 from semiroh import bytecode
 from semiroh.examples import EXAMPLES, MISSING
 from semiroh.examples._support import program
 from semiroh.lang import (
     Function,
     LanguageError,
+    define,
     function_at,
     links,
     load,
     run,
 )
+from semiroh.relations import relation_of
 
 
 MAKE = EntityID("make")
@@ -101,13 +110,38 @@ class BasicClosureTests(unittest.TestCase):
         with self.assertRaises(LanguageError):
             run(runtime, APPLYV, add4, (1, 2))
 
-    def test_creating_and_calling_a_closure_needs_no_activation_grant(self) -> None:
+    def test_creating_and_calling_a_closure_needs_no_activation_grant(
+        self,
+    ) -> None:
         runtime = Runtime(loaded(helpers()))
 
         # may_activate is deliberately left at its default False.
         add4 = run(runtime, MAKE, 4)
 
         self.assertEqual(run(runtime, APPLY, add4, 2), 6)
+
+    def test_closure_can_be_stored_and_read_as_an_ordinary_value(self) -> None:
+        state = loaded({
+            CELL: CellDeclaration(
+                AnyOf(IsKind("none"), IsKind("closure")),
+                None,
+            ),
+            STORE: Function(
+                ("n",),
+                ("write", "cell", make_adder_body()),
+            ),
+            EntityID("store.links"): links(STORE, cell=CELL),
+            CALLER: Function(
+                ("x",),
+                ("apply", ("read", "cell"), ("arg", "x")),
+            ),
+            EntityID("caller.links"): links(CALLER, cell=CELL),
+        })
+        runtime = Runtime(state)
+
+        run(runtime, STORE, 4)
+
+        self.assertEqual(run(runtime, CALLER, 3), 7)
 
 
 class CaptureTests(unittest.TestCase):
@@ -218,6 +252,42 @@ class CaptureTests(unittest.TestCase):
         with self.assertRaises(LanguageError):
             run(runtime, CALLER, closure, 99)
 
+    def test_existing_closure_uses_the_continued_body_in_the_active_version(
+        self,
+    ) -> None:
+        body = (
+            "closure",
+            ("x",),
+            ("n",),
+            (
+                "label",
+                "calc",
+                ("add", ("arg", "n"), ("arg", "x")),
+            ),
+        )
+        state = loaded({
+            MAKE: Function(("n",), body),
+            APPLY: Function(
+                ("f", "x"),
+                ("apply", ("arg", "f"), ("arg", "x")),
+            ),
+        })
+        runtime = Runtime(state)
+        add4 = run(runtime, MAKE, 4)
+
+        runtime.activate(define(
+            runtime.active.state,
+            {
+                (MAKE, "calc"): (
+                    "add",
+                    ("arg", "n"),
+                    ("mul", ("arg", "x"), ("lit", 2)),
+                ),
+            },
+        ))
+
+        self.assertEqual(run(runtime, APPLY, add4, 3), 10)
+
 
 class ValidationTests(unittest.TestCase):
     def test_parameter_and_capture_names_are_validated(self) -> None:
@@ -325,6 +395,23 @@ class GraphFormTests(unittest.TestCase):
         state = loaded({F: Function((), body)})
 
         self.assertEqual(function_at(state, F), Function((), body))
+
+    def test_closure_is_a_graph_node_with_its_body_as_a_child(self) -> None:
+        state = loaded({
+            F: Function(("n",), make_adder_body()),
+        })
+
+        closures = []
+
+        for value in state.values.values():
+            node = relation_of(value)
+
+            if node is not None and node.kind == "closure":
+                closures.append(node)
+
+        self.assertEqual(len(closures), 1)
+        self.assertEqual(set(closures[0].roles), {"body"})
+        self.assertIsInstance(closures[0].roles["body"], EntityID)
 
 
 class CorpusTests(unittest.TestCase):

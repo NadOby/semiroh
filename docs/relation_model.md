@@ -8,9 +8,10 @@ plain `EntityID`s that nothing tracks, so a rename or disappearance leaves
 them dangling. And constraints can only describe one entity, although many
 useful constraints relate several.
 
-Each section is marked:
+Status markers used in this document are:
 
 - **Given**: already stated by other documents;
+- **Decided**: agreed direction; later changes should be deliberate;
 - **Open**: options are listed; no direction is chosen.
 
 ## 1. Relations are entities

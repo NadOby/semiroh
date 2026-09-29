@@ -142,8 +142,9 @@ class DocumentationCoherenceTests(unittest.TestCase):
                     for line in section
                     if (
                         match := re.fullmatch(
-                            r"\*\*(Decided|Provisional|Open)\.?\*\*",
+                            r"\*\*(Decided|Provisional|Open):\*\*",
                             line.strip(),
+                        )
                         )
                     )
                 }

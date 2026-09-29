@@ -85,6 +85,9 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   virtual machine with explicit stacks. `lang.run` calls it.
 - `fold.py`: constant folding as a graph transformation that declares its
   merges (`fold_constants`, `sources_of`).
+- `continuity.py`: the continuity corpus: cases with expected continuity
+  per operation (`CASES`, `check`); a `gap` case records inference still
+  missing (docs/continuity_corpus.md).
 - `syntax.py`: text syntax version 0 over `lang.py`: `parse` (text to the
   input format, over an optional base), `render` and `render_program` (graph
   form to text, `raw(...)` for what the syntax cannot write). Import-only.

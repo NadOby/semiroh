@@ -117,6 +117,24 @@ class RuleOneTests(unittest.TestCase):
             {n(2): o(2), n(0): o(0), n(1): o(1)},
         )
 
+    def test_a_larger_match_makes_the_remaining_copy_unique(self) -> None:
+        # `lit 1` occurs twice on each side. Largest first, the unique `add`
+        # takes one copy on each side, and the copy left is then unique
+        # among what is not matched yet; smallest first would keep neither.
+        old = side(
+            "o", lit(1), lit(2), op("add", o(0), o(1)), lit(1),
+            op("mul", o(2), o(3)),
+        )
+        new = side(
+            "n", lit(1), lit(2), op("add", n(0), n(1)), lit(1),
+            op("sub", n(3), n(2)),
+        )
+
+        self.assertEqual(
+            match(old, new, [(n(4), o(4))]),
+            {n(2): o(2), n(0): o(0), n(1): o(1), n(3): o(3)},
+        )
+
     def test_a_repeated_large_subtree_keeps_only_what_is_unique_below(self) -> None:
         # `neg 5` twice among the new keeps neither; the unique `lit 7`
         # below the root is still kept on its own.

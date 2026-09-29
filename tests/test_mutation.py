@@ -78,6 +78,9 @@ EQUIVALENT = {
         "content against by fields is not pinned by a test",
     ("semiroh/lang.py", "arithmetic", "current.generation + 1,"):
         "the generation only has to differ from the taken ones",
+    ("semiroh/matching.py", "constant", "size = 1"):
+        "every node then counts 2, so each subtree's size doubles: the "
+        "grouping by size and its order, all matching uses, are unchanged",
     ("semiroh/lang.py", "compare", "if index is None:"):
         "the only caller passes an index; the default is unused",
     ("semiroh/lang.py", "constant", "generation += 1"):

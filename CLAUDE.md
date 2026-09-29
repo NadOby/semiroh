@@ -100,6 +100,12 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 - `syntax.py`: text syntax version 0 over `lang.py`: `parse` (text to the
   input format, over an optional base), `render` and `render_program` (graph
   form to text, `raw(...)` for what the syntax cannot write). Import-only.
+- `reconcile.py`: edited complete source to a graph transformation
+  (`reconcile`): parses and resolves the edited program, preserves
+  top-level identity for declarations that keep their name, delegates
+  code-node continuity to `lang.define`, treats a bare top-level rename as
+  remove plus create, and rejects cell declaration edits until migration
+  semantics are specified (`docs/name_resolution.md`).
 - `cells.py`, `runtime.py`: `CellDeclaration(constraint, initial)`;
   `Runtime` holds cell content outside `StateID`, checks constraints
   (anything but Satisfied rejects), activates transformation results

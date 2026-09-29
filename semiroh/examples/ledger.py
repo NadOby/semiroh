@@ -207,7 +207,7 @@ def _fold_measurements() -> dict[str, Any]:
         before = source.values[entity]
         after = result.destination.values[entity]
 
-        if before.version == after.version:
+        if before.version_id == after.version_id:
             continue
 
         sources = sources_of(result, entity)

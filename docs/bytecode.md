@@ -12,7 +12,7 @@ semantic state: it does not change any `EntityID`, `VersionID` or `StateID`.
 
 ## 1. What changed for the language
 
-**Decided.**
+**Decided:**
 
 Nothing observable, except the limit on recursion. A call no longer uses
 the host's stack, so the number of calls that may wait on each other moved
@@ -29,8 +29,13 @@ are otherwise those of the interpreter it replaces, checked against it
 
 ## 2. Chunks
 
-**Decided** (one chunk per node, children by reference), **Provisional**
-(the instruction set).
+**Decided:**
+
+One chunk per node, children by reference.
+
+**Provisional:**
+
+The instruction set.
 
 A chunk is a tuple of instructions ending with `END`. An instruction is a
 plain tuple whose first item is its opcode, followed by operands that are
@@ -70,7 +75,9 @@ where the interpreter raised it when the node was reached.
 
 ## 3. Instructions
 
-**Provisional.** The stack is the operand stack of one run.
+**Provisional:**
+
+The stack is the operand stack of one run.
 
     LIT v               push the literal (decoded when it runs)
     ARG name            push a parameter or let-bound name; unknown is an error
@@ -111,7 +118,7 @@ theirs: they are how tail position is found (section 4).
 
 ## 4. The machine
 
-**Decided.**
+**Decided:**
 
 A run keeps an operand stack, a control stack of suspended cursors and the
 live calls. A cursor is `(chunk, pc, tail, env, call)`: the chunk being run
@@ -155,7 +162,7 @@ push a cursor and `END` and `RETURN` pop one.
 
 ## 5. The cache
 
-**Decided.**
+**Decided:**
 
 A node's chunk is kept with the node's `Value`, like its `VersionID` and its
 decoded relation (state_model.md section 4), and is lowered the first time
@@ -173,7 +180,7 @@ before and after an edit.
 
 ## 6. Order of effects
 
-**Decided.**
+**Decided:**
 
 Every check that could fail keeps its place relative to side effects that
 come before or after it, as the interpreter had it, because a write that
@@ -195,9 +202,11 @@ run it against.
 
 ## 7. Is per-node identity paying for itself?
 
-**Provisional**, on these measurements. The roadmap asked for a record if
-caching per node version were not simpler and more precise than re-pointing
-dependents per function.
+**Provisional:**
+
+On these measurements. The roadmap asked for a record if caching per node
+version were not simpler and more precise than re-pointing dependents per
+function.
 
 It is simpler. The cache is the chunk kept on the value: no key, no
 dependents index and no invalidation rule, and nothing to keep in step with

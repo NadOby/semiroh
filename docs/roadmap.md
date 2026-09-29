@@ -200,6 +200,15 @@ itself and swaps in a function that runs its own emitted chunk. Needs a way
 to call a function chosen at run time and to read a function by reference
 (self_hosting.md sections 5 and 6).
 
+## D. Human source
+
+### 11. Text syntax, version 0 (handoff)
+
+A parser from text (syntax_notes.md, Direction A) into the input format and
+a printer from graph form, import-only (syntax.md). Done when the corpus
+round-trips through text by behaviour and by text, and the examples not
+tagged self-modification render without `raw`.
+
 ## Later
 
 - Text syntax, with a reconciler that turns an edited text into a
@@ -210,7 +219,7 @@ to call a function chosen at run time and to read a function by reference
 - Closures: a function built at run time cannot be applied (corpus
   `MISSING`).
 - Function references held in cells follow renames (language_data.md §3).
-- Syntax and tooling notes: human source, graph and IR views of one
-  program (owner's notes, exploratory).
+- Syntax and tooling notes (syntax_notes.md): graph and IR views next to
+  the source view of task 11.
 - The program root and modules (ownership_model.md §13), when text syntax
   or libraries need name resolution.

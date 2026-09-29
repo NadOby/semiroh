@@ -778,30 +778,22 @@ CASES: tuple[Case, ...] = (
     Case(
         name="activate_define",
         group="declared",
-        source="cell hits: int = 0\n\nfn bump(x):\n    hits + x\n",
-        operation=_redefine(
-            "bump", "cell hits: int = 0\n\nfn bump(x):\n    hits + x * 2\n"
-        ),
+        source="cell hits: int = 0\n\nfn bump(x):\n    hits + x * label(k, 1)\n",
+        operation=_edit(("bump", "k", ("lit", 2))),
         expect=Expect(
-            gone=("node:bump@", "node:bump@0", "node:bump@1"),
-            new=(
-                "after:bump@",
-                "after:bump@0",
-                "after:bump@1",
-                "after:bump@1.0",
-                "after:bump@1.1",
-            ),
-            changed=("fn:bump",),
-            kept=("cell:hits",),
+            changed=("node:bump@1.1",),
+            kept=("cell:hits", "fn:bump"),
             cells={"cell:hits": 5},
         ),
         writes={"cell:hits": 5},
         status="holds",
         note=(
-            "Holds. A whole-body `define` declares every old node of `bump` "
-            "gone and creates the new ones (generation 1). The cell maps to "
-            "itself and keeps its runtime content (5, written before the "
-            "activation) instead of returning to its initial 0."
+            "Holds. A `define` of one labelled node changes that node and "
+            "keeps every other node and the function's definition. The cell "
+            "maps to itself and keeps its runtime content (5, written before "
+            "the activation) instead of returning to its initial 0. (A "
+            "whole-body `define` would pin today's non-inference, which "
+            "roadmap task 13 changes; the inferred group covers that.)"
         ),
     ),
     # -- inferred: an edit that declares no continuity for what it touches --

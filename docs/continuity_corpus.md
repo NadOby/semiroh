@@ -90,7 +90,7 @@ explicit mappings. These pin the current rules.
 | `split_cell` | a pair cell split into `left`, `right` | split; each holds its half |
 | `upgrade_cell` | an `int` cell redeclared as a tuple, converted | changed; content converted |
 | `fold` | `1 + 2` folded (constant_folding.md) | the root survives as the literal `3`; its operands as recorded by the fold |
-| `activate_define` | a body replaced with `define` in a program with a cell | the cell's content transferred |
+| `activate_define` | a labelled node replaced with `define` in a program with a cell | the node changed, all else kept; the cell's content transferred |
 
 Inferred continuity (group `inferred`): an edit that declares no
 continuity for the nodes it touches, made with `define`, whole-body or by

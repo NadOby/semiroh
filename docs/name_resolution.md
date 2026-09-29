@@ -5,7 +5,7 @@ reconciler. It does not introduce new syntax.
 
 ## 1. Lexical names
 
-**Decided.**
+**Provisional.**
 
 A function has one lexical namespace.
 
@@ -34,7 +34,7 @@ lexically invalid.
 
 ## 2. Program names
 
-**Decided.**
+**Provisional.**
 
 Version 0 has one program-global namespace. Cells and functions occupy that
 same namespace and declaration names are unique.
@@ -69,7 +69,7 @@ section 1 need not change.
 
 ## 4. Reconciliation
 
-**Decided.**
+**Provisional.**
 
 The graph state is authoritative. Edited text is a proposed new source view
 of that state, not a second authoritative representation.
@@ -137,7 +137,7 @@ Function edits may freely change which existing cells they reference.
 
 ## 7. Errors
 
-**Decided.**
+**Provisional.**
 
 Syntax and name-resolution failures remain `SourceError`s with source
 positions.

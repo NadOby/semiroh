@@ -93,11 +93,15 @@ Any failure before step 4 leaves `S₀` active and runtime state unchanged.
 `Unknown` validation results do not permit activation unless an explicit
 policy says otherwise.
 
-## 4. Mutable cell content
+### 4. Mutable cell content
 
 **Decided:**
 
-The conversion rule and the placement of conversions are provisional.
+This section, except the conversion rule and the placement of conversions.
+
+**Provisional:**
+
+The conversion rule and the placement of conversions.
 
 A mutable cell is versioned program state; its content is runtime state. At
 activation, cell content is carried along explicit continuity:

@@ -7,6 +7,7 @@ import random
 import unittest
 
 from semiroh import EntityID, State, Value
+from semiroh.cells import cell_declaration
 from semiroh.lang import Function, _definition_of, define, function_at, links, load, run
 from semiroh.matching import match, shapes
 from semiroh.relations import Relation, relation_of
@@ -513,6 +514,41 @@ class RebaseTests(unittest.TestCase):
                 state, {(F, "left"): ("lit", 30), (F, "right"): ("lit", 20)}
             ).destination.id,
         )
+
+    def test_three_disjoint_edits_of_one_state_apply_in_turn(self) -> None:
+        state = load(parse(LABELS))
+        edits = [(F, "a"), (F, "b"), (F, "c")]
+        results = [
+            define(state, {key: ("lit", 100 + index)})
+            for index, key in enumerate(edits)
+        ]
+        runtime = Runtime(state)
+
+        for result in results:
+            runtime.activate(result)
+
+        self.assertEqual(
+            runtime.active.state.id,
+            define(
+                state,
+                {key: ("lit", 100 + index) for index, key in enumerate(edits)},
+            ).destination.id,
+        )
+
+    def test_a_cell_the_other_result_created_keeps_its_content(self) -> None:
+        state = load(parse(LABELS))
+        cell = EntityID("c")
+        declaration = cell_declaration(parse("cell c: int = 0\n").values[cell])
+        onto = transform_with_mapping(
+            state, {cell: declaration}, {entity: entity for entity in state.values}
+        )
+        result = define(state, {(F, "a"): ("lit", 100)})
+        runtime = Runtime(state)
+        runtime.activate(onto)
+        runtime.write(cell, 5)
+        runtime.activate(result)
+
+        self.assertEqual(runtime.read(cell), 5)
 
 
 class LabelScopeTests(unittest.TestCase):

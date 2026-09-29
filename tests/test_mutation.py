@@ -86,6 +86,12 @@ EQUIVALENT = {
     ("semiroh/lang.py", "constant", "generation += 1"):
         "the generation only has to differ from the taken ones",
     ("semiroh/lang.py", "constant",
+     "0 if current is None else current.generation + 1,"):
+        "the generation only has to differ from the taken ones",
+    ("semiroh/matching.py", "constant", "keys.append((False, item))"):
+        "the flag only separates shape numbers from endpoint entities, and "
+        "an int never equals an EntityID",
+    ("semiroh/lang.py", "constant",
      'f"let name must be a non-empty string, got {rest[0]!r}",'):
         "diagnostic text, not pinned by a test",
 }

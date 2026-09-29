@@ -102,15 +102,15 @@ capability, and that no function but `work` changes version.
 
 ## 5. What this is not
 
-- The compiler's output is not run. Bytecode stays derived from the graph
-  (bytecode.md section 8), and the host lowers what the VM runs. So the
-  swap in section 4 installs input form, and the self-hosted compiler
+- The compiler's output is not run by the host. Bytecode stays derived from
+  the graph (bytecode.md section 8), and the host lowers what its VM runs. So
+  the swap in section 4 installs input form, and the self-hosted compiler
   reports on it; it does not produce the code that runs.
-- **Provisional next step** (owner's direction: "probably"): a small
-  bytecode interpreter written in SEMIROH, so that a program can compile
-  itself and swap in a function that runs its own emitted chunk. It needs
-  a way to call a function chosen at run time and to read links by name;
-  see section 6.
+- **Done in roadmap.md task 10** (vm_in_semiroh.md): a bytecode interpreter
+  written in SEMIROH runs the chunks the compiler emits, so a program
+  compiles a function of its own and swaps in one that runs its own chunk,
+  the compiler included. It needed `applyv` and `linksof`, not `code` by
+  reference.
 
 ## 6. Open
 

@@ -100,6 +100,9 @@ Tier 2 (roadmap.md task 6, language_data.md section 5) adds:
   and `instrument`, a program that reads its own function, swaps in a
   version that counts its calls and compiles what it installed
   (self_hosting.md);
+- self-hosting (roadmap.md task 10): `bootstrap`, the compiler swapped for
+  functions that run their own chunks on an interpreter written in SEMIROH,
+  then compiling again (vm_in_semiroh.md);
 - self-modification: `sort_swap`, which sorts a tuple in a cell with the
   function `order` refers to, activates a different `order` between two
   runs, and sorts again with the data still in its cell.

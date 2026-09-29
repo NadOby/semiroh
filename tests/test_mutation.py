@@ -29,6 +29,7 @@ TARGETS = (
     "semiroh/runtime.py",
     "semiroh/examples/self_hosting.py",
     "semiroh/fold.py",
+    "semiroh/examples/vm.py",
 )
 
 # (target, kind, source line) -> why no test can tell the difference.
@@ -49,6 +50,21 @@ EQUIVALENT = {
     ("semiroh/examples/self_hosting.py", "constant",
      'step(("quote", ("lit", 1)), (("RAISE", "unknown operation"), end)),'):
         "the quoted template is not looked at",
+    ("semiroh/bytecode.py", "constant",
+     "control.append((_RETURN, 0, False, None, activation))"):
+        "the tail flag of the RETURN sentinel is never read",
+    ("semiroh/examples/vm.py", "constant",
+     'TRAP: Function((), ("item", ("tuple",), _lit(0))),'):
+        "any index of an empty tuple raises",
+    ("semiroh/examples/vm.py", "constant",
+     '("INT", ("seq", ("add", _top(), _lit(0)), _next(_STACK))),'):
+        "adding any int checks the operand; the sum is dropped",
+    ("semiroh/bytecode.py", "boolean",
+     "if type(left) in _PRIMITIVES and type(right) in _PRIMITIVES:"):
+        "the fast path only; the slow path agrees",
+    ("semiroh/bytecode.py", "compare",
+     "if type(left) in _PRIMITIVES and type(right) in _PRIMITIVES:"):
+        "the fast path only; the slow path agrees",
     ("semiroh/fold.py", "constant", "@dataclass(frozen=True)"):
         "nothing mutates a _Constant",
     ("semiroh/fold.py", "return", "return entity"):

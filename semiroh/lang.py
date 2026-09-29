@@ -80,6 +80,8 @@ _ARITY = {
     "let": 3,
     "ref": 1,
     "code": 1,
+    "linksof": 1,
+    "applyv": 2,
 }
 
 NODE_KINDS = frozenset({
@@ -104,7 +106,9 @@ NODE_KINDS = frozenset({
     "let",
     "ref",
     "code",
+    "linksof",
     "apply",
+    "applyv",
     INVALID_KIND,
 })
 
@@ -643,13 +647,19 @@ class _Builder:
 
             return Relation("ref", {"target": target}, rest[0])
 
-        if op == "code":
+        if op in ("code", "linksof"):
             target, problem = self.resolve(rest[0])
 
             if problem is not None:
                 return _invalid(problem, expr)
 
-            return Relation("code", {"target": target}, rest[0])
+            return Relation(op, {"target": target}, rest[0])
+
+        if op == "applyv":
+            return Relation(
+                "applyv",
+                {"function": self.expr(rest[0]), "args": self.expr(rest[1])},
+            )
 
         if op == "apply":
             if not rest:
@@ -1118,8 +1128,14 @@ def _collapse(
         )
     elif kind == "ref":
         expr = ("ref", _decode(node.payload))
-    elif kind == "code":
-        expr = ("code", _decode(node.payload))
+    elif kind in ("code", "linksof"):
+        expr = (kind, _decode(node.payload))
+    elif kind == "applyv":
+        expr = (
+            "applyv",
+            collapse(roles["function"]),
+            collapse(roles["args"]),
+        )
     elif kind == "apply":
         expr = (
             "apply",

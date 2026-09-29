@@ -165,6 +165,16 @@ def lower(node: Relation) -> Chunk:
         code = [("REF", roles["target"], _decode(node.payload))]
     elif kind == "code":
         code = [("CODE", roles["target"], _decode(node.payload))]
+    elif kind == "linksof":
+        code = [("LINKS", roles["target"], _decode(node.payload))]
+    elif kind == "applyv":
+        code = [
+            ("EVAL", roles["function"]),
+            ("REFCHECK",),
+            ("EVAL", roles["args"]),
+            ("TUPLE", kind),
+            ("APPLYV",),
+        ]
     elif kind == "apply":
         args = roles["args"]
         code = [
@@ -311,7 +321,16 @@ def _is_int(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
+_PRIMITIVES = (str, int, bool, type(None))
+
+
 def _semantically_equal(left: Any, right: Any) -> bool:
+    # Two primitives are equal when they have the same kind and the same
+    # value, which is what their canonical forms say (True is not 1); the
+    # interpreter of vm.py compares an opcode name per instruction.
+    if type(left) in _PRIMITIVES and type(right) in _PRIMITIVES:
+        return type(left) is type(right) and left == right
+
     return canonical_serialize(canonicalize(left)) == canonical_serialize(
         canonicalize(right)
     )
@@ -586,12 +605,16 @@ def _execute(
                 pc = 0
             elif op == "POP":
                 stack.pop()
-            elif op == "CALL" or op == "APPLY":
+            elif op == "CALL" or op == "APPLY" or op == "APPLYV":
                 if op == "CALL":
                     target = instr[1]
                     arguments = _pop_n(stack, instr[2])
                 else:
-                    arguments = _pop_n(stack, instr[1])
+                    if op == "APPLY":
+                        arguments = _pop_n(stack, instr[1])
+                    else:
+                        arguments = list(stack.pop())
+
                     target = stack.pop()
 
                     # A reference is an EntityID, so it does not follow a
@@ -711,6 +734,21 @@ def _execute(
                     )
 
                 stack.append((function.params, function.body))
+            elif op == "LINKS":
+                held = runtime.active.state.values.get(instr[1])
+                definition = None if held is None else _definition_of(held)
+
+                if definition is None:
+                    raise LanguageError(
+                        f"{activation.entity.value}: linksof {instr[2]!r} "
+                        f"does not name a function"
+                    )
+
+                stack.append(tuple(
+                    (name, target)
+                    for name, target in sorted(definition.links.items())
+                    if isinstance(target, EntityID)
+                ))
             elif op == "REFCHECK":
                 target = _reference(stack.pop())
 

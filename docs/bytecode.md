@@ -90,6 +90,9 @@ where the interpreter raised it when the node was reached.
     REF f name          push f, which must be a function (a reference)
     CODE f name         push the code of function f as (params, body)
                         (self_hosting.md)
+    LINKS f name        push the link table of function f as (name, entity)
+                        pairs (vm_in_semiroh.md)
+    APPLYV              like APPLY, with the arguments in one tuple
     LETCHECK name       the name must not be in scope
     LETBIND name n      pop a value, bind name to it, continue as node n
     READ cell           push the cell's content

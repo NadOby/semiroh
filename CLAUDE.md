@@ -61,7 +61,7 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   plant a plausible bug and confirm the property catches it.
 - Test semantic contracts, not incidental implementation details.
 - `SEMIROH_MUTATE=1 python3 -m tests.test_mutation` plants seeded bugs in
-  the model and runs the suite on each (about a minute); a survivor is a gap
+  the model and runs the suite on each (a few minutes); a survivor is a gap
   in the tests or a listed equivalent (`EQUIVALENT` in that module).
 
 ## Model map

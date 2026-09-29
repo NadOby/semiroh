@@ -73,7 +73,9 @@ so `function_at` gives back the link names as written.
     let                 value, body                        name
     ref                 target                             link name
     code                target                             link name
+    linksof             target                             link name
     apply               function, args (ordered)           -
+    applyv              function, args (one tuple)         -
     quote               holes (ordered)                    template, each
                                                            hole replaced
                                                            by ("unquote",)

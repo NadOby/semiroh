@@ -155,7 +155,8 @@ continuity.
 
 ## 5. load, define, function_at
 
-**Decided.**
+**Decided**, except the `define` entries that create, remove and relink
+functions, which are **Provisional** (continuity_inference.md §4).
 
     load(state) -> State
         every entity holding a Function keeps its EntityID and gets a
@@ -164,20 +165,38 @@ continuity.
         unchanged. More than one links relation for a function is a
         LanguageError. A graph-form state loads to itself.
 
-    define(state, {f: Function}) -> TransformResult
-        replaces whole bodies. Link names in each new body resolve through
-        f's link table. f's old nodes map to () and disappear, the new
-        nodes are created under f with placements (ownership_model.md
-        §10), f gets a new definition, and every other entity maps to
-        itself. The caller activates the result. A target that is absent
-        or not a function is a LanguageError.
+    define(state, edits) -> TransformResult
+        edits functions, inferring what each edit keeps
+        (continuity_inference.md). An entry is one of:
+          f: Function        a new body for f; an f absent from the state
+                             is created (generation 0)
+          f: None            removes f and its nodes
+          e: links(f, ...)   replaces f's link table (e is any key)
+          (f, label): expr   replaces the labelled node (section 9)
+        Link names in a new body resolve through f's new link table if the
+        edit gives one, else its current one. All entries form one pool:
+        an old node matched by continuity_inference.md §2 keeps its
+        EntityID (and its VersionID when its content is equal), moving to
+        the function whose new body holds it; an unmatched old node maps
+        to () and disappears; an unmatched new node is created under its
+        function (section 4). The result states destination ownership
+        whole, so a move's owner change is explicit. Every other entity
+        maps to itself. An edit that changes nothing gives the source
+        state. The caller activates the result. A target that is not a
+        function, an absent target that is not created, a links relation
+        for a removed function, and a whole and a label entry for one
+        function are LanguageErrors.
 
     function_at(state, f) -> Function | None
         collapses f back to the input format; None when f is absent or not
         a function. function_at(load(s), f) equals the Function s held.
 
-Host edits that are not whole-body replacements (rename, removal) are
-plain core transformations.
+Renaming a function stays a plain core transformation. Creating,
+removing and relinking functions are `define` entries since task 13, so
+that one `define` can move nodes between functions (extract, inline);
+removal by a plain transformation still works. Every `define` infers,
+including the one `activate` and `trial` build (section 6), so a
+whole-function `activate` of an unchanged body leaves the state as it is.
 
 ## 6. How activate and trial build their transformation
 
@@ -224,11 +243,20 @@ function, so hot swapping has the granularity of node identity.
   `function_at` keeps it. A duplicate label in one function, or a name that
   is not a non-empty string, is a `LanguageError`.
 - **Host.** `define` also accepts `(function, label): expression` entries,
-  mixed with whole-function entries in one transformation. The labelled
-  node keeps its `EntityID` and takes the new expression's root content;
-  the nodes below it are replaced, the old ones disappearing and the new
-  ones placed under the function. Every other node, and the function's own
-  value unless its labels change, keeps its `EntityID` and `VersionID`.
+  mixed with whole-function entries for other functions in one
+  transformation. The labelled node and the nodes below it are the old
+  side, the new expression the new side, and identity follows the
+  expression (continuity_inference.md §2, which replaced the earlier rule
+  that the labelled node always kept its `EntityID`): an unchanged unique
+  subtree keeps its nodes (rule 1); the labelled node keeps its `EntityID`
+  with the new root content only when the kind is the same (rule 2), so
+  `1` to `10` keeps it and `1` to `2 + 3` gives a new node while the old
+  one disappears; wrapping (`k` was `x`, now `double(x)`) keeps `x` under
+  a new call. When the position gets a new node, the node that named the
+  old one (or the definition, for the body root) changes to name it, and
+  the label names it. Every node outside the label, and the function's own
+  value unless its labels or body root change, keeps its `EntityID` and
+  `VersionID`.
 - **Language.** In `activate` and `trial`, a pair's target may be
   `(link, label)`, with an expression (code as data) as its value instead
   of a function value. Capability, checks, code in flight and atomicity

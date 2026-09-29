@@ -40,6 +40,7 @@ class DocumentationCoherenceTests(unittest.TestCase):
 
     def test_markdown_links_resolve(self):
         link_re = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+        errors = []
 
         for source in _markdown_files():
             text = source.read_text(encoding="utf-8")
@@ -54,21 +55,26 @@ class DocumentationCoherenceTests(unittest.TestCase):
                     source if not target else (source.parent / target).resolve()
                 )
 
-                with self.subTest(
-                    source=source.relative_to(ROOT),
-                    target=raw_target,
-                ):
-                    self.assertTrue(
-                        destination.exists(),
-                        f"{source.relative_to(ROOT)}: missing {raw_target}",
+                if not destination.exists():
+                    errors.append(
+                        f"{source.relative_to(ROOT)}: missing {raw_target}"
                     )
-                    if fragment and destination.suffix == ".md":
-                        self.assertIn(
-                            fragment,
-                            _headings(destination),
-                            f"{source.relative_to(ROOT)}: "
-                            f"missing heading {raw_target}",
-                        )
+                    continue
+
+                if (
+                    fragment
+                    and destination.suffix == ".md"
+                    and fragment not in _headings(destination)
+                ):
+                    errors.append(
+                        f"{source.relative_to(ROOT)}: "
+                        f"missing heading {raw_target}"
+                    )
+
+        self.assertFalse(
+            errors,
+            "Markdown link errors:\n" + "\n".join(errors),
+        )
 
     def test_section_references_resolve(self):
         reference_re = re.compile(
@@ -76,6 +82,7 @@ class DocumentationCoherenceTests(unittest.TestCase):
             r"(?:§|section\s+)(?P<section>\d+(?:\.\d+)*)",
             flags=re.IGNORECASE,
         )
+        errors = []
 
         for source in _markdown_files():
             text = source.read_text(encoding="utf-8")
@@ -83,25 +90,28 @@ class DocumentationCoherenceTests(unittest.TestCase):
                 target = (source.parent / match.group("file")).resolve()
                 section = match.group("section")
 
-                with self.subTest(
-                    source=source.relative_to(ROOT),
-                    reference=match.group(0),
+                if not target.exists():
+                    errors.append(
+                        f"{source.relative_to(ROOT)}: "
+                        f"missing {match.group('file')}"
+                    )
+                    continue
+
+                headings = _headings(target)
+                if not any(
+                    heading == section
+                    or heading.startswith(section + "-")
+                    for heading in headings
                 ):
-                    self.assertTrue(
-                        target.exists(),
+                    errors.append(
                         f"{source.relative_to(ROOT)}: "
-                        f"missing {match.group('file')}",
+                        f"missing section {match.group(0)}"
                     )
-                    headings = _headings(target)
-                    self.assertTrue(
-                        any(
-                            heading == section
-                            or heading.startswith(section + "-")
-                            for heading in headings
-                        ),
-                        f"{source.relative_to(ROOT)}: "
-                        f"missing section {match.group(0)}",
-                    )
+
+        self.assertFalse(
+            errors,
+            "Section reference errors:\n" + "\n".join(errors),
+        )
 
     def test_spec_documents_have_heading_and_section_markers(self):
         exempt = {
@@ -110,31 +120,28 @@ class DocumentationCoherenceTests(unittest.TestCase):
             "roadmap.md",
             "syntax_notes.md",
         }
+        errors = []
 
         for path in sorted(DOCS.glob("*.md")):
             if path.name in exempt:
                 continue
 
             lines = path.read_text(encoding="utf-8").splitlines()
-            with self.subTest(path=path.name):
-                self.assertTrue(
-                    lines and lines[0].startswith("# "),
-                    f"{path.name}: missing top-level heading",
-                )
+
+            if not lines or not lines[0].startswith("# "):
+                errors.append(f"{path.name}: missing top-level heading")
 
             section_indexes = [
                 index
                 for index, line in enumerate(lines)
                 if re.match(r"^##+\s+", line)
             ]
-            for index in section_indexes:
-                next_section = next(
-                    (
-                        candidate
-                        for candidate in section_indexes
-                        if candidate > index
-                    ),
-                    len(lines),
+
+            for position, index in enumerate(section_indexes):
+                next_section = (
+                    section_indexes[position + 1]
+                    if position + 1 < len(section_indexes)
+                    else len(lines)
                 )
                 section = lines[index + 1 : next_section]
                 markers = {
@@ -147,11 +154,17 @@ class DocumentationCoherenceTests(unittest.TestCase):
                         )
                     )
                 }
-                self.assertTrue(
-                    markers & MARKERS,
-                    f"{path.name}: section {lines[index]!r} "
-                    "has no Decided/Provisional/Open marker",
-                )
+
+                if not markers & MARKERS:
+                    errors.append(
+                        f"{path.name}: section {lines[index]!r} "
+                        "has no Decided/Provisional/Open marker"
+                    )
+
+        self.assertFalse(
+            errors,
+            "Documentation coherence errors:\n" + "\n".join(errors),
+        )
 
 
 if __name__ == "__main__":

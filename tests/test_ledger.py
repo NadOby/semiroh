@@ -67,8 +67,16 @@ class LedgerTests(unittest.TestCase):
             ),
         )
 
-        for sentence in required_prose:
-            self.assertIn(sentence, text)
+        missing = [
+            sentence
+            for sentence in required_prose
+            if sentence not in text
+        ]
+
+        self.assertFalse(
+            missing,
+            "Missing documented measurements:\n" + "\n".join(missing),
+        )
 
     def test_continuity_table_matches_actual_transformations(self):
         text = LEDGER.read_text(encoding="utf-8")

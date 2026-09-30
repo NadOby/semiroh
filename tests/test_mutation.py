@@ -117,20 +117,10 @@ class EngineTests(unittest.TestCase):
         self.assertIn("return a - b", source)
         self.assertIn("_unused = 0", source)
 
-        self.assertEqual(
-            (
-                mutant.kind,
-                mutant.line,
-                mutant.column,
-                mutant.text,
-            ),
-            (
-                "arithmetic",
-                5,
-                7,
-                "return a + b",
-            ),
-        )
+        self.assertEqual(mutant.index, index)
+        self.assertEqual(mutant.kind, "arithmetic")
+        self.assertEqual(mutant.line, 5)
+        self.assertEqual(mutant.text, "return a + b")
 
     def test_site_key_distinguishes_nodes_on_one_line(self) -> None:
         source = "values = (0, False)\n"
@@ -150,12 +140,34 @@ class EngineTests(unittest.TestCase):
             constants[1].text,
         )
         self.assertNotEqual(
-            constants[0].column,
-            constants[1].column,
+            constants[0].index,
+            constants[1].index,
         )
         self.assertNotEqual(
             constants[0].key,
             constants[1].key,
+        )
+
+    def test_nested_sites_with_same_start_remain_distinct(self) -> None:
+        source = "value = 1 + 2 + 3\n"
+
+        arithmetic = [
+            mutant
+            for mutant in mutation.site_descriptions(
+                source,
+                "nested.py",
+            )
+            if mutant.kind == "arithmetic"
+        ]
+
+        self.assertEqual(len(arithmetic), 2)
+        self.assertNotEqual(
+            arithmetic[0].index,
+            arithmetic[1].index,
+        )
+        self.assertNotEqual(
+            arithmetic[0].key,
+            arithmetic[1].key,
         )
 
     def test_a_seeded_sample_repeats(self) -> None:
@@ -221,14 +233,15 @@ class EngineTests(unittest.TestCase):
         )
 
         self.assertEqual(len(found), 1)
-
+        self.assertEqual(found[0].index, index)
         self.assertEqual(
             found[0].key,
             (
                 "calc.py",
+                index,
                 "constant",
+                1,
                 "_unused = 0",
-                10,
             ),
         )
 
@@ -304,8 +317,8 @@ class SuiteMutationTests(unittest.TestCase):
 
                 if classification is None:
                     escaped.append(
-                        f"{target}:{mutant.line}:"
-                        f"{mutant.column} "
+                        f"{target}:site-{mutant.index}:"
+                        f"line-{mutant.line} "
                         f"{mutant.kind}: "
                         f"{mutant.text}"
                     )

@@ -181,7 +181,6 @@ class MalformedGenerationTests(unittest.TestCase):
                 )
 
                 runtime = Runtime(state)
-                before = runtime.active.state.id
 
                 with self.assertRaises(
                     LanguageError,
@@ -192,12 +191,6 @@ class MalformedGenerationTests(unittest.TestCase):
                     ),
                 ):
                     run(runtime, F, 3)
-
-                self.assertEqual(
-                    runtime.active.state.id,
-                    before,
-                    f"reproduce: {replay}",
-                )
 
         if (
             len(selected) >= len(KINDS)

@@ -84,25 +84,226 @@ OMITTED = {
 #
 #     (
 #         target path,
-#         mutation engine site index,
 #         mutation kind,
-#         source line number,
 #         complete stripped source line,
+#         occurrence among sites with that same kind and source line,
 #     )
 #
-# The index makes the site unambiguous even when several mutable constructs
-# occur on one source line. Kind, line number and source text form a fingerprint
-# checked against the current source, so stale classifications fail closed.
+# Unlike a global mutation index or source line number, this identity survives
+# unrelated edits elsewhere in the file. The occurrence distinguishes multiple
+# mutable constructs represented by the same source line.
 #
-# The old survivor list was intentionally reset because its keys identified
-# only (target, kind, source line) and could cover multiple mutation sites.
+# These classifications migrate the useful knowledge from the pre-Task-18
+# mutation catalog. Broad historical entries that covered several sites are
+# split where their reasoning applies independently.
 #
-# Current survivors are rediscovered by mutation campaigns and classified
-# individually.
+# One historical entry is deliberately not migrated:
 #
-# A semantic test gap is never added here. It receives a regression test and
-# the mutant must then be killed.
+#     @dataclass(frozen=True, eq=False) in lang.py
+#
+# Its old reason explicitly called it an open test gap, not an equivalent
+# mutation. Test gaps are fixed with regressions rather than classified here.
+#
+# The historical self-hosting quote-template entry is also omitted for now:
+# formatting changes split its old broad source line into several sites, and
+# the old record does not identify which current constant actually survived.
+# A broad campaign may rediscover it under an exact key, at which point that
+# exact site can be reviewed.
+#
+# A semantic test gap is never added here.
 SURVIVORS: dict[
     MutationKey,
     tuple[str, str],
-] = {}
+] = {
+    (
+        "semiroh/bytecode.py",
+        "constant",
+        "_lowered = 0",
+        0,
+    ): (
+        EQUIVALENT,
+        "the counter is only compared as a difference",
+    ),
+    (
+        "semiroh/bytecode.py",
+        "constant",
+        "may_activate: bool = False,",
+        0,
+    ): (
+        EQUIVALENT,
+        "the relevant callers pass may_activate explicitly",
+    ),
+    (
+        "semiroh/runtime.py",
+        "return",
+        'return f"Version({self.id.value[:12]}, holds={len(self._holds)})"',
+        0,
+    ): (
+        UNSPECIFIED,
+        "Version repr text is diagnostic and not part of the semantic contract",
+    ),
+    (
+        "semiroh/runtime.py",
+        "constant",
+        'return f"Version({self.id.value[:12]}, holds={len(self._holds)})"',
+        0,
+    ): (
+        UNSPECIFIED,
+        "the number of StateID characters shown by repr is diagnostic only",
+    ),
+    (
+        "semiroh/examples/self_hosting.py",
+        "constant",
+        "IntRange(0, 100),",
+        1,
+    ): (
+        EQUIVALENT,
+        "the upper bound of the instrumentation cell is never reached",
+    ),
+    (
+        "semiroh/examples/vm.py",
+        "constant",
+        '("item", ("tuple",), _lit(0)),',
+        0,
+    ): (
+        EQUIVALENT,
+        "any index of the empty tuple traps",
+    ),
+    (
+        "semiroh/examples/vm.py",
+        "constant",
+        '("add", _top(), _lit(0)),',
+        0,
+    ): (
+        EQUIVALENT,
+        "adding any int performs the operand check and the sum is discarded",
+    ),
+    (
+        "semiroh/machine.py",
+        "constant",
+        "(_RETURN, 0, False, None, activation)",
+        1,
+    ): (
+        EQUIVALENT,
+        "the tail flag of the RETURN sentinel is never read",
+    ),
+    (
+        "semiroh/machine.py",
+        "boolean",
+        "if type(left) in _PRIMITIVES and type(right) in _PRIMITIVES:",
+        0,
+    ): (
+        EQUIVALENT,
+        "the primitive branch is only a fast path; canonical comparison agrees",
+    ),
+    (
+        "semiroh/machine.py",
+        "compare",
+        "if type(left) in _PRIMITIVES and type(right) in _PRIMITIVES:",
+        0,
+    ): (
+        EQUIVALENT,
+        "changing the left fast-path guard only changes which equivalent path runs",
+    ),
+    (
+        "semiroh/machine.py",
+        "compare",
+        "if type(left) in _PRIMITIVES and type(right) in _PRIMITIVES:",
+        1,
+    ): (
+        EQUIVALENT,
+        "changing the right fast-path guard only changes which equivalent path runs",
+    ),
+    (
+        "semiroh/fold.py",
+        "constant",
+        "@dataclass(frozen=True)",
+        0,
+    ): (
+        EQUIVALENT,
+        "nothing mutates _Constant instances",
+    ),
+    (
+        "semiroh/fold.py",
+        "return",
+        "return entity",
+        0,
+    ): (
+        EQUIVALENT,
+        "the returned folded node is only consumed in a case where the enclosing "
+        "constant if would already have folded as a whole",
+    ),
+    (
+        "semiroh/lang.py",
+        "compare",
+        "if index is None:",
+        0,
+    ): (
+        EQUIVALENT,
+        "the relevant callers pass an index",
+    ),
+    (
+        "semiroh/lang.py",
+        "constant",
+        "generation += 1",
+        0,
+    ): (
+        EQUIVALENT,
+        "the generation only has to differ from generations already taken",
+    ),
+    (
+        "semiroh/lang.py",
+        "arithmetic",
+        "0 if current is None else current.generation + 1,",
+        0,
+    ): (
+        EQUIVALENT,
+        "the generation only has to differ from generations already taken",
+    ),
+    (
+        "semiroh/lang.py",
+        "constant",
+        "0 if current is None else current.generation + 1,",
+        0,
+    ): (
+        EQUIVALENT,
+        "a newly created function only needs an available generation",
+    ),
+    (
+        "semiroh/lang.py",
+        "constant",
+        "0 if current is None else current.generation + 1,",
+        1,
+    ): (
+        EQUIVALENT,
+        "an edited function only needs a generation different from those taken",
+    ),
+    (
+        "semiroh/lang.py",
+        "constant",
+        'f"let name must be a non-empty string, got {rest[0]!r}",',
+        0,
+    ): (
+        UNSPECIFIED,
+        "the selected value appears only in diagnostic text",
+    ),
+    (
+        "semiroh/matching.py",
+        "constant",
+        "size = 1",
+        0,
+    ): (
+        EQUIVALENT,
+        "starting at two doubles every subtree size, preserving grouping and order",
+    ),
+    (
+        "semiroh/matching.py",
+        "constant",
+        "keys.append((False, item))",
+        0,
+    ): (
+        EQUIVALENT,
+        "the flag separates shape numbers from endpoint EntityIDs; their value "
+        "types cannot collide",
+    ),
+}

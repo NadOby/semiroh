@@ -19,6 +19,7 @@ LANES: dict[str, tuple[str, ...]] = {
         "test_constraint_relations",
         "test_constraints",
         "test_evaluators",
+        "test_generation",
         "test_identity",
         "test_lanes",
         "test_ledger",
@@ -53,6 +54,7 @@ LANES: dict[str, tuple[str, ...]] = {
         "test_continuity_units",
         "test_fold",
         "test_matching",
+        "test_metamorphic",
         "test_node_edits",
         "test_reference_transfer",
         "test_transform_composition",
@@ -80,6 +82,7 @@ LANES: dict[str, tuple[str, ...]] = {
         "test_docs",
         "test_malformed_generation",
         "test_properties",
+        "test_stateful_sequences",
     ),
     "mutation": (
         "test_mutation",

@@ -105,19 +105,24 @@ Tier 2 (roadmap.md task 6, language_data.md section 5) adds:
   then compiling again (vm_in_semiroh.md);
 - self-modification: `sort_swap`, which sorts a tuple in a cell with the
   function `order` refers to, activates a different `order` between two
-  runs, and sorts again with the data still in its cell.
+  runs, and sorts again with the data still in its cell;
+- closures (roadmap.md task 17): `make_adder`, which returns a closure
+  capturing its argument by value, and `compose`, which returns a closure
+  capturing callable values and applying them in composition.
 
 ## 4. Wanted programs
 
-**Open.** Recorded in `semiroh/examples/missing.py` (`MISSING`). Writing the
-tier 2 programs found two gaps; one is closed, and one remains:
+**Open.** Recorded in `semiroh/examples/missing.py` (`MISSING`).
 
-- `make_adder` needs function values that capture local names, such as
-  `make_adder(n)` or `compose(f, g)`. `ref` gives only the identity of a
-  function that already exists and `apply` takes only such a reference; a
-  function built by `function` is code as data and runs only after
-  `activate` installs it under an existing entity. It needs anonymous
-  function values with captured bindings, or partial application.
+`MISSING` is currently empty. The gaps discovered while extending the corpus
+have all been closed by implemented roadmap tasks.
+
+**Closed** by roadmap.md task 17: `make_adder`, the last remaining gap.
+It needed an executable anonymous callable that captures bindings from its
+creating lexical environment. `ref` names an already-installed function,
+while `function` remains code as data that must be installed with `activate`.
+Closures add the missing distinction: an executable value with explicit,
+by-value lexical captures. `make_adder` and `compose` are now corpus examples.
 
 **Closed** by roadmap.md task 7: `map_long_tuple`, which needed non-tail
 recursion deeper than the Python stack. Tail calls (task 6) made loops
@@ -149,7 +154,7 @@ recorded, now tier 2 examples. What each needed, as first written:
   recursion, and every `call` nests further Python stack frames in
   `semiroh/lang.py`'s `_call`/`_eval`. Measured against the `sum_to_n`
   tier-1 example: under the interpreter's default recursion limit of 1000,
-  `sum_to_n(197)` succeeds and `sum_to_n(198)` raises `RecursionError` —
+  `sum_to_n(197)` succeeds and `sum_to_n(198)` raises `RecursionError` -
   about 5 Python stack frames per SEMIROH call (measured on graph form;
   the tuple-body interpreter stopped one call earlier).
 

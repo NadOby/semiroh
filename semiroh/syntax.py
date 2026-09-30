@@ -278,6 +278,14 @@ def _map_links(expr: Any, f: Callable[[str], str]) -> Any:
     if op == "label" and len(rest) == 2:
         return (op, rest[0], sub(rest[1]))
 
+    if op == "closure" and len(rest) == 3:
+        return (
+            op,
+            rest[0],
+            rest[1],
+            sub(rest[2]),
+        )
+
     return (op, *(sub(child) for child in rest))
 
 
@@ -1589,10 +1597,6 @@ class _Renderer:
                         4,
                     )
 
-            # Text syntax has a general apply(value, tuple) form. Rendering a
-            # variadic apply whose head is not a simple local through that
-            # form preserves behaviour and makes the resulting text a
-            # fixpoint: parsing it produces applyv, which renders identically.
             target = operand(head)
             args = [operand(arg) for arg in rest[1:]]
 
@@ -1779,7 +1783,6 @@ class _Renderer:
                 return _data_text(value)
 
             if _tup(value):
-                # Code as data reads as a quote; anything else as a tuple.
                 try:
                     return (
                         "quote("

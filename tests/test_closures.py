@@ -409,6 +409,20 @@ class GraphFormTests(unittest.TestCase):
 
         self.assertEqual(function_at(state, F), Function((), body))
 
+    def test_malformed_closure_metadata_is_not_normalized_by_round_trip(
+        self,
+    ) -> None:
+        body = (
+            "closure",
+            ["x"],
+            ["n"],
+            ("lit", 1),
+        )
+        expected = Function((), body)
+        state = loaded({F: expected})
+
+        self.assertEqual(function_at(state, F), expected)
+
     def test_closure_is_a_graph_node_with_its_body_as_a_child(self) -> None:
         state = loaded({
             F: Function(("n",), make_adder_body()),

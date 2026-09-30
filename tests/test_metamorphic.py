@@ -5,8 +5,8 @@ from __future__ import annotations
 import random
 import unittest
 
-from semiroh import EntityID, State, Value, transform
-from semiroh.lang import Function, define, function_at, load
+from semiroh import EntityID, Runtime, State, Value, transform
+from semiroh.lang import Function, define, function_at, load, run
 from semiroh.reconcile import reconcile
 from semiroh.syntax import parse, render_program
 from semiroh.transforms import rebase
@@ -54,6 +54,31 @@ def language_state(seed: int) -> State:
     )
 
     return load(parse(source))
+
+
+def assert_same_language_program(
+    case: unittest.TestCase,
+    left: State,
+    right: State,
+) -> None:
+    """Compare source projection and observable execution, not graph history."""
+
+    case.assertEqual(
+        render_program(left),
+        render_program(right),
+    )
+
+    for entity in (F, G, H):
+        case.assertEqual(
+            function_at(left, entity),
+            function_at(right, entity),
+        )
+
+    for argument in (-3, 0, 5):
+        case.assertEqual(
+            run(Runtime(left), H, argument),
+            run(Runtime(right), H, argument),
+        )
 
 
 class TransformationMetamorphicTests(unittest.TestCase):
@@ -224,13 +249,15 @@ class LanguageMetamorphicTests(unittest.TestCase):
             )
 
             with self.subTest(seed=seed):
-                self.assertEqual(
-                    right_after_left.destination.id,
-                    combined.destination.id,
+                assert_same_language_program(
+                    self,
+                    right_after_left.destination,
+                    combined.destination,
                 )
-                self.assertEqual(
-                    left_after_right.destination.id,
-                    combined.destination.id,
+                assert_same_language_program(
+                    self,
+                    left_after_right.destination,
+                    combined.destination,
                 )
 
 

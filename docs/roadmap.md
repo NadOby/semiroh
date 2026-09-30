@@ -258,7 +258,7 @@ Lexical and module name resolution are specified first.
 
 ### 16. Documentation coherence (one session)
 
-**Done.** (#40)
+**Done** (#40).
 
 Correct mechanical documentation drift without changing semantics. Normalize
 standalone `Decided`, `Provisional`, and `Open` status markers; check internal
@@ -271,17 +271,86 @@ resolved.
 Done when: the coherence tests pass, affected status markers are normalized,
 and `CHANGES.md` records the sweep.
 
+### 17. Closures (handoff)
+
+**Implemented** (PR #41). The design is in closures.md.
+
+Close the last remaining corpus gap: anonymous callable values with lexical
+captures.
+
+Keep `Function` as code-as-data for program construction and activation.
+Introduce a distinct executable closure value containing code and its captured
+lexical environment. `apply` and `applyv` accept closures as well as existing
+function references.
+
+Captures are by value when the closure is created and do not depend on the
+caller's scope. A returned closure remains callable after its creating frame
+has finished. Creating or calling a closure requires no activation capability.
+
+`make_adder` and `compose` are corpus examples; closures can be passed,
+returned, stored and captured as ordinary values; closure calls obey ordinary
+arity and tail-call rules; continuity keeps closure code identities meaningful
+across activation; the host and self-hosted compilers agree on closure
+lowering; the SEMIROH VM runs the emitted closure bytecode; and `MISSING` is
+empty.
+
+## F. Verification and architecture
+
+### 18. Verification hardening (handoff)
+
+**Planned.** The plan is in verification_hardening.md.
+
+Strengthen the evidence that the semantic model is correct before changing
+its architecture. This is broader than adversarial testing: combine
+cross-boundary, differential, malformed-input, metamorphic, stateful,
+bounded-exhaustive and mutation testing, with failure reduction into permanent
+regressions.
+
+Split the ordinary test suite, currently about 27–40 seconds, into meaningful
+parallel CI lanes. Keep the full deterministic suite on every PR; give heavier
+stateful, fuzzing and mutation campaigns separate budgets while keeping every
+failure reproducible.
+
+Done when: the verification boundaries are documented and exercised,
+important independent implementations are differentially checked over
+generated cases, malformed and stateful testing attack semantic boundaries,
+at least one small domain is exhaustively explored, mutation coverage is
+substantially broader with survivors classified, generated failures can be
+reproduced and minimized, and ordinary CI is split and parallelized with its
+before/after wall time recorded.
+
+### 19. Language architecture hardening (handoff)
+
+**Planned.**
+
+Refactor the language implementation against the stronger verification
+baseline from task 18, without intentionally changing semantics.
+
+The immediate targets are the accidental duplication and weak boundaries
+exposed by task 17: operation structure is described independently in several
+tables and switch statements; `syntax.py` and `lang.py` have accumulated
+multiple responsibilities; and bytecode lowering and machine execution still
+have an avoidable dependency seam.
+
+Prefer one declarative source for mechanical operation shape – arity, code
+children and structural roles – while keeping genuinely different semantics
+explicit in the parser, runtime, compiler and self-hosted implementations.
+Split large modules only where those boundaries are demonstrated by the code
+and tests, not merely because a file is large.
+
+Done when: mechanical operation metadata has one authoritative definition,
+syntax responsibilities are separated behind the existing public API,
+bytecode/machine dependency direction is clean, remaining `lang.py` boundaries
+are made explicit where justified, and the task changes no intended language
+behaviour.
+
 ## Later
 
 - Systems data: structs, arrays and references between cells, with layout
   changes handled by converters.
 - Error handling inside the language, when a corpus program needs it.
-- Closures: a function built at run time cannot be applied (corpus
-  `MISSING`).
 - Function references held in cells follow renames (language_data.md §3).
 - Syntax and tooling notes (syntax_notes.md): graph and IR views next to
   the source view of task 11.
 - The program root and modules (ownership_model.md §13), when explicit
   modules or libraries need them.
-- Split CI into independent quality-of-life/coherence, unit/semantic,
-  regression/corpus, property/stress, and mutation/expensive test jobs.

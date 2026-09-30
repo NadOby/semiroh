@@ -41,7 +41,7 @@ __all__ = ["SourceError", "parse", "render", "render_program"]
 RESERVED = frozenset(
     "fn cell let if else true false none quote unquote literal function "
     "activate trial label raw ref code linksof apply len item slice "
-    "concat".split()
+    "concat closure captures".split()
 )
 
 # Cell type names other than ``int``, and the ``IsKind`` kind each stands for.
@@ -251,25 +251,40 @@ def _map_links(expr: Any, f: Callable[[str], str]) -> Any:
         return expr
 
     if op == "activate":
-        return (op, *(
-            target(child) if index % 2 == 0 else sub(child)
-            for index, child in enumerate(rest)
-        ))
+        return (
+            op,
+            *(
+                target(child) if index % 2 == 0 else sub(child)
+                for index, child in enumerate(rest)
+            ),
+        )
 
     if op == "trial":
         if not rest:
             return expr
 
-        return (op, sub(rest[0]), *(
-            target(child) if index % 2 == 0 else sub(child)
-            for index, child in enumerate(rest[1:])
-        ))
+        return (
+            op,
+            sub(rest[0]),
+            *(
+                target(child) if index % 2 == 0 else sub(child)
+                for index, child in enumerate(rest[1:])
+            ),
+        )
 
     if op == "let" and len(rest) == 3:
         return (op, rest[0], sub(rest[1]), sub(rest[2]))
 
     if op == "label" and len(rest) == 2:
         return (op, rest[0], sub(rest[1]))
+
+    if op == "closure" and len(rest) == 3:
+        return (
+            op,
+            rest[0],
+            rest[1],
+            sub(rest[2]),
+        )
 
     return (op, *(sub(child) for child in rest))
 
@@ -411,7 +426,9 @@ class _Parser:
                 entities[EntityID(name)] = content
                 used_by[name] = used
             else:
-                raise self.error("expected a 'cell' or 'fn' declaration, found " + _describe(token))
+                raise self.error(
+                    "expected a 'cell' or 'fn' declaration, found " + _describe(token)
+                )
 
         for name, used in used_by.items():
             used.update(self.extra.get(name, {}))
@@ -527,7 +544,8 @@ class _Parser:
 
         if not token.quoted and token.value in RESERVED:
             raise self.error(
-                f"{token.value!r} is reserved (write it in backquotes to use it as a name)",
+                f"{token.value!r} is reserved "
+                f"(write it in backquotes to use it as a name)",
                 token,
             )
 
@@ -608,7 +626,11 @@ class _Parser:
         name = self.next()
         self.check_local(name)
         self.expect_op("=")
-        value = self.write() if self.peek().kind == "name" and self.is_op("=", 1) else self.expr()
+        value = (
+            self.write()
+            if self.peek().kind == "name" and self.is_op("=", 1)
+            else self.expr()
+        )
         self.end_of_statement()
         self.locals.append(name.value)
         return ("let", name.value, value, token)
@@ -732,7 +754,10 @@ class _Parser:
 
             if token.value == "(":
                 self.next()
-                return self.parenthesized(self.expr, lambda items: ("tuple", *items))
+                return self.parenthesized(
+                    self.expr,
+                    lambda items: ("tuple", *items),
+                )
 
             raise self.error("unexpected " + _describe(token))
 
@@ -744,7 +769,11 @@ class _Parser:
 
         raise self.error("unexpected " + _describe(token))
 
-    def parenthesized(self, element: Callable[[], Any], build: Callable[[list], Any]) -> Any:
+    def parenthesized(
+        self,
+        element: Callable[[], Any],
+        build: Callable[[list], Any],
+    ) -> Any:
         """Read what follows ``(``: a group, or a tuple; consumes the ``)``."""
 
         if self.accept_op(")"):
@@ -845,7 +874,10 @@ class _Parser:
         args = self.call_args()
 
         if len(args) != count:
-            raise self.error(f"{token.value} takes {count} argument(s), got {len(args)}", token)
+            raise self.error(
+                f"{token.value} takes {count} argument(s), got {len(args)}",
+                token,
+            )
 
         return args
 
@@ -875,6 +907,9 @@ class _Parser:
         if name == "fn":
             return self.fn_value(token)
 
+        if name == "closure":
+            return self.closure_value(token)
+
         if name == "quote":
             if self.mode == _HOLES:
                 raise self.error("quote inside quote is not supported; use raw", token)
@@ -891,13 +926,19 @@ class _Parser:
             self.expect_op("(")
             inner = self.in_mode(_ORDINARY, self.expr)
             self.expect_op(")")
-            return ("unquote", inner) if name == "unquote" else ("lit", ("unquote", inner))
+            return (
+                ("unquote", inner)
+                if name == "unquote"
+                else ("lit", ("unquote", inner))
+            )
 
         if name == "label":
             self.expect_op("(")
             label = self.next()
 
-            if label.kind != "name" or (not label.quoted and label.value in RESERVED):
+            if label.kind != "name" or (
+                not label.quoted and label.value in RESERVED
+            ):
                 raise self.error("expected a label name", label)
 
             self.expect_op(",")
@@ -937,6 +978,54 @@ class _Parser:
         body = self.in_mode(_HOLES, self.expr)
         return ("function", ("lit", tuple(params)), ("quote", body))
 
+    def closure_value(self, token: Token) -> Any:
+        """Read ``closure(params) captures(names): body``."""
+
+        if self.mode == _HOLES:
+            raise self.error(
+                "closure inside quote is not supported; use raw",
+                token,
+            )
+
+        outer = tuple(self.locals)
+
+        self.expect_op("(")
+        params = self.params()
+
+        if not self.is_word("captures"):
+            raise self.error("expected 'captures' after closure parameters")
+
+        self.next()
+        self.expect_op("(")
+        captures = self.params()
+
+        overlap = set(params) & set(captures)
+
+        if overlap:
+            name = sorted(overlap)[0]
+            raise self.error(
+                f"{name!r} is both a closure parameter and a capture",
+                token,
+            )
+
+        for name in captures:
+            if name not in outer:
+                raise self.error(
+                    f"capture {name!r} is not in scope",
+                    token,
+                )
+
+        self.expect_op(":")
+        saved = self.locals
+        self.locals = [*captures, *params]
+
+        try:
+            body = self.expr()
+        finally:
+            self.locals = saved
+
+        return ("closure", tuple(params), tuple(captures), body)
+
     def target_pair(self) -> list[Any]:
         """One ``TARGET = VALUE`` pair of activate or trial."""
 
@@ -965,7 +1054,11 @@ class _Parser:
         self.extra.setdefault(token.value, {}).update(installed)
         return [target, value]
 
-    def pairs(self, pair: Callable[[], list[Any]], first: bool = True) -> list[Any]:
+    def pairs(
+        self,
+        pair: Callable[[], list[Any]],
+        first: bool = True,
+    ) -> list[Any]:
         """Read ``pair`` items separated by commas, up to and including ``)``."""
 
         items: list[Any] = []
@@ -1008,7 +1101,11 @@ class _Parser:
         if token.kind == "op" and token.value == "(":
             return self.parenthesized(self.data, tuple)
 
-        if token.kind == "name" and not token.quoted and token.value in ("true", "false", "none"):
+        if (
+            token.kind == "name"
+            and not token.quoted
+            and token.value in ("true", "false", "none")
+        ):
             return {"true": True, "false": False, "none": None}[token.value]
 
         raise self.error("expected a data literal", token)
@@ -1033,7 +1130,11 @@ def _merge(
     """The state for the declarations, over ``base`` if there is one."""
 
     declared_ids = {EntityID(name) for name in declared}
-    functions = {EntityID(name) for name, kind in declared.items() if kind == "fn"}
+    functions = {
+        EntityID(name)
+        for name, kind in declared.items()
+        if kind == "fn"
+    }
     values: dict[EntityID, Value] = {}
 
     if base is not None:
@@ -1068,7 +1169,10 @@ def _merge(
         taken.add(links_id)
         relation = Relation(
             LINKS_KIND,
-            {FUNCTION_ROLE: EntityID(name), **{target: EntityID(target) for target in used}},
+            {
+                FUNCTION_ROLE: EntityID(name),
+                **{target: EntityID(target) for target in used},
+            },
         )
         values[links_id] = Value.create(links_id, relation)
 
@@ -1199,34 +1303,59 @@ class _Renderer:
 
     ``names`` maps the function's link names to the names of their current
     target entities; ``known`` is every global name. Precedence levels: 0
-    inline if and ``fn``, 1 comparison, 2 addition, 3 multiplication, 4
-    atoms. ``mode`` is 0 in ordinary code, 1 in a quote template (holes
-    allowed) and 2 in a template that is a literal's value (no holes).
+    inline if, ``fn`` and ``closure``, 1 comparison, 2 addition, 3
+    multiplication, 4 atoms. ``mode`` is 0 in ordinary code, 1 in a quote
+    template (holes allowed) and 2 in a template that is a literal's value
+    (no holes).
     """
 
-    def __init__(self, names: dict[str, str], known: frozenset[str]) -> None:
+    def __init__(
+        self,
+        names: dict[str, str],
+        known: frozenset[str],
+    ) -> None:
         self.names = names
         self.known = known
 
     def raw(self, node: Any) -> str:
-        mapped = _map_links(node, lambda name: self.names.get(name, name))
+        mapped = _map_links(
+            node,
+            lambda name: self.names.get(name, name),
+        )
         return "raw(" + _raw_text(mapped) + ")"
 
     # -- blocks ------------------------------------------------------------
 
-    def block(self, node: Any, locs: frozenset[str], depth: int, tail: bool = True) -> list[str]:
+    def block(
+        self,
+        node: Any,
+        locs: frozenset[str],
+        depth: int,
+        tail: bool = True,
+    ) -> list[str]:
         if _tup(node) and len(node) > 1 and node[0] == "seq":
             items = node[1:]
             lines: list[str] = []
 
             for index, item in enumerate(items):
-                lines += self.statement(item, locs, depth, tail and index == len(items) - 1)
+                lines += self.statement(
+                    item,
+                    locs,
+                    depth,
+                    tail and index == len(items) - 1,
+                )
 
             return lines
 
         return self.statement(node, locs, depth, tail)
 
-    def statement(self, node: Any, locs: frozenset[str], depth: int, tail: bool) -> list[str]:
+    def statement(
+        self,
+        node: Any,
+        locs: frozenset[str],
+        depth: int,
+        tail: bool,
+    ) -> list[str]:
         pad = "    " * depth
 
         try:
@@ -1239,17 +1368,32 @@ class _Renderer:
                 if op == "let" and len(rest) == 3 and tail:
                     name = rest[0]
 
-                    if not isinstance(name, str) or not name or name in self.known:
+                    if (
+                        not isinstance(name, str)
+                        or not name
+                        or name in self.known
+                    ):
                         raise _NoSyntax
 
                     value = self.let_value(rest[1], locs)
                     return [
                         f"{pad}let {_name(name)} = {value}",
-                        *self.block(rest[2], locs | {name}, depth, True),
+                        *self.block(
+                            rest[2],
+                            locs | {name},
+                            depth,
+                            True,
+                        ),
                     ]
 
                 if op == "if" and len(rest) == 3:
-                    condition = self.operand(rest[0], locs, 0, False, 0)
+                    condition = self.operand(
+                        rest[0],
+                        locs,
+                        0,
+                        False,
+                        0,
+                    )
                     return [
                         f"{pad}if {condition}:",
                         *self.block(rest[1], locs, depth + 1, True),
@@ -1263,14 +1407,24 @@ class _Renderer:
                     if target in locs:
                         raise _NoSyntax
 
-                    value = self.operand(rest[1], locs, 0, False, 0)
+                    value = self.operand(
+                        rest[1],
+                        locs,
+                        0,
+                        False,
+                        0,
+                    )
                     return [f"{pad}{_name(target)} = {value}"]
 
             return [pad + self.expr(node, locs)[0]]
         except _NoSyntax:
             return [pad + self.raw(node)]
 
-    def let_value(self, node: Any, locs: frozenset[str]) -> str:
+    def let_value(
+        self,
+        node: Any,
+        locs: frozenset[str],
+    ) -> str:
         """The value of a let: an expression, or a cell write."""
 
         if _tup(node) and len(node) == 3 and node[0] == "write":
@@ -1278,7 +1432,10 @@ class _Renderer:
                 target = self.link(node[1], 0)
 
                 if target not in locs:
-                    return f"{_name(target)} = {self.operand(node[2], locs, 0, False, 0)}"
+                    return (
+                        f"{_name(target)} = "
+                        f"{self.operand(node[2], locs, 0, False, 0)}"
+                    )
             except _NoSyntax:
                 pass
 
@@ -1286,7 +1443,13 @@ class _Renderer:
 
     # -- expressions -------------------------------------------------------
 
-    def expr(self, node: Any, locs: frozenset[str], mode: int = 0, strict: bool = False) -> tuple[str, int]:
+    def expr(
+        self,
+        node: Any,
+        locs: frozenset[str],
+        mode: int = 0,
+        strict: bool = False,
+    ) -> tuple[str, int]:
         try:
             return self._expr(node, locs, mode, strict)
         except _NoSyntax:
@@ -1295,11 +1458,22 @@ class _Renderer:
 
             return self.raw(node), 4
 
-    def operand(self, node: Any, locs: frozenset[str], mode: int, strict: bool, need: int) -> str:
+    def operand(
+        self,
+        node: Any,
+        locs: frozenset[str],
+        mode: int,
+        strict: bool,
+        need: int,
+    ) -> str:
         text, prec = self.expr(node, locs, mode, strict)
         return text if prec >= need else "(" + text + ")"
 
-    def link(self, link: Any, mode: int) -> str:
+    def link(
+        self,
+        link: Any,
+        mode: int,
+    ) -> str:
         """The global name for a link name: the current target entity's name
         in code; in a template the link name itself, which the code built
         from the template resolves through its own function's links.
@@ -1308,14 +1482,24 @@ class _Renderer:
         if not isinstance(link, str):
             raise _NoSyntax
 
-        target = self.names.get(link) if mode == 0 else (link if link in self.known else None)
+        target = (
+            self.names.get(link)
+            if mode == 0
+            else (link if link in self.known else None)
+        )
 
         if target is None:
             raise _NoSyntax
 
         return target
 
-    def _expr(self, node: Any, locs: frozenset[str], mode: int, strict: bool) -> tuple[str, int]:
+    def _expr(
+        self,
+        node: Any,
+        locs: frozenset[str],
+        mode: int,
+        strict: bool,
+    ) -> tuple[str, int]:
         if not _tup(node) or not node or not isinstance(node[0], str):
             raise _NoSyntax
 
@@ -1325,7 +1509,13 @@ class _Renderer:
             raise _NoSyntax
 
         def operand(child: Any, need: int = 0) -> str:
-            return self.operand(child, locs, mode, strict, need)
+            return self.operand(
+                child,
+                locs,
+                mode,
+                strict,
+                need,
+            )
 
         if op == "lit":
             return self.literal(rest[0], locs, mode), 4
@@ -1333,7 +1523,11 @@ class _Renderer:
         if op == "arg":
             name = rest[0]
 
-            if not isinstance(name, str) or not name or name in self.known:
+            if (
+                not isinstance(name, str)
+                or not name
+                or name in self.known
+            ):
                 raise _NoSyntax
 
             if mode == 0 and name not in locs:
@@ -1343,10 +1537,20 @@ class _Renderer:
 
         if op in _INFIX:
             symbol, prec, left, right = _INFIX[op]
-            return f"{operand(rest[0], left)} {symbol} {operand(rest[1], right)}", prec
+            return (
+                f"{operand(rest[0], left)} "
+                f"{symbol} "
+                f"{operand(rest[1], right)}",
+                prec,
+            )
 
         if op == "if":
-            return f"{operand(rest[1], 1)} if {operand(rest[0], 1)} else {operand(rest[2])}", 0
+            return (
+                f"{operand(rest[1], 1)} "
+                f"if {operand(rest[0], 1)} "
+                f"else {operand(rest[2])}",
+                0,
+            )
 
         if op in ("call", "read", "ref", "code", "linksof"):
             if not rest:
@@ -1361,25 +1565,53 @@ class _Renderer:
                 return _name(name), 4
 
             if op == "call":
-                return f"{_name(name)}({', '.join(operand(arg) for arg in rest[1:])})", 4
+                return (
+                    f"{_name(name)}("
+                    f"{', '.join(operand(arg) for arg in rest[1:])}"
+                    f")",
+                    4,
+                )
 
             return f"{op}({_name(name)})", 4
 
         if op == "apply":
             head = rest[0] if rest else None
 
-            if not (_tup(head) and len(head) == 2 and head[0] == "arg" and isinstance(head[1], str)):
-                raise _NoSyntax
+            if (
+                _tup(head)
+                and len(head) == 2
+                and head[0] == "arg"
+                and isinstance(head[1], str)
+            ):
+                name = head[1]
 
-            name = head[1]
+                if (
+                    name
+                    and name not in self.known
+                    and (mode != 0 or name in locs)
+                ):
+                    return (
+                        f"{_name(name)}("
+                        f"{', '.join(operand(arg) for arg in rest[1:])}"
+                        f")",
+                        4,
+                    )
 
-            if not name or name in self.known or (mode == 0 and name not in locs):
-                raise _NoSyntax
+            target = operand(head)
+            args = [operand(arg) for arg in rest[1:]]
 
-            return f"{_name(name)}({', '.join(operand(arg) for arg in rest[1:])})", 4
+            if len(args) == 1:
+                packed = f"({args[0]},)"
+            else:
+                packed = "(" + ", ".join(args) + ")"
+
+            return f"apply({target}, {packed})", 4
 
         if op == "applyv":
-            return f"apply({operand(rest[0])}, {operand(rest[1])})", 4
+            return (
+                f"apply({operand(rest[0])}, {operand(rest[1])})",
+                4,
+            )
 
         if op == "tuple":
             items = [operand(item) for item in rest]
@@ -1390,19 +1622,32 @@ class _Renderer:
             return "(" + ", ".join(items) + ")", 4
 
         if op in _PLAIN:
-            return f"{op}({', '.join(operand(arg) for arg in rest)})", 4
+            return (
+                f"{op}({', '.join(operand(arg) for arg in rest)})",
+                4,
+            )
 
         if op == "quote":
             if mode != 0:
                 raise _NoSyntax
 
-            return "quote(" + self.expr(rest[0], locs, 1, True)[0] + ")", 4
+            return (
+                "quote("
+                + self.expr(rest[0], locs, 1, True)[0]
+                + ")",
+                4,
+            )
 
         if op == "unquote":
             if mode != 1 or len(rest) != 1:
                 raise _NoSyntax
 
-            return "unquote(" + self.expr(rest[0], locs, 0, False)[0] + ")", 4
+            return (
+                "unquote("
+                + self.expr(rest[0], locs, 0, False)[0]
+                + ")",
+                4,
+            )
 
         if op == "function":
             if mode == 0:
@@ -1411,24 +1656,51 @@ class _Renderer:
                 if text is not None:
                     return text, 0
 
-            return f"function({operand(rest[0])}, {operand(rest[1])})", 4
+            return (
+                f"function({operand(rest[0])}, {operand(rest[1])})",
+                4,
+            )
+
+        if op == "closure":
+            return self.closure_form(rest, locs, mode, strict), 0
 
         if op == "label":
-            if len(rest) != 2 or not isinstance(rest[0], str) or not rest[0]:
+            if (
+                len(rest) != 2
+                or not isinstance(rest[0], str)
+                or not rest[0]
+            ):
                 raise _NoSyntax
 
-            return f"label({_name(rest[0])}, {operand(rest[1])})", 4
+            return (
+                f"label({_name(rest[0])}, {operand(rest[1])})",
+                4,
+            )
 
         if op == "activate":
             if not rest or len(rest) % 2:
                 raise _NoSyntax
 
-            return "activate(" + ", ".join(self.pairs(rest, locs, mode, strict)) + ")", 4
+            return (
+                "activate("
+                + ", ".join(
+                    self.pairs(rest, locs, mode, strict)
+                )
+                + ")",
+                4,
+            )
 
         if op == "trial":
             call = rest[0] if rest else None
 
-            if not (_tup(call) and len(call) >= 2 and call[0] == "call") or len(rest) % 2 == 0:
+            if (
+                not (
+                    _tup(call)
+                    and len(call) >= 2
+                    and call[0] == "call"
+                )
+                or len(rest) % 2 == 0
+            ):
                 raise _NoSyntax
 
             name = self.link(call[1], mode)
@@ -1436,12 +1708,37 @@ class _Renderer:
             if mode == 0 and name in locs:
                 raise _NoSyntax
 
-            head = f"{_name(name)}({', '.join(operand(arg) for arg in call[2:])})"
-            return "trial(" + ", ".join([head, *self.pairs(rest[1:], locs, mode, strict)]) + ")", 4
+            head = (
+                f"{_name(name)}("
+                f"{', '.join(operand(arg) for arg in call[2:])}"
+                f")"
+            )
+            return (
+                "trial("
+                + ", ".join(
+                    [
+                        head,
+                        *self.pairs(
+                            rest[1:],
+                            locs,
+                            mode,
+                            strict,
+                        ),
+                    ]
+                )
+                + ")",
+                4,
+            )
 
         raise _NoSyntax
 
-    def pairs(self, items: tuple, locs: frozenset[str], mode: int, strict: bool) -> list[str]:
+    def pairs(
+        self,
+        items: tuple,
+        locs: frozenset[str],
+        mode: int,
+        strict: bool,
+    ) -> list[str]:
         """``TARGET = VALUE`` texts for the interleaved targets and values."""
 
         if len(items) % 2:
@@ -1449,28 +1746,49 @@ class _Renderer:
 
         texts = []
 
-        for target, value in zip(items[0::2], items[1::2]):
-            if _tup(target) and len(target) == 2 and isinstance(target[1], str) and target[1]:
-                name, suffix = self.link(target[0], mode), "." + _name(target[1])
+        for target, value in zip(
+            items[0::2],
+            items[1::2],
+        ):
+            if (
+                _tup(target)
+                and len(target) == 2
+                and isinstance(target[1], str)
+                and target[1]
+            ):
+                name = self.link(target[0], mode)
+                suffix = "." + _name(target[1])
             else:
-                name, suffix = self.link(target, mode), ""
+                name = self.link(target, mode)
+                suffix = ""
 
             if mode == 0 and name in locs:
                 raise _NoSyntax
 
-            texts.append(f"{_name(name)}{suffix} = {self.operand(value, locs, mode, strict, 0)}")
+            texts.append(
+                f"{_name(name)}{suffix} = "
+                f"{self.operand(value, locs, mode, strict, 0)}"
+            )
 
         return texts
 
-    def literal(self, value: Any, locs: frozenset[str], mode: int) -> str:
+    def literal(
+        self,
+        value: Any,
+        locs: frozenset[str],
+        mode: int,
+    ) -> str:
         if mode == 0:
             if _scalar(value):
                 return _data_text(value)
 
             if _tup(value):
-                # Code as data reads as a quote; anything else as a tuple.
                 try:
-                    return "quote(" + self.expr(value, locs, 2, True)[0] + ")"
+                    return (
+                        "quote("
+                        + self.expr(value, locs, 2, True)[0]
+                        + ")"
+                    )
                 except _NoSyntax:
                     return _data_text(value)
 
@@ -1479,12 +1797,25 @@ class _Renderer:
         if _scalar(value):
             return _data_text(value)
 
-        if mode == 1 and _tup(value) and len(value) == 2 and value[0] == "unquote":
-            return "literal(" + self.expr(value[1], locs, 0, False)[0] + ")"
+        if (
+            mode == 1
+            and _tup(value)
+            and len(value) == 2
+            and value[0] == "unquote"
+        ):
+            return (
+                "literal("
+                + self.expr(value[1], locs, 0, False)[0]
+                + ")"
+            )
 
         raise _NoSyntax
 
-    def fn_form(self, rest: tuple, locs: frozenset[str]) -> str | None:
+    def fn_form(
+        self,
+        rest: tuple,
+        locs: frozenset[str],
+    ) -> str | None:
         """``fn(params): body`` for a function value with a literal body."""
 
         params, body = rest
@@ -1494,58 +1825,155 @@ class _Renderer:
             and len(params) == 2
             and params[0] == "lit"
             and _tup(params[1])
-            and all(isinstance(name, str) and name for name in params[1])
+            and all(
+                isinstance(name, str) and name
+                for name in params[1]
+            )
             and len(set(params[1])) == len(params[1])
             and not any(name in self.known for name in params[1])
         ):
             return None
 
-        if _tup(body) and len(body) == 2 and body[0] == "quote":
+        if (
+            _tup(body)
+            and len(body) == 2
+            and body[0] == "quote"
+        ):
             mode, template = 1, body[1]
-        elif _tup(body) and len(body) == 2 and body[0] == "lit" and _tup(body[1]):
+        elif (
+            _tup(body)
+            and len(body) == 2
+            and body[0] == "lit"
+            and _tup(body[1])
+        ):
             mode, template = 2, body[1]
         else:
             return None
 
         try:
-            text = self.expr(template, locs, mode, True)[0]
+            text = self.expr(
+                template,
+                locs,
+                mode,
+                True,
+            )[0]
         except _NoSyntax:
             return None
 
-        return "fn(" + ", ".join(_name(name) for name in params[1]) + "): " + text
+        return (
+            "fn("
+            + ", ".join(_name(name) for name in params[1])
+            + "): "
+            + text
+        )
+
+    def closure_form(
+        self,
+        rest: tuple,
+        locs: frozenset[str],
+        mode: int,
+        strict: bool,
+    ) -> str:
+        """``closure(params) captures(names): body``."""
+
+        if mode != 0 or len(rest) != 3:
+            raise _NoSyntax
+
+        params, captures, body = rest
+
+        if not (
+            _tup(params)
+            and _tup(captures)
+            and all(
+                isinstance(name, str) and name
+                for name in params
+            )
+            and all(
+                isinstance(name, str) and name
+                for name in captures
+            )
+            and len(set(params)) == len(params)
+            and len(set(captures)) == len(captures)
+            and not set(params) & set(captures)
+            and not any(name in self.known for name in params)
+            and not any(name in self.known for name in captures)
+            and all(name in locs for name in captures)
+        ):
+            raise _NoSyntax
+
+        closure_locs = frozenset((*captures, *params))
+        body_text = self.expr(
+            body,
+            closure_locs,
+            0,
+            True,
+        )[0]
+
+        return (
+            "closure("
+            + ", ".join(_name(name) for name in params)
+            + ") captures("
+            + ", ".join(_name(name) for name in captures)
+            + "): "
+            + body_text
+        )
 
 
 def _global_names(state: State) -> frozenset[str]:
     return frozenset(
         entity.value
         for entity, value in state.values.items()
-        if _definition_of(value) is not None or cell_declaration(value) is not None
+        if _definition_of(value) is not None
+        or cell_declaration(value) is not None
     )
 
 
-def _render(state: State, function: EntityID, known: frozenset[str]) -> str:
+def _render(
+    state: State,
+    function: EntityID,
+    known: frozenset[str],
+) -> str:
     value = state.values.get(function)
-    definition = None if value is None else _definition_of(value)
+    definition = (
+        None
+        if value is None
+        else _definition_of(value)
+    )
     code = function_at(state, function)
 
     if definition is None or code is None:
-        raise ValueError(f"{function.value} is not a function of the state")
+        raise ValueError(
+            f"{function.value} is not a function of the state"
+        )
 
     names = {
         link: target.value
         for link, target in definition.links.items()
         if isinstance(target, EntityID)
     }
-    renderer = _Renderer(names, known | frozenset(names.values()))
-    params = ", ".join(_name(param) for param in code.params)
+    renderer = _Renderer(
+        names,
+        known | frozenset(names.values()),
+    )
+    params = ", ".join(
+        _name(param)
+        for param in code.params
+    )
     lines = [
         f"fn {_name(function.value)}({params}):",
-        *renderer.block(code.body, frozenset(code.params), 1),
+        *renderer.block(
+            code.body,
+            frozenset(code.params),
+            1,
+        ),
     ]
     return "\n".join(lines) + "\n"
 
 
-def render(state: State, function: EntityID) -> str:
+def render(
+    state: State,
+    function: EntityID,
+) -> str:
     """Print one function of a graph-form state as an ``fn`` declaration.
 
     Names are the current target entity names, so a rename shows in the
@@ -1553,26 +1981,54 @@ def render(state: State, function: EntityID) -> str:
     ``raw(...)``.
     """
 
-    return _render(state, function, _global_names(state))
+    return _render(
+        state,
+        function,
+        _global_names(state),
+    )
 
 
-def _cell_text(entity: EntityID, declaration: CellDeclaration) -> str:
+def _cell_text(
+    entity: EntityID,
+    declaration: CellDeclaration,
+) -> str:
     name = _name(entity.value)
     constraint = declaration.constraint
 
     try:
         if isinstance(constraint, IntRange):
-            low = "" if constraint.min is None else str(constraint.min)
-            high = "" if constraint.max is None else str(constraint.max)
+            low = (
+                ""
+                if constraint.min is None
+                else str(constraint.min)
+            )
+            high = (
+                ""
+                if constraint.max is None
+                else str(constraint.max)
+            )
             kind = f"int in {low}..{high}"
-        elif isinstance(constraint, IsKind) and constraint.kind == "int":
+        elif (
+            isinstance(constraint, IsKind)
+            and constraint.kind == "int"
+        ):
             kind = "int"
-        elif isinstance(constraint, IsKind) and constraint.kind in _TYPE_KINDS.values():
-            kind = next(text for text, k in _TYPE_KINDS.items() if k == constraint.kind)
+        elif (
+            isinstance(constraint, IsKind)
+            and constraint.kind in _TYPE_KINDS.values()
+        ):
+            kind = next(
+                text
+                for text, k in _TYPE_KINDS.items()
+                if k == constraint.kind
+            )
         else:
             raise _NoSyntax
 
-        return f"cell {name}: {kind} = {_data_text(_decode(declaration.initial))}"
+        return (
+            f"cell {name}: {kind} = "
+            f"{_data_text(_decode(declaration.initial))}"
+        )
     except _NoSyntax:
         return f"# cell {name}: not expressible in the syntax"
 
@@ -1593,11 +2049,18 @@ def render_program(state: State) -> str:
         declaration = cell_declaration(value)
 
         if declaration is not None:
-            cells.append(_cell_text(entity, declaration))
+            cells.append(
+                _cell_text(entity, declaration)
+            )
         elif _definition_of(value) is not None:
-            parts.append(_render(state, entity, known))
+            parts.append(
+                _render(state, entity, known)
+            )
 
     if cells:
-        parts.insert(0, "\n".join(cells) + "\n")
+        parts.insert(
+            0,
+            "\n".join(cells) + "\n",
+        )
 
     return "\n".join(parts)

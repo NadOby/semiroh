@@ -1,9 +1,10 @@
 # Graph Form
 
 **Status: implemented.** `semiroh/lang.py` stores code in graph form and
-`semiroh/bytecode.py` runs it (roadmap.md D1, tasks 4 and 7).
+`semiroh/bytecode.py` runs it (roadmap.md D1, tasks 4, 7 and 17).
 `tests/test_graph_form.py` is the acceptance suite; the unit tests are at the
-end of `tests/test_lang.py`.
+end of `tests/test_lang.py`, with closure graph-form behaviour additionally
+covered by `tests/test_closures.py`.
 
 Code is stored as graph form: every expression node is a relation entity
 owned by its function. Tuple bodies with links relations (first_program.md)
@@ -84,6 +85,8 @@ so `function_at` gives back the link names as written.
     linksof             target                             link name
     apply               function, args (ordered)           -
     applyv              function, args (one tuple)         -
+    closure             body                               {"params": (...),
+                                                           "captures": (...)}
     quote               holes (ordered)                    template, each
                                                            hole replaced
                                                            by ("unquote",)
@@ -118,16 +121,30 @@ For `activate` and `trial`, a link that does not resolve is recorded as a
 `(name, problem)` entry and raised only when the pairs are checked, after
 their values are evaluated (metaprogramming.md §4, language_trials.md §2).
 
-**Data, let, references** (language_data.md). `ref` and `code`
-(self_hosting.md) name their function by
-the `target` role, like `call`, so a rename of the function follows
-continuity; the value it produces, an `EntityID`, is runtime data and does
-not. A `let` whose name is not a non-empty string is an `invalid` node.
-That the name is not already in scope is checked when the `let` runs,
-because a node edit (section 9) replaces a node without seeing the `let`s
-around it. Tail position (language_data.md section 4) is a property of where
-a node sits, not a node kind: the machine finds it while running
-(bytecode.md section 4).
+**Data, let, references and closures.** `ref` and `code`
+(self_hosting.md) name their function by the `target` role, like `call`, so
+a rename of the function follows continuity; the value produced by `ref`, an
+`EntityID`, is runtime data and does not automatically follow later renames.
+
+A `closure` has exactly one code child, `body`. Its parameter and capture-name
+tuples are payload, not child expressions. Evaluating the closure node captures
+the named values from the current lexical environment and produces a runtime
+`Closure` value referring to the owner function and body node. The body is
+not evaluated during closure construction. `function_at` reconstructs:
+
+    ("closure", params, captures, body)
+
+with the body collapsed from its graph node.
+
+A `let` whose name is not a non-empty string is an `invalid` node. That the
+name is not already in scope is checked when the `let` runs, because a node
+edit (section 9) replaces a node without seeing the `let`s around it. Closure
+capture availability is likewise checked when the closure runs, against the
+current lexical environment.
+
+Tail position (language_data.md section 4) is a property of where a node sits,
+not a node kind: the machine finds it while running (bytecode.md section 4).
+Closure calls through `apply` or `applyv` follow the same rule.
 
 **Quote.** The template stays data: only tuples headed `"unquote"` are
 holes, lists, maps and records inside it are copied as they are, and holes
@@ -164,6 +181,10 @@ function that already owns entities. Removing a function (mapping it to
 its nodes follow ownership continuity and keep their `EntityID` and
 `VersionID`, and every call node naming it is rewritten by endpoint
 continuity.
+
+A closure value does not own its body node. The function already owns that
+node. The closure retains only the semantic identities needed to find its
+owner and body again in an active program version.
 
 ## 5. load, define, function_at
 
@@ -209,6 +230,10 @@ The `define` entries that create, remove and relink functions
         collapses f back to the input format; None when f is absent or not
         a function. function_at(load(s), f) equals the Function s held.
 
+`function_at` traverses closure bodies like any other code child. The closure
+payload retains its parameter and explicit capture-name tuples unchanged
+through load/collapse round trips.
+
 Renaming a function stays a plain core transformation. Creating,
 removing and relinking functions are `define` entries since task 13, so
 that one `define` can move nodes between functions (extract, inline);
@@ -229,6 +254,12 @@ or `Runtime.trial` receives. A running frame keeps evaluating the nodes of
 the version it started in, so code in flight is unchanged
 (metaprogramming.md §5).
 
+Closures do not change activation capability semantics. Creating or applying
+one requires no activation grant. If activation preserves a closure's owner
+and body identities, an already-created closure resolves those identities in
+the active version when it is next applied; its captured values are not
+recomputed.
+
 ## 7. Constraints over code
 
 **Decided:**
@@ -239,6 +270,10 @@ endpoint's owned subtree to constraint relations (relation_model.md §7):
 the function contributes `{"value": <definition>, "owned": {node: ...}}`.
 Program constraints over code (metaprogramming.md §4, language_trials.md
 §4) keep working on graph form this way.
+
+A closure body remains part of that owned subtree exactly like any other
+expression child, so constraints over a function's code see closure code
+without any closure-specific mechanism.
 
 ## 8. Open
 
@@ -283,6 +318,11 @@ function, so hot swapping has the granularity of node identity.
   `(link, label)`, with an expression (code as data) as its value instead
   of a function value. Capability, checks, code in flight and atomicity
   are as for whole functions.
+- **Closures.** Because a closure stores semantic owner/body identities
+  rather than copying code, continuity of a closure body through a node edit
+  determines whether an existing closure follows that edit. If continuity
+  preserves the body identity, the closure invokes the active version of
+  that body. If the identity disappears, applying the closure fails.
 - **Errors** (`LanguageError`): an unknown label; a value that is not an
   expression (for example a function value) for a node target, or an
   expression for a function target; a replacement that introduces a label

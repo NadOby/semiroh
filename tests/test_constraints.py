@@ -28,6 +28,7 @@ from semiroh import (
     canonicalize,
     kind_of,
 )
+from semiroh.closures import Closure
 from semiroh.constraints import KINDS
 
 SAT = ConstraintResult.SATISFIED
@@ -68,6 +69,15 @@ class PrimitiveConstraintTests(unittest.TestCase):
         for content, kind in [
             (CellDeclaration(IsKind("int"), 0), "cell"),
             (IntRange(0, 1), "constraint"),
+            (
+                Closure(
+                    EntityID("owner"),
+                    EntityID("body"),
+                    (),
+                    (),
+                ),
+                "closure",
+            ),
         ]:
             with self.subTest(kind=kind):
                 self.assertEqual(kind_of(content), kind)
@@ -76,12 +86,32 @@ class PrimitiveConstraintTests(unittest.TestCase):
     def test_every_producible_kind_is_nameable(self) -> None:
         # IsKind must accept every kind that kind_of can report.
         samples = [
-            None, True, 1, "a", b"a", EntityID("e"), VersionID("v"),
-            StateID("s"), (1,), [1], {"a": 1}, CellDeclaration(IsKind("int"), 0),
-            AllOf(), Relation("r", {"to": EntityID("e")}),
+            None,
+            True,
+            1,
+            "a",
+            b"a",
+            EntityID("e"),
+            VersionID("v"),
+            StateID("s"),
+            (1,),
+            [1],
+            {"a": 1},
+            CellDeclaration(IsKind("int"), 0),
+            AllOf(),
+            Relation("r", {"to": EntityID("e")}),
+            Closure(
+                EntityID("owner"),
+                EntityID("body"),
+                (),
+                (),
+            ),
         ]
 
-        self.assertEqual({kind_of(sample) for sample in samples}, set(KINDS))
+        self.assertEqual(
+            {kind_of(sample) for sample in samples},
+            set(KINDS),
+        )
 
     def test_bool_is_not_int(self) -> None:
         self.assertEqual(IsKind("int").evaluate(True), VIO)
@@ -126,7 +156,10 @@ class PrimitiveConstraintTests(unittest.TestCase):
             (None, VIO),
         ]:
             with self.subTest(subject=subject):
-                self.assertEqual(constraint.evaluate(subject), expected)
+                self.assertEqual(
+                    constraint.evaluate(subject),
+                    expected,
+                )
 
     def test_one_of_is_type_aware(self) -> None:
         self.assertEqual(OneOf(1, "a").evaluate(1), SAT)
@@ -137,15 +170,28 @@ class PrimitiveConstraintTests(unittest.TestCase):
 
 class ExternalConstraintTests(unittest.TestCase):
     def test_missing_evaluator_is_unknown(self) -> None:
-        self.assertEqual(External("even").evaluate(2), UNK)
+        self.assertEqual(
+            External("even").evaluate(2),
+            UNK,
+        )
 
     def test_registered_evaluator_decides(self) -> None:
         context = EvaluationContext({
-            "even": Evaluator(lambda value: SAT if value % 2 == 0 else VIO),
+            "even": Evaluator(
+                lambda value: SAT
+                if value % 2 == 0
+                else VIO
+            ),
         })
 
-        self.assertEqual(External("even").evaluate(2, context), SAT)
-        self.assertEqual(External("even").evaluate(3, context), VIO)
+        self.assertEqual(
+            External("even").evaluate(2, context),
+            SAT,
+        )
+        self.assertEqual(
+            External("even").evaluate(3, context),
+            VIO,
+        )
 
     def test_evaluator_receives_canonical_subject(self) -> None:
         seen = []
@@ -154,20 +200,37 @@ class ExternalConstraintTests(unittest.TestCase):
             seen.append(subject)
             return SAT
 
-        context = EvaluationContext({"record": Evaluator(record)})
-        External("record").evaluate([1, 2], context)
+        context = EvaluationContext({
+            "record": Evaluator(record),
+        })
+        External("record").evaluate(
+            [1, 2],
+            context,
+        )
 
-        self.assertEqual(seen, [canonicalize([1, 2])])
+        self.assertEqual(
+            seen,
+            [canonicalize([1, 2])],
+        )
 
     def test_evaluator_failure_propagates(self) -> None:
         # Ordinary computation failure is not Unknown (constraint_model §18).
         def fail(_: Any) -> ConstraintResult:
-            raise ZeroDivisionError("evaluator failed")
+            raise ZeroDivisionError(
+                "evaluator failed"
+            )
 
-        context = EvaluationContext({"fail": Evaluator(fail)})
+        context = EvaluationContext({
+            "fail": Evaluator(fail),
+        })
 
-        with self.assertRaises(ZeroDivisionError):
-            External("fail").evaluate(1, context)
+        with self.assertRaises(
+            ZeroDivisionError
+        ):
+            External("fail").evaluate(
+                1,
+                context,
+            )
 
     def test_external_consumes_one_budget_step(self) -> None:
         # The evaluator itself is not bounded by the budget (§5).
@@ -178,116 +241,264 @@ class ExternalConstraintTests(unittest.TestCase):
             return SAT
 
         context = EvaluationContext(
-            {"expensive": Evaluator(expensive)},
+            {
+                "expensive": Evaluator(
+                    expensive
+                ),
+            },
             budget=1,
         )
 
-        self.assertEqual(External("expensive").evaluate(1, context), SAT)
-        self.assertEqual(len(calls), 1000)
+        self.assertEqual(
+            External("expensive").evaluate(
+                1,
+                context,
+            ),
+            SAT,
+        )
+        self.assertEqual(
+            len(calls),
+            1000,
+        )
 
     def test_externals_must_be_evaluators(self) -> None:
         with self.assertRaises(TypeError):
-            EvaluationContext({"f": lambda _: SAT})  # type: ignore[dict-item]
+            EvaluationContext({
+                "f": lambda _: SAT,
+            })  # type: ignore[dict-item]
 
 
 class CompositionTests(unittest.TestCase):
     def test_truth_tables_follow_strong_kleene_logic(self) -> None:
-        order = {VIO: 0, UNK: 1, SAT: 2}
+        order = {
+            VIO: 0,
+            UNK: 1,
+            SAT: 2,
+        }
 
         for left in (SAT, VIO, UNK):
             for right in (SAT, VIO, UNK):
-                with self.subTest(left=left, right=right):
-                    both = AllOf(CONSTANT[left], CONSTANT[right])
-                    either = AnyOf(CONSTANT[left], CONSTANT[right])
+                with self.subTest(
+                    left=left,
+                    right=right,
+                ):
+                    both = AllOf(
+                        CONSTANT[left],
+                        CONSTANT[right],
+                    )
+                    either = AnyOf(
+                        CONSTANT[left],
+                        CONSTANT[right],
+                    )
 
                     self.assertEqual(
-                        both.evaluate(0, CONSTANTS),
-                        min(left, right, key=order.get),
+                        both.evaluate(
+                            0,
+                            CONSTANTS,
+                        ),
+                        min(
+                            left,
+                            right,
+                            key=order.get,
+                        ),
                     )
                     self.assertEqual(
-                        either.evaluate(0, CONSTANTS),
-                        max(left, right, key=order.get),
+                        either.evaluate(
+                            0,
+                            CONSTANTS,
+                        ),
+                        max(
+                            left,
+                            right,
+                            key=order.get,
+                        ),
                     )
 
-        self.assertEqual(Not(CONSTANT[SAT]).evaluate(0, CONSTANTS), VIO)
-        self.assertEqual(Not(CONSTANT[VIO]).evaluate(0, CONSTANTS), SAT)
-        self.assertEqual(Not(CONSTANT[UNK]).evaluate(0, CONSTANTS), UNK)
+        self.assertEqual(
+            Not(CONSTANT[SAT]).evaluate(
+                0,
+                CONSTANTS,
+            ),
+            VIO,
+        )
+        self.assertEqual(
+            Not(CONSTANT[VIO]).evaluate(
+                0,
+                CONSTANTS,
+            ),
+            SAT,
+        )
+        self.assertEqual(
+            Not(CONSTANT[UNK]).evaluate(
+                0,
+                CONSTANTS,
+            ),
+            UNK,
+        )
 
     def test_empty_compositions(self) -> None:
-        self.assertEqual(AllOf().evaluate(0), SAT)
-        self.assertEqual(AnyOf().evaluate(0), VIO)
+        self.assertEqual(
+            AllOf().evaluate(0),
+            SAT,
+        )
+        self.assertEqual(
+            AnyOf().evaluate(0),
+            VIO,
+        )
 
     def test_components_have_set_semantics(self) -> None:
         a = IntRange(0, 5)
         b = IsKind("int")
 
-        self.assertEqual(AllOf(a, b), AllOf(b, a, a))
-        self.assertEqual(len(AllOf(b, a, a).parts), 2)
-        self.assertNotEqual(AllOf(a, b), AnyOf(a, b))
+        self.assertEqual(
+            AllOf(a, b),
+            AllOf(b, a, a),
+        )
+        self.assertEqual(
+            len(AllOf(b, a, a).parts),
+            2,
+        )
+        self.assertNotEqual(
+            AllOf(a, b),
+            AnyOf(a, b),
+        )
 
     def test_components_must_be_semantic_constraints(self) -> None:
         with self.assertRaises(TypeError):
-            AllOf(Evaluator(lambda _: SAT))  # type: ignore[arg-type]
+            AllOf(
+                Evaluator(lambda _: SAT)
+            )  # type: ignore[arg-type]
 
 
 class BudgetTests(unittest.TestCase):
     def test_exhausted_budget_yields_unknown(self) -> None:
-        constraint = AllOf(IsKind("int"), IntRange(0, 10))
+        constraint = AllOf(
+            IsKind("int"),
+            IntRange(0, 10),
+        )
 
         self.assertEqual(
-            constraint.evaluate(5, EvaluationContext(budget=1)),
+            constraint.evaluate(
+                5,
+                EvaluationContext(
+                    budget=1
+                ),
+            ),
             UNK,
         )
         self.assertEqual(
-            constraint.evaluate(5, EvaluationContext(budget=3)),
+            constraint.evaluate(
+                5,
+                EvaluationContext(
+                    budget=3
+                ),
+            ),
             SAT,
         )
 
     def test_zero_budget_evaluates_nothing(self) -> None:
         self.assertEqual(
-            IsKind("int").evaluate(5, EvaluationContext(budget=0)),
+            IsKind("int").evaluate(
+                5,
+                EvaluationContext(
+                    budget=0
+                ),
+            ),
             UNK,
         )
 
     def test_invalid_budget_is_rejected(self) -> None:
-        for budget in (-1, True, 1.5):
-            with self.subTest(budget=budget):
-                with self.assertRaises(ValueError):
-                    EvaluationContext(budget=budget)  # type: ignore[arg-type]
+        for budget in (
+            -1,
+            True,
+            1.5,
+        ):
+            with self.subTest(
+                budget=budget
+            ):
+                with self.assertRaises(
+                    ValueError
+                ):
+                    EvaluationContext(
+                        budget=budget
+                    )  # type: ignore[arg-type]
 
 
 class ConstraintIdentityTests(unittest.TestCase):
     def test_constraints_can_be_program_state(self) -> None:
         rule = EntityID("rule")
 
-        def state_with(constraint: Constraint) -> State:
-            return State.create({rule: Value.create(rule, constraint)})
+        def state_with(
+            constraint: Constraint,
+        ) -> State:
+            return State.create({
+                rule: Value.create(
+                    rule,
+                    constraint,
+                ),
+            })
 
         self.assertEqual(
-            state_with(AllOf(IntRange(0, 9), IsKind("int"))).id,
-            state_with(AllOf(IsKind("int"), IntRange(0, 9))).id,
+            state_with(
+                AllOf(
+                    IntRange(0, 9),
+                    IsKind("int"),
+                )
+            ).id,
+            state_with(
+                AllOf(
+                    IsKind("int"),
+                    IntRange(0, 9),
+                )
+            ).id,
         )
         self.assertNotEqual(
-            state_with(IntRange(0, 9)).id,
-            state_with(IntRange(0, 10)).id,
+            state_with(
+                IntRange(0, 9)
+            ).id,
+            state_with(
+                IntRange(0, 10)
+            ).id,
         )
 
     def test_constraints_round_trip_through_content(self) -> None:
         constraint = AnyOf(
-            AllOf(IsKind("str"), Length(1, 8)),
-            Not(OneOf(None, (1, 2))),
+            AllOf(
+                IsKind("str"),
+                Length(1, 8),
+            ),
+            Not(
+                OneOf(
+                    None,
+                    (1, 2),
+                )
+            ),
             External("custom"),
             IntRange(max=0),
         )
 
-        rebuilt = Constraint.from_content(canonicalize(constraint))
+        rebuilt = Constraint.from_content(
+            canonicalize(
+                constraint
+            )
+        )
 
-        self.assertEqual(rebuilt, constraint)
-        self.assertEqual(hash(rebuilt), hash(constraint))
+        self.assertEqual(
+            rebuilt,
+            constraint,
+        )
+        self.assertEqual(
+            hash(rebuilt),
+            hash(constraint),
+        )
 
     def test_non_constraint_content_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
-            Constraint.from_content(canonicalize((1, 2)))
+            Constraint.from_content(
+                canonicalize(
+                    (1, 2)
+                )
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -295,30 +506,105 @@ class ConstraintIdentityTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 CASES = 300
-SUBJECTS = [None, True, False, 0, 1, 7, -3, "", "ab", b"x", (1, 2), [3], {"k": 1}]
+SUBJECTS = [
+    None,
+    True,
+    False,
+    0,
+    1,
+    7,
+    -3,
+    "",
+    "ab",
+    b"x",
+    (1, 2),
+    [3],
+    {"k": 1},
+]
 
 
-def random_constraint(rng: random.Random, depth: int = 3) -> Constraint:
-    if depth == 0 or rng.random() < 0.35:
+def random_constraint(
+    rng: random.Random,
+    depth: int = 3,
+) -> Constraint:
+    if (
+        depth == 0
+        or rng.random() < 0.35
+    ):
         choice = rng.randrange(6)
 
         if choice == 0:
-            return IsKind(rng.choice(sorted(("int", "str", "bool", "none", "tuple"))))
+            return IsKind(
+                rng.choice(
+                    sorted((
+                        "int",
+                        "str",
+                        "bool",
+                        "none",
+                        "tuple",
+                    ))
+                )
+            )
 
         if choice == 1:
-            low = rng.randrange(-2, 3)
-            return IntRange(low, low + rng.randrange(0, 8))
+            low = rng.randrange(
+                -2,
+                3,
+            )
+            return IntRange(
+                low,
+                low + rng.randrange(
+                    0,
+                    8,
+                ),
+            )
 
         if choice == 2:
-            return Length(rng.randrange(0, 2), rng.choice([None, 1, 2]))
+            return Length(
+                rng.randrange(
+                    0,
+                    2,
+                ),
+                rng.choice([
+                    None,
+                    1,
+                    2,
+                ]),
+            )
 
         if choice == 3:
-            return OneOf(*rng.sample(SUBJECTS, rng.randrange(0, 3)))
+            return OneOf(
+                *rng.sample(
+                    SUBJECTS,
+                    rng.randrange(
+                        0,
+                        3,
+                    ),
+                )
+            )
 
-        return External(rng.choice(["sat", "vio", "unk", "missing"]))
+        return External(
+            rng.choice([
+                "sat",
+                "vio",
+                "unk",
+                "missing",
+            ])
+        )
 
     kind = rng.randrange(3)
-    parts = [random_constraint(rng, depth - 1) for _ in range(rng.randrange(0, 4))]
+    parts = [
+        random_constraint(
+            rng,
+            depth - 1,
+        )
+        for _ in range(
+            rng.randrange(
+                0,
+                4,
+            )
+        )
+    ]
 
     if kind == 0:
         return AllOf(*parts)
@@ -326,7 +612,12 @@ def random_constraint(rng: random.Random, depth: int = 3) -> Constraint:
     if kind == 1:
         return AnyOf(*parts)
 
-    return Not(random_constraint(rng, depth - 1))
+    return Not(
+        random_constraint(
+            rng,
+            depth - 1,
+        )
+    )
 
 
 def concrete_constraint_classes() -> set[type]:
@@ -334,7 +625,9 @@ def concrete_constraint_classes() -> set[type]:
     pending = [Constraint]
 
     while pending:
-        for subclass in pending.pop().__subclasses__():
+        for subclass in (
+            pending.pop().__subclasses__()
+        ):
             pending.append(subclass)
             found.add(subclass)
 
@@ -345,38 +638,95 @@ ONE_OF_EACH = [
     IsKind("int"),
     IntRange(0, 5),
     Length(1, 3),
-    OneOf(1, "a", (2,)),
-    AllOf(IsKind("int"), IntRange(0)),
-    AnyOf(IsKind("str"), Not(Length(0, 0))),
-    Not(IsKind("none")),
-    Role("low", IntRange(0)),
+    OneOf(
+        1,
+        "a",
+        (2,),
+    ),
+    AllOf(
+        IsKind("int"),
+        IntRange(0),
+    ),
+    AnyOf(
+        IsKind("str"),
+        Not(
+            Length(0, 0)
+        ),
+    ),
+    Not(
+        IsKind("none")
+    ),
+    Role(
+        "low",
+        IntRange(0),
+    ),
     External("even"),
 ]
 
 
 class RoleConstraintTests(unittest.TestCase):
     def test_role_projects_into_a_role_map(self) -> None:
-        subject = {"low": 1, "high": 5}
+        subject = {
+            "low": 1,
+            "high": 5,
+        }
 
-        self.assertEqual(Role("low", IntRange(0, 3)).evaluate(subject), SAT)
-        self.assertEqual(Role("high", IntRange(0, 3)).evaluate(subject), VIO)
+        self.assertEqual(
+            Role(
+                "low",
+                IntRange(0, 3),
+            ).evaluate(subject),
+            SAT,
+        )
+        self.assertEqual(
+            Role(
+                "high",
+                IntRange(0, 3),
+            ).evaluate(subject),
+            VIO,
+        )
 
     def test_missing_role_or_non_map_subject_violates(self) -> None:
-        self.assertEqual(Role("low", IsKind("int")).evaluate({"high": 1}), VIO)
-        self.assertEqual(Role("low", IsKind("int")).evaluate(1), VIO)
+        self.assertEqual(
+            Role(
+                "low",
+                IsKind("int"),
+            ).evaluate({
+                "high": 1,
+            }),
+            VIO,
+        )
+        self.assertEqual(
+            Role(
+                "low",
+                IsKind("int"),
+            ).evaluate(1),
+            VIO,
+        )
 
     def test_unknown_propagates_through_a_role(self) -> None:
         self.assertEqual(
-            Role("low", External("missing")).evaluate({"low": 1}),
+            Role(
+                "low",
+                External("missing"),
+            ).evaluate({
+                "low": 1,
+            }),
             UNK,
         )
 
     def test_invalid_roles_are_rejected(self) -> None:
         with self.assertRaises(TypeError):
-            Role("", IsKind("int"))
+            Role(
+                "",
+                IsKind("int"),
+            )
 
         with self.assertRaises(TypeError):
-            Role("low", "int")  # type: ignore[arg-type]
+            Role(
+                "low",
+                "int",
+            )  # type: ignore[arg-type]
 
 
 class ConstraintRoundTripTests(unittest.TestCase):
@@ -384,7 +734,11 @@ class ConstraintRoundTripTests(unittest.TestCase):
         # A new constraint class must be added to ONE_OF_EACH, so that the
         # round-trip test below covers it.
         self.assertEqual(
-            {type(sample) for sample in ONE_OF_EACH},
+            {
+                type(sample)
+                for sample
+                in ONE_OF_EACH
+            },
             concrete_constraint_classes(),
         )
 
@@ -392,35 +746,88 @@ class ConstraintRoundTripTests(unittest.TestCase):
         entity = EntityID("rule")
 
         for sample in ONE_OF_EACH:
-            with self.subTest(sample=sample):
-                rebuilt = Constraint.from_content(
-                    Value.create(entity, sample).content
+            with self.subTest(
+                sample=sample
+            ):
+                rebuilt = (
+                    Constraint.from_content(
+                        Value.create(
+                            entity,
+                            sample,
+                        ).content
+                    )
                 )
 
-                self.assertIs(type(rebuilt), type(sample))
-                self.assertEqual(rebuilt, sample)
+                self.assertIs(
+                    type(rebuilt),
+                    type(sample),
+                )
+                self.assertEqual(
+                    rebuilt,
+                    sample,
+                )
 
 
 class ConstraintProperties(unittest.TestCase):
     def test_de_morgan_and_double_negation_hold(self) -> None:
         for seed in range(CASES):
-            with self.subTest(seed=seed):
+            with self.subTest(
+                seed=seed
+            ):
                 rng = random.Random(seed)
                 a = random_constraint(rng)
                 b = random_constraint(rng)
-                subject = rng.choice(SUBJECTS)
+                subject = rng.choice(
+                    SUBJECTS
+                )
 
-                def result(constraint: Constraint) -> ConstraintResult:
-                    return constraint.evaluate(subject, CONSTANTS)
+                def result(
+                    constraint: Constraint,
+                ) -> ConstraintResult:
+                    return constraint.evaluate(
+                        subject,
+                        CONSTANTS,
+                    )
 
-                self.assertEqual(result(Not(Not(a))), result(a))
                 self.assertEqual(
-                    result(Not(AllOf(a, b))),
-                    result(AnyOf(Not(a), Not(b))),
+                    result(
+                        Not(
+                            Not(a)
+                        )
+                    ),
+                    result(a),
                 )
                 self.assertEqual(
-                    result(Not(AnyOf(a, b))),
-                    result(AllOf(Not(a), Not(b))),
+                    result(
+                        Not(
+                            AllOf(
+                                a,
+                                b,
+                            )
+                        )
+                    ),
+                    result(
+                        AnyOf(
+                            Not(a),
+                            Not(b),
+                        )
+                    ),
+                )
+                self.assertEqual(
+                    result(
+                        Not(
+                            AnyOf(
+                                a,
+                                b,
+                            )
+                        )
+                    ),
+                    result(
+                        AllOf(
+                            Not(a),
+                            Not(b),
+                        )
+                    ),
                 )
 
     def test_budget_only_ever_withholds_a_result(self) -> None:
@@ -428,35 +835,75 @@ class ConstraintProperties(unittest.TestCase):
         # any budget, evaluation yields either Unknown or the unbudgeted
         # result.
         for seed in range(CASES):
-            with self.subTest(seed=seed):
+            with self.subTest(
+                seed=seed
+            ):
                 rng = random.Random(seed)
-                constraint = random_constraint(rng)
-                subject = rng.choice(SUBJECTS)
-                full = constraint.evaluate(subject, CONSTANTS)
+                constraint = (
+                    random_constraint(rng)
+                )
+                subject = rng.choice(
+                    SUBJECTS
+                )
+                full = constraint.evaluate(
+                    subject,
+                    CONSTANTS,
+                )
 
-                for budget in range(0, 12):
-                    limited = constraint.evaluate(
-                        subject,
-                        EvaluationContext(CONSTANTS.externals, budget),
+                for budget in range(
+                    0,
+                    12,
+                ):
+                    limited = (
+                        constraint.evaluate(
+                            subject,
+                            EvaluationContext(
+                                CONSTANTS.externals,
+                                budget,
+                            ),
+                        )
                     )
 
-                    self.assertIn(limited, (UNK, full))
+                    self.assertIn(
+                        limited,
+                        (
+                            UNK,
+                            full,
+                        ),
+                    )
 
     def test_identity_is_stable_through_content(self) -> None:
         for seed in range(CASES):
-            with self.subTest(seed=seed):
+            with self.subTest(
+                seed=seed
+            ):
                 rng = random.Random(seed)
-                constraint = random_constraint(rng)
-                rebuilt = Constraint.from_content(
-                    canonicalize(constraint)
+                constraint = (
+                    random_constraint(rng)
+                )
+                rebuilt = (
+                    Constraint.from_content(
+                        canonicalize(
+                            constraint
+                        )
+                    )
                 )
 
-                self.assertEqual(rebuilt, constraint)
+                self.assertEqual(
+                    rebuilt,
+                    constraint,
+                )
 
                 for subject in SUBJECTS:
                     self.assertEqual(
-                        rebuilt.evaluate(subject, CONSTANTS),
-                        constraint.evaluate(subject, CONSTANTS),
+                        rebuilt.evaluate(
+                            subject,
+                            CONSTANTS,
+                        ),
+                        constraint.evaluate(
+                            subject,
+                            CONSTANTS,
+                        ),
                     )
 
 

@@ -111,6 +111,7 @@ _OPERANDS: dict[str, tuple[str, ...]] = {
     "quote": ("holes",),
     "unquote": ("expr",),
     "function": ("params", "body"),
+    "closure": ("body",),
     "activate": ("values",),
     "trial": ("args", "values"),
 }

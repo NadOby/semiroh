@@ -15,6 +15,7 @@ from semiroh.lang import (
     load,
     run,
 )
+from tests.generation import reproduction, seeds
 
 
 F = EntityID("malformed")
@@ -158,11 +159,13 @@ class MalformedGenerationTests(unittest.TestCase):
         )
 
     def test_generated_malformed_bodies_round_trip_and_reject(self) -> None:
+        selected = seeds(CASES)
         seen = set()
 
-        for seed in range(CASES):
+        for seed in selected:
             kind, expression = Generator(seed).expression()
             seen.add(kind)
+            replay = reproduction(__name__, seed)
 
             with self.subTest(
                 seed=seed,
@@ -174,6 +177,7 @@ class MalformedGenerationTests(unittest.TestCase):
                 self.assertEqual(
                     function_at(state, F),
                     Function(("x",), expression),
+                    f"reproduce: {replay}",
                 )
 
                 runtime = Runtime(state)
@@ -183,14 +187,23 @@ class MalformedGenerationTests(unittest.TestCase):
                     LanguageError,
                     msg=(
                         f"seed={seed} kind={kind}\n"
-                        f"expression={expression!r}"
+                        f"expression={expression!r}\n"
+                        f"reproduce: {replay}"
                     ),
                 ):
                     run(runtime, F, 3)
 
-                self.assertEqual(runtime.active.state.id, before)
+                self.assertEqual(
+                    runtime.active.state.id,
+                    before,
+                    f"reproduce: {replay}",
+                )
 
-        self.assertEqual(seen, set(KINDS))
+        if (
+            len(selected) >= len(KINDS)
+            and selected == tuple(range(len(selected)))
+        ):
+            self.assertEqual(seen, set(KINDS))
 
 
 if __name__ == "__main__":

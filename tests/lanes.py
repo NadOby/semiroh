@@ -20,6 +20,7 @@ LANES: dict[str, tuple[str, ...]] = {
         "test_constraints",
         "test_evaluators",
         "test_identity",
+        "test_lanes",
         "test_ledger",
         "test_lifecycle",
         "test_ownership",

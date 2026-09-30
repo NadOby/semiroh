@@ -306,6 +306,19 @@ class ValidationTests(unittest.TestCase):
                 with self.assertRaises(LanguageError):
                     run(Runtime(loaded({F: Function((), body)})), F)
 
+    def test_parameter_and_capture_containers_must_be_tuples(self) -> None:
+        bad = (
+            ("closure", 1, (), ("lit", 1)),
+            ("closure", ["x"], (), ("lit", 1)),
+            ("closure", (), 1, ("lit", 1)),
+            ("closure", (), ["n"], ("lit", 1)),
+        )
+
+        for body in bad:
+            with self.subTest(body=body):
+                with self.assertRaises(LanguageError):
+                    run(Runtime(loaded({F: Function((), body)})), F)
+
     def test_function_code_value_is_still_not_callable(self) -> None:
         body = (
             "apply",

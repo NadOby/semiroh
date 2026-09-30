@@ -84,20 +84,21 @@ OMITTED = {
 #
 #     (
 #         target path,
+#         mutation engine site index,
 #         mutation kind,
+#         source line number,
 #         complete stripped source line,
-#         zero-based AST column within that stripped line,
 #     )
 #
-# Every entry is checked against the current source and must resolve to
-# exactly one mutation site.
+# The index makes the site unambiguous even when several mutable constructs
+# occur on one source line. Kind, line number and source text form a fingerprint
+# checked against the current source, so stale classifications fail closed.
 #
-# We intentionally reset the old survivor list here. Its keys identified only
-# (target, kind, source line), which could classify multiple AST mutation sites
-# and several entries had become stale after implementation refactors.
+# The old survivor list was intentionally reset because its keys identified
+# only (target, kind, source line) and could cover multiple mutation sites.
 #
-# Current survivors will be rediscovered by the next mutation campaign and
-# classified individually.
+# Current survivors are rediscovered by mutation campaigns and classified
+# individually.
 #
 # A semantic test gap is never added here. It receives a regression test and
 # the mutant must then be killed.

@@ -157,6 +157,10 @@ with:
 
 The generator deliberately stays within the common host/embedded-VM subset.
 
+A manual heavy-budget run also exercised 200 generated cases successfully,
+confirming that the workflow-dispatch budget reaches the generated differential
+suite as intended.
+
 ## 5. Metamorphic testing
 
 **Decided:**
@@ -380,23 +384,54 @@ production Python module and every example module must either be a mutation
 target or have a written reason for omission. Tests enforce that accounting so
 new semantic modules cannot silently escape the campaign.
 
-Known surviving mutants are classified explicitly as either:
+The mutation engine operates on the Python implementation using Python's
+standard `ast` module. That AST is test-tool implementation machinery only; it
+is not a SEMIROH program representation or an additional compiler IR.
+
+A mutation site is identified by:
+
+    target file
+    mutation kind
+    complete stripped source line
+    source column of the mutated syntax node
+
+This distinguishes multiple mutable operations on one line.
+
+Earlier mutation infrastructure identified reviewed survivors only by target,
+kind and source line. That could accidentally let a classification for one
+mutable syntax node cover a different node on the same line, and several old
+entries became stale after implementation refactors.
+
+Task 18 therefore replaces the broad identity with exact-site identity.
+Ordinary catalog tests require every classified survivor to resolve to exactly
+one mutation site in the current source. A moved, removed, reformatted or
+ambiguous classification fails closed.
+
+The old survivor catalog was reset rather than guessing which current site each
+historical exemption meant.
+
+Surviving current mutants may be classified explicitly as either:
 
 1. `equivalent`, with a written reason; or
 2. `unspecified`, where the changed behaviour is outside the semantic
    contract.
 
-A test gap is deliberately not a permitted survivor classification. A semantic
-gap receives a regression test and the mutant must then be killed.
+A semantic test gap is deliberately not a permitted survivor classification.
+It receives a regression test and the mutant must then be killed.
 
-The manual validation campaign on 30 September 2026 used:
+The final manual validation campaign on 30 September 2026 used:
 
     SEMIROH_MUTATE=1
     SEMIROH_MUTATE_SEED=1
 
-across all 22 targets. It completed successfully with no unclassified
-survivors. The mutation lane took 186.067 seconds, confirming that broad
-mutation belongs in the heavy/manual tier rather than ordinary PR latency.
+across all 22 targets with the corrected exact-site classifier and an empty
+survivor catalog.
+
+Every sampled mutant was killed. There were therefore no current survivors to
+classify for this sample.
+
+The mutation lane took 222.729 seconds, confirming that broad planted-mutant
+testing belongs in the heavy/manual tier rather than ordinary PR latency.
 
 Mutation operators remain intentionally simple. New operators should be added
 when a concrete missing fault class justifies them rather than to increase a
@@ -507,6 +542,9 @@ The relevant conclusion is:
 - hosted-runner queueing can dominate end-to-end latency independently of the
   suite partition.
 
+The heavy campaigns are intentionally excluded from this ordinary-PR timing.
+The final one-mutant-per-target campaign took 222.729 seconds.
+
 ## 14. CI tiers
 
 **Decided:**
@@ -536,6 +574,9 @@ mutants sampled per target.
 
 `mutation_seed` makes that sample reproducible.
 
+The manual tier was exercised both with a larger generated-case budget and
+with a planted-mutant campaign before Task 18 was marked complete.
+
 This separates normal feedback latency from campaigns that intentionally spend
 substantially more compute.
 
@@ -554,7 +595,8 @@ Task 18 added:
 - a deterministic stateful runtime sequence harness;
 - bounded exhaustive continuity-composition verification;
 - common seed replay, case-budget and sequence-reduction infrastructure;
-- mutation target accounting and survivor classification;
+- mutation target accounting;
+- exact-site, fail-closed survivor classification;
 - mutation coverage expanded from 8 to 22 implementation targets;
 - a manual heavy verification tier.
 
@@ -575,11 +617,14 @@ No production semantic behaviour was intentionally changed.
 - bounded exhaustive continuity composition covers a complete small semantic
   domain;
 - mutation targets cover the semantic implementation substantially more
-  completely and surviving mutants require explicit classification;
+  completely;
+- surviving mutants, when present, require exact explicit classification;
+- the final sampled mutation campaign had no survivors;
 - generated failures can be replayed by seed and stateful sequences can be
   reduced;
 - real defects discovered by future generated campaigns have a defined path
   into minimized permanent regressions;
+- the manual generated-budget and mutation paths were both exercised;
 - no production semantic behaviour was intentionally changed.
 
 Task 19 can therefore refactor architecture against this stronger verification

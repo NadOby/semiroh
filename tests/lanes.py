@@ -77,6 +77,7 @@ LANES: dict[str, tuple[str, ...]] = {
     "cross-boundary": (
         "test_corpus",
         "test_docs",
+        "test_malformed_generation",
         "test_properties",
     ),
     "mutation": (

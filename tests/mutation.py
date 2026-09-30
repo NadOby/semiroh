@@ -17,6 +17,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,8 +43,9 @@ _ARITHMETIC = {
     ast.Mult: ast.Add,
 }
 
-# target, engine site index, kind, source line number, stripped source line
-MutationKey = tuple[str, int, str, int, str]
+# target, mutation kind, stripped source line, occurrence among sites with
+# the same kind and stripped source line.
+MutationKey = tuple[str, str, str, int]
 
 
 @dataclass(frozen=True)
@@ -53,23 +55,25 @@ class Mutant:
     kind: str
     line: int
     text: str
+    occurrence: int
 
     @property
     def key(self) -> MutationKey:
-        """Exact current-source identity used for survivor classification.
+        """Stable identity used for survivor classification.
 
-        ``index`` uniquely distinguishes mutation sites in the mutation
-        engine's current enumeration. The kind, line and text are retained as
-        a fingerprint, so a classification fails closed if refactoring causes
-        that index to identify a different source construct.
+        ``index`` and ``line`` remain useful for execution and diagnostics but
+        are intentionally not part of the classification key.
+
+        The key survives unrelated edits elsewhere in the file. Multiple
+        mutable constructs represented by the same stripped source line are
+        distinguished by their occurrence within that kind/text group.
         """
 
         return (
             self.target,
-            self.index,
             self.kind,
-            self.line,
             self.text,
+            self.occurrence,
         )
 
 
@@ -109,22 +113,34 @@ def _sites(tree: ast.AST) -> list[tuple[str, ast.AST]]:
     return found
 
 
-def _describe(
+def _descriptions(
     source: str,
     target: str,
-    index: int,
-    kind: str,
-    node: ast.AST,
-) -> Mutant:
-    line = node.lineno
+    sites: list[tuple[str, ast.AST]],
+) -> tuple[Mutant, ...]:
+    lines = source.splitlines()
+    seen: dict[tuple[str, str], int] = defaultdict(int)
+    descriptions = []
 
-    return Mutant(
-        target=target,
-        index=index,
-        kind=kind,
-        line=line,
-        text=source.splitlines()[line - 1].strip(),
-    )
+    for index, (kind, node) in enumerate(sites):
+        line = node.lineno
+        text = lines[line - 1].strip()
+        group = (kind, text)
+        occurrence = seen[group]
+        seen[group] += 1
+
+        descriptions.append(
+            Mutant(
+                target=target,
+                index=index,
+                kind=kind,
+                line=line,
+                text=text,
+                occurrence=occurrence,
+            )
+        )
+
+    return tuple(descriptions)
 
 
 def site_descriptions(
@@ -134,16 +150,12 @@ def site_descriptions(
     """Describe every mutation site without changing the source."""
 
     tree = ast.parse(source)
+    sites = _sites(tree)
 
-    return tuple(
-        _describe(
-            source,
-            target,
-            index,
-            kind,
-            node,
-        )
-        for index, (kind, node) in enumerate(_sites(tree))
+    return _descriptions(
+        source,
+        target,
+        sites,
     )
 
 
@@ -186,14 +198,13 @@ def mutate(
     """The source with site ``index`` changed and its exact description."""
 
     tree = ast.parse(source)
-    kind, node = _sites(tree)[index]
-    mutant = _describe(
+    sites = _sites(tree)
+    kind, node = sites[index]
+    mutant = _descriptions(
         source,
         target,
-        index,
-        kind,
-        node,
-    )
+        sites,
+    )[index]
 
     _change(kind, node)
     ast.fix_missing_locations(tree)

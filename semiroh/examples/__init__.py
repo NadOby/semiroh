@@ -73,8 +73,9 @@ class Example:
     """A named program with tags, its state, and the scenarios that run it.
 
     ``program`` is a ``State`` in the input format (tuple ``Function``
-    bodies and ``links`` relations). Each scenario is a tuple of ``Step``\s
-    run in order against one fresh ``Runtime(load(program), context)``.
+    bodies and ``links`` relations). Each scenario is a tuple of ``Step``
+    values run in order against one fresh
+    ``Runtime(load(program), context)``.
     """
 
     name: str

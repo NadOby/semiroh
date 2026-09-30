@@ -35,6 +35,7 @@ LANES: dict[str, tuple[str, ...]] = {
     "language-runtime": (
         "test_activation",
         "test_bytecode",
+        "test_bytecode_regressions",
         "test_closures",
         "test_data_graph_form",
         "test_data_ops",

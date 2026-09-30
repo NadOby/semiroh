@@ -20,7 +20,6 @@ being whitelisted.
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -90,10 +89,9 @@ class EngineTests(unittest.TestCase):
         return matches[0].index
 
     def test_the_unmutated_copy_passes(self) -> None:
-        done = subprocess.run(
+        done = mutation.baseline(
+            self.root,
             self.command,
-            cwd=self.root,
-            capture_output=True,
         )
 
         self.assertEqual(
@@ -336,6 +334,25 @@ class SuiteMutationTests(unittest.TestCase):
                 "1",
             )
         )
+
+        baseline = mutation.baseline(
+            mutation.ROOT,
+            mutation.SUITE,
+        )
+
+        self.assertEqual(
+            baseline.returncode,
+            0,
+            (
+                "mutation baseline failed on an unmodified repository copy; "
+                "mutation results would be invalid\n\n"
+                "stdout:\n"
+                f"{baseline.stdout.decode(errors='replace')}\n"
+                "stderr:\n"
+                f"{baseline.stderr.decode(errors='replace')}"
+            ),
+        )
+
         escaped = []
 
         for target in TARGETS:

@@ -536,13 +536,21 @@ class RenderTests(unittest.TestCase):
             (("quote", ("write", "c", ONE)), 'raw(("quote", ("write", "c", ("lit", 1))))'),
             (("quote", ("bogus", 1)), 'raw(("quote", ("bogus", 1)))'),
             (("quote", 5), 'raw(("quote", 5))'),
-            (("apply", ("add", X, X), ONE), 'raw(("apply", ("add", ("arg", "x"), ("arg", "x")), ("lit", 1)))'),
         ):
             with self.subTest(text=text):
                 self.assertEqual(
                     self.rendered({f: Function(("x",), tree), **cell}),
                     f"fn f(x):\n    {text}\n",
                 )
+
+    def test_general_apply_has_source_syntax(self) -> None:
+        self.assertEqual(
+            self.one(
+                ("x",),
+                ("apply", ("add", X, X), ONE),
+            ),
+            "fn f(x):\n    apply(x + x, (1,))\n",
+        )
 
     def test_raw_names_its_targets_by_their_current_entity_names(self) -> None:
         f, c = EntityID("f"), EntityID("c")

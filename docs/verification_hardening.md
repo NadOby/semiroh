@@ -213,8 +213,11 @@ away.
 
 Execution must then fail with `LanguageError`, not a leaked host exception.
 
-The runtime state identity is checked before and after rejection, so a failure
-is not considered correct if it partially changes runtime state.
+These tests do not impose transactional rollback on arbitrary language errors.
+Effects that occur before a later error remain governed by the language's
+normal effect-ordering semantics. Atomicity is asserted separately only for
+operations whose contracts promise it, such as rejected writes and rejected
+activations.
 
 Replay is:
 
@@ -359,6 +362,11 @@ The mutation engine uses Python's standard `ast` module to mutate the Python
 reference implementation. That AST is test-tool implementation machinery only;
 it is not a SEMIROH program representation or compiler IR.
 
+Before planting mutants, a campaign runs the exact mutation test command
+against an unmodified repository copy made with the same copy and environment
+rules used for mutant execution. A failing baseline aborts the campaign rather
+than allowing unrelated infrastructure failures to count as killed mutants.
+
 ### Survivor identity
 
 A reviewed survivor is keyed by:
@@ -395,6 +403,11 @@ Historical entries are not copied blindly:
 
 In particular, the historical `Function` equality survivor was documented as
 an open test gap, not an equivalence, so it is not whitelisted.
+
+Generation-allocation mutations are likewise not whitelisted: graph-form
+generation numbers are part of node identity, so changing initial generation,
+next-generation allocation or collision advancement changes specified semantic
+identity and must be killed by regression tests.
 
 Every survivor classification carries a written reason.
 
@@ -530,13 +543,15 @@ Task 18 added:
 - explicit semantic CI lanes with partition coverage guards;
 - parallel matrix CI;
 - generated closure-heavy host-versus-embedded-VM differential testing;
-- generated malformed-language rejection and atomicity testing;
+- generated malformed-language round-trip and rejection testing;
 - generated low-level and language-level metamorphic testing;
 - a deterministic stateful runtime sequence harness;
 - bounded exhaustive continuity-composition verification;
 - common seed replay, case-budget and sequence-reduction infrastructure;
 - explicit mutation target accounting;
 - stable exact survivor identities;
+- mutation baseline preflight against an unmodified repository copy;
+- graph-generation identity regressions for specified allocation semantics;
 - migration of defensible historical survivor classifications;
 - mutation coverage expanded from 8 to 22 implementation targets;
 - manual heavy generated and mutation verification tiers;
@@ -555,7 +570,8 @@ No production semantic behaviour is intentionally changed by Task 18.
 - before/after timing evidence is recorded outside this stable specification;
 - independent host/compiler/VM implementations have generated differential
   coverage where their domains overlap;
-- malformed generation exercises graph-form and runtime semantic boundaries;
+- malformed generation exercises graph-form collapse and specified runtime
+  rejection without assuming generic rollback semantics;
 - language-level metamorphic relations exercise render/reconcile,
   `function_at`/`define`, and independent rebased definitions;
 - a deterministic stateful sequence harness checks global invariants after
@@ -564,9 +580,12 @@ No production semantic behaviour is intentionally changed by Task 18.
 - generated failures can be replayed by seed;
 - failing stateful sequences can be reduced;
 - mutation targets account for the semantic implementation explicitly;
+- mutation campaigns validate an unmodified copy before planting mutants;
 - survivor identities remain stable under unrelated edits elsewhere in a file;
 - historical reviewed survivor knowledge is preserved where defensible;
 - semantic test gaps cannot be whitelisted as accepted survivors;
+- specified graph-generation identity changes are covered by regressions rather
+  than survivor exemptions;
 - manual generated and mutation campaign paths exist for heavier validation;
 - real defects discovered by future generated campaigns have a defined path
   into minimized permanent regressions;

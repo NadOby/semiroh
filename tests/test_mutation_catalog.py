@@ -91,7 +91,7 @@ class MutationCatalogTests(unittest.TestCase):
                 self.assertTrue(reason.strip())
 
     def test_every_classified_survivor_names_a_target(self) -> None:
-        for target, _, _, _ in SURVIVORS:
+        for target, _, _, _, _ in SURVIVORS:
             with self.subTest(target=target):
                 self.assertIn(target, TARGETS)
 
@@ -136,9 +136,7 @@ class MutationCatalogTests(unittest.TestCase):
                     ),
                 )
 
-    def test_one_broad_source_line_can_contain_distinct_sites(
-        self,
-    ) -> None:
+    def test_same_line_sites_have_distinct_keys(self) -> None:
         source = "values = (0, False)\n"
 
         constants = [
@@ -154,6 +152,24 @@ class MutationCatalogTests(unittest.TestCase):
         self.assertNotEqual(
             constants[0].key,
             constants[1].key,
+        )
+
+    def test_nested_same_start_sites_have_distinct_keys(self) -> None:
+        source = "value = 1 + 2 + 3\n"
+
+        arithmetic = [
+            mutant
+            for mutant in mutation.site_descriptions(
+                source,
+                "example.py",
+            )
+            if mutant.kind == "arithmetic"
+        ]
+
+        self.assertEqual(len(arithmetic), 2)
+        self.assertNotEqual(
+            arithmetic[0].key,
+            arithmetic[1].key,
         )
 
 

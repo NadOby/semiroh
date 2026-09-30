@@ -8,12 +8,22 @@ import unittest
 from semiroh import EntityID, Runtime, canonical_serialize, canonicalize
 from semiroh.examples import self_hosting, vm
 from semiroh.examples._support import program
-from semiroh.lang import Function, LanguageError, function_at, links, load, run
+from semiroh.lang import (
+    Function,
+    LanguageError,
+    define,
+    function_at,
+    links,
+    load,
+    run,
+)
 
 
 TARGET = EntityID("closure_diff_target")
 HELPER = EntityID("closure_diff_helper")
 CASES = 60
+
+_BASE = None
 
 
 def same(actual, expected) -> bool:
@@ -22,32 +32,44 @@ def same(actual, expected) -> bool:
     )
 
 
-def entities(body: tuple) -> dict:
-    return {
-        **self_hosting.compiler_entities(),
-        **vm.vm_entities(),
-        TARGET: Function(("x",), body),
-        EntityID("closure_diff_target.links"): links(
-            TARGET,
-            helper=HELPER,
-        ),
-        HELPER: Function(
-            ("a",),
-            ("add", ("arg", "a"), ("lit", 1)),
-        ),
-        EntityID("closure_diff_helper.links"): links(HELPER),
-    }
+def base_state():
+    global _BASE
+
+    if _BASE is None:
+        _BASE = load(
+            program(
+                {
+                    **self_hosting.compiler_entities(),
+                    **vm.vm_entities(),
+                    TARGET: Function(("x",), ("lit", 0)),
+                    EntityID("closure_diff_target.links"): links(
+                        TARGET,
+                        helper=HELPER,
+                    ),
+                    HELPER: Function(
+                        ("a",),
+                        ("add", ("arg", "a"), ("lit", 1)),
+                    ),
+                    EntityID("closure_diff_helper.links"): links(HELPER),
+                }
+            )
+        )
+
+    return _BASE
 
 
 def runtime(body: tuple) -> Runtime:
-    return Runtime(load(program(entities(body))))
+    state = define(
+        base_state(),
+        {
+            TARGET: Function(("x",), body),
+        },
+    ).destination
+
+    return Runtime(state)
 
 
-def link_table(state) -> tuple:
-    definition = function_at(state, TARGET)
-
-    # The embedded VM consumes the same external link table convention used
-    # by tests/test_vm.py.  TARGET has exactly one user-visible link here.
+def link_table() -> tuple:
     return (("helper", HELPER),)
 
 
@@ -66,6 +88,7 @@ def host(body: tuple, argument):
 def embedded(body: tuple, argument):
     rt = runtime(body)
     state = rt.active.state
+
     chunk = run(
         rt,
         self_hosting.LOWER,
@@ -79,7 +102,7 @@ def embedded(body: tuple, argument):
             chunk,
             ("x",),
             (argument,),
-            link_table(state),
+            link_table(),
         )
     )
 
@@ -91,9 +114,14 @@ class Generator:
         self.rng = random.Random(seed)
         self.names = 0
 
-    def number(self, depth: int, scope: tuple[str, ...] = ("x",)) -> tuple:
+    def number(
+        self,
+        depth: int,
+        scope: tuple[str, ...] = ("x",),
+    ) -> tuple:
         if depth <= 0:
             name = self.rng.choice(scope)
+
             return self.rng.choice(
                 [
                     ("arg", name),
@@ -124,13 +152,16 @@ class Generator:
         if kind == "let":
             self.names += 1
             name = f"n{self.names}"
+
             value = self.number(depth - 1, scope)
             body = self.number(depth - 1, scope + (name,))
+
             return ("let", name, value, body)
 
         if kind == "direct":
             self.names += 1
             captured = f"c{self.names}"
+
             value = self.number(depth - 1, scope)
             argument = self.number(depth - 1, scope)
 
@@ -157,6 +188,7 @@ class Generator:
         if kind == "applyv":
             self.names += 1
             captured = f"v{self.names}"
+
             value = self.number(depth - 1, scope)
             argument = self.number(depth - 1, scope)
 
@@ -183,6 +215,7 @@ class Generator:
         if kind == "nested":
             self.names += 1
             captured = f"k{self.names}"
+
             value = self.number(depth - 1, scope)
             argument = self.number(depth - 1, scope)
 
@@ -219,8 +252,6 @@ class Generator:
                 ),
             )
 
-        # Capture a closure as an ordinary value, then call the captured
-        # closure from another closure.
         self.names += 1
         closure_name = f"f{self.names}"
         argument = self.number(depth - 1, scope)
@@ -254,7 +285,6 @@ class Generator:
 class ClosureDifferentialTests(unittest.TestCase):
     def test_generated_closure_programs_agree(self) -> None:
         computed = 0
-        raised = 0
 
         for seed in range(CASES):
             body = Generator(seed).number(4)
@@ -268,28 +298,32 @@ class ClosureDifferentialTests(unittest.TestCase):
                     expected = host(body, argument)
                     actual = embedded(body, argument)
 
+                    self.assertEqual(
+                        expected[0],
+                        "value",
+                        (
+                            f"valid generator produced a failure\n"
+                            f"seed={seed} argument={argument}\n"
+                            f"body={body!r}\n"
+                            f"host={expected!r}"
+                        ),
+                    )
+
                     self.assertEqual(actual[0], expected[0])
 
-                    if expected[0] == "value":
-                        self.assertTrue(
-                            same(actual[1], expected[1]),
-                            (
-                                f"seed={seed} argument={argument}\n"
-                                f"body={body!r}\n"
-                                f"host={expected!r}\n"
-                                f"embedded={actual!r}"
-                            ),
-                        )
-                        computed += 1
-                    else:
-                        self.assertEqual(actual, expected)
-                        raised += 1
+                    self.assertTrue(
+                        same(actual[1], expected[1]),
+                        (
+                            f"seed={seed} argument={argument}\n"
+                            f"body={body!r}\n"
+                            f"host={expected!r}\n"
+                            f"embedded={actual!r}"
+                        ),
+                    )
 
-        self.assertGreater(computed, 80)
-        # Arithmetic is intentionally allowed to overflow into semantic
-        # errors through generated combinations; keep evidence that failure
-        # parity is exercised when such cases occur.
-        self.assertGreaterEqual(raised, 0)
+                    computed += 1
+
+        self.assertEqual(computed, CASES * 2)
 
 
 if __name__ == "__main__":

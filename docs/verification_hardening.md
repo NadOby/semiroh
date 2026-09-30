@@ -391,21 +391,24 @@ is not a SEMIROH program representation or an additional compiler IR.
 A mutation site is identified by:
 
     target file
+    mutation engine site index
     mutation kind
+    source line number
     complete stripped source line
-    source column of the mutated syntax node
 
-This distinguishes multiple mutable operations on one line.
+The engine site index makes sites unambiguous even when several mutable
+constructs occur on the same line or nested constructs share a source start.
+The kind, line number and source text act as a fingerprint, so a stale
+classification fails closed if the index later points at different code.
 
 Earlier mutation infrastructure identified reviewed survivors only by target,
 kind and source line. That could accidentally let a classification for one
 mutable syntax node cover a different node on the same line, and several old
 entries became stale after implementation refactors.
 
-Task 18 therefore replaces the broad identity with exact-site identity.
+Task 18 therefore replaces the broad identity with exact indexed-site identity.
 Ordinary catalog tests require every classified survivor to resolve to exactly
-one mutation site in the current source. A moved, removed, reformatted or
-ambiguous classification fails closed.
+one mutation site in the current source.
 
 The old survivor catalog was reset rather than guessing which current site each
 historical exemption meant.
@@ -419,19 +422,25 @@ Surviving current mutants may be classified explicitly as either:
 A semantic test gap is deliberately not a permitted survivor classification.
 It receives a regression test and the mutant must then be killed.
 
-The final manual validation campaign on 30 September 2026 used:
+The final planted-mutant validation campaign on 30 September 2026 used:
 
     SEMIROH_MUTATE=1
     SEMIROH_MUTATE_SEED=1
 
-across all 22 targets with the corrected exact-site classifier and an empty
-survivor catalog.
+across all 22 targets with an empty survivor catalog.
 
 Every sampled mutant was killed. There were therefore no current survivors to
-classify for this sample.
+classify for this sample. The campaign took 222.729 seconds.
 
-The mutation lane took 222.729 seconds, confirming that broad planted-mutant
-testing belongs in the heavy/manual tier rather than ordinary PR latency.
+The survivor-key representation was subsequently hardened from source-position
+identity to the indexed, fingerprinted identity described above. This did not
+change mutation enumeration, sampling or execution. Because the validation
+campaign produced no survivors, survivor keys were never consulted during its
+classification step. Ordinary mutation-engine and catalog tests exercise the
+final indexed-key representation.
+
+The measured campaign confirms that broad planted-mutant testing belongs in the
+heavy/manual tier rather than ordinary PR latency.
 
 Mutation operators remain intentionally simple. New operators should be added
 when a concrete missing fault class justifies them rather than to increase a

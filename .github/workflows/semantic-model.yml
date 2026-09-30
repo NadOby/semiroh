@@ -1,8 +1,36 @@
-name: semantic-model
+name: Semantic model
 
 on:
+  workflow_dispatch:
+    inputs:
+      generated_cases:
+        description: "Generated cases per participating family; 0 uses ordinary defaults"
+        required: false
+        default: "0"
+      mutation_count:
+        description: "Mutation samples per target; 0 skips the heavy mutation campaign"
+        required: false
+        default: "0"
+      mutation_seed:
+        description: "Mutation sampling seed"
+        required: false
+        default: "1"
+
   push:
+    paths:
+      - "semiroh/**"
+      - "tests/**"
+      - "README.md"
+      - "docs/**"
+      - ".github/workflows/semantic-model.yml"
+
   pull_request:
+    paths:
+      - "semiroh/**"
+      - "tests/**"
+      - "README.md"
+      - "docs/**"
+      - ".github/workflows/semantic-model.yml"
 
 jobs:
   tests:
@@ -23,12 +51,35 @@ jobs:
 
     name: tests (${{ matrix.lane }})
 
-    steps:
-      - uses: actions/checkout@v4
+    env:
+      SEMIROH_CASES: ${{ inputs.generated_cases || '0' }}
 
-      - uses: actions/setup-python@v5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Run ${{ matrix.lane }}
         run: python -m tests.lanes "${{ matrix.lane }}"
+
+  mutation-campaign:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mutation_count != '0' }}
+
+    runs-on: ubuntu-latest
+    name: mutation campaign
+
+    env:
+      SEMIROH_MUTATE: ${{ inputs.mutation_count }}
+      SEMIROH_MUTATE_SEED: ${{ inputs.mutation_seed }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Run broad mutation campaign
+        run: python -m tests.lanes mutation

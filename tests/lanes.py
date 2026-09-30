@@ -47,6 +47,7 @@ LANES: dict[str, tuple[str, ...]] = {
         "test_trial_runs",
     ),
     "transform-continuity": (
+        "test_bounded_exhaustive",
         "test_continuity_corpus",
         "test_continuity_inference",
         "test_continuity_units",

@@ -94,6 +94,7 @@ KINDS = frozenset({
     "cell",
     "constraint",
     "relation",
+    "closure",
 })
 
 
@@ -302,7 +303,11 @@ class IsKind(Constraint):
     def _payload(self) -> tuple[Any, ...]:
         return (self.kind,)
 
-    def _check(self, subject: Any, evaluation: _Evaluation) -> ConstraintResult:
+    def _check(
+        self,
+        subject: Any,
+        evaluation: _Evaluation,
+    ) -> ConstraintResult:
         return _result(kind_of(subject) == self.kind)
 
 
@@ -328,7 +333,11 @@ class IntRange(Constraint):
     def _payload(self) -> tuple[Any, ...]:
         return (self.min, self.max)
 
-    def _check(self, subject: Any, evaluation: _Evaluation) -> ConstraintResult:
+    def _check(
+        self,
+        subject: Any,
+        evaluation: _Evaluation,
+    ) -> ConstraintResult:
         if kind_of(subject) != "int":
             return ConstraintResult.VIOLATED
 
@@ -363,7 +372,11 @@ class Length(Constraint):
     def _payload(self) -> tuple[Any, ...]:
         return (self.min, self.max)
 
-    def _check(self, subject: Any, evaluation: _Evaluation) -> ConstraintResult:
+    def _check(
+        self,
+        subject: Any,
+        evaluation: _Evaluation,
+    ) -> ConstraintResult:
         kind = kind_of(subject)
 
         if kind == "str":
@@ -403,11 +416,18 @@ class OneOf(Constraint):
     def _payload(self) -> tuple[Any, ...]:
         return (self.values,)
 
-    def _check(self, subject: Any, evaluation: _Evaluation) -> ConstraintResult:
+    def _check(
+        self,
+        subject: Any,
+        evaluation: _Evaluation,
+    ) -> ConstraintResult:
         encoded = canonical_serialize(subject)
 
         return _result(
-            any(canonical_serialize(value) == encoded for value in self.values)
+            any(
+                canonical_serialize(value) == encoded
+                for value in self.values
+            )
         )
 
 
@@ -418,7 +438,10 @@ def _set_of_constraints(
         if not isinstance(part, Constraint):
             raise TypeError("components must be semantic constraints")
 
-    unique = {canonical_serialize(part): part for part in parts}
+    unique = {
+        canonical_serialize(part): part
+        for part in parts
+    }
 
     return tuple(unique[key] for key in sorted(unique))
 
@@ -431,12 +454,25 @@ class AllOf(Constraint):
     _name = "all_of"
 
     def __init__(self, *parts: Constraint) -> None:
-        object.__setattr__(self, "parts", _set_of_constraints(parts))
+        object.__setattr__(
+            self,
+            "parts",
+            _set_of_constraints(parts),
+        )
 
     def _payload(self) -> tuple[Any, ...]:
-        return (tuple(part.canonical_node() for part in self.parts),)
+        return (
+            tuple(
+                part.canonical_node()
+                for part in self.parts
+            ),
+        )
 
-    def _check(self, subject: Any, evaluation: _Evaluation) -> ConstraintResult:
+    def _check(
+        self,
+        subject: Any,
+        evaluation: _Evaluation,
+    ) -> ConstraintResult:
         unknown = False
 
         for part in self.parts:
@@ -463,12 +499,25 @@ class AnyOf(Constraint):
     _name = "any_of"
 
     def __init__(self, *parts: Constraint) -> None:
-        object.__setattr__(self, "parts", _set_of_constraints(parts))
+        object.__setattr__(
+            self,
+            "parts",
+            _set_of_constraints(parts),
+        )
 
     def _payload(self) -> tuple[Any, ...]:
-        return (tuple(part.canonical_node() for part in self.parts),)
+        return (
+            tuple(
+                part.canonical_node()
+                for part in self.parts
+            ),
+        )
 
-    def _check(self, subject: Any, evaluation: _Evaluation) -> ConstraintResult:
+    def _check(
+        self,
+        subject: Any,
+        evaluation: _Evaluation,
+    ) -> ConstraintResult:
         unknown = False
 
         for part in self.parts:
@@ -501,7 +550,11 @@ class Not(Constraint):
     def _payload(self) -> tuple[Any, ...]:
         return (self.part.canonical_node(),)
 
-    def _check(self, subject: Any, evaluation: _Evaluation) -> ConstraintResult:
+    def _check(
+        self,
+        subject: Any,
+        evaluation: _Evaluation,
+    ) -> ConstraintResult:
         result = self.part._evaluate(subject, evaluation)
 
         if result is ConstraintResult.SATISFIED:
@@ -534,15 +587,25 @@ class Role(Constraint):
             raise TypeError("component must be a semantic constraint")
 
     def _payload(self) -> tuple[Any, ...]:
-        return (self.name, self.part.canonical_node())
+        return (
+            self.name,
+            self.part.canonical_node(),
+        )
 
-    def _check(self, subject: Any, evaluation: _Evaluation) -> ConstraintResult:
+    def _check(
+        self,
+        subject: Any,
+        evaluation: _Evaluation,
+    ) -> ConstraintResult:
         if kind_of(subject) != "map":
             return ConstraintResult.VIOLATED
 
         for key, content in subject[2]:
             if key == self.name:
-                return self.part._evaluate(content, evaluation)
+                return self.part._evaluate(
+                    content,
+                    evaluation,
+                )
 
         return ConstraintResult.VIOLATED
 
@@ -562,12 +625,18 @@ class External(Constraint):
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str) or not self.name:
-            raise TypeError("external constraint name must be a non-empty string")
+            raise TypeError(
+                "external constraint name must be a non-empty string"
+            )
 
     def _payload(self) -> tuple[Any, ...]:
         return (self.name,)
 
-    def _check(self, subject: Any, evaluation: _Evaluation) -> ConstraintResult:
+    def _check(
+        self,
+        subject: Any,
+        evaluation: _Evaluation,
+    ) -> ConstraintResult:
         evaluator = evaluation.context.externals.get(self.name)
 
         if evaluator is None:

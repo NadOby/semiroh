@@ -10,17 +10,34 @@ from typing import TypeVar
 T = TypeVar("T")
 
 
-def seeds(count: int, variable: str = "SEMIROH_SEED") -> tuple[int, ...]:
-    """Return the ordinary deterministic seed range or requested replay seeds.
+def case_count(default: int) -> int:
+    """Return the ordinary or explicitly requested generated-case budget."""
 
-    SEMIROH_SEED accepts one integer or a comma-separated list.  Generated
-    tests can therefore print a command that reproduces exactly one failure.
+    requested = os.environ.get("SEMIROH_CASES")
+
+    if requested in (None, "", "0"):
+        return default
+
+    value = int(requested)
+
+    if value < 1:
+        raise ValueError("SEMIROH_CASES must be a positive integer or 0")
+
+    return value
+
+
+def seeds(count: int, variable: str = "SEMIROH_SEED") -> tuple[int, ...]:
+    """Return deterministic seeds for normal, heavy, or replay execution.
+
+    SEMIROH_SEED accepts one integer or a comma-separated list and takes
+    precedence over SEMIROH_CASES.  SEMIROH_CASES enlarges the ordinary
+    range while preserving deterministic seeds starting at zero.
     """
 
     requested = os.environ.get(variable)
 
     if requested is None:
-        return tuple(range(count))
+        return tuple(range(case_count(count)))
 
     values = tuple(
         int(item.strip())

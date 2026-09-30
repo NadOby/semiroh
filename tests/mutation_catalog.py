@@ -110,6 +110,11 @@ OMITTED = {
 # A broad campaign may rediscover it under an exact key, at which point that
 # exact site can be reviewed.
 #
+# Generation allocation entries from the historical catalog are deliberately
+# not migrated: graph_form.md specifies exact generation semantics, so changing
+# generation 0, next-generation allocation, or collision advancement is a
+# semantic identity change and must be killed by regression tests.
+#
 # A semantic test gap is never added here.
 SURVIVORS: dict[
     MutationKey,
@@ -241,42 +246,6 @@ SURVIVORS: dict[
     ): (
         EQUIVALENT,
         "the relevant callers pass an index",
-    ),
-    (
-        "semiroh/lang.py",
-        "constant",
-        "generation += 1",
-        0,
-    ): (
-        EQUIVALENT,
-        "the generation only has to differ from generations already taken",
-    ),
-    (
-        "semiroh/lang.py",
-        "arithmetic",
-        "0 if current is None else current.generation + 1,",
-        0,
-    ): (
-        EQUIVALENT,
-        "the generation only has to differ from generations already taken",
-    ),
-    (
-        "semiroh/lang.py",
-        "constant",
-        "0 if current is None else current.generation + 1,",
-        0,
-    ): (
-        EQUIVALENT,
-        "a newly created function only needs an available generation",
-    ),
-    (
-        "semiroh/lang.py",
-        "constant",
-        "0 if current is None else current.generation + 1,",
-        1,
-    ): (
-        EQUIVALENT,
-        "an edited function only needs a generation different from those taken",
     ),
     (
         "semiroh/lang.py",

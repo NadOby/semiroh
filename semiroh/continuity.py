@@ -1041,4 +1041,4 @@ CASES: tuple[Case, ...] = (
             "and so is the call."
         ),
     ),
-        )
+)

@@ -961,3 +961,39 @@ ledger measurement to match live model output.
   documentation-only changes.
 - Recorded a later cleanup to split CI into independent coherence, semantic
   unit, regression/corpus, property/stress, and expensive mutation jobs.
+
+### Lexical closures
+
+- Added executable lexical closures (roadmap task 17; docs/closures.md) as a
+  runtime value distinct from `Function`, which remains code as data for
+  construction and activation.
+- Added `("closure", params, captures, body)` with explicit by-value lexical
+  captures. Closure bodies remain ordinary graph code; graph form stores only
+  the body as a code child and keeps parameter and capture-name tuples as node
+  data.
+- `apply` and `applyv` now accept either installed-function references or
+  closures. Closure calls use ordinary arity, active-version and tail-call
+  rules, require no activation capability, and do not fall back to the
+  caller's lexical scope.
+- Existing closures retain their captured values while their semantic
+  owner/body identities resolve through the active program version when
+  continuity preserves them.
+- Added `CLOSURE` bytecode and host-machine support, including tail closure
+  calls and the same early callable check used by indirect function calls.
+- Extended the compiler written in SEMIROH to emit closure bytecode and added
+  an independent structural comparison with host lowering.
+- Extended the bytecode VM written in SEMIROH with tagged callable values:
+  `("ref", entity)` and
+  `("closure", body, params, captures, links)`. Its `REFCHECK` now validates
+  callables before later operands run.
+- Added explicit source syntax
+  `closure(params) captures(names): expression`; capture inference remains
+  deferred source sugar rather than part of the semantic operation.
+- Added corpus examples `make_adder` and `compose`. `MISSING` is now empty.
+- Added closure acceptance coverage for capture by value, returned closures,
+  caller-scope isolation, passing/storing/comparing/capturing closures,
+  continuity across activation, error ordering, graph-form round trips,
+  tail-call depth, self-hosted lowering and execution on the SEMIROH VM.
+- Added `docs/verification_hardening.md` for roadmap task 18 and recorded
+  language-architecture hardening as task 19.
+  

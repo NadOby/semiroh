@@ -85,13 +85,14 @@ def snapshot(runtime: Runtime) -> tuple:
     )
 
 
-def candidate(runtime: Runtime, delta: int):
+def candidate(runtime: Runtime, value: int):
+    """Build a candidate from the independently expected semantic value."""
+
     source = runtime.active.state
-    current = source.values[VALUE].content
 
     return transform_with_mapping(
         source,
-        {VALUE: current + delta},
+        {VALUE: value},
         {
             CELL: CELL,
             VALUE: VALUE,
@@ -99,7 +100,12 @@ def candidate(runtime: Runtime, delta: int):
     )
 
 
-def check_invariants(runtime: Runtime, live: list) -> None:
+def check_invariants(
+    runtime: Runtime,
+    live: list,
+    expected_cell: int,
+    expected_value: int,
+) -> None:
     if not runtime.versions:
         raise AssertionError("runtime owns no active version")
 
@@ -121,7 +127,23 @@ def check_invariants(runtime: Runtime, live: list) -> None:
     )
 
     if runtime.previous is not expected_previous:
-        raise AssertionError("previous-version view disagrees with ownership")
+        raise AssertionError(
+            "previous-version view disagrees with ownership"
+        )
+
+    if runtime.read(CELL) != expected_cell:
+        raise AssertionError(
+            "active cell content disagrees with expected model: "
+            f"expected {expected_cell!r}, got {runtime.read(CELL)!r}"
+        )
+
+    actual_value = runtime.active.state.values[VALUE].content
+
+    if actual_value != expected_value:
+        raise AssertionError(
+            "active semantic value disagrees with expected model: "
+            f"expected {expected_value!r}, got {actual_value!r}"
+        )
 
     recorded = set()
 
@@ -131,13 +153,19 @@ def check_invariants(runtime: Runtime, live: list) -> None:
 
         for hold in version.holds:
             if hold.released:
-                raise AssertionError("released hold remains recorded")
+                raise AssertionError(
+                    "released hold remains recorded"
+                )
 
             if hold.version is not version:
-                raise AssertionError("hold points at the wrong version")
+                raise AssertionError(
+                    "hold points at the wrong version"
+                )
 
             if hold in recorded:
-                raise AssertionError("hold belongs to multiple versions")
+                raise AssertionError(
+                    "hold belongs to multiple versions"
+                )
 
             recorded.add(hold)
 
@@ -177,10 +205,19 @@ def execute(actions: tuple[Action, ...]) -> None:
     runtime = Runtime(program())
     live = []
 
+    expected_cell = 0
+    expected_value = 0
+
     for index, action in enumerate(actions):
         try:
             if action.kind == "write":
                 runtime.write(CELL, action.value)
+                expected_cell = action.value
+
+                if runtime.read(CELL) != expected_cell:
+                    raise AssertionError(
+                        "successful write stored the wrong value"
+                    )
 
             elif action.kind == "bad-write":
                 before = snapshot(runtime)
@@ -197,6 +234,11 @@ def execute(actions: tuple[Action, ...]) -> None:
                 if snapshot(runtime) != before:
                     raise AssertionError(
                         "rejected write changed runtime state"
+                    )
+
+                if runtime.read(CELL) != expected_cell:
+                    raise AssertionError(
+                        "rejected write changed expected cell content"
                     )
 
             elif action.kind == "enter":
@@ -218,7 +260,11 @@ def execute(actions: tuple[Action, ...]) -> None:
 
             elif action.kind == "trial":
                 before = snapshot(runtime)
-                result = candidate(runtime, action.value)
+                candidate_value = expected_value + action.value
+                result = candidate(
+                    runtime,
+                    candidate_value,
+                )
                 trial = runtime.trial(result)
 
                 if trial.active.state != result.destination:
@@ -226,8 +272,16 @@ def execute(actions: tuple[Action, ...]) -> None:
                         "trial loaded the wrong destination"
                     )
 
+                if (
+                    trial.active.state.values[VALUE].content
+                    != candidate_value
+                ):
+                    raise AssertionError(
+                        "trial loaded the wrong semantic value"
+                    )
+
                 if dict(trial.active.cells) != {
-                    CELL: runtime.read(CELL),
+                    CELL: expected_cell,
                 }:
                     raise AssertionError(
                         "trial transferred wrong cell content"
@@ -238,9 +292,26 @@ def execute(actions: tuple[Action, ...]) -> None:
                         "trial changed the main runtime"
                     )
 
+                if runtime.read(CELL) != expected_cell:
+                    raise AssertionError(
+                        "trial changed main-runtime cell content"
+                    )
+
+                if (
+                    runtime.active.state.values[VALUE].content
+                    != expected_value
+                ):
+                    raise AssertionError(
+                        "trial changed main-runtime semantic value"
+                    )
+
             elif action.kind == "activate":
                 before = snapshot(runtime)
-                result = candidate(runtime, action.value)
+                candidate_value = expected_value + action.value
+                result = candidate(
+                    runtime,
+                    candidate_value,
+                )
 
                 try:
                     runtime.activate(result)
@@ -253,12 +324,50 @@ def execute(actions: tuple[Action, ...]) -> None:
                             "rejected activation changed runtime state"
                         )
 
+                    if runtime.read(CELL) != expected_cell:
+                        raise AssertionError(
+                            "rejected activation changed cell content"
+                        )
+
+                    if (
+                        runtime.active.state.values[VALUE].content
+                        != expected_value
+                    ):
+                        raise AssertionError(
+                            "rejected activation changed semantic value"
+                        )
+                else:
+                    expected_value = candidate_value
+
+                    if runtime.active.state != result.destination:
+                        raise AssertionError(
+                            "activation loaded the wrong destination"
+                        )
+
+                    if (
+                        runtime.active.state.values[VALUE].content
+                        != expected_value
+                    ):
+                        raise AssertionError(
+                            "activation installed the wrong semantic value"
+                        )
+
+                    if runtime.read(CELL) != expected_cell:
+                        raise AssertionError(
+                            "activation transferred wrong cell content"
+                        )
+
             else:
                 raise AssertionError(
                     f"unknown generated action {action.kind!r}"
                 )
 
-            check_invariants(runtime, live)
+            check_invariants(
+                runtime,
+                live,
+                expected_cell,
+                expected_value,
+            )
 
         except Exception as exc:
             raise AssertionError(
@@ -276,7 +385,9 @@ def fails(actions: tuple[Action, ...]) -> bool:
 
 
 class StatefulSequenceTests(unittest.TestCase):
-    def test_seeded_runtime_sequences_preserve_global_invariants(self) -> None:
+    def test_seeded_runtime_sequences_preserve_global_invariants(
+        self,
+    ) -> None:
         for seed in seeds(CASES):
             actions = actions_for(seed)
 
@@ -284,7 +395,10 @@ class StatefulSequenceTests(unittest.TestCase):
                 try:
                     execute(actions)
                 except AssertionError as exc:
-                    reduced = minimize_sequence(actions, fails)
+                    reduced = minimize_sequence(
+                        actions,
+                        fails,
+                    )
 
                     self.fail(
                         f"{exc}\n"

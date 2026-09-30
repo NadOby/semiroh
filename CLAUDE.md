@@ -33,7 +33,8 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 - Work follows `docs/roadmap.md`: its task order and its plan, write,
   review, publish loop.
 - Docs, tests, and code are three representations of one spec: change them
-  together. Mark doc sections Decided / Provisional / Open.
+  together. Mark doc sections Decided / Provisional / Open where a design
+  decision actually has that status.
 - Check a proposal against the vision first; if existing code conflicts with
   it, say so rather than rationalize it.
 - One coherent change per PR. Append an entry to `CHANGES.md` per PR. If two
@@ -52,17 +53,48 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 
 ## Testing
 
-- Run: `python3 -m unittest discover` (CI runs the same on Python 3.12).
+- Run the complete local suite with:
+
+      python3 -m unittest discover
+
+- CI runs the same deterministic test modules on Python 3.12, partitioned into
+  semantic lanes defined by `tests/lanes.py`:
+
+      python3 -m tests.lanes <lane>
+
+- Every ordinary `tests/test_*.py` module must appear in exactly one lane in
+  `tests/lanes.py`. Adding a test module without assigning it to a lane, listing
+  it twice, or leaving a stale lane entry makes CI fail.
 - Every test module ends with `if __name__ == "__main__": unittest.main()`,
   so `python3 -m tests.test_x` runs one module.
-- Property tests use seeded `random.Random(seed)` with `subTest(seed=...)`, so
+- Generated/property tests use deterministic seeds. Shared generated-test
+  infrastructure lives in `tests/generation.py`.
+- `SEMIROH_SEED=<seed>` replays a generated case. A comma-separated list
+  replays several explicit seeds. An explicit seed overrides the generated
+  case budget.
+- `SEMIROH_CASES=<n>` changes the deterministic generated-case budget for
+  participating tests. Unset, empty, or `0` means use each test's ordinary
+  default budget; a positive integer selects the heavy budget.
+- Property tests use `random.Random(seed)` with `subTest(seed=...)`, so
   failures are reproducible. No third-party test libraries.
 - A new regression test must fail on the old code. For a property test,
   plant a plausible bug and confirm the property catches it.
 - Test semantic contracts, not incidental implementation details.
-- `SEMIROH_MUTATE=1 python3 -m tests.test_mutation` plants seeded bugs in
-  the model and runs the suite on each (a few minutes); a survivor is a gap
-  in the tests or a listed equivalent (`EQUIVALENT` in that module).
+- Mutation targets, omissions and reviewed survivors live in
+  `tests/mutation_catalog.py`. Survivor keys must identify one current
+  mutation site and are intentionally stable under unrelated edits elsewhere
+  in a file.
+- Run a seeded mutation sample with, for example:
+
+      SEMIROH_MUTATE=1 SEMIROH_MUTATE_SEED=1 \
+          python3 -m tests.test_mutation
+
+  `SEMIROH_MUTATE` is the number of mutants sampled per target. A survivor may
+  be catalogued only when it is reviewed as semantically equivalent or
+  intentionally unspecified, with a reason. A semantic test gap receives a
+  regression test and must not be whitelisted as a survivor.
+- Larger generated and mutation campaigns are available through manual
+  workflow dispatch; ordinary PR CI keeps the deterministic default budgets.
 
 ## Model map
 

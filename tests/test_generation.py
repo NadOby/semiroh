@@ -6,13 +6,46 @@ import os
 import unittest
 from unittest import mock
 
-from tests.generation import minimize_sequence, reproduction, seeds
+from tests.generation import (
+    case_count,
+    minimize_sequence,
+    reproduction,
+    seeds,
+)
 
 
 class SeedTests(unittest.TestCase):
     def test_default_seeds_are_deterministic(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(case_count(4), 4)
             self.assertEqual(seeds(4), (0, 1, 2, 3))
+
+    def test_heavy_budget_extends_the_deterministic_range(self) -> None:
+        with mock.patch.dict(
+            os.environ,
+            {"SEMIROH_CASES": "7"},
+            clear=True,
+        ):
+            self.assertEqual(case_count(4), 7)
+            self.assertEqual(seeds(4), tuple(range(7)))
+
+    def test_zero_heavy_budget_means_the_ordinary_default(self) -> None:
+        with mock.patch.dict(
+            os.environ,
+            {"SEMIROH_CASES": "0"},
+            clear=True,
+        ):
+            self.assertEqual(case_count(4), 4)
+            self.assertEqual(seeds(4), (0, 1, 2, 3))
+
+    def test_invalid_heavy_budget_is_rejected(self) -> None:
+        with mock.patch.dict(
+            os.environ,
+            {"SEMIROH_CASES": "-1"},
+            clear=True,
+        ):
+            with self.assertRaises(ValueError):
+                case_count(4)
 
     def test_one_seed_can_be_replayed(self) -> None:
         with mock.patch.dict(
@@ -21,6 +54,17 @@ class SeedTests(unittest.TestCase):
             clear=True,
         ):
             self.assertEqual(seeds(100), (37,))
+
+    def test_replay_takes_precedence_over_heavy_budget(self) -> None:
+        with mock.patch.dict(
+            os.environ,
+            {
+                "SEMIROH_CASES": "1000",
+                "SEMIROH_SEED": "37",
+            },
+            clear=True,
+        ):
+            self.assertEqual(seeds(4), (37,))
 
     def test_multiple_seeds_can_be_replayed(self) -> None:
         with mock.patch.dict(

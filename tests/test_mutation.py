@@ -121,6 +121,7 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(mutant.kind, "arithmetic")
         self.assertEqual(mutant.line, 5)
         self.assertEqual(mutant.text, "return a + b")
+        self.assertEqual(mutant.occurrence, 0)
 
     def test_site_key_distinguishes_nodes_on_one_line(self) -> None:
         source = "values = (0, False)\n"
@@ -139,16 +140,16 @@ class EngineTests(unittest.TestCase):
             constants[0].text,
             constants[1].text,
         )
-        self.assertNotEqual(
-            constants[0].index,
-            constants[1].index,
+        self.assertEqual(
+            [mutant.occurrence for mutant in constants],
+            [0, 1],
         )
         self.assertNotEqual(
             constants[0].key,
             constants[1].key,
         )
 
-    def test_nested_sites_with_same_start_remain_distinct(self) -> None:
+    def test_nested_sites_on_one_line_remain_distinct(self) -> None:
         source = "value = 1 + 2 + 3\n"
 
         arithmetic = [
@@ -161,13 +162,56 @@ class EngineTests(unittest.TestCase):
         ]
 
         self.assertEqual(len(arithmetic), 2)
-        self.assertNotEqual(
-            arithmetic[0].index,
-            arithmetic[1].index,
+        self.assertEqual(
+            arithmetic[0].text,
+            arithmetic[1].text,
+        )
+        self.assertEqual(
+            [mutant.occurrence for mutant in arithmetic],
+            [0, 1],
         )
         self.assertNotEqual(
             arithmetic[0].key,
             arithmetic[1].key,
+        )
+
+    def test_site_key_survives_unrelated_edits_elsewhere(self) -> None:
+        original = """\
+value = 1 + 2
+"""
+        edited = """\
+unrelated = 99
+value = 1 + 2
+"""
+
+        original_site = next(
+            mutant
+            for mutant in mutation.site_descriptions(
+                original,
+                "stable.py",
+            )
+            if mutant.kind == "arithmetic"
+        )
+        edited_site = next(
+            mutant
+            for mutant in mutation.site_descriptions(
+                edited,
+                "stable.py",
+            )
+            if mutant.kind == "arithmetic"
+        )
+
+        self.assertNotEqual(
+            original_site.index,
+            edited_site.index,
+        )
+        self.assertNotEqual(
+            original_site.line,
+            edited_site.line,
+        )
+        self.assertEqual(
+            original_site.key,
+            edited_site.key,
         )
 
     def test_a_seeded_sample_repeats(self) -> None:
@@ -238,10 +282,9 @@ class EngineTests(unittest.TestCase):
             found[0].key,
             (
                 "calc.py",
-                index,
                 "constant",
-                1,
                 "_unused = 0",
+                0,
             ),
         )
 
@@ -319,7 +362,8 @@ class SuiteMutationTests(unittest.TestCase):
                     escaped.append(
                         f"{target}:site-{mutant.index}:"
                         f"line-{mutant.line} "
-                        f"{mutant.kind}: "
+                        f"{mutant.kind}"
+                        f"[{mutant.occurrence}]: "
                         f"{mutant.text}"
                     )
 

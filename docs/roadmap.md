@@ -298,7 +298,8 @@ empty.
 
 ### 18. Verification hardening (handoff)
 
-**Planned.** The plan is in verification_hardening.md.
+**Implemented** (PR #42). The design and results are in
+verification_hardening.md.
 
 Strengthen the evidence that the semantic model is correct before changing
 its architecture. This is broader than adversarial testing: combine

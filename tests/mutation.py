@@ -227,6 +227,54 @@ def sample(
     )
 
 
+def _suite_environment() -> dict[str, str]:
+    return {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("SEMIROH_MUTATE")
+    }
+
+
+def _copy_repository(
+    root: Path,
+    destination: Path,
+) -> None:
+    """Copy exactly the repository content needed by the mutation suite."""
+
+    shutil.copytree(
+        root,
+        destination,
+        ignore=shutil.ignore_patterns(
+            ".git",
+            "__pycache__",
+        ),
+    )
+
+
+def baseline(
+    root: Path,
+    command: list[str],
+    timeout: float = 180,
+) -> subprocess.CompletedProcess[bytes]:
+    """Run the mutation suite against an unmodified repository copy.
+
+    This uses the same copy and environment rules as mutant execution. Mutation
+    testing is only meaningful when this baseline succeeds.
+    """
+
+    with tempfile.TemporaryDirectory() as scratch:
+        copy = Path(scratch) / "repo"
+        _copy_repository(root, copy)
+
+        return subprocess.run(
+            command,
+            cwd=copy,
+            env=_suite_environment(),
+            capture_output=True,
+            timeout=timeout,
+        )
+
+
 def killed(
     root: Path,
     target: str,
@@ -245,30 +293,17 @@ def killed(
         target,
         index,
     )
-    env = {
-        key: value
-        for key, value in os.environ.items()
-        if not key.startswith("SEMIROH_MUTATE")
-    }
 
     with tempfile.TemporaryDirectory() as scratch:
         copy = Path(scratch) / "repo"
-        shutil.copytree(
-            root,
-            copy,
-            ignore=shutil.ignore_patterns(
-                ".git",
-                "__pycache__",
-                "docs",
-            ),
-        )
+        _copy_repository(root, copy)
         (copy / target).write_text(mutated)
 
         try:
             done = subprocess.run(
                 command,
                 cwd=copy,
-                env=env,
+                env=_suite_environment(),
                 capture_output=True,
                 timeout=timeout,
             )

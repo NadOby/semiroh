@@ -86,6 +86,7 @@ LANES: dict[str, tuple[str, ...]] = {
     ),
     "mutation": (
         "test_mutation",
+        "test_mutation_catalog",
     ),
 }
 

@@ -1501,8 +1501,8 @@ def _collapse(
         payload = _decode(node.payload)
         expr = (
             "closure",
-            tuple(payload["params"]),
-            tuple(payload["captures"]),
+            payload["params"],
+            payload["captures"],
             collapse(roles["body"]),
         )
     elif kind == "tuple":
@@ -1697,4 +1697,4 @@ def run(
         entry,
         *args,
         may_activate=may_activate,
-                 )
+    )

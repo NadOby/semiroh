@@ -21,6 +21,8 @@ on:
       - "semiroh/**"
       - "tests/**"
       - "README.md"
+      - "CLAUDE.md"
+      - "CHANGES.md"
       - "docs/**"
       - ".github/workflows/semantic-model.yml"
 
@@ -29,6 +31,8 @@ on:
       - "semiroh/**"
       - "tests/**"
       - "README.md"
+      - "CLAUDE.md"
+      - "CHANGES.md"
       - "docs/**"
       - ".github/workflows/semantic-model.yml"
 

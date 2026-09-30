@@ -997,3 +997,63 @@ ledger measurement to match live model output.
 - Added `docs/verification_hardening.md` for roadmap task 18 and recorded
   language-architecture hardening as task 19.
   
+## 2026-09-30
+
+### Verification hardening
+
+- Completed roadmap task 18 without intentional production-semantic changes.
+  Verification work is separated from task 19's language-architecture changes.
+- Split the ordinary deterministic suite into eight semantic CI lanes:
+  `core-model`, `language-runtime`, `transform-continuity`,
+  `syntax-reconcile`, `compiler-self-hosting`, `vm-bootstrap`,
+  `cross-boundary`, and `mutation`. `tests/lanes.py` requires every ordinary
+  `test_*.py` module to belong to exactly one lane.
+- Added shared deterministic generation infrastructure with `SEMIROH_SEED`
+  replay, `SEMIROH_CASES` budget control, and deterministic sequence
+  reduction.
+- Added generated closure-heavy differential tests across host execution and
+  the embedded compiler/SEMIROH VM path; malformed-language rejection and
+  atomicity generation; stateful runtime sequences with invariants after every
+  operation; bounded-exhaustive continuity composition; and metamorphic tests
+  across both low-level transformations and language-level
+  render/reconcile, `function_at`/`define`, and independent rebased edits.
+- Expanded mutation accounting from 8 to 22 implementation targets. Every
+  top-level semantic module and example module is now either a mutation target
+  or has an explicit omission reason.
+- Replaced mutation survivor identity based on source position/global site
+  index with `(target, kind, stripped source line, occurrence among matching
+  sites)`. This distinguishes same-line/nested mutation sites while remaining
+  stable under unrelated edits elsewhere in the file.
+- Migrated historical survivor knowledge only where the current exact site and
+  justification were defensible. Survivor classifications are limited to
+  `equivalent` and `unspecified`; a semantic test gap cannot be whitelisted.
+  The historical `Function` equality entry was deliberately not migrated
+  because its original record described an open test gap rather than an
+  equivalent mutant.
+- Updated `CLAUDE.md` with semantic-lane requirements, generated-test replay
+  controls, mutation campaign controls, and survivor-classification policy.
+  `CLAUDE.md` and `CHANGES.md` were also added to the workflow path filters so
+  documentation/process-only changes trigger verification.
+- Moved one-off run measurements out of `docs/verification_hardening.md`.
+  That document now records stable verification architecture and policy;
+  concrete execution evidence is kept here and in the PR record.
+
+Measured Task 18 evidence:
+
+- Pre-Task-18 serial baseline, run `36672073336`: 831 tests, 21.464 s Python
+  test time, 36 s workflow wall time.
+- Representative split run `36679502020`: 25 s workflow wall time without
+  significant hosted-runner queueing.
+- Run `36682239622`: `compiler-self-hosting` took 17.479 s and
+  `vm-bootstrap` 12.623 s, putting the deterministic critical path below the
+  old 21.464 s serial test time despite the stronger suite.
+- Heavy generated-case run `36683989602` exercised a 200-case budget
+  successfully.
+- Earlier mutation smoke run `36690295906` sampled one mutant from each of the
+  22 targets; all sampled mutants were killed in 222.729 s.
+- Final broad mutation run `36708852109` used `SEMIROH_MUTATE=25` and
+  `SEMIROH_MUTATE_SEED=1` across all 22 targets. The mutation lane completed
+  successfully in 2574.450 s with no unclassified surviving mutants. This
+  validates the migrated survivor catalog under substantially broader sampling
+  than the earlier one-per-target smoke run.
+

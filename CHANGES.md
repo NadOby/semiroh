@@ -1057,3 +1057,34 @@ Measured Task 18 evidence:
   validates the migrated survivor catalog under substantially broader sampling
   than the earlier one-per-target smoke run.
 
+### Verification hardening review corrections
+
+A fresh pre-merge review found two problems in the evidence recorded above.
+
+- The malformed-language generator was described as testing rejection
+  atomicity. That was incorrect. Its runtime-state check observed only
+  `StateID`, while mutable cell content is runtime state outside `StateID`;
+  moreover, arbitrary `LanguageError` is not transactional and effects that
+  precede a later error remain observable according to normal effect ordering.
+  The generated malformed tests now check graph-form round-trip preservation
+  and rejection with `LanguageError` rather than leaked host exceptions.
+  Atomicity remains asserted only where the relevant operation specifies it,
+  including rejected writes and rejected activations.
+- The mutation harness copied the repository while excluding `docs/`, but ran
+  the complete `unittest` suite in that copy. `tests/test_docs.py` therefore
+  failed independently of the planted mutant, allowing a surviving mutant to
+  be reported as killed. Runs `36690295906` and `36708852109` are consequently
+  retained above as historical executions but are not valid mutation-kill
+  evidence and must not be used to support Task 18 acceptance.
+- Mutation execution now copies `docs/` and performs a preflight by running the
+  exact mutation-suite command against an unmodified repository copy made with
+  the same copy and environment rules. A failing baseline aborts the campaign.
+- Review also found four historical `semiroh/lang.py` generation mutations
+  incorrectly classified as equivalent. Graph-form generation numbers are
+  specified parts of node identity: new functions start at generation 0,
+  replacement starts at the next generation, and collisions advance to the
+  first free generation. The survivor exemptions were removed and dedicated
+  regressions now pin those rules.
+- A new broad mutation campaign must be run after these corrections. Its result
+  supersedes the invalid mutation evidence above.
+

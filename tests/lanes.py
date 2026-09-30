@@ -67,6 +67,7 @@ LANES: dict[str, tuple[str, ...]] = {
         "test_syntax_units",
     ),
     "compiler-self-hosting": (
+        "test_closure_differential",
         "test_closure_self_hosting",
         "test_self_hosting",
     ),

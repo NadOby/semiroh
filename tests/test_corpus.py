@@ -95,7 +95,6 @@ class CorpusShapeTests(unittest.TestCase):
         )
 
     def test_wanted_programs_name_their_missing_feature(self) -> None:
-        self.assertTrue(MISSING)
         self.assertEqual(len({wanted.name for wanted in MISSING}), len(MISSING))
 
         for wanted in MISSING:

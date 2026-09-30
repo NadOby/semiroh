@@ -6,13 +6,23 @@ import random
 import unittest
 
 from semiroh import EntityID, State, Value, transform
+from semiroh.lang import Function, define, function_at, load
+from semiroh.reconcile import reconcile
+from semiroh.syntax import parse, render_program
+from semiroh.transforms import rebase
 from tests.generation import seeds
 
 
 A = EntityID("a")
 B = EntityID("b")
 C = EntityID("c")
+
+F = EntityID("f")
+G = EntityID("g")
+H = EntityID("h")
+
 CASES = 200
+LANGUAGE_CASES = 60
 
 
 def state(a: int, b: int, c: int) -> State:
@@ -23,6 +33,27 @@ def state(a: int, b: int, c: int) -> State:
             C: Value.create(C, c),
         }
     )
+
+
+def language_state(seed: int) -> State:
+    rng = random.Random(seed)
+    add = rng.randint(0, 9)
+    multiply = rng.randint(1, 9)
+    finish = rng.randint(0, 9)
+
+    source = (
+        "fn f(x):\n"
+        f"    x + {add}\n"
+        "\n"
+        "fn g(x):\n"
+        f"    f(x) * {multiply}\n"
+        "\n"
+        "fn h(x):\n"
+        "    let y = g(x)\n"
+        f"    y + {finish}\n"
+    )
+
+    return load(parse(source))
 
 
 class TransformationMetamorphicTests(unittest.TestCase):
@@ -95,6 +126,112 @@ class TransformationMetamorphicTests(unittest.TestCase):
 
             with self.subTest(seed=seed):
                 self.assertEqual(once.id, twice.id)
+
+
+class LanguageMetamorphicTests(unittest.TestCase):
+    def test_rendered_program_reconciles_to_a_noop(self) -> None:
+        for seed in seeds(LANGUAGE_CASES):
+            source = language_state(seed)
+            rendered = render_program(source)
+
+            destination = reconcile(
+                source,
+                rendered,
+            ).destination
+
+            with self.subTest(seed=seed):
+                self.assertEqual(
+                    destination.id,
+                    source.id,
+                )
+
+    def test_defining_a_function_from_its_projection_is_a_noop(
+        self,
+    ) -> None:
+        for seed in seeds(LANGUAGE_CASES):
+            source = language_state(seed)
+
+            for entity in (F, G, H):
+                projected = function_at(
+                    source,
+                    entity,
+                )
+                destination = define(
+                    source,
+                    {entity: projected},
+                ).destination
+
+                with self.subTest(
+                    seed=seed,
+                    function=entity.value,
+                ):
+                    self.assertEqual(
+                        destination.id,
+                        source.id,
+                    )
+
+    def test_rebased_independent_defines_match_one_combined_define(
+        self,
+    ) -> None:
+        for seed in seeds(LANGUAGE_CASES):
+            rng = random.Random(seed)
+            source = language_state(seed)
+
+            new_f = Function(
+                ("x",),
+                (
+                    "add",
+                    ("arg", "x"),
+                    ("lit", rng.randint(10, 19)),
+                ),
+            )
+            new_g = Function(
+                ("x",),
+                (
+                    "mul",
+                    (
+                        "call",
+                        "f",
+                        ("arg", "x"),
+                    ),
+                    ("lit", rng.randint(2, 9)),
+                ),
+            )
+
+            left = define(
+                source,
+                {F: new_f},
+            )
+            right = define(
+                source,
+                {G: new_g},
+            )
+            combined = define(
+                source,
+                {
+                    F: new_f,
+                    G: new_g,
+                },
+            )
+
+            right_after_left = rebase(
+                right,
+                left,
+            )
+            left_after_right = rebase(
+                left,
+                right,
+            )
+
+            with self.subTest(seed=seed):
+                self.assertEqual(
+                    right_after_left.destination.id,
+                    combined.destination.id,
+                )
+                self.assertEqual(
+                    left_after_right.destination.id,
+                    combined.destination.id,
+                )
 
 
 if __name__ == "__main__":

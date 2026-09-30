@@ -73,7 +73,7 @@ class Example:
     """A named program with tags, its state, and the scenarios that run it.
 
     ``program`` is a ``State`` in the input format (tuple ``Function``
-    bodies and ``links`` relations). Each scenario is a tuple of ``Step``\\ s
+    bodies and ``links`` relations). Each scenario is a tuple of ``Step``\s
     run in order against one fresh ``Runtime(load(program), context)``.
     """
 
@@ -178,6 +178,7 @@ def play(example: Example, run: Callable[..., Any]) -> None:
 # Submodules build on the data format above, so they are imported only now
 # that it is fully defined; each does `from . import Example, Step, ...`.
 from . import (  # noqa: E402
+    closures,
     control,
     data,
     higher_order,
@@ -196,6 +197,7 @@ EXAMPLES: tuple[Example, ...] = (
     + self_modification.EXAMPLES
     + data.EXAMPLES
     + higher_order.EXAMPLES
+    + closures.EXAMPLES
     + self_hosting.EXAMPLES
     + vm.EXAMPLES
 )

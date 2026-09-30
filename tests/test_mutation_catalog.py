@@ -91,7 +91,7 @@ class MutationCatalogTests(unittest.TestCase):
                 self.assertTrue(reason.strip())
 
     def test_every_classified_survivor_names_a_target(self) -> None:
-        for target, _, _, _, _ in SURVIVORS:
+        for target, _, _, _ in SURVIVORS:
             with self.subTest(target=target):
                 self.assertIn(target, TARGETS)
 
@@ -149,12 +149,16 @@ class MutationCatalogTests(unittest.TestCase):
         ]
 
         self.assertEqual(len(constants), 2)
+        self.assertEqual(
+            [mutant.occurrence for mutant in constants],
+            [0, 1],
+        )
         self.assertNotEqual(
             constants[0].key,
             constants[1].key,
         )
 
-    def test_nested_same_start_sites_have_distinct_keys(self) -> None:
+    def test_nested_same_line_sites_have_distinct_keys(self) -> None:
         source = "value = 1 + 2 + 3\n"
 
         arithmetic = [
@@ -167,9 +171,48 @@ class MutationCatalogTests(unittest.TestCase):
         ]
 
         self.assertEqual(len(arithmetic), 2)
+        self.assertEqual(
+            [mutant.occurrence for mutant in arithmetic],
+            [0, 1],
+        )
         self.assertNotEqual(
             arithmetic[0].key,
             arithmetic[1].key,
+        )
+
+    def test_key_survives_unrelated_edit_above_site(self) -> None:
+        original = """\
+value = 1 + 2
+"""
+        edited = """\
+unrelated = 99
+value = 1 + 2
+"""
+
+        original_site = next(
+            mutant
+            for mutant in mutation.site_descriptions(
+                original,
+                "example.py",
+            )
+            if mutant.kind == "arithmetic"
+        )
+        edited_site = next(
+            mutant
+            for mutant in mutation.site_descriptions(
+                edited,
+                "example.py",
+            )
+            if mutant.kind == "arithmetic"
+        )
+
+        self.assertNotEqual(
+            original_site.line,
+            edited_site.line,
+        )
+        self.assertEqual(
+            original_site.key,
+            edited_site.key,
         )
 
 

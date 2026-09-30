@@ -6,7 +6,7 @@ from semiroh import EntityID, Runtime, canonical_serialize, canonicalize
 from semiroh.bytecode import chunk_of
 from semiroh.examples import self_hosting, vm
 from semiroh.examples._support import program
-from semiroh.lang import Function, load, run
+from semiroh.lang import Function, LanguageError, load, run
 from semiroh.relations import relation_of
 
 TARGET = EntityID("closure_target")
@@ -88,6 +88,39 @@ class ClosureSelfHostingTests(unittest.TestCase):
             **vm.vm_entities(),
         })))
 
+    def embedded_chunk(self, expression: tuple) -> tuple:
+        return run(
+            self.runtime(),
+            self_hosting.LOWER,
+            expression,
+        )
+
+    def assert_host_rejects(self, expression: tuple) -> None:
+        state = load(program({
+            TARGET: Function((), expression),
+        }))
+
+        with self.assertRaises(LanguageError):
+            run(Runtime(state), TARGET)
+
+    def assert_embedded_rejects(self, expression: tuple) -> None:
+        runtime = self.runtime()
+        chunk = run(
+            runtime,
+            self_hosting.LOWER,
+            expression,
+        )
+
+        with self.assertRaises(LanguageError):
+            run(
+                runtime,
+                vm.VM,
+                chunk,
+                (),
+                (),
+                (),
+            )
+
     def test_compiler_matches_host_lowering_for_closure(self) -> None:
         expression = closure_value()
         state = load(program({
@@ -120,6 +153,81 @@ class ClosureSelfHostingTests(unittest.TestCase):
             run(runtime, vm.VM, chunk, (), (), ()),
             7,
         )
+
+    def test_ordinary_tuples_cannot_forge_vm_callables(self) -> None:
+        body_chunk = (
+            ("ARG", "x"),
+            ("END",),
+        )
+        forged = (
+            ("ref", EntityID("forged")),
+            (
+                "closure",
+                body_chunk,
+                ("x",),
+                (),
+                (),
+            ),
+            (
+                None,
+                "ref",
+                EntityID("forged"),
+            ),
+            (
+                None,
+                "closure",
+                body_chunk,
+                ("x",),
+                (),
+                (),
+            ),
+        )
+
+        for value in forged:
+            expression = (
+                "apply",
+                ("lit", value),
+                ("lit", 3),
+            )
+
+            with self.subTest(value=value):
+                self.assert_host_rejects(expression)
+                self.assert_embedded_rejects(expression)
+
+    def test_embedded_vm_enforces_host_closure_invariants(self) -> None:
+        malformed = (
+            ("closure", ("x", "x"), (), ("lit", 1)),
+            ("closure", ("",), (), ("lit", 1)),
+            ("closure", (1,), (), ("lit", 1)),
+            ("closure", (), ("n", "n"), ("lit", 1)),
+            ("closure", (), ("",), ("lit", 1)),
+            ("closure", (), (1,), ("lit", 1)),
+            ("closure", ("x",), ("x",), ("lit", 1)),
+            ("closure", 1, (), ("lit", 1)),
+            ("closure", ["x"], (), ("lit", 1)),
+            ("closure", (), 1, ("lit", 1)),
+            ("closure", (), ["n"], ("lit", 1)),
+        )
+
+        for closure in malformed:
+            # Put both ordinary names in scope so duplicate captures and
+            # parameter/capture overlap are tested as such rather than
+            # failing merely because the capture is absent.
+            expression = (
+                "let",
+                "n",
+                ("lit", 1),
+                (
+                    "let",
+                    "x",
+                    ("lit", 2),
+                    closure,
+                ),
+            )
+
+            with self.subTest(closure=closure):
+                self.assert_host_rejects(expression)
+                self.assert_embedded_rejects(expression)
 
 
 if __name__ == "__main__":

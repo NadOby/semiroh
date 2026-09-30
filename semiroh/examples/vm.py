@@ -8,20 +8,23 @@ child. It runs the instructions of a pure function: arithmetic, comparison,
 tuples, ``let``, ``if``, ``seq``, ``call``, ``ref``, ``apply`` and lexical
 closures.
 
-The interpreter represents callable values internally as tagged tuples.
-References are ``("ref", entity)``. Closures are
-``("closure", body, params, captures, links)`` where ``captures`` is the
-captured environment. This need not be the host Python Closure record.
+The interpreter represents callable values internally as capability-tagged
+tuples. References are ``(token, "ref", entity)``. Closures are
+``(token, "closure", body, params, captures, links)`` where ``captures`` is
+the captured environment. ``token`` is a real SEMIROH closure created by
+``vm`` and never exposed to interpreted code, so an ordinary tuple built by
+that code cannot forge an internal callable. This representation need not be
+the host Python Closure record.
 
 ``links`` is the interpreted function's link table as ``linksof`` returns it.
 A direct ``CALL`` resolves there and enters the callee with ``applyv``.
 
-The machine is ``run(chunk, pc, stack, env, links)``. The operand stack is a
-tuple, the environment a tuple of ``(name, value)`` pairs, and the program
-counter an index. ``run`` calls itself in tail position for every instruction,
-``EVAL`` calls it for the child, and ``GOTO``, ``BRANCH`` and ``LETBIND`` tail
-call it, so a tail call of the interpreted function is a tail call of the
-machine.
+The machine is ``run(chunk, pc, stack, env, links, token)``. The operand stack
+is a tuple, the environment a tuple of ``(name, value)`` pairs, and the
+program counter an index. ``run`` calls itself in tail position for every
+instruction, ``EVAL`` calls it for the child, and ``GOTO``, ``BRANCH`` and
+``LETBIND`` tail call it, so a tail call of the interpreted function is a tail
+call of the machine.
 
 It has no way to raise an error of its own, so a check is made by doing the
 operation: ``INT`` adds zero, ``TUPLE`` takes the length, and ``trap`` indexes
@@ -48,12 +51,13 @@ APPLY_CALLABLE = EntityID("vm_apply")
 TRAP = EntityID("vm_trap")
 VM = EntityID("vm")
 
-_CHUNK, _PC, _STACK, _ENV, _LINKS = (
+_CHUNK, _PC, _STACK, _ENV, _LINKS, _TOKEN = (
     _arg("chunk"),
     _arg("pc"),
     _arg("stack"),
     _arg("env"),
     _arg("links"),
+    _arg("token"),
 )
 _INS = _arg("ins")
 _N = ("len", _STACK)
@@ -92,6 +96,7 @@ def _next(stack: tuple) -> tuple:
         stack,
         _ENV,
         _LINKS,
+        _TOKEN,
     )
 
 
@@ -110,6 +115,7 @@ def _enter(
         _lit(()),
         env,
         links_,
+        _TOKEN,
     )
 
 
@@ -130,25 +136,57 @@ def _binary(operation: str) -> tuple:
     )
 
 
-def _callable_tagged(value: tuple) -> tuple:
-    """Check the VM's internal callable representation."""
+def _callable_tagged(
+    value: tuple,
+    token: tuple = _TOKEN,
+) -> tuple:
+    """Check the VM's capability-tagged callable representation."""
 
-    tag = ("item", value, _lit(0))
+    length = ("len", value)
+    marker = ("item", value, _lit(0))
+    tag = ("item", value, _lit(1))
+    trap = ("call", "vm_trap")
 
     return (
-        "seq",
-        ("len", value),
+        "if",
+        ("lt", length, _lit(2)),
+        trap,
         (
             "if",
-            ("eq", tag, _lit("ref")),
-            _lit(True),
+            ("eq", marker, token),
             (
                 "if",
-                ("eq", tag, _lit("closure")),
-                _lit(True),
-                ("call", "vm_trap"),
+                ("eq", tag, _lit("ref")),
+                (
+                    "if",
+                    ("eq", length, _lit(3)),
+                    _lit(True),
+                    trap,
+                ),
+                (
+                    "if",
+                    ("eq", tag, _lit("closure")),
+                    (
+                        "if",
+                        ("eq", length, _lit(6)),
+                        _lit(True),
+                        trap,
+                    ),
+                    trap,
+                ),
             ),
+            trap,
         ),
+    )
+
+
+def _validate_names(names: tuple) -> tuple:
+    """Use the language's Function constructor to validate a name tuple."""
+
+    return (
+        "function",
+        names,
+        _lit(("lit", None)),
     )
 
 
@@ -172,13 +210,14 @@ def _cases() -> list[tuple[str, tuple]]:
         function: tuple,
         arguments: tuple,
     ) -> tuple:
-        """Call a tagged VM reference or closure."""
+        """Call a capability-tagged VM reference or closure."""
 
         return (
             "call",
             "vm_apply",
             function,
             arguments,
+            _TOKEN,
         )
 
     return [
@@ -370,6 +409,7 @@ def _cases() -> list[tuple[str, tuple]]:
                     _STACK,
                     (
                         "tuple",
+                        _TOKEN,
                         _lit("ref"),
                         (
                             "call",
@@ -384,25 +424,34 @@ def _cases() -> list[tuple[str, tuple]]:
         ),
         (
             "CLOSURE",
-            _next(
-                _push(
-                    _STACK,
-                    (
-                        "tuple",
-                        _lit("closure"),
-                        k(1),
-                        k(2),
+            (
+                "seq",
+                _validate_names(k(2)),
+                _validate_names(k(3)),
+                _validate_names(
+                    ("concat", k(2), k(3))
+                ),
+                _next(
+                    _push(
+                        _STACK,
                         (
-                            "call",
-                            "vm_capture",
-                            k(3),
-                            _ENV,
-                            _lit(0),
-                            _lit(()),
+                            "tuple",
+                            _TOKEN,
+                            _lit("closure"),
+                            k(1),
+                            k(2),
+                            (
+                                "call",
+                                "vm_capture",
+                                k(3),
+                                _ENV,
+                                _lit(0),
+                                _lit(()),
+                            ),
+                            _LINKS,
                         ),
-                        _LINKS,
-                    ),
-                )
+                    )
+                ),
             ),
         ),
         (
@@ -664,19 +713,20 @@ def _capture_body() -> tuple:
 def _apply_body() -> tuple:
     function = _arg("function")
     args = _arg("args")
-    tag = ("item", function, _lit(0))
+    token = _arg("token")
+    tag = ("item", function, _lit(1))
 
-    closure_body = ("item", function, _lit(1))
-    params = ("item", function, _lit(2))
-    captures = ("item", function, _lit(3))
-    closure_links = ("item", function, _lit(4))
+    closure_body = ("item", function, _lit(2))
+    params = ("item", function, _lit(3))
+    captures = ("item", function, _lit(4))
+    closure_links = ("item", function, _lit(5))
 
-    return (
+    dispatch = (
         "if",
         ("eq", tag, _lit("ref")),
         (
             "applyv",
-            ("item", function, _lit(1)),
+            ("item", function, _lit(2)),
             args,
         ),
         (
@@ -700,11 +750,18 @@ def _apply_body() -> tuple:
                         captures,
                     ),
                     closure_links,
+                    token,
                 ),
                 ("call", "vm_trap"),
             ),
             ("call", "vm_trap"),
         ),
+    )
+
+    return (
+        "seq",
+        _callable_tagged(function, token),
+        dispatch,
     )
 
 
@@ -713,7 +770,14 @@ def vm_entities() -> dict[EntityID, Any]:
 
     return {
         RUN: Function(
-            ("chunk", "pc", "stack", "env", "links"),
+            (
+                "chunk",
+                "pc",
+                "stack",
+                "env",
+                "links",
+                "token",
+            ),
             _run_body(),
         ),
         EntityID("vm_run.links"): links(
@@ -770,7 +834,7 @@ def vm_entities() -> dict[EntityID, Any]:
             vm_lookup=LOOKUP,
         ),
         APPLY_CALLABLE: Function(
-            ("function", "args"),
+            ("function", "args", "token"),
             _apply_body(),
         ),
         EntityID("vm_apply.links"): links(
@@ -786,20 +850,31 @@ def vm_entities() -> dict[EntityID, Any]:
         VM: Function(
             ("chunk", "params", "args", "links"),
             (
-                "call",
-                "vm_run",
-                _arg("chunk"),
-                _lit(0),
-                _lit(()),
+                "let",
+                "token",
+                (
+                    "closure",
+                    (),
+                    (),
+                    ("lit", None),
+                ),
                 (
                     "call",
-                    "vm_bind",
-                    _arg("params"),
-                    _arg("args"),
+                    "vm_run",
+                    _arg("chunk"),
                     _lit(0),
                     _lit(()),
+                    (
+                        "call",
+                        "vm_bind",
+                        _arg("params"),
+                        _arg("args"),
+                        _lit(0),
+                        _lit(()),
+                    ),
+                    _arg("links"),
+                    _arg("token"),
                 ),
-                _arg("links"),
             ),
         ),
         EntityID("vm.links"): links(
@@ -1144,4 +1219,4 @@ def _bootstrap() -> Example:
 
 EXAMPLES: tuple[Example, ...] = (
     _bootstrap(),
-    )
+        )

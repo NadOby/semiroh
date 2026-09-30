@@ -42,7 +42,8 @@ _ARITHMETIC = {
     ast.Mult: ast.Add,
 }
 
-MutationKey = tuple[str, str, str, int]
+# target, engine site index, kind, source line number, stripped source line
+MutationKey = tuple[str, int, str, int, str]
 
 
 @dataclass(frozen=True)
@@ -51,26 +52,24 @@ class Mutant:
     index: int
     kind: str
     line: int
-    column: int
     text: str
 
     @property
     def key(self) -> MutationKey:
-        """Identity of this mutation site for survivor classification.
+        """Exact current-source identity used for survivor classification.
 
-        The key uses the target, mutation kind, complete stripped source line
-        and the node's column within that stripped line.
-
-        This distinguishes different mutable nodes on the same line. If the
-        source is later moved or reformatted enough to invalidate a reviewed
-        classification, catalog validation fails closed.
+        ``index`` uniquely distinguishes mutation sites in the mutation
+        engine's current enumeration. The kind, line and text are retained as
+        a fingerprint, so a classification fails closed if refactoring causes
+        that index to identify a different source construct.
         """
 
         return (
             self.target,
+            self.index,
             self.kind,
+            self.line,
             self.text,
-            self.column,
         )
 
 
@@ -118,16 +117,13 @@ def _describe(
     node: ast.AST,
 ) -> Mutant:
     line = node.lineno
-    raw = source.splitlines()[line - 1]
-    indentation = len(raw) - len(raw.lstrip())
 
     return Mutant(
         target=target,
         index=index,
         kind=kind,
         line=line,
-        column=node.col_offset - indentation,
-        text=raw.strip(),
+        text=source.splitlines()[line - 1].strip(),
     )
 
 

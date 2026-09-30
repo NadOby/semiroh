@@ -115,6 +115,10 @@ OMITTED = {
 # generation 0, next-generation allocation, or collision advancement is a
 # semantic identity change and must be killed by regression tests.
 #
+# The historical bytecode _lowered initial-value entry is also not classified:
+# bytecode.md specifies lowered_count() as an absolute process-start count, so
+# changing its initial value is a semantic test gap now covered by a regression.
+#
 # A semantic test gap is never added here.
 SURVIVORS: dict[
     MutationKey,
@@ -123,20 +127,13 @@ SURVIVORS: dict[
     (
         "semiroh/bytecode.py",
         "constant",
-        "_lowered = 0",
-        0,
-    ): (
-        EQUIVALENT,
-        "the counter is only compared as a difference",
-    ),
-    (
-        "semiroh/bytecode.py",
-        "constant",
         "may_activate: bool = False,",
         0,
     ): (
-        EQUIVALENT,
-        "the relevant callers pass may_activate explicitly",
+        UNSPECIFIED,
+        "bytecode.run is an internal execution wrapper; the language-level "
+        "activation-capability contract is specified and tested through "
+        "semiroh.lang.run",
     ),
     (
         "semiroh/runtime.py",
@@ -162,8 +159,9 @@ SURVIVORS: dict[
         "IntRange(0, 100),",
         1,
     ): (
-        EQUIVALENT,
-        "the upper bound of the instrumentation cell is never reached",
+        UNSPECIFIED,
+        "the instrumentation cell's upper bound is example scaffolding rather "
+        "than part of the embedded compiler's semantic contract",
     ),
     (
         "semiroh/examples/vm.py",

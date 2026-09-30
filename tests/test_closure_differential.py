@@ -17,6 +17,7 @@ from semiroh.lang import (
     load,
     run,
 )
+from tests.generation import reproduction, seeds
 
 
 TARGET = EntityID("closure_diff_target")
@@ -284,12 +285,15 @@ class Generator:
 
 class ClosureDifferentialTests(unittest.TestCase):
     def test_generated_closure_programs_agree(self) -> None:
+        selected = seeds(CASES)
         computed = 0
 
-        for seed in range(CASES):
+        for seed in selected:
             body = Generator(seed).number(4)
 
             for argument in (-2, 3):
+                replay = reproduction(__name__, seed)
+
                 with self.subTest(
                     seed=seed,
                     argument=argument,
@@ -305,11 +309,22 @@ class ClosureDifferentialTests(unittest.TestCase):
                             f"valid generator produced a failure\n"
                             f"seed={seed} argument={argument}\n"
                             f"body={body!r}\n"
-                            f"host={expected!r}"
+                            f"host={expected!r}\n"
+                            f"reproduce: {replay}"
                         ),
                     )
 
-                    self.assertEqual(actual[0], expected[0])
+                    self.assertEqual(
+                        actual[0],
+                        expected[0],
+                        (
+                            f"seed={seed} argument={argument}\n"
+                            f"body={body!r}\n"
+                            f"host={expected!r}\n"
+                            f"embedded={actual!r}\n"
+                            f"reproduce: {replay}"
+                        ),
+                    )
 
                     self.assertTrue(
                         same(actual[1], expected[1]),
@@ -317,13 +332,14 @@ class ClosureDifferentialTests(unittest.TestCase):
                             f"seed={seed} argument={argument}\n"
                             f"body={body!r}\n"
                             f"host={expected!r}\n"
-                            f"embedded={actual!r}"
+                            f"embedded={actual!r}\n"
+                            f"reproduce: {replay}"
                         ),
                     )
 
                     computed += 1
 
-        self.assertEqual(computed, CASES * 2)
+        self.assertEqual(computed, len(selected) * 2)
 
 
 if __name__ == "__main__":

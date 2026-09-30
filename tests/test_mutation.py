@@ -4,17 +4,17 @@
 package and always run.
 
 ``SuiteMutationTests`` plant seeded single-site bugs in the production model
-and run the whole suite against each.  They run only when ``SEMIROH_MUTATE``
+and run the whole suite against each. They run only when ``SEMIROH_MUTATE``
 is set to a positive number of mutants sampled per target:
 
     SEMIROH_MUTATE=1 python -m tests.test_mutation
     SEMIROH_MUTATE=40 SEMIROH_MUTATE_SEED=7 \
         python -m tests.test_mutation
 
-Known survivors live in ``tests/mutation_catalog.py``.  Only reviewed
-equivalent changes and intentionally unspecified behaviour may remain there.
-A semantic test gap must receive a regression test instead of being
-whitelisted.
+Known survivors live in ``tests/mutation_catalog.py``. Only exact reviewed
+mutation sites with equivalent or intentionally unspecified behaviour may
+remain there. A semantic test gap must receive a regression test instead of
+being whitelisted.
 """
 
 from __future__ import annotations
@@ -71,19 +71,23 @@ class EngineTests(unittest.TestCase):
         ]
 
     def index_of(self, kind: str, text: str) -> int:
-        for index in range(mutation.site_count(CALC)):
-            _, mutant = mutation.mutate(
+        matches = [
+            mutant
+            for mutant in mutation.site_descriptions(
                 CALC,
                 "calc.py",
-                index,
             )
+            if mutant.kind == kind
+            and mutant.text == text
+        ]
 
-            if mutant.kind == kind and mutant.text == text:
-                return index
-
-        raise AssertionError(
-            f"no {kind} site on {text!r}"
+        self.assertEqual(
+            len(matches),
+            1,
+            f"expected one {kind} site on {text!r}",
         )
+
+        return matches[0].index
 
     def test_the_unmutated_copy_passes(self) -> None:
         done = subprocess.run(
@@ -112,9 +116,46 @@ class EngineTests(unittest.TestCase):
 
         self.assertIn("return a - b", source)
         self.assertIn("_unused = 0", source)
+
         self.assertEqual(
-            (mutant.kind, mutant.line),
-            ("arithmetic", 5),
+            (
+                mutant.kind,
+                mutant.line,
+                mutant.column,
+                mutant.text,
+            ),
+            (
+                "arithmetic",
+                5,
+                7,
+                "return a + b",
+            ),
+        )
+
+    def test_site_key_distinguishes_nodes_on_one_line(self) -> None:
+        source = "values = (0, False)\n"
+
+        constants = [
+            mutant
+            for mutant in mutation.site_descriptions(
+                source,
+                "same-line.py",
+            )
+            if mutant.kind == "constant"
+        ]
+
+        self.assertEqual(len(constants), 2)
+        self.assertEqual(
+            constants[0].text,
+            constants[1].text,
+        )
+        self.assertNotEqual(
+            constants[0].column,
+            constants[1].column,
+        )
+        self.assertNotEqual(
+            constants[0].key,
+            constants[1].key,
         )
 
     def test_a_seeded_sample_repeats(self) -> None:
@@ -179,9 +220,16 @@ class EngineTests(unittest.TestCase):
             self.command,
         )
 
+        self.assertEqual(len(found), 1)
+
         self.assertEqual(
-            [(item.kind, item.text) for item in found],
-            [("constant", "_unused = 0")],
+            found[0].key,
+            (
+                "calc.py",
+                "constant",
+                "_unused = 0",
+                10,
+            ),
         )
 
     def test_a_mutant_that_hangs_is_killed(self) -> None:
@@ -250,16 +298,14 @@ class SuiteMutationTests(unittest.TestCase):
                 indexes,
                 mutation.SUITE,
             ):
-                key = (
-                    target,
-                    mutant.kind,
-                    mutant.text,
+                classification = SURVIVORS.get(
+                    mutant.key
                 )
-                classification = SURVIVORS.get(key)
 
                 if classification is None:
                     escaped.append(
-                        f"{target}:{mutant.line} "
+                        f"{target}:{mutant.line}:"
+                        f"{mutant.column} "
                         f"{mutant.kind}: "
                         f"{mutant.text}"
                     )

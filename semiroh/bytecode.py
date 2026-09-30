@@ -284,8 +284,8 @@ def lower(node: Relation) -> Chunk:
             (
                 "CLOSURE",
                 roles["body"],
-                tuple(payload["params"]),
-                tuple(payload["captures"]),
+                payload["params"],
+                payload["captures"],
             )
         ]
 
@@ -483,4 +483,4 @@ def run(
         entry,
         *args,
         may_activate=may_activate,
-            )
+    )

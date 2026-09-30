@@ -50,8 +50,9 @@ closure expression is evaluated.
 other expression tree; creating a closure does not turn its body into an
 opaque `Function` value.
 
-Parameter and capture names must be non-empty strings and unique within their
-respective lists. A name may not occur in both lists.
+The parameter and capture containers must be tuples. Parameter and capture
+names must be non-empty strings and unique within their respective tuples.
+A name may not occur in both.
 
 Every declared capture must exist in the current lexical environment when the
 closure is created. Otherwise creation raises `LanguageError`.
@@ -144,13 +145,18 @@ For a closure call:
 1. check that the value is callable before evaluating later arguments, as
    `apply` does now;
 2. evaluate the arguments in the caller;
-3. check the closure's arity;
-4. enter the closure's owner in the active program version;
+3. resolve the closure's owner and body in the active program version and
+   enter the owner;
+4. check the closure's arity against the supplied arguments;
 5. execute the closure body with the captured environment plus the supplied
    parameters.
 
-A returned closure therefore remains callable after its creating frame has
-finished.
+This deliberately follows the existing indirect function-reference call
+ordering: active-target validity is established after argument evaluation and
+before the ordinary call-frame arity check. For a stale closure called with
+the wrong number of arguments, the stale owner/body error therefore wins.
+
+A returned closure remains callable after its creating frame has finished.
 
 Creating or applying a closure requires no activation capability.
 
@@ -194,10 +200,13 @@ No additional version-retention or garbage-collection rule is introduced.
 Its body is an ordinary child code node. Its parameter and capture-name lists
 are node data; evaluating the closure node does not evaluate its body.
 
-`function_at` round-trips the closure expression.
+`function_at` round-trips the closure expression without normalizing malformed
+parameter or capture metadata into another type.
 
-Lowering produces `CLOSURE`, carrying the body identity, parameters and capture
-names. The owner is the function whose frame evaluates that instruction.
+Lowering produces `CLOSURE`, carrying the body identity and the parameter and
+capture metadata unchanged. Validation remains an execution-time property.
+
+The owner is the function whose frame evaluates that instruction.
 
 Applying a closure creates the same kind of machine call frame as an ordinary
 function call, except that its initial environment contains the captured
@@ -224,10 +233,21 @@ closure application for the pure-code subset it already supports.
 The compiler bootstrap fixpoint and the existing self-hosting acceptance tests
 continue to hold.
 
-The SEMIROH-written VM represents runtime callables as tagged semantic data
-rather than the host Python `Closure` record. Its closure value carries the
-compiled body, parameters, captured environment and links required by the
-interpreted call.
+The SEMIROH-written VM does not reuse the host Python `Closure` record. Its
+internal callable values are capability-tagged semantic tuples. Each invocation
+of the VM creates a private token as a real closure and includes that token in
+every internal reference or closure representation produced by `REF` or
+`CLOSURE`. `REFCHECK` and `vm_apply` require that token as well as the expected
+shape and tag.
+
+An ordinary tuple constructed by interpreted SEMIROH code therefore cannot
+forge a VM reference or closure merely by using the strings `"ref"` or
+`"closure"`.
+
+The VM's internal closure value carries the compiled body, parameters,
+captured environment and links required by the interpreted call. `CLOSURE`
+applies the same parameter/capture name invariants as the host path before
+constructing it.
 
 ## 9. Corpus
 
@@ -262,6 +282,8 @@ Coverage includes:
 - capturing another closure;
 - closure arity errors;
 - invalid and duplicate parameter/capture names;
+- non-tuple parameter and capture metadata;
+- parameter/capture overlap;
 - a missing declared capture;
 - an undeclared free `arg` failing rather than resolving dynamically;
 - `apply` and `applyv` accepting closures;
@@ -272,6 +294,8 @@ Coverage includes:
 - continuity-preserved closure bodies following the active program version;
 - host and SEMIROH lowering agreeing for closure code;
 - the SEMIROH VM constructing and applying compiled closures;
+- rejection of forged tagged callable tuples by the SEMIROH VM;
+- differential host/embedded rejection of malformed closure metadata;
 - corpus and text-syntax round trips;
 - `MISSING` being empty.
 

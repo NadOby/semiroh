@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 import unittest
 
@@ -15,6 +16,17 @@ from tests.mutation_catalog import (
 
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def descriptions(
+    target: str,
+) -> tuple[mutation.Mutant, ...]:
+    source = (ROOT / target).read_text()
+
+    return mutation.site_descriptions(
+        source,
+        target,
+    )
 
 
 class MutationCatalogTests(unittest.TestCase):
@@ -51,7 +63,9 @@ class MutationCatalogTests(unittest.TestCase):
     def test_every_example_module_is_accounted_for(self) -> None:
         modules = {
             path.relative_to(ROOT).as_posix()
-            for path in (ROOT / "semiroh" / "examples").glob("*.py")
+            for path in (
+                ROOT / "semiroh" / "examples"
+            ).glob("*.py")
         }
 
         accounted = {
@@ -67,7 +81,9 @@ class MutationCatalogTests(unittest.TestCase):
         self.assertEqual(modules, accounted)
 
     def test_targets_and_omissions_do_not_overlap(self) -> None:
-        self.assertTrue(set(TARGETS).isdisjoint(OMITTED))
+        self.assertTrue(
+            set(TARGETS).isdisjoint(OMITTED)
+        )
 
     def test_every_omission_has_a_reason(self) -> None:
         for path, reason in OMITTED.items():
@@ -75,15 +91,70 @@ class MutationCatalogTests(unittest.TestCase):
                 self.assertTrue(reason.strip())
 
     def test_every_classified_survivor_names_a_target(self) -> None:
-        for target, _, _ in SURVIVORS:
+        for target, _, _, _ in SURVIVORS:
             with self.subTest(target=target):
                 self.assertIn(target, TARGETS)
 
     def test_survivor_classifications_are_explicit(self) -> None:
-        for mutant, (classification, reason) in SURVIVORS.items():
-            with self.subTest(mutant=mutant):
-                self.assertIn(classification, CLASSIFICATIONS)
+        for key, (
+            classification,
+            reason,
+        ) in SURVIVORS.items():
+            with self.subTest(key=key):
+                self.assertIn(
+                    classification,
+                    CLASSIFICATIONS,
+                )
                 self.assertTrue(reason.strip())
+
+    def test_every_survivor_key_names_exactly_one_current_site(
+        self,
+    ) -> None:
+        by_target: dict[
+            str,
+            Counter[mutation.MutationKey],
+        ] = {}
+
+        for target in {
+            key[0]
+            for key in SURVIVORS
+        }:
+            by_target[target] = Counter(
+                mutant.key
+                for mutant in descriptions(target)
+            )
+
+        for key in SURVIVORS:
+            with self.subTest(key=key):
+                self.assertEqual(
+                    by_target[key[0]][key],
+                    1,
+                    (
+                        "survivor classification must identify exactly one "
+                        "current mutation site; update or remove stale "
+                        f"classification {key!r}"
+                    ),
+                )
+
+    def test_one_broad_source_line_can_contain_distinct_sites(
+        self,
+    ) -> None:
+        source = "values = (0, False)\n"
+
+        constants = [
+            mutant
+            for mutant in mutation.site_descriptions(
+                source,
+                "example.py",
+            )
+            if mutant.kind == "constant"
+        ]
+
+        self.assertEqual(len(constants), 2)
+        self.assertNotEqual(
+            constants[0].key,
+            constants[1].key,
+        )
 
 
 if __name__ == "__main__":

@@ -1126,9 +1126,6 @@ valid evidence after the relevant oracle was shown to be unsound.
   direct mutation campaigns validate it before baseline or mutant execution.
   Any mutation-engine edit therefore requires explicit survivor re-review and
   repinning.
-- A new exhaustive mutation campaign must be run after these corrections.
-  That campaign, not any of the historical mutation runs listed above, will
-  provide the final Task 18 mutation-kill evidence.
 - Exhaustive mutation campaign `36908901083` was started after the false-kill
   and source-version fixes on head `40796cdb53b589cd368895c86fae97709ebe6202`. The later mutation-engine-pin
   correction did not modify `tests/mutation.py` or any mutation target; the

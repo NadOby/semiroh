@@ -29,6 +29,10 @@ def descriptions(
     )
 
 
+@unittest.skipIf(
+    mutation.in_mutation_subprocess(),
+    "mutation catalog integrity is harness metadata, not a semantic kill oracle",
+)
 class MutationCatalogTests(unittest.TestCase):
     def test_every_target_exists_and_has_mutation_sites(self) -> None:
         for target in TARGETS:

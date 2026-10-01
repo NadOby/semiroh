@@ -7,6 +7,8 @@ import subprocess
 import sys
 import unittest
 
+from semiroh import bytecode
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -35,6 +37,12 @@ class BytecodeRegressionTests(unittest.TestCase):
         self.assertEqual(
             done.stdout.strip(),
             "0",
+        )
+
+    def test_default_call_depth_limit_matches_specification(self) -> None:
+        self.assertEqual(
+            bytecode.CALL_DEPTH_LIMIT,
+            100_000,
         )
 
 

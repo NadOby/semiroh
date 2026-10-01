@@ -77,6 +77,17 @@ OMITTED = {
 }
 
 
+# Mutation-engine version under which the survivor classifications below were
+# reviewed. The site-discovery order, occurrence assignment and operator
+# semantics in tests/mutation.py are part of the meaning of a survivor key.
+#
+# Any edit to that engine therefore invalidates the reviewed survivor catalog
+# until its classifications are explicitly re-reviewed and this pin is updated.
+SURVIVOR_ENGINE_BLOB = (
+    "f9380e727e5662ea7f309229bd28a2ce11329910"
+)
+
+
 # Source versions under which the survivor classifications below were
 # reviewed. Values are Git blob object IDs for the exact file bytes.
 #

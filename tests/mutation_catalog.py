@@ -178,6 +178,17 @@ SURVIVORS: dict[
     (
         "semiroh/reconcile.py",
         "return",
+        "return {}",
+        1,
+    ): (
+        EQUIVALENT,
+        "_graph_links is called only after function_at identified the same "
+        "entity as a graph-form function; that implies _definition_of succeeds, "
+        "so this missing-definition return cannot affect reconciliation",
+    ),
+    (
+        "semiroh/reconcile.py",
+        "return",
         "return dict(definition.links)",
         0,
     ): (
@@ -196,6 +207,17 @@ SURVIVORS: dict[
         "the byte width used to delimit ownership count in the Python StateID "
         "encoding is an implementation representation detail; identity is "
         "specified by semantic content, not this particular byte layout",
+    ),
+    (
+        "semiroh/syntax.py",
+        "constant",
+        "+ self.expr(value, locs, 2, True)[0]",
+        1,
+    ): (
+        EQUIVALENT,
+        "syntax rendering gives special behaviour only to modes 0 and 1; "
+        "changing this internal mode from 2 to 3 therefore follows the same "
+        "rendering and rejection paths for every expression",
     ),
     (
         "semiroh/values.py",

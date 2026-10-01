@@ -9,6 +9,7 @@ from semiroh import (
     AllOf,
     AnyOf,
     CellDeclaration,
+    Entity,
     EntityID,
     External,
     IntRange,
@@ -21,6 +22,7 @@ from semiroh import (
     State,
     StateID,
     Value,
+    VersionID,
     canonical_serialize,
     canonicalize,
     transform_with_mapping,
@@ -56,6 +58,26 @@ class SemanticRecordImmutabilityTests(unittest.TestCase):
         kind = IsKind("int")
 
         cases = (
+            (
+                EntityID("identity"),
+                "value",
+                "changed",
+            ),
+            (
+                VersionID("version"),
+                "value",
+                "changed",
+            ),
+            (
+                StateID("state"),
+                "value",
+                "changed",
+            ),
+            (
+                Entity(EntityID("entity-record")),
+                "id",
+                OTHER,
+            ),
             (value, "content", 2),
             (state, "values", {}),
             (reference, "entity", OTHER),

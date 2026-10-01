@@ -281,8 +281,8 @@ One program differed only because the old interpreter reached Python's
 recursion limit; with that limit raised it agreed. The harness was not kept
 because there is no longer a second host interpreter to compare against.
 
-Roadmap task 18 plans broader differential, metamorphic and stateful testing,
-including the now-independent self-hosted compiler and SEMIROH VM paths.
+Roadmap task 18 added broader differential, metamorphic and stateful testing,
+including the independent self-hosted compiler and SEMIROH VM paths.
 
 ## 7. Is per-node identity paying for itself?
 

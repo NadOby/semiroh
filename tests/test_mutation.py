@@ -3,13 +3,20 @@
 ``EngineTests`` check the machinery in ``tests/mutation.py`` on a tiny
 package and always run.
 
-``SuiteMutationTests`` plant seeded single-site bugs in the production model
-and run the whole suite against each. They run only when ``SEMIROH_MUTATE``
-is set to a positive number of mutants sampled per target:
+``SuiteMutationTests`` plant deterministic single-site bugs in the production
+model and run the whole suite against each. They run only when
+``SEMIROH_MUTATE`` is set to a positive number of mutants per target and may
+be divided into disjoint batches:
 
-    SEMIROH_MUTATE=1 python -m tests.test_mutation
-    SEMIROH_MUTATE=40 SEMIROH_MUTATE_SEED=7 \
+    SEMIROH_MUTATE=3 python -m tests.test_mutation
+
+    SEMIROH_MUTATE=3 \
+    SEMIROH_MUTATE_SEED=1 \
+    SEMIROH_MUTATE_BATCH=4 \
         python -m tests.test_mutation
+
+For a fixed source tree, count and seed, batches are disjoint and together
+cover every mutation site exactly once.
 
 Known survivors live in ``tests/mutation_catalog.py``. Only exact reviewed
 mutation sites with equivalent or intentionally unspecified behaviour may
@@ -212,7 +219,7 @@ value = 1 + 2
             edited_site.key,
         )
 
-    def test_a_seeded_sample_repeats(self) -> None:
+    def test_seeded_batches_repeat(self) -> None:
         big = "\n".join(
             f"x{n} = {n} + 1"
             for n in range(50)
@@ -222,17 +229,114 @@ value = 1 + 2
             big,
             10,
             seed=3,
+            batch=2,
         )
 
         self.assertEqual(
             first,
-            mutation.sample(big, 10, seed=3),
+            mutation.sample(
+                big,
+                10,
+                seed=3,
+                batch=2,
+            ),
         )
         self.assertNotEqual(
             first,
-            mutation.sample(big, 10, seed=4),
+            mutation.sample(
+                big,
+                10,
+                seed=4,
+                batch=2,
+            ),
         )
         self.assertEqual(len(first), 10)
+
+    def test_batches_are_disjoint(self) -> None:
+        big = "\n".join(
+            f"x{n} = {n} + 1"
+            for n in range(30)
+        )
+
+        first = set(
+            mutation.sample(
+                big,
+                7,
+                seed=1,
+                batch=0,
+            )
+        )
+        second = set(
+            mutation.sample(
+                big,
+                7,
+                seed=1,
+                batch=1,
+            )
+        )
+        third = set(
+            mutation.sample(
+                big,
+                7,
+                seed=1,
+                batch=2,
+            )
+        )
+
+        self.assertTrue(first.isdisjoint(second))
+        self.assertTrue(first.isdisjoint(third))
+        self.assertTrue(second.isdisjoint(third))
+
+    def test_all_batches_cover_every_site_exactly_once(self) -> None:
+        big = "\n".join(
+            f"x{n} = {n} + 1"
+            for n in range(23)
+        )
+        sites = mutation.site_count(big)
+        count = 5
+
+        batches = []
+
+        for batch in range((sites + count - 1) // count):
+            batches.extend(
+                mutation.sample(
+                    big,
+                    count,
+                    seed=9,
+                    batch=batch,
+                )
+            )
+
+        self.assertEqual(
+            sorted(batches),
+            list(range(sites)),
+        )
+        self.assertEqual(
+            len(batches),
+            len(set(batches)),
+        )
+
+    def test_batch_after_exhaustion_is_empty(self) -> None:
+        source = "x = 1 + 2\n"
+
+        self.assertEqual(
+            mutation.sample(
+                source,
+                1,
+                seed=1,
+                batch=1,
+            ),
+            [],
+        )
+
+    def test_invalid_batch_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            mutation.sample(
+                "x = 1 + 2\n",
+                1,
+                seed=1,
+                batch=-1,
+            )
 
     def test_returning_none_is_not_a_mutation(self) -> None:
         self.assertEqual(
@@ -334,6 +438,17 @@ class SuiteMutationTests(unittest.TestCase):
                 "1",
             )
         )
+        batch = int(
+            os.environ.get(
+                "SEMIROH_MUTATE_BATCH",
+                "0",
+            )
+        )
+
+        if batch < 0:
+            raise ValueError(
+                "SEMIROH_MUTATE_BATCH must be a non-negative integer"
+            )
 
         baseline = mutation.baseline(
             mutation.ROOT,
@@ -354,16 +469,27 @@ class SuiteMutationTests(unittest.TestCase):
         )
 
         escaped = []
+        total_sites = 0
+        selected_sites = 0
+        targets_with_work = 0
 
         for target in TARGETS:
             source = (
                 mutation.ROOT / target
             ).read_text()
+            sites = mutation.site_count(source)
             indexes = mutation.sample(
                 source,
                 count,
                 seed,
+                batch=batch,
             )
+
+            total_sites += sites
+            selected_sites += len(indexes)
+
+            if indexes:
+                targets_with_work += 1
 
             for mutant in mutation.survivors(
                 mutation.ROOT,
@@ -383,6 +509,23 @@ class SuiteMutationTests(unittest.TestCase):
                         f"[{mutant.occurrence}]: "
                         f"{mutant.text}"
                     )
+
+        covered_through = min(
+            total_sites,
+            (batch + 1) * count * len(TARGETS),
+        )
+
+        print(
+            "\nmutation batch "
+            f"{batch}: selected {selected_sites} sites across "
+            f"{targets_with_work}/{len(TARGETS)} targets; "
+            f"{total_sites} total mutation sites exist"
+        )
+        print(
+            "batch ordering: "
+            f"count={count}, seed={seed}; "
+            f"run batches 0..N until selected=0 to exhaust all targets"
+        )
 
         self.assertEqual(
             escaped,

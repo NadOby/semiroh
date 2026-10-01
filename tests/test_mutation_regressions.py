@@ -21,6 +21,7 @@ from semiroh import (
     State,
     StateID,
     Value,
+    canonical_serialize,
     canonicalize,
     transform_with_mapping,
 )
@@ -161,6 +162,45 @@ class SemanticEqualityRegressionTests(unittest.TestCase):
                     record == object(),
                     False,
                 )
+
+    def test_equal_cell_declarations_have_equal_hashes(self) -> None:
+        first = CellDeclaration(
+            IsKind("int"),
+            0,
+        )
+        second = CellDeclaration(
+            IsKind("int"),
+            0,
+        )
+
+        self.assertEqual(first, second)
+        self.assertEqual(
+            hash(first),
+            hash(second),
+        )
+        self.assertEqual(
+            {first: "cell"}[second],
+            "cell",
+        )
+
+
+class CanonicalSerializationRegressionTests(unittest.TestCase):
+    def test_mapping_order_is_irrelevant_when_values_are_equal(
+        self,
+    ) -> None:
+        first = {
+            "a": 0,
+            "b": 0,
+        }
+        second = {
+            "b": 0,
+            "a": 0,
+        }
+
+        self.assertEqual(
+            canonical_serialize(first),
+            canonical_serialize(second),
+        )
 
 
 class ClosureCanonicalRegressionTests(unittest.TestCase):

@@ -81,9 +81,12 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   plant a plausible bug and confirm the property catches it.
 - Test semantic contracts, not incidental implementation details.
 - Mutation targets, omissions and reviewed survivors live in
-  `tests/mutation_catalog.py`. Survivor keys must identify one current
-  mutation site and are intentionally stable under unrelated edits elsewhere
-  in a file.
+  `tests/mutation_catalog.py`. A survivor classification is valid only for
+  the exact pinned target-source version and pinned mutation-engine version
+  under which it was reviewed. Any edit to a target file invalidates all
+  survivor classifications for that file until explicit re-review and
+  repinning; any edit to `tests/mutation.py` invalidates the survivor catalog
+  as a whole until explicit re-review and repinning.
 - Run a seeded mutation sample with, for example:
 
       SEMIROH_MUTATE=1 SEMIROH_MUTATE_SEED=1 \

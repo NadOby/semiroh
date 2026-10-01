@@ -49,15 +49,20 @@ _ARITHMETIC = {
     ast.Mult: ast.Add,
 }
 
-# target, mutation kind, stripped source line, occurrence among sites with
-# the same kind and stripped source line.
-MutationKey = tuple[str, str, str, int]
+# target, qualified named scope, mutation kind, stripped source line,
+# occurrence among sites of that kind on that physical line.
+#
+# The scope and line-local occurrence make classifications stable under
+# unrelated insertions elsewhere while deliberately failing closed when an
+# indistinguishable duplicate site is introduced in the same scope.
+MutationKey = tuple[str, str, str, str, int]
 
 
 @dataclass(frozen=True)
 class Mutant:
     target: str
     index: int
+    scope: str
     kind: str
     line: int
     text: str
@@ -70,13 +75,19 @@ class Mutant:
         ``index`` and ``line`` remain useful for execution and diagnostics but
         are intentionally not part of the classification key.
 
-        The key survives unrelated edits elsewhere in the file. Multiple
-        mutable constructs represented by the same stripped source line are
-        distinguished by their occurrence within that kind/text group.
+        Named scopes distinguish identical source lines in different semantic
+        constructs. ``occurrence`` distinguishes multiple mutable nodes of the
+        same kind represented on one physical source line.
+
+        If an indistinguishable duplicate line is added to the same scope, the
+        duplicate receives the same key. Catalog validation then observes more
+        than one matching site and fails closed instead of silently rebinding a
+        reviewed classification.
         """
 
         return (
             self.target,
+            self.scope,
             self.kind,
             self.text,
             self.occurrence,
@@ -119,19 +130,59 @@ def _sites(tree: ast.AST) -> list[tuple[str, ast.AST]]:
     return found
 
 
+def _scope_names(tree: ast.AST) -> dict[int, str]:
+    """Map every AST node to its nearest qualified named scope."""
+
+    scopes: dict[int, str] = {}
+
+    def visit(
+        node: ast.AST,
+        names: tuple[str, ...],
+    ) -> None:
+        if isinstance(
+            node,
+            (
+                ast.ClassDef,
+                ast.FunctionDef,
+                ast.AsyncFunctionDef,
+            ),
+        ):
+            names = (*names, node.name)
+
+        scopes[id(node)] = (
+            ".".join(names)
+            if names
+            else "<module>"
+        )
+
+        for child in ast.iter_child_nodes(node):
+            visit(child, names)
+
+    visit(tree, ())
+    return scopes
+
+
 def _descriptions(
     source: str,
     target: str,
+    tree: ast.AST,
     sites: list[tuple[str, ast.AST]],
 ) -> tuple[Mutant, ...]:
     lines = source.splitlines()
-    seen: dict[tuple[str, str], int] = defaultdict(int)
+    scopes = _scope_names(tree)
+
+    # Occurrence is intentionally local to one physical line. Identical lines
+    # elsewhere therefore do not renumber this site. If such a line is added
+    # in the same named scope, both sites instead receive the same key and the
+    # catalog's uniqueness check fails closed.
+    seen: dict[tuple[str, str, int], int] = defaultdict(int)
     descriptions = []
 
     for index, (kind, node) in enumerate(sites):
         line = node.lineno
         text = lines[line - 1].strip()
-        group = (kind, text)
+        scope = scopes[id(node)]
+        group = (scope, kind, line)
         occurrence = seen[group]
         seen[group] += 1
 
@@ -139,6 +190,7 @@ def _descriptions(
             Mutant(
                 target=target,
                 index=index,
+                scope=scope,
                 kind=kind,
                 line=line,
                 text=text,
@@ -161,6 +213,7 @@ def site_descriptions(
     return _descriptions(
         source,
         target,
+        tree,
         sites,
     )
 
@@ -209,6 +262,7 @@ def mutate(
     mutant = _descriptions(
         source,
         target,
+        tree,
         sites,
     )[index]
 

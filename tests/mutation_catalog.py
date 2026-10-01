@@ -169,6 +169,17 @@ SURVIVORS: dict[
         "replace the explicit constructor",
     ),
     (
+        "semiroh/continuity.py",
+        "constant",
+        'operation=_edit(("bump", "k", ("lit", 2))),',
+        0,
+    ): (
+        UNSPECIFIED,
+        "the literal chosen by the activate_define corpus fixture is not "
+        "itself part of the continuity contract; changing 2 to 3 preserves "
+        "the case's specified identity and runtime-cell observations",
+    ),
+    (
         "semiroh/runtime.py",
         "return",
         'return f"Version({self.id.value[:12]}, holds={len(self._holds)})"',
@@ -230,6 +241,17 @@ SURVIVORS: dict[
         "a links relation; the key is never installed in the destination and "
         "define identifies the edited function from the relation itself, so "
         "advancing by two instead of one changes no semantic result",
+    ),
+    (
+        "semiroh/reconcile.py",
+        "if",
+        "if added:",
+        0,
+    ): (
+        UNSPECIFIED,
+        "negating this diagnostic-only branch changes which cell names appear "
+        "in the ReconcileError message but does not change whether the "
+        "unsupported cell edit is rejected",
     ),
     (
         "semiroh/state.py",

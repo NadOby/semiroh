@@ -360,4 +360,15 @@ SURVIVORS: dict[
         "the flag separates shape numbers from endpoint EntityIDs; their value "
         "types cannot collide",
     ),
+    (
+        "semiroh/matching.py",
+        "constant",
+        "keys.append((True, shape))",
+        0,
+    ): (
+        EQUIVALENT,
+        "the flag separates subtree shape integers from external endpoint "
+        "EntityIDs; changing the flag cannot create a key collision because "
+        "those payload types are disjoint",
+    ),
 }

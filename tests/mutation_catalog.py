@@ -136,6 +136,17 @@ SURVIVORS: dict[
         "semiroh.lang.run",
     ),
     (
+        "semiroh/closures.py",
+        "boolean",
+        "if owner is None or body is None:",
+        0,
+    ): (
+        EQUIVALENT,
+        "if exactly one decoded identity is absent, Closure construction "
+        "rejects that non-EntityID and closure_value returns None through "
+        "the same validation path",
+    ),
+    (
         "semiroh/runtime.py",
         "return",
         'return f"Version({self.id.value[:12]}, holds={len(self._holds)})"',
@@ -152,6 +163,49 @@ SURVIVORS: dict[
     ): (
         UNSPECIFIED,
         "the number of StateID characters shown by repr is diagnostic only",
+    ),
+    (
+        "semiroh/ownership.py",
+        "constant",
+        "status[visited] = 2",
+        0,
+    ): (
+        EQUIVALENT,
+        "only status value 1 means on the current walk; every other stored "
+        "value means the entity was already visited, so changing 2 to 3 "
+        "does not alter cycle detection",
+    ),
+    (
+        "semiroh/reconcile.py",
+        "return",
+        "return dict(definition.links)",
+        0,
+    ): (
+        EQUIVALENT,
+        "returning None only causes reconcile to submit a redundant link-table "
+        "edit; define compares the reconstructed definition with the current "
+        "value and the resulting semantic state and mappings are unchanged",
+    ),
+    (
+        "semiroh/state.py",
+        "constant",
+        "8,",
+        1,
+    ): (
+        UNSPECIFIED,
+        "the byte width used to delimit ownership count in the Python StateID "
+        "encoding is an implementation representation detail; identity is "
+        "specified by semantic content, not this particular byte layout",
+    ),
+    (
+        "semiroh/values.py",
+        "constant",
+        "@dataclass(frozen=True, eq=False)",
+        1,
+    ): (
+        EQUIVALENT,
+        "Value defines its own __eq__ and __hash__, so enabling dataclass "
+        "equality generation does not replace those explicit methods",
     ),
     (
         "semiroh/examples/self_hosting.py",

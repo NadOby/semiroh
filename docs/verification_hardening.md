@@ -367,6 +367,18 @@ against an unmodified repository copy made with the same copy and environment
 rules used for mutant execution. A failing baseline aborts the campaign rather
 than allowing unrelated infrastructure failures to count as killed mutants.
 
+Campaign selection is deterministic. For a fixed target source,
+`mutation_count`, seed and batch number, mutation sites are shuffled once by
+the seed and the batch selects one consecutive slice of that ordering.
+Successive batch numbers are therefore disjoint and running batches until they
+become empty covers every mutation site exactly once.
+
+The heavy CI campaign also partitions mutation targets into four deterministic
+target shards. Sharding changes only which job owns a target; it does not
+change that target's mutation ordering or selected sites. Every individual
+mutant still runs the complete test suite, so target sharding does not weaken
+the kill criterion.
+
 ### Survivor identity
 
 A reviewed survivor is keyed by:
@@ -443,153 +455,3 @@ Relevant influences include:
   reproducible operation sequences with invariant checking.
 
 SEMIROH's own graph identity and continuity rules take precedence over
-assumptions from conventional languages.
-
-## 12. CI structure
-
-**Decided:**
-
-The ordinary deterministic suite is explicitly partitioned by
-`tests/lanes.py`.
-
-The lanes are:
-
-    core-model
-    language-runtime
-    transform-continuity
-    syntax-reconcile
-    compiler-self-hosting
-    vm-bootstrap
-    cross-boundary
-    mutation
-
-Every ordinary `test_*.py` module must belong to exactly one lane.
-
-CI fails if a test module is:
-
-- unassigned;
-- assigned more than once; or
-- still named by the configuration after its file disappears.
-
-The partition is semantic rather than equal-size sharding so a failing lane
-identifies a meaningful subsystem boundary.
-
-The slower independent implementations are separated from the cheaper model
-lanes.
-
-Mutation testing controls its own process concurrency; ordinary lane
-parallelism does not add another nested mutation-parallelism layer.
-
-The workflow retains manual dispatch for heavier generated and mutation
-campaigns.
-
-## 13. Measurement policy
-
-**Decided:**
-
-Verification-performance measurements are evidence about a particular run, not
-part of the permanent verification specification.
-
-For Task 18:
-
-- compare the pre-change serial workflow with a representative split workflow;
-- distinguish Python test-execution time from hosted-runner allocation and
-  queue delay;
-- record heavy generated and mutation campaign sizes and elapsed times;
-- keep those concrete run IDs and measurements in `CHANGES.md` and the PR
-  record.
-
-The stable requirement is that ordinary feedback remains practical while the
-heavier tier can spend substantially more compute.
-
-Future changes may produce different timings without making this document
-stale.
-
-## 14. CI tiers
-
-**Decided:**
-
-Every ordinary push/PR run includes:
-
-- the complete deterministic suite split into semantic lanes;
-- cheap generated differential and cross-boundary cases;
-- bounded exhaustive continuity composition;
-- deterministic stateful/adversarial sequences;
-- mutation engine and catalog validation.
-
-The broad planted-mutant campaign is intentionally not part of every PR run.
-
-Manual workflow dispatch exposes:
-
-    generated_cases
-    mutation_count
-    mutation_seed
-
-`generated_cases` raises participating generated-test budgets.
-
-`mutation_count` selects how many mutants are sampled per mutation target.
-
-`mutation_seed` makes the sample reproducible.
-
-This separates ordinary feedback latency from campaigns that intentionally use
-substantially more compute.
-
-## 15. Implementation summary
-
-**Implemented:**
-
-Task 18 added:
-
-- explicit semantic CI lanes with partition coverage guards;
-- parallel matrix CI;
-- generated closure-heavy host-versus-embedded-VM differential testing;
-- generated malformed-language round-trip and rejection testing;
-- generated low-level and language-level metamorphic testing;
-- a deterministic stateful runtime sequence harness;
-- bounded exhaustive continuity-composition verification;
-- common seed replay, case-budget and sequence-reduction infrastructure;
-- explicit mutation target accounting;
-- stable exact survivor identities;
-- mutation baseline preflight against an unmodified repository copy;
-- graph-generation identity regressions for specified allocation semantics;
-- migration of defensible historical survivor classifications;
-- mutation coverage expanded from 8 to 22 implementation targets;
-- manual heavy generated and mutation verification tiers;
-- updated repository guidance for lanes, generated replay and mutation
-  classification.
-
-No production semantic behaviour is intentionally changed by Task 18.
-
-## 16. Acceptance
-
-**Satisfied in PR #42:**
-
-- verification boundaries and their test methods are documented;
-- every ordinary test module belongs to exactly one semantic CI lane;
-- the ordinary suite runs in parallel semantic jobs;
-- before/after timing evidence is recorded outside this stable specification;
-- independent host/compiler/VM implementations have generated differential
-  coverage where their domains overlap;
-- malformed generation exercises graph-form collapse and specified runtime
-  rejection without assuming generic rollback semantics;
-- language-level metamorphic relations exercise render/reconcile,
-  `function_at`/`define`, and independent rebased definitions;
-- a deterministic stateful sequence harness checks global invariants after
-  every operation;
-- bounded exhaustive continuity composition covers a complete small domain;
-- generated failures can be replayed by seed;
-- failing stateful sequences can be reduced;
-- mutation targets account for the semantic implementation explicitly;
-- mutation campaigns validate an unmodified copy before planting mutants;
-- survivor identities remain stable under unrelated edits elsewhere in a file;
-- historical reviewed survivor knowledge is preserved where defensible;
-- semantic test gaps cannot be whitelisted as accepted survivors;
-- specified graph-generation identity changes are covered by regressions rather
-  than survivor exemptions;
-- manual generated and mutation campaign paths exist for heavier validation;
-- real defects discovered by future generated campaigns have a defined path
-  into minimized permanent regressions;
-- no production semantic behaviour is intentionally changed.
-
-Task 19 can therefore refactor architecture against this stronger verification
-baseline.

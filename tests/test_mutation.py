@@ -37,7 +37,11 @@ import unittest
 from pathlib import Path
 
 from tests import mutation
-from tests.mutation_catalog import SURVIVORS, TARGETS
+from tests.mutation_catalog import (
+    SURVIVORS,
+    SURVIVOR_SOURCE_BLOBS,
+    TARGETS,
+)
 
 
 CALC = """\
@@ -105,6 +109,65 @@ def _targets_for_shard(
         for index, target in enumerate(targets)
         if index % shards == shard
     )
+
+
+def _survivor_pin_errors(
+    root: Path,
+    survivors: dict[
+        mutation.MutationKey,
+        tuple[str, str],
+    ],
+    pins: dict[str, str],
+) -> tuple[str, ...]:
+    """Return reasons reviewed survivor classifications are not current."""
+
+    classified_targets = {
+        key[0]
+        for key in survivors
+    }
+    pinned_targets = set(pins)
+    errors = []
+
+    for target in sorted(
+        classified_targets - pinned_targets
+    ):
+        errors.append(
+            f"{target}: classified survivors have no reviewed source pin"
+        )
+
+    for target in sorted(
+        pinned_targets - classified_targets
+    ):
+        errors.append(
+            f"{target}: source pin has no classified survivors"
+        )
+
+    for target in sorted(
+        classified_targets & pinned_targets
+    ):
+        path = root / target
+        reviewed = pins[target]
+
+        if not path.is_file():
+            errors.append(
+                f"{target}: reviewed source is missing\n"
+                f"  reviewed: {reviewed}\n"
+                "  current:  <missing>"
+            )
+            continue
+
+        current = mutation.git_blob_id(
+            path.read_bytes()
+        )
+
+        if current != reviewed:
+            errors.append(
+                f"{target}: stale survivor review\n"
+                f"  reviewed: {reviewed}\n"
+                f"  current:  {current}"
+            )
+
+    return tuple(errors)
 
 
 class EngineTests(unittest.TestCase):
@@ -467,6 +530,115 @@ value = 1 + 2
             0,
         )
 
+    def test_current_survivor_source_pin_is_accepted(self) -> None:
+        key: mutation.MutationKey = (
+            "calc.py",
+            "constant",
+            "_unused = 0",
+            0,
+        )
+        survivors = {
+            key: (
+                "equivalent",
+                "fixture classification",
+            )
+        }
+        pins = {
+            "calc.py": mutation.git_blob_id(
+                (self.root / "calc.py").read_bytes()
+            )
+        }
+
+        self.assertEqual(
+            _survivor_pin_errors(
+                self.root,
+                survivors,
+                pins,
+            ),
+            (),
+        )
+
+    def test_source_edit_invalidates_survivor_pin(self) -> None:
+        key: mutation.MutationKey = (
+            "calc.py",
+            "constant",
+            "_unused = 0",
+            0,
+        )
+        survivors = {
+            key: (
+                "equivalent",
+                "fixture classification",
+            )
+        }
+        reviewed = mutation.git_blob_id(
+            (self.root / "calc.py").read_bytes()
+        )
+
+        (self.root / "calc.py").write_text(
+            CALC + "\nunrelated = 1\n"
+        )
+
+        errors = _survivor_pin_errors(
+            self.root,
+            survivors,
+            {"calc.py": reviewed},
+        )
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn(
+            "stale survivor review",
+            errors[0],
+        )
+        self.assertIn(
+            f"reviewed: {reviewed}",
+            errors[0],
+        )
+        self.assertIn(
+            "current:",
+            errors[0],
+        )
+
+    def test_missing_and_obsolete_survivor_pins_are_rejected(
+        self,
+    ) -> None:
+        key: mutation.MutationKey = (
+            "calc.py",
+            "constant",
+            "_unused = 0",
+            0,
+        )
+        survivors = {
+            key: (
+                "equivalent",
+                "fixture classification",
+            )
+        }
+
+        errors = _survivor_pin_errors(
+            self.root,
+            survivors,
+            {
+                "obsolete.py": "0" * 40,
+            },
+        )
+
+        self.assertEqual(len(errors), 2)
+        self.assertTrue(
+            any(
+                "calc.py: classified survivors have no reviewed source pin"
+                in error
+                for error in errors
+            )
+        )
+        self.assertTrue(
+            any(
+                "obsolete.py: source pin has no classified survivors"
+                in error
+                for error in errors
+            )
+        )
+
     def test_a_mutant_that_changes_behaviour_is_killed(
         self,
     ) -> None:
@@ -582,6 +754,23 @@ class SuiteMutationTests(unittest.TestCase):
             raise ValueError(
                 "SEMIROH_MUTATE_BATCH must be a non-negative integer"
             )
+
+        pin_errors = _survivor_pin_errors(
+            mutation.ROOT,
+            SURVIVORS,
+            SURVIVOR_SOURCE_BLOBS,
+        )
+
+        self.assertEqual(
+            pin_errors,
+            (),
+            (
+                "mutation campaign cannot use stale survivor classifications;"
+                " re-review every affected survivor before updating its source"
+                " pin:\n\n"
+                + "\n\n".join(pin_errors)
+            ),
+        )
 
         targets = _targets_for_shard(
             TARGETS,

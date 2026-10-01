@@ -26,7 +26,13 @@ from semiroh import (
     transform_with_mapping,
 )
 from semiroh.closures import Closure, closure_value
-from semiroh.continuity import DesignatorError, resolve
+from semiroh.continuity import (
+    Case,
+    DesignatorError,
+    Expect,
+    check,
+    resolve,
+)
 from semiroh.lang import Function, load
 from semiroh.relations import relation_of
 from semiroh.syntax import parse
@@ -275,6 +281,59 @@ class ContinuityDesignatorRegressionTests(unittest.TestCase):
                 "node:f@0.0",
                 malformed,
             )
+
+
+class ContinuityCheckerRegressionTests(unittest.TestCase):
+    @staticmethod
+    def _foreign_result():
+        foreign = State.create({})
+        return transform_with_mapping(
+            foreign,
+            {},
+            {},
+        )
+
+    def test_wrong_activation_exception_is_a_mismatch(self) -> None:
+        result = self._foreign_result()
+
+        case = Case(
+            name="wrong-activation-exception",
+            group="inferred",
+            source="fn f():\n    1\n",
+            operation=lambda _: result,
+            expect=Expect(rejected=KeyError),
+            status="probe",
+            note="mutation regression",
+        )
+
+        problems = check(case)
+
+        self.assertEqual(len(problems), 1)
+        self.assertIn(
+            "ActivationRejected",
+            problems[0],
+        )
+
+    def test_unexpected_activation_exception_is_a_mismatch(self) -> None:
+        result = self._foreign_result()
+
+        case = Case(
+            name="unexpected-activation-exception",
+            group="inferred",
+            source="fn f():\n    1\n",
+            operation=lambda _: result,
+            expect=Expect(),
+            status="probe",
+            note="mutation regression",
+        )
+
+        problems = check(case)
+
+        self.assertEqual(len(problems), 1)
+        self.assertIn(
+            "ActivationRejected",
+            problems[0],
+        )
 
 
 class RebaseMappingRegressionTests(unittest.TestCase):

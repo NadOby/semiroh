@@ -254,6 +254,17 @@ SURVIVORS: dict[
         "unsupported cell edit is rejected",
     ),
     (
+        "semiroh/reconcile.py",
+        "if",
+        "if removed:",
+        0,
+    ): (
+        UNSPECIFIED,
+        "negating this diagnostic-only branch changes which cell names appear "
+        "in the ReconcileError message but does not change whether the "
+        "unsupported cell edit is rejected",
+    ),
+    (
         "semiroh/state.py",
         "constant",
         "8,",

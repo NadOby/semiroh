@@ -1012,18 +1012,23 @@ ledger measurement to match live model output.
   replay, `SEMIROH_CASES` budget control, and deterministic sequence
   reduction.
 - Added generated closure-heavy differential tests across host execution and
-  the embedded compiler/SEMIROH VM path; malformed-language rejection and
-  atomicity generation; stateful runtime sequences with invariants after every
-  operation; bounded-exhaustive continuity composition; and metamorphic tests
-  across both low-level transformations and language-level
-  render/reconcile, `function_at`/`define`, and independent rebased edits.
-- Expanded mutation accounting from 8 to 22 implementation targets. Every
+  the embedded compiler/SEMIROH VM path; malformed-language rejection
+  generation; stateful runtime sequences with independently tracked semantic
+  effects and invariants after every operation; bounded-exhaustive continuity
+  composition; and metamorphic tests across both low-level transformations and
+  language-level render/reconcile, `function_at`/`define`, and independent
+  rebased edits.
+- Expanded mutation accounting from 8 to 23 implementation targets. Every
   top-level semantic module and example module is now either a mutation target
   or has an explicit omission reason.
-- Replaced mutation survivor identity based on source position/global site
-  index with `(target, kind, stripped source line, occurrence among matching
-  sites)`. This distinguishes same-line/nested mutation sites while remaining
-  stable under unrelated edits elsewhere in the file.
+- Survivor site keys use `(target, kind, stripped source line, occurrence among
+  matching sites)`. The key identifies a mutation site only within one reviewed
+  source version.
+- Added conservative source-version pinning for reviewed survivors. Every
+  target containing a classified survivor is pinned to the Git blob ID of the
+  exact source bytes under which that classification was reviewed. Any edit to
+  that target invalidates all of its survivor classifications until they are
+  explicitly re-reviewed and repinned.
 - Migrated historical survivor knowledge only where the current exact site and
   justification were defensible. Survivor classifications are limited to
   `equivalent` and `unspecified`; a semantic test gap cannot be whitelisted.
@@ -1035,10 +1040,10 @@ ledger measurement to match live model output.
   `CLAUDE.md` and `CHANGES.md` were also added to the workflow path filters so
   documentation/process-only changes trigger verification.
 - Moved one-off run measurements out of `docs/verification_hardening.md`.
-  That document now records stable verification architecture and policy;
-  concrete execution evidence is kept here and in the PR record.
+  That document records stable verification architecture and policy; concrete
+  execution evidence is kept here and in the PR record.
 
-Measured Task 18 evidence:
+Measured Task 18 evidence that remains valid:
 
 - Pre-Task-18 serial baseline, run `36672073336`: 831 tests, 21.464 s Python
   test time, 36 s workflow wall time.
@@ -1047,44 +1052,71 @@ Measured Task 18 evidence:
 - Run `36682239622`: `compiler-self-hosting` took 17.479 s and
   `vm-bootstrap` 12.623 s, putting the deterministic critical path below the
   old 21.464 s serial test time despite the stronger suite.
-- Heavy generated-case run `36683989602` exercised a 200-case budget
-  successfully.
-- Earlier mutation smoke run `36690295906` sampled one mutant from each of the
-  22 targets; all sampled mutants were killed in 222.729 s.
-- Final broad mutation run `36708852109` used `SEMIROH_MUTATE=25` and
-  `SEMIROH_MUTATE_SEED=1` across all 22 targets. The mutation lane completed
-  successfully in 2574.450 s with no unclassified surviving mutants. This
-  validates the migrated survivor catalog under substantially broader sampling
-  than the earlier one-per-target smoke run.
+- Generated-case run `36683989602` exercised a 200-case budget successfully.
+- Generated stress run `36874845445` exercised `SEMIROH_CASES=2000`
+  successfully across the split ordinary CI lanes.
+
+Historical mutation executions that are not valid mutation-kill evidence:
+
+- Run `36690295906` sampled one mutant from each of the then-22 targets.
+  This run is invalid as mutation-kill evidence because the mutation repository
+  copy omitted `docs/`, causing the complete child suite to fail independently
+  of the planted mutant.
+- Run `36708852109` used `SEMIROH_MUTATE=25` and
+  `SEMIROH_MUTATE_SEED=1` across the then-22 targets. It is invalid for the
+  same omitted-`docs/` reason and does not validate the survivor catalog.
+- Subsequent corrected mutation discovery and deterministic batches 0–6 are
+  also not final mutation-kill evidence. A later review found that mutation
+  catalog/source-integrity meta-tests still ran inside mutant subprocesses.
+  A mutant, or the whole-file `ast.unparse()` rewrite used to emit it, could
+  therefore fail those meta-tests for a nonsemantic source-text reason and be
+  falsely counted as killed.
+- Exhaustive campaign run `36891181744` was started before that false-kill
+  path was fixed. Regardless of its execution result, it is not valid final
+  mutation-kill evidence.
 
 ### Verification hardening review corrections
 
-A fresh pre-merge review found two problems in the evidence recorded above.
+Fresh pre-merge reviews found several verification-harness problems. They are
+recorded here because historical workflow success must not be mistaken for
+valid evidence after the relevant oracle was shown to be unsound.
 
-- The malformed-language generator was described as testing rejection
-  atomicity. That was incorrect. Its runtime-state check observed only
-  `StateID`, while mutable cell content is runtime state outside `StateID`;
-  moreover, arbitrary `LanguageError` is not transactional and effects that
-  precede a later error remain observable according to normal effect ordering.
-  The generated malformed tests now check graph-form round-trip preservation
-  and rejection with `LanguageError` rather than leaked host exceptions.
-  Atomicity remains asserted only where the relevant operation specifies it,
-  including rejected writes and rejected activations.
-- The mutation harness copied the repository while excluding `docs/`, but ran
-  the complete `unittest` suite in that copy. `tests/test_docs.py` therefore
-  failed independently of the planted mutant, allowing a surviving mutant to
-  be reported as killed. Runs `36690295906` and `36708852109` are consequently
-  retained above as historical executions but are not valid mutation-kill
-  evidence and must not be used to support Task 18 acceptance.
-- Mutation execution now copies `docs/` and performs a preflight by running the
-  exact mutation-suite command against an unmodified repository copy made with
-  the same copy and environment rules. A failing baseline aborts the campaign.
-- Review also found four historical `semiroh/lang.py` generation mutations
-  incorrectly classified as equivalent. Graph-form generation numbers are
-  specified parts of node identity: new functions start at generation 0,
-  replacement starts at the next generation, and collisions advance to the
-  first free generation. The survivor exemptions were removed and dedicated
-  regressions now pin those rules.
-- A new broad mutation campaign must be run after these corrections. Its result
-  supersedes the invalid mutation evidence above.
-
+- The malformed-language generator was initially described as testing blanket
+  rejection atomicity. That was incorrect. Mutable cell content is runtime
+  state outside `StateID`, and arbitrary `LanguageError` is not transactional:
+  effects that precede a later error remain observable according to normal
+  effect ordering. Generated malformed tests now check graph-form round-trip
+  preservation and rejection with `LanguageError` rather than leaked host
+  exceptions. Atomicity is asserted only for operations whose contracts
+  promise it, including rejected writes and rejected activations.
+- The original mutation harness copied the repository while excluding `docs/`
+  but ran the complete `unittest` suite in that copy. `tests/test_docs.py`
+  therefore failed independently of planted mutants. The harness now copies
+  the complete relevant repository and performs a baseline preflight using the
+  same command, copy rules, and environment as mutant execution.
+- Review found historical `semiroh/lang.py` generation mutations incorrectly
+  classified as equivalent. Graph-form generation numbers are specified parts
+  of node identity: new functions start at generation 0, replacement starts at
+  the next generation, and collisions advance to the first free generation.
+  Those exemptions were removed and dedicated regressions now pin the rules.
+- Review found that mutation catalog and other source-integrity meta-tests ran
+  inside mutation child subprocesses. Since mutants are emitted by rewriting
+  the target with `ast.unparse()`, those tests could fail because source text
+  changed rather than because semantic behaviour changed. Known equivalent
+  mutants could therefore be falsely reported as killed.
+- Mutation baseline and mutant child suites now run with
+  `SEMIROH_MUTATION_SUBPROCESS=1`. Mutation-catalog/source-integrity meta-tests
+  are excluded identically from both child-suite kinds while remaining
+  mandatory in ordinary CI. A regression explicitly verifies that a
+  source-sensitive meta-test cannot falsely kill an otherwise surviving
+  mutant.
+- Review also found that the compact occurrence-based survivor key could
+  silently rebind after insertion of another identical mutation site earlier
+  in a file. Rather than making the key structurally more complex, reviewed
+  survivors are now bound conservatively to exact source versions through
+  `SURVIVOR_SOURCE_BLOBS`. Any source edit invalidates that target's reviewed
+  survivor classifications, and direct mutation-campaign execution refuses
+  stale, missing, or obsolete pins.
+- A new exhaustive mutation campaign must be run after these corrections.
+  That campaign, not any of the historical mutation runs listed above, will
+  provide the final Task 18 mutation-kill evidence.

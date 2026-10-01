@@ -11,6 +11,7 @@ from tests.mutation_catalog import (
     CLASSIFICATIONS,
     OMITTED,
     SURVIVORS,
+    SURVIVOR_SOURCE_BLOBS,
     TARGETS,
 )
 
@@ -26,6 +27,12 @@ def descriptions(
     return mutation.site_descriptions(
         source,
         target,
+    )
+
+
+def current_blob(target: str) -> str:
+    return mutation.git_blob_id(
+        (ROOT / target).read_bytes()
     )
 
 
@@ -111,6 +118,46 @@ class MutationCatalogTests(unittest.TestCase):
                 )
                 self.assertTrue(reason.strip())
 
+    def test_survivor_source_pins_exactly_cover_classified_targets(
+        self,
+    ) -> None:
+        classified_targets = {
+            key[0]
+            for key in SURVIVORS
+        }
+
+        self.assertEqual(
+            set(SURVIVOR_SOURCE_BLOBS),
+            classified_targets,
+            (
+                "every target with reviewed survivors must have exactly one "
+                "reviewed source-version pin, and targets without survivors "
+                "must not retain stale pins"
+            ),
+        )
+
+    def test_survivor_source_pins_name_mutation_targets(self) -> None:
+        for target in SURVIVOR_SOURCE_BLOBS:
+            with self.subTest(target=target):
+                self.assertIn(target, TARGETS)
+
+    def test_survivor_sources_match_reviewed_versions(self) -> None:
+        for target, reviewed in SURVIVOR_SOURCE_BLOBS.items():
+            with self.subTest(target=target):
+                current = current_blob(target)
+
+                self.assertEqual(
+                    current,
+                    reviewed,
+                    (
+                        f"stale survivor review for {target}\n"
+                        f"  reviewed: {reviewed}\n"
+                        f"  current:  {current}\n"
+                        "re-review every classified survivor in this target "
+                        "before updating its source pin"
+                    ),
+                )
+
     def test_every_survivor_key_names_exactly_one_current_site(
         self,
     ) -> None:
@@ -184,19 +231,16 @@ class MutationCatalogTests(unittest.TestCase):
             arithmetic[1].key,
         )
 
-    def test_key_survives_unrelated_edit_above_site(self) -> None:
-        original = """\
-value = 1 + 2
-"""
-        edited = """\
-unrelated = 99
-value = 1 + 2
-"""
+    def test_unrelated_edit_invalidates_reviewed_source_version(
+        self,
+    ) -> None:
+        original = b"value = 1 + 2\n"
+        edited = b"unrelated = 99\nvalue = 1 + 2\n"
 
         original_site = next(
             mutant
             for mutant in mutation.site_descriptions(
-                original,
+                original.decode(),
                 "example.py",
             )
             if mutant.kind == "arithmetic"
@@ -204,19 +248,21 @@ value = 1 + 2
         edited_site = next(
             mutant
             for mutant in mutation.site_descriptions(
-                edited,
+                edited.decode(),
                 "example.py",
             )
             if mutant.kind == "arithmetic"
         )
 
-        self.assertNotEqual(
-            original_site.line,
-            edited_site.line,
-        )
+        # The compact site key may legitimately remain unchanged. It is valid
+        # only inside one explicitly reviewed source version.
         self.assertEqual(
             original_site.key,
             edited_site.key,
+        )
+        self.assertNotEqual(
+            mutation.git_blob_id(original),
+            mutation.git_blob_id(edited),
         )
 
 

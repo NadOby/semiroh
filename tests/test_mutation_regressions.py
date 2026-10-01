@@ -39,7 +39,11 @@ from semiroh.continuity import (
 from semiroh.lang import Function, load
 from semiroh.relations import relation_of
 from semiroh.syntax import parse
-from semiroh.transforms import rebase
+from semiroh.transforms import (
+    EntityChange,
+    TransformationMapping,
+    rebase,
+)
 
 
 ENTITY = EntityID("entity")
@@ -107,6 +111,22 @@ class SemanticRecordImmutabilityTests(unittest.TestCase):
                     ("arg", "x"),
                 ),
                 "params",
+                (),
+            ),
+            (
+                EntityChange(
+                    ENTITY,
+                    value,
+                ),
+                "entity",
+                OTHER,
+            ),
+            (
+                TransformationMapping(
+                    ENTITY,
+                    (ENTITY,),
+                ),
+                "destination_entities",
                 (),
             ),
             (

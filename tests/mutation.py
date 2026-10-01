@@ -216,15 +216,29 @@ def sample(
     source: str,
     count: int,
     seed: int,
+    batch: int = 0,
 ) -> list[int]:
-    sites = site_count(source)
+    """Return one deterministic, non-overlapping mutation batch.
 
-    return sorted(
-        random.Random(seed).sample(
-            range(sites),
-            min(count, sites),
-        )
-    )
+    For a fixed ``source``, ``count`` and ``seed``, batches partition the
+    shuffled mutation sites into consecutive slices. Therefore batch N never
+    repeats a site from an earlier batch, and running all batches eventually
+    covers every site exactly once.
+    """
+
+    if count < 1:
+        raise ValueError("mutation sample count must be positive")
+
+    if batch < 0:
+        raise ValueError("mutation batch must be non-negative")
+
+    indexes = list(range(site_count(source)))
+    random.Random(seed).shuffle(indexes)
+
+    start = batch * count
+    stop = start + count
+
+    return sorted(indexes[start:stop])
 
 
 def _suite_environment() -> dict[str, str]:

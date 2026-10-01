@@ -375,11 +375,33 @@ def execute(actions: tuple[Action, ...]) -> None:
             ) from exc
 
 
-def fails(actions: tuple[Action, ...]) -> bool:
+def failure_fingerprint(
+    failure: BaseException,
+) -> tuple[str, str]:
+    """Identify the underlying failure while ignoring step/action wrapping."""
+
+    root = failure
+
+    while root.__cause__ is not None:
+        root = root.__cause__
+
+    message = str(root)
+    category = message.split(":", 1)[0]
+
+    return (
+        type(root).__name__,
+        category,
+    )
+
+
+def fails(
+    actions: tuple[Action, ...],
+    fingerprint: tuple[str, str],
+) -> bool:
     try:
         execute(actions)
-    except AssertionError:
-        return True
+    except AssertionError as exc:
+        return failure_fingerprint(exc) == fingerprint
 
     return False
 
@@ -395,14 +417,19 @@ class StatefulSequenceTests(unittest.TestCase):
                 try:
                     execute(actions)
                 except AssertionError as exc:
+                    fingerprint = failure_fingerprint(exc)
                     reduced = minimize_sequence(
                         actions,
-                        fails,
+                        lambda candidate_actions: fails(
+                            candidate_actions,
+                            fingerprint,
+                        ),
                     )
 
                     self.fail(
                         f"{exc}\n"
                         f"seed={seed}\n"
+                        f"failure={fingerprint!r}\n"
                         f"reproduce: "
                         f"{reproduction(__name__, seed)}\n"
                         f"minimized={reduced!r}"

@@ -11,6 +11,7 @@ from tests.mutation_catalog import (
     CLASSIFICATIONS,
     OMITTED,
     SURVIVORS,
+    SURVIVOR_ENGINE_BLOB,
     SURVIVOR_SOURCE_BLOBS,
     TARGETS,
 )
@@ -117,6 +118,23 @@ class MutationCatalogTests(unittest.TestCase):
                     CLASSIFICATIONS,
                 )
                 self.assertTrue(reason.strip())
+
+    def test_survivor_mutation_engine_matches_reviewed_version(
+        self,
+    ) -> None:
+        current = current_blob("tests/mutation.py")
+
+        self.assertEqual(
+            current,
+            SURVIVOR_ENGINE_BLOB,
+            (
+                "stale survivor mutation-engine review\n"
+                f"  reviewed: {SURVIVOR_ENGINE_BLOB}\n"
+                f"  current:  {current}\n"
+                "re-review every classified survivor before updating the "
+                "mutation-engine pin"
+            ),
+        )
 
     def test_survivor_source_pins_exactly_cover_classified_targets(
         self,

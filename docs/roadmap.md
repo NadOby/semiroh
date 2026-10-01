@@ -298,8 +298,9 @@ empty.
 
 ### 18. Verification hardening (handoff)
 
-**Implemented** (PR #42). The design and results are in
-verification_hardening.md.
+**Implemented** (PR #42). The verification design and policy are in
+verification_hardening.md; execution evidence is recorded in `CHANGES.md`
+and the PR.
 
 Strengthen the evidence that the semantic model is correct before changing
 its architecture. This is broader than adversarial testing: combine

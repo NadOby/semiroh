@@ -76,12 +76,24 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.mutation_count != '0' }}
 
     runs-on: ubuntu-latest
-    name: mutation campaign
+    name: mutation campaign (shard ${{ matrix.shard }}/4)
+
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard:
+          - 0
+          - 1
+          - 2
+          - 3
 
     env:
       SEMIROH_MUTATE: ${{ inputs.mutation_count }}
       SEMIROH_MUTATE_SEED: ${{ inputs.mutation_seed }}
       SEMIROH_MUTATE_BATCH: ${{ inputs.mutation_batch }}
+      SEMIROH_MUTATE_SHARDS: "4"
+      SEMIROH_MUTATE_SHARD: ${{ matrix.shard }}
 
     steps:
       - uses: actions/checkout@v7
@@ -90,5 +102,5 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run mutation batch
+      - name: Run mutation batch shard
         run: python -m tests.lanes mutation

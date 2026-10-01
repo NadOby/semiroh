@@ -49,6 +49,8 @@ def add(a, b):
 """
 
 CALC_TESTS = """\
+import os
+from pathlib import Path
 import unittest
 
 from calc import add
@@ -57,6 +59,16 @@ from calc import add
 class AddTests(unittest.TestCase):
     def test_add(self):
         self.assertEqual(add(2, 3), 5)
+
+
+@unittest.skipIf(
+    os.environ.get("SEMIROH_MUTATION_SUBPROCESS") == "1",
+    "source integrity is harness metadata, not a mutation kill oracle",
+)
+class SourceIntegrityTests(unittest.TestCase):
+    def test_source_is_unmodified(self):
+        source = Path("calc.py").read_text()
+        self.assertIn("_unused = 0", source)
 
 
 if __name__ == "__main__":
@@ -472,7 +484,7 @@ value = 1 + 2
 
         self.assertTrue(dead)
 
-    def test_a_mutant_that_changes_nothing_survives(
+    def test_source_meta_test_does_not_false_kill_equivalent_mutant(
         self,
     ) -> None:
         index = self.index_of(

@@ -28,6 +28,7 @@ TARGETS = (
     "semiroh/continuity.py",
     "semiroh/equality.py",
     "semiroh/fold.py",
+    "semiroh/identity.py",
     "semiroh/lang.py",
     "semiroh/machine.py",
     "semiroh/matching.py",
@@ -51,8 +52,6 @@ TARGETS = (
 OMITTED = {
     "semiroh/__init__.py":
         "public re-export surface; semantic behaviour lives in its modules",
-    "semiroh/identity.py":
-        "declarative frozen identifier records with no semantic algorithm",
     "semiroh/examples/__init__.py":
         "example/corpus harness rather than a semantic implementation",
     "semiroh/examples/_support.py":

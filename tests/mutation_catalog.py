@@ -378,8 +378,10 @@ SURVIVORS: dict[
         "@dataclass(frozen=True)",
         0,
     ): (
-        EQUIVALENT,
-        "nothing mutates _Constant instances",
+        UNSPECIFIED,
+        "_Constant is a private implementation helper and its mutability is "
+        "not part of the constant-folding semantic contract; the folding "
+        "implementation itself never mutates these records",
     ),
     (
         "semiroh/fold.py",
@@ -397,8 +399,10 @@ SURVIVORS: dict[
         "if index is None:",
         0,
     ): (
-        EQUIVALENT,
-        "the relevant callers pass an index",
+        UNSPECIFIED,
+        "_links_of is a private helper and every internal caller supplies a "
+        "relation index; behavior of its optional omitted-index convenience "
+        "is not part of the language semantic contract",
     ),
     (
         "semiroh/lang.py",

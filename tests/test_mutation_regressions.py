@@ -25,6 +25,7 @@ from semiroh import (
     canonicalize,
     transform_with_mapping,
 )
+from semiroh.canonical import CanonicalNode
 from semiroh.closures import Closure, closure_value
 from semiroh.continuity import (
     Case,
@@ -208,6 +209,16 @@ class CanonicalSerializationRegressionTests(unittest.TestCase):
             canonical_serialize(second),
         )
 
+    def test_state_id_serializes_to_bytes(self) -> None:
+        encoded = canonical_serialize(
+            StateID("state"),
+        )
+
+        self.assertIsInstance(
+            encoded,
+            bytes,
+        )
+
 
 class ClosureCanonicalRegressionTests(unittest.TestCase):
     def test_canonical_closure_decodes_primitive_params_and_captures(
@@ -240,6 +251,29 @@ class ClosureCanonicalRegressionTests(unittest.TestCase):
         self.assertEqual(
             decoded.captures,
             (("items", [1, 2]),),
+        )
+
+    def test_canonical_closure_rejects_malformed_entity_tag(
+        self,
+    ) -> None:
+        malformed_owner = CanonicalNode((
+            "__type__",
+            "wrong",
+            OWNER.value,
+        ))
+        encoded = CanonicalNode((
+            "__type__",
+            "closure",
+            (
+                malformed_owner,
+                canonicalize(BODY),
+                canonicalize(()),
+                canonicalize(()),
+            ),
+        ))
+
+        self.assertIsNone(
+            closure_value(encoded),
         )
 
 

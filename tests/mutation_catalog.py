@@ -147,6 +147,17 @@ SURVIVORS: dict[
         "the same validation path",
     ),
     (
+        "semiroh/constraints.py",
+        "constant",
+        "@dataclass(frozen=True, eq=False, init=False)",
+        5,
+    ): (
+        EQUIVALENT,
+        "this occurrence is AllOf's init=False flag; AllOf defines its own "
+        "__init__, so changing dataclass init to True does not generate or "
+        "replace the explicit constructor",
+    ),
+    (
         "semiroh/runtime.py",
         "return",
         'return f"Version({self.id.value[:12]}, holds={len(self._holds)})"',

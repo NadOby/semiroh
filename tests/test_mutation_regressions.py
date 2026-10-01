@@ -25,7 +25,10 @@ from semiroh import (
     transform_with_mapping,
 )
 from semiroh.closures import Closure, closure_value
-from semiroh.lang import Function
+from semiroh.continuity import DesignatorError, resolve
+from semiroh.lang import Function, load
+from semiroh.relations import relation_of
+from semiroh.syntax import parse
 from semiroh.transforms import rebase
 
 
@@ -192,6 +195,46 @@ class ClosureCanonicalRegressionTests(unittest.TestCase):
             decoded.captures,
             (("items", [1, 2]),),
         )
+
+
+class ContinuityDesignatorRegressionTests(unittest.TestCase):
+    def test_path_through_non_node_raises_designator_error(self) -> None:
+        state = load(
+            parse(
+                "cell c: int = 0\n"
+                "\n"
+                "fn f(x):\n"
+                "    x + 1\n"
+            )
+        )
+
+        root = resolve("node:f@", state)
+        node = relation_of(state.values[root])
+        self.assertIsNotNone(node)
+        assert node is not None
+
+        roles = dict(node.roles)
+        roles["left"] = EntityID("c")
+
+        values = dict(state.values)
+        values[root] = Value.create(
+            root,
+            Relation(
+                node.kind,
+                roles,
+                node.payload,
+            ),
+        )
+        malformed = State.create(
+            values,
+            state.ownership,
+        )
+
+        with self.assertRaises(DesignatorError):
+            resolve(
+                "node:f@0.0",
+                malformed,
+            )
 
 
 class RebaseMappingRegressionTests(unittest.TestCase):

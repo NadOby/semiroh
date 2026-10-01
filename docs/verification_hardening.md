@@ -257,6 +257,8 @@ After every generated operation the harness checks global invariants including:
 - runtime cell content belongs only to declared cells;
 - runtime cell content satisfies its constraint;
 - the harness's live hold handles agree with runtime hold records;
+- the independently tracked cell content agrees with the runtime;
+- the independently tracked semantic value agrees with the active state;
 - rejected writes and rejected activations are atomic;
 - trials leave the main runtime unchanged.
 
@@ -268,7 +270,8 @@ Replay is:
         python -m unittest tests.test_stateful_sequences
 
 A failing sequence is passed through deterministic delta-debugging reduction
-before it is reported.
+before it is reported. Reduction preserves the underlying failure fingerprint
+rather than merely preserving the fact that some assertion fails.
 
 The harness is intentionally extensible. Future semantic features can add
 operations such as reconcile, explicit merge/split/disappearance and old/new
@@ -291,6 +294,11 @@ For each source entity, each relation can independently be:
 - split to both entities.
 
 This produces a complete finite set of two-step relation compositions.
+
+The raw finite relation domain is defined independently of
+`TransformationDefinition.create()`. Construction is checked against that raw
+domain, and the expected composition is computed from the raw relations rather
+than by reading production-normalized objects back into the oracle.
 
 The implementation is compared against a small independent relational oracle
 that distinguishes:
@@ -331,7 +339,7 @@ Unset, empty, or `0` means that each test uses its ordinary default budget.
 An explicit replay seed takes precedence over the case budget.
 
 The shared helper also implements deterministic sequence delta-debugging. It
-repeatedly removes chunks while the supplied failure predicate still fails,
+repeatedly removes chunks while the supplied failure predicate still holds,
 producing a smaller sequence suitable for diagnosis.
 
 Every real defect discovered by generated verification should become a small,
@@ -346,8 +354,8 @@ Mutation testing covers the semantic implementation broadly enough that new
 model modules cannot silently disappear from the campaign.
 
 Before Task 18 the mutation campaign targeted eight implementation files.
-Task 18 expands this to 22 targets, including the independent embedded compiler
-and SEMIROH VM.
+Task 18 expands this to 23 targets, including identity records, the independent
+embedded compiler and the SEMIROH VM.
 
 `tests/mutation_catalog.py` is the explicit inventory.
 
@@ -367,6 +375,14 @@ against an unmodified repository copy made with the same copy and environment
 rules used for mutant execution. A failing baseline aborts the campaign rather
 than allowing unrelated infrastructure failures to count as killed mutants.
 
+Baseline and mutant child suites run with
+`SEMIROH_MUTATION_SUBPROCESS=1`. Source-tree and mutation-catalog integrity
+tests are harness meta-tests rather than semantic kill oracles, so they are
+excluded identically from both child-suite kinds while remaining mandatory in
+ordinary CI. This prevents a mutant, or the whole-file `ast.unparse()` rewrite
+used to emit it, from being counted as killed merely because it changed source
+text inspected by the mutation harness itself.
+
 Campaign selection is deterministic. For a fixed target source,
 `mutation_count`, seed and batch number, mutation sites are shuffled once by
 the seed and the batch selects one consecutive slice of that ordering.
@@ -376,12 +392,12 @@ become empty covers every mutation site exactly once.
 The heavy CI campaign also partitions mutation targets into four deterministic
 target shards. Sharding changes only which job owns a target; it does not
 change that target's mutation ordering or selected sites. Every individual
-mutant still runs the complete test suite, so target sharding does not weaken
-the kill criterion.
+mutant still runs the complete semantic test suite, so target sharding does not
+weaken the kill criterion.
 
 ### Survivor identity
 
-A reviewed survivor is keyed by:
+A reviewed survivor has a compact site key:
 
     target file
     mutation kind
@@ -391,18 +407,38 @@ A reviewed survivor is keyed by:
 The occurrence distinguishes multiple mutable constructs represented by the
 same line, including nested constructs.
 
-Global mutation-site index and source line number are deliberately excluded
-from persistent identity. Therefore inserting unrelated code elsewhere in a
-file does not invalidate reviewed survivor classifications.
+That key is deliberately valid only inside one reviewed source version. It is
+not treated as a persistent identifier across edits to the target file.
 
-Catalog tests require each survivor key to identify exactly one current
-mutation site. If the relevant source expression itself changes, the key no
-longer resolves and the catalog fails closed.
+Every file containing one or more reviewed survivor classifications is
+therefore pinned in `SURVIVOR_SOURCE_BLOBS` to the Git blob ID of the exact
+source bytes under which those classifications were reviewed.
+
+Any edit to such a file – including an unrelated edit or insertion of another
+identical mutable line – changes the blob ID and invalidates all reviewed
+survivors in that file. The classifications must then be explicitly
+re-reviewed before the source pin is updated.
+
+Ordinary catalog tests require:
+
+- source pins to cover exactly the targets that have classified survivors;
+- every pin to name a current mutation target;
+- each pinned source to match its reviewed Git blob ID;
+- every survivor key to identify exactly one mutation site in that reviewed
+  source version.
+
+Direct mutation campaigns perform the source-pin validation before baseline or
+mutant execution and refuse to run with missing, obsolete or stale survivor
+pins.
+
+This deliberately conservative source-version pinning prevents a compact
+occurrence-based key from silently rebinding to a different semantic construct
+after an edit.
 
 ### Survivor classification
 
-The useful historical survivor knowledge from the earlier mutation campaign
-was migrated to exact current keys where the reason remained defensible.
+The useful historical survivor knowledge from earlier mutation campaigns was
+migrated to exact current keys where the reason remained defensible.
 
 Historical entries are not copied blindly:
 
@@ -455,3 +491,106 @@ Relevant influences include:
   reproducible operation sequences with invariant checking.
 
 SEMIROH's own graph identity and continuity rules take precedence over
+assumptions from conventional languages.
+
+## 12. CI structure
+
+**Decided:**
+
+The ordinary deterministic suite is partitioned into eight semantic lanes:
+
+    core-model
+    language-runtime
+    transform-continuity
+    syntax-reconcile
+    compiler-self-hosting
+    vm-bootstrap
+    cross-boundary
+    mutation
+
+`tests/lanes.py` owns the exact partition. Every ordinary `test_*.py` module
+must belong to exactly one lane. Missing, duplicate and stale assignments are
+errors.
+
+The lanes run independently in CI with fail-fast disabled at the matrix level,
+so one semantic failure does not hide results from unrelated lanes.
+
+The ordinary `mutation` lane runs mutation-engine and catalog integrity tests.
+It does not launch the expensive planted-mutant campaign by default.
+
+Heavy mutation verification is a separate four-shard job. Targets are
+partitioned deterministically across those shards while each individual mutant
+still runs the complete semantic suite.
+
+Manual workflow dispatch exposes:
+
+    generated_cases
+    mutation_count
+    mutation_seed
+    mutation_batch
+
+`generated_cases=0` uses ordinary generated-test budgets.
+`mutation_count=0` skips the heavy mutation campaign.
+
+A positive mutation count selects that many sites per target in the requested
+deterministic batch. A count larger than the number of sites in a target
+selects all of that target's sites in batch 0.
+
+The purpose of parallelization is lower development/PR latency while preserving
+deterministic results. Hosted-runner queueing is not treated as semantic test
+runtime.
+
+## 13. CI tiers
+
+**Decided:**
+
+Use different budgets for different feedback loops.
+
+Every PR runs:
+
+- the complete ordinary deterministic suite, split into the eight semantic
+  lanes;
+- deterministic generated differential and cross-boundary tests at their
+  ordinary budgets;
+- bounded exhaustive checks;
+- deterministic stateful/adversarial tests at their ordinary budgets;
+- mutation-engine, target-accounting, survivor-catalog and source-pin
+  integrity tests.
+
+Larger manually triggered verification runs may use:
+
+- substantially larger generated-case budgets;
+- broader deterministic stateful campaigns where configured;
+- planted-mutant campaigns across selected deterministic batches;
+- exhaustive mutation selection by choosing a per-target count larger than the
+  current mutation-site population.
+
+A heavy-run failure must remain reproducible from its recorded seed, batch,
+target and site identity.
+
+Historical timings and campaign results belong in `CHANGES.md` and the PR
+record rather than becoming normative CI requirements here.
+
+## 14. Acceptance
+
+**Decided:**
+
+Task 18 is done when:
+
+- the verification boundaries and their test methods are documented;
+- the ordinary suite is split into meaningful parallel CI jobs;
+- before/after ordinary-suite wall time is recorded;
+- important independent implementations have differential coverage over
+  generated cases where their domains overlap;
+- malformed generation exercises important semantic boundaries;
+- a deterministic stateful sequence harness checks global invariants;
+- at least one bounded-exhaustive test family covers a small semantic domain;
+- mutation targets cover the semantic implementation substantially more
+  completely, with survivors explicitly reviewed and fail-closed against
+  source-version drift;
+- generated failures can be reproduced and reduced;
+- discovered real defects are preserved as minimized regression tests;
+- no production semantic behaviour is intentionally changed.
+
+Task 19 may then refactor architecture against this stronger verification
+baseline.

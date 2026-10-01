@@ -29,6 +29,7 @@ being whitelisted.
 
 from __future__ import annotations
 
+import ast
 import os
 import sys
 import tempfile
@@ -60,6 +61,14 @@ class AddTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+"""
+
+OPERATOR_SOURCE = """\
+def probe(a, b):
+    value = False
+    if a < b:
+        return a and b
+    return a + b
 """
 
 
@@ -153,6 +162,54 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(mutant.line, 5)
         self.assertEqual(mutant.text, "return a + b")
         self.assertEqual(mutant.occurrence, 0)
+
+    def test_every_mutation_operator_changes_parseable_ast(self) -> None:
+        expected = {
+            "compare": "if a >= b:",
+            "arithmetic": "return a - b",
+            "boolean": "return a or b",
+            "if": "if not a < b:",
+            "constant": "value = True",
+            "return": "return None",
+        }
+        sites = mutation.site_descriptions(
+            OPERATOR_SOURCE,
+            "operators.py",
+        )
+        original = ast.dump(
+            ast.parse(OPERATOR_SOURCE),
+            include_attributes=False,
+        )
+
+        self.assertEqual(
+            {site.kind for site in sites},
+            set(expected),
+        )
+
+        for kind, fragment in expected.items():
+            with self.subTest(kind=kind):
+                site = next(
+                    site
+                    for site in sites
+                    if site.kind == kind
+                )
+                mutated, described = mutation.mutate(
+                    OPERATOR_SOURCE,
+                    "operators.py",
+                    site.index,
+                )
+
+                parsed = ast.parse(mutated)
+
+                self.assertNotEqual(
+                    ast.dump(
+                        parsed,
+                        include_attributes=False,
+                    ),
+                    original,
+                )
+                self.assertIn(fragment, mutated)
+                self.assertEqual(described, site)
 
     def test_site_key_distinguishes_nodes_on_one_line(self) -> None:
         source = "values = (0, False)\n"

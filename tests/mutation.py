@@ -25,6 +25,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# Baseline and mutant subprocesses run the same semantic suite, but source-tree
+# integrity checks are test-harness meta-tests rather than mutation kill
+# oracles. They use this marker to exclude themselves identically from both
+# subprocess kinds while remaining mandatory in the ordinary suite.
+MUTATION_SUBPROCESS_ENV = "SEMIROH_MUTATION_SUBPROCESS"
+
 _COMPARE = {
     ast.Lt: ast.GtE,
     ast.LtE: ast.Gt,
@@ -242,11 +248,23 @@ def sample(
 
 
 def _suite_environment() -> dict[str, str]:
-    return {
+    environment = {
         key: value
         for key, value in os.environ.items()
-        if not key.startswith("SEMIROH_MUTATE")
+        if (
+            not key.startswith("SEMIROH_MUTATE")
+            and key != MUTATION_SUBPROCESS_ENV
+        )
     }
+    environment[MUTATION_SUBPROCESS_ENV] = "1"
+
+    return environment
+
+
+def in_mutation_subprocess() -> bool:
+    """Whether this process is the suite run for a mutation campaign."""
+
+    return os.environ.get(MUTATION_SUBPROCESS_ENV) == "1"
 
 
 def _copy_repository(

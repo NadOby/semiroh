@@ -23,18 +23,47 @@ OPTIONS = (
 )
 
 
-def relations() -> tuple[TransformationDefinition, ...]:
+RawRelation = dict[EntityID, tuple[EntityID, ...]]
+RelationCase = tuple[RawRelation, TransformationDefinition]
+
+
+def explicit(definition: TransformationDefinition) -> RawRelation:
+    return {
+        mapping.source_entity: mapping.destination_entities
+        for mapping in definition.mappings
+    }
+
+
+def relation_key(
+    relation: RawRelation,
+) -> tuple[tuple[EntityID, tuple[EntityID, ...] | None], ...]:
+    """Preserve the distinction between absent and explicit disappearance."""
+
+    return tuple(
+        (
+            source,
+            relation.get(source),
+        )
+        for source in UNIVERSE
+    )
+
+
+def relations() -> tuple[RelationCase, ...]:
     out = []
 
     for choices in product(OPTIONS, repeat=len(UNIVERSE)):
-        mappings = {
+        raw = {
             source: destinations
             for source, destinations in zip(UNIVERSE, choices)
             if destinations is not None
         }
-        out.append(
-            TransformationDefinition.create(mappings=mappings)
+        definition = TransformationDefinition.create(
+            mappings=raw,
         )
+        out.append((
+            raw,
+            definition,
+        ))
 
     return tuple(out)
 
@@ -42,22 +71,12 @@ def relations() -> tuple[TransformationDefinition, ...]:
 RELATIONS = relations()
 
 
-def explicit(definition: TransformationDefinition):
-    return {
-        mapping.source_entity: mapping.destination_entities
-        for mapping in definition.mappings
-    }
-
-
 def expected(
-    first: TransformationDefinition,
-    second: TransformationDefinition,
+    first_relation: RawRelation,
+    second_relation: RawRelation,
     source: EntityID,
 ) -> tuple[str, tuple[EntityID, ...]]:
     """Independent relational oracle for two-step explicit continuity."""
-
-    first_relation = explicit(first)
-    second_relation = explicit(second)
 
     if source not in first_relation:
         return ("absent", ())
@@ -91,23 +110,50 @@ def actual(result, source: EntityID):
 
 
 class BoundedExhaustiveCompositionTests(unittest.TestCase):
+    def test_relation_domain_is_complete_and_preserved(self) -> None:
+        raw_keys = set()
+        constructed_keys = set()
+
+        for raw, definition in RELATIONS:
+            constructed = explicit(definition)
+
+            self.assertEqual(
+                constructed,
+                raw,
+                (
+                    "TransformationDefinition.create changed the "
+                    f"relation: raw={raw!r}, constructed={constructed!r}"
+                ),
+            )
+
+            raw_keys.add(relation_key(raw))
+            constructed_keys.add(relation_key(constructed))
+
+        self.assertEqual(len(RELATIONS), 25)
+        self.assertEqual(len(raw_keys), 25)
+        self.assertEqual(len(constructed_keys), 25)
+
     def test_every_two_entity_relation_pair_matches_the_oracle(self) -> None:
         checked = 0
 
-        for first in RELATIONS:
-            for second in RELATIONS:
+        for first_raw, first in RELATIONS:
+            for second_raw, second in RELATIONS:
                 result = compose(first, second)
 
                 for source in UNIVERSE:
-                    wanted = expected(first, second, source)
+                    wanted = expected(
+                        first_raw,
+                        second_raw,
+                        source,
+                    )
                     observed = actual(result, source)
 
                     self.assertEqual(
                         observed,
                         wanted,
                         (
-                            f"first={explicit(first)!r}\n"
-                            f"second={explicit(second)!r}\n"
+                            f"first={first_raw!r}\n"
+                            f"second={second_raw!r}\n"
                             f"source={source!r}"
                         ),
                     )

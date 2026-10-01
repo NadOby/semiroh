@@ -158,6 +158,14 @@ class MalformedGenerationTests(unittest.TestCase):
             )
         )
 
+    def test_invalid_label_names_are_rejected_at_load(self) -> None:
+        for name in ("", 1):
+            with self.subTest(name=name):
+                with self.assertRaises(LanguageError):
+                    self.state(
+                        ("label", name, ("lit", 1))
+                    )
+
     def test_generated_malformed_bodies_round_trip_and_reject(self) -> None:
         selected = seeds(CASES)
         seen = set()

@@ -136,6 +136,17 @@ SURVIVORS: dict[
         "semiroh.lang.run",
     ),
     (
+        "semiroh/cells.py",
+        "constant",
+        "@dataclass(frozen=True, eq=False)",
+        1,
+    ): (
+        EQUIVALENT,
+        "CellDeclaration defines its own __eq__ and __hash__, so enabling "
+        "dataclass equality generation does not replace either explicit "
+        "semantic method",
+    ),
+    (
         "semiroh/closures.py",
         "boolean",
         "if owner is None or body is None:",
@@ -207,6 +218,18 @@ SURVIVORS: dict[
         "returning None only causes reconcile to submit a redundant link-table "
         "edit; define compares the reconstructed definition with the current "
         "value and the resulting semantic state and mappings are unchanged",
+    ),
+    (
+        "semiroh/reconcile.py",
+        "constant",
+        "serial += 1",
+        0,
+    ): (
+        EQUIVALENT,
+        "the serial is used only to choose an unused temporary input key for "
+        "a links relation; the key is never installed in the destination and "
+        "define identifies the edited function from the relation itself, so "
+        "advancing by two instead of one changes no semantic result",
     ),
     (
         "semiroh/state.py",

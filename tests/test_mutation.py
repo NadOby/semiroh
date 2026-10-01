@@ -324,7 +324,7 @@ value = 1 + 2
                 source,
                 1,
                 seed=1,
-                batch=1,
+                batch=mutation.site_count(source),
             ),
             [],
         )

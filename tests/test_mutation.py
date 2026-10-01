@@ -6,17 +6,20 @@ package and always run.
 ``SuiteMutationTests`` plant deterministic single-site bugs in the production
 model and run the whole suite against each. They run only when
 ``SEMIROH_MUTATE`` is set to a positive number of mutants per target and may
-be divided into disjoint batches:
+be divided into disjoint mutation batches and target shards:
 
     SEMIROH_MUTATE=3 python -m tests.test_mutation
 
     SEMIROH_MUTATE=3 \
     SEMIROH_MUTATE_SEED=1 \
     SEMIROH_MUTATE_BATCH=4 \
+    SEMIROH_MUTATE_SHARDS=4 \
+    SEMIROH_MUTATE_SHARD=2 \
         python -m tests.test_mutation
 
 For a fixed source tree, count and seed, batches are disjoint and together
-cover every mutation site exactly once.
+cover every mutation site exactly once. Target shards partition the mutation
+targets without changing which mutants are selected for each target.
 
 Known survivors live in ``tests/mutation_catalog.py``. Only exact reviewed
 mutation sites with equivalent or intentionally unspecified behaviour may
@@ -58,6 +61,29 @@ class AddTests(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 """
+
+
+def _targets_for_shard(
+    targets: tuple[str, ...],
+    shards: int,
+    shard: int,
+) -> tuple[str, ...]:
+    if shards < 1:
+        raise ValueError(
+            "SEMIROH_MUTATE_SHARDS must be a positive integer"
+        )
+
+    if shard < 0 or shard >= shards:
+        raise ValueError(
+            "SEMIROH_MUTATE_SHARD must be between 0 and "
+            "SEMIROH_MUTATE_SHARDS - 1"
+        )
+
+    return tuple(
+        target
+        for index, target in enumerate(targets)
+        if index % shards == shard
+    )
 
 
 class EngineTests(unittest.TestCase):
@@ -338,6 +364,32 @@ value = 1 + 2
                 batch=-1,
             )
 
+    def test_target_shards_are_disjoint_and_exhaustive(self) -> None:
+        targets = tuple(
+            f"target-{index}"
+            for index in range(17)
+        )
+        shards = [
+            set(_targets_for_shard(targets, 4, shard))
+            for shard in range(4)
+        ]
+
+        self.assertEqual(
+            set().union(*shards),
+            set(targets),
+        )
+        self.assertEqual(
+            sum(len(shard) for shard in shards),
+            len(targets),
+        )
+
+    def test_invalid_target_shard_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            _targets_for_shard(("target",), 0, 0)
+
+        with self.assertRaises(ValueError):
+            _targets_for_shard(("target",), 1, 1)
+
     def test_returning_none_is_not_a_mutation(self) -> None:
         self.assertEqual(
             mutation.site_count(
@@ -444,11 +496,29 @@ class SuiteMutationTests(unittest.TestCase):
                 "0",
             )
         )
+        shards = int(
+            os.environ.get(
+                "SEMIROH_MUTATE_SHARDS",
+                "1",
+            )
+        )
+        shard = int(
+            os.environ.get(
+                "SEMIROH_MUTATE_SHARD",
+                "0",
+            )
+        )
 
         if batch < 0:
             raise ValueError(
                 "SEMIROH_MUTATE_BATCH must be a non-negative integer"
             )
+
+        targets = _targets_for_shard(
+            TARGETS,
+            shards,
+            shard,
+        )
 
         baseline = mutation.baseline(
             mutation.ROOT,
@@ -473,7 +543,7 @@ class SuiteMutationTests(unittest.TestCase):
         selected_sites = 0
         targets_with_work = 0
 
-        for target in TARGETS:
+        for target in targets:
             source = (
                 mutation.ROOT / target
             ).read_text()
@@ -512,15 +582,30 @@ class SuiteMutationTests(unittest.TestCase):
 
         print(
             "\nmutation batch "
-            f"{batch}: selected {selected_sites} sites across "
-            f"{targets_with_work}/{len(TARGETS)} targets; "
-            f"{total_sites} total mutation sites exist"
+            f"{batch}, shard {shard}/{shards}: "
+            f"selected {selected_sites} sites across "
+            f"{targets_with_work}/{len(targets)} shard targets; "
+            f"{total_sites} mutation sites exist in this shard",
+            flush=True,
         )
         print(
             "batch ordering: "
             f"count={count}, seed={seed}; "
-            f"run batches 0..N until selected=0 to exhaust all targets"
+            f"run batches 0..N until every shard selects 0 sites",
+            flush=True,
         )
+
+        if escaped:
+            print(
+                "\nunclassified surviving mutants:",
+                flush=True,
+            )
+
+            for survivor in escaped:
+                print(
+                    f"  {survivor}",
+                    flush=True,
+                )
 
         self.assertEqual(
             escaped,

@@ -73,7 +73,7 @@ jobs:
         run: python -m tests.lanes "${{ matrix.lane }}"
 
   mutation-campaign:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mutation_count != '0' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mutation_count != '' && inputs.mutation_count != '0' }}
 
     runs-on: ubuntu-latest
     name: mutation campaign (shard ${{ matrix.shard }}/4)

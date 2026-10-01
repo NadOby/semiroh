@@ -136,6 +136,18 @@ SURVIVORS: dict[
         "semiroh.lang.run",
     ),
     (
+        "semiroh/canonical.py",
+        "constant",
+        "8,",
+        0,
+    ): (
+        UNSPECIFIED,
+        "the Python canonical serializer's fixed byte width for length prefixes "
+        "is an implementation representation detail; the identity model "
+        "requires deterministic canonical representation and semantic "
+        "distinctions but does not prescribe this concrete byte encoding",
+    ),
+    (
         "semiroh/cells.py",
         "constant",
         "@dataclass(frozen=True, eq=False)",

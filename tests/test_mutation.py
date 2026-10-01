@@ -510,11 +510,6 @@ class SuiteMutationTests(unittest.TestCase):
                         f"{mutant.text}"
                     )
 
-        covered_through = min(
-            total_sites,
-            (batch + 1) * count * len(TARGETS),
-        )
-
         print(
             "\nmutation batch "
             f"{batch}: selected {selected_sites} sites across "

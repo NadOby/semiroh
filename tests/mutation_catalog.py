@@ -77,6 +77,54 @@ OMITTED = {
 }
 
 
+# Source versions under which the survivor classifications below were
+# reviewed. Values are Git blob object IDs for the exact file bytes.
+#
+# A classification is valid only while its whole target file has this exact
+# version. This is deliberately conservative: even an unrelated edit requires
+# the survivors in that file to be reviewed and the pin explicitly updated.
+# That prevents an occurrence-based key from silently rebinding to a different
+# semantic construct after source edits.
+SURVIVOR_SOURCE_BLOBS = {
+    "semiroh/bytecode.py":
+        "1a472965ece1fd9fd4608796bc82c94aef90bac4",
+    "semiroh/canonical.py":
+        "1f8789d0370a633425db2a8d26753bbc9f80f505",
+    "semiroh/cells.py":
+        "20e863b3494b14c8ce0fc0132c07355e7f9f8ee0",
+    "semiroh/closures.py":
+        "dfc12e8c2a6cad3bb0749fc1715759a19cd81488",
+    "semiroh/constraints.py":
+        "f28e80bb1c6fc633d739d5ce82436901653409ef",
+    "semiroh/continuity.py":
+        "09dbc50c6f382b3158a5602e6c7658ef2a79dc83",
+    "semiroh/fold.py":
+        "1e8453cd7dcdc57d9540edf855f66d3c81a4957c",
+    "semiroh/lang.py":
+        "6d49948b7d554869b4b65574079814a53b45541b",
+    "semiroh/machine.py":
+        "3c2ac3a0131dd59e3578fe45a35c4c49793eebaf",
+    "semiroh/matching.py":
+        "ee7d88dc9b82a2987e1b8b7cf8406a577d969c0d",
+    "semiroh/ownership.py":
+        "016b4704dcdfc1f493f8565bb08ce206ee608dfa",
+    "semiroh/reconcile.py":
+        "6351e808f1a1f96c0367e6bfd6b2e8e1b51ce3c3",
+    "semiroh/runtime.py":
+        "610c99adbf4dd9158c0efb3057fce2d332464d7d",
+    "semiroh/state.py":
+        "5d717ec8d0f0680754818788316369d8784c6626",
+    "semiroh/syntax.py":
+        "6c9fcf465a1ba74562b3e9355e1f4e746991b45a",
+    "semiroh/values.py":
+        "0c5974ffb4fb4b76c26542ee331406a1ef0a6835",
+    "semiroh/examples/self_hosting.py":
+        "270f94583613f44c344e4fc1600def38a4cd3111",
+    "semiroh/examples/vm.py":
+        "13e479099ab9250ca7127de25b176662c6496bb2",
+}
+
+
 # Exact reviewed survivors.
 #
 # Key:
@@ -88,9 +136,11 @@ OMITTED = {
 #         occurrence among sites with that same kind and source line,
 #     )
 #
-# Unlike a global mutation index or source line number, this identity survives
-# unrelated edits elsewhere in the file. The occurrence distinguishes multiple
-# mutable constructs represented by the same source line.
+# The key identifies one site within the source version pinned above.
+# Classification identity is not permitted to migrate automatically across an
+# edit to that file. Updating a pin therefore means explicitly accepting that
+# the survivor classifications in that target have been re-reviewed against
+# the new source.
 #
 # These classifications migrate the useful knowledge from the pre-Task-18
 # mutation catalog. Broad historical entries that covered several sites are

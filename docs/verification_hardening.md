@@ -407,33 +407,45 @@ A reviewed survivor has a compact site key:
 The occurrence distinguishes multiple mutable constructs represented by the
 same line, including nested constructs.
 
-That key is deliberately valid only inside one reviewed source version. It is
-not treated as a persistent identifier across edits to the target file.
+That key is deliberately valid only for one reviewed target-source version
+under one reviewed mutation-engine version. It is not treated as a persistent
+identifier across edits to either the target source or the machinery that
+discovers and interprets mutation sites.
 
 Every file containing one or more reviewed survivor classifications is
 therefore pinned in `SURVIVOR_SOURCE_BLOBS` to the Git blob ID of the exact
 source bytes under which those classifications were reviewed.
 
-Any edit to such a file – including an unrelated edit or insertion of another
-identical mutable line – changes the blob ID and invalidates all reviewed
-survivors in that file. The classifications must then be explicitly
-re-reviewed before the source pin is updated.
+The mutation engine itself is separately pinned in `SURVIVOR_ENGINE_BLOB` to
+the exact Git blob ID of `tests/mutation.py` under which the classifications
+were reviewed. Site-discovery order, occurrence assignment and mutation
+operator semantics are part of the meaning of a survivor key, so changing the
+engine can invalidate a classification even when the production source is
+byte-for-byte unchanged.
+
+Any edit to a pinned production file – including an unrelated edit or
+insertion of another identical mutable line – changes its blob ID and
+invalidates all reviewed survivors in that file. Any edit to
+`tests/mutation.py` invalidates the reviewed survivor catalog as a whole.
+Affected classifications must be explicitly re-reviewed before the
+corresponding source or engine pin is updated.
 
 Ordinary catalog tests require:
 
 - source pins to cover exactly the targets that have classified survivors;
-- every pin to name a current mutation target;
+- every source pin to name a current mutation target;
 - each pinned source to match its reviewed Git blob ID;
-- every survivor key to identify exactly one mutation site in that reviewed
-  source version.
+- the mutation engine to match its reviewed Git blob ID;
+- every survivor key to identify exactly one mutation site under those
+  reviewed source and engine versions.
 
-Direct mutation campaigns perform the source-pin validation before baseline or
-mutant execution and refuse to run with missing, obsolete or stale survivor
-pins.
+Direct mutation campaigns perform both source-pin and mutation-engine-pin
+validation before baseline or mutant execution and refuse to run with missing,
+obsolete or stale survivor review pins.
 
-This deliberately conservative source-version pinning prevents a compact
+This deliberately conservative version pinning prevents a compact
 occurrence-based key from silently rebinding to a different semantic construct
-after an edit.
+after a source edit or silently changing meaning after a mutation-engine edit.
 
 ### Survivor classification
 
@@ -554,8 +566,8 @@ Every PR runs:
   ordinary budgets;
 - bounded exhaustive checks;
 - deterministic stateful/adversarial tests at their ordinary budgets;
-- mutation-engine, target-accounting, survivor-catalog and source-pin
-  integrity tests.
+- mutation-engine, target-accounting, survivor-catalog, source-pin and
+  mutation-engine-pin integrity tests.
 
 Larger manually triggered verification runs may use:
 
@@ -587,7 +599,7 @@ Task 18 is done when:
 - at least one bounded-exhaustive test family covers a small semantic domain;
 - mutation targets cover the semantic implementation substantially more
   completely, with survivors explicitly reviewed and fail-closed against
-  source-version drift;
+  target-source and mutation-engine version drift;
 - generated failures can be reproduced and reduced;
 - discovered real defects are preserved as minimized regression tests;
 - no production semantic behaviour is intentionally changed.

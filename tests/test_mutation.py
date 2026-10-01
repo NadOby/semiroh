@@ -39,6 +39,7 @@ from pathlib import Path
 from tests import mutation
 from tests.mutation_catalog import (
     SURVIVORS,
+    SURVIVOR_ENGINE_BLOB,
     SURVIVOR_SOURCE_BLOBS,
     TARGETS,
 )
@@ -118,15 +119,36 @@ def _survivor_pin_errors(
         tuple[str, str],
     ],
     pins: dict[str, str],
+    engine_blob: str,
 ) -> tuple[str, ...]:
     """Return reasons reviewed survivor classifications are not current."""
+
+    errors = []
+    engine_path = root / "tests" / "mutation.py"
+
+    if not engine_path.is_file():
+        errors.append(
+            "tests/mutation.py: reviewed mutation engine is missing\n"
+            f"  reviewed: {engine_blob}\n"
+            "  current:  <missing>"
+        )
+    else:
+        current_engine = mutation.git_blob_id(
+            engine_path.read_bytes()
+        )
+
+        if current_engine != engine_blob:
+            errors.append(
+                "tests/mutation.py: stale survivor mutation-engine review\n"
+                f"  reviewed: {engine_blob}\n"
+                f"  current:  {current_engine}"
+            )
 
     classified_targets = {
         key[0]
         for key in survivors
     }
     pinned_targets = set(pins)
-    errors = []
 
     for target in sorted(
         classified_targets - pinned_targets
@@ -177,6 +199,15 @@ class EngineTests(unittest.TestCase):
         self.root = Path(scratch.name)
         (self.root / "calc.py").write_text(CALC)
         (self.root / "test_calc.py").write_text(CALC_TESTS)
+
+        engine_path = self.root / "tests" / "mutation.py"
+        engine_path.parent.mkdir()
+        engine_path.write_text("reviewed mutation engine\n")
+        self.engine_path = engine_path
+        self.engine_blob = mutation.git_blob_id(
+            engine_path.read_bytes()
+        )
+
         self.command = [
             sys.executable,
             "-m",
@@ -554,6 +585,7 @@ value = 1 + 2
                 self.root,
                 survivors,
                 pins,
+                self.engine_blob,
             ),
             (),
         )
@@ -583,11 +615,42 @@ value = 1 + 2
             self.root,
             survivors,
             {"calc.py": reviewed},
+            self.engine_blob,
         )
 
         self.assertEqual(len(errors), 1)
         self.assertIn(
             "stale survivor review",
+            errors[0],
+        )
+        self.assertIn(
+            f"reviewed: {reviewed}",
+            errors[0],
+        )
+        self.assertIn(
+            "current:",
+            errors[0],
+        )
+
+    def test_mutation_engine_edit_invalidates_survivor_pin(
+        self,
+    ) -> None:
+        reviewed = self.engine_blob
+
+        self.engine_path.write_text(
+            "changed mutation engine\n"
+        )
+
+        errors = _survivor_pin_errors(
+            self.root,
+            {},
+            {},
+            reviewed,
+        )
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn(
+            "stale survivor mutation-engine review",
             errors[0],
         )
         self.assertIn(
@@ -621,6 +684,7 @@ value = 1 + 2
             {
                 "obsolete.py": "0" * 40,
             },
+            self.engine_blob,
         )
 
         self.assertEqual(len(errors), 2)
@@ -759,6 +823,7 @@ class SuiteMutationTests(unittest.TestCase):
             mutation.ROOT,
             SURVIVORS,
             SURVIVOR_SOURCE_BLOBS,
+            SURVIVOR_ENGINE_BLOB,
         )
 
         self.assertEqual(
@@ -767,7 +832,7 @@ class SuiteMutationTests(unittest.TestCase):
             (
                 "mutation campaign cannot use stale survivor classifications;"
                 " re-review every affected survivor before updating its source"
-                " pin:\n\n"
+                " or mutation-engine pin:\n\n"
                 + "\n\n".join(pin_errors)
             ),
         )

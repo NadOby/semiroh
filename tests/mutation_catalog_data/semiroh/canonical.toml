@@ -11,3 +11,14 @@ implementation representation detail; the identity model requires
 deterministic canonical representation and semantic distinctions but does not
 prescribe this concrete byte encoding.
 """
+
+[[survivor]]
+kind = "constant"
+source = "signed=False,"
+occurrence = 0
+classification = "equivalent"
+reason = """
+Canonical length prefixes encode only non-negative lengths. For every
+reachable input, int.to_bytes(..., signed=True) and signed=False produce the
+same eight bytes, so this mutation cannot change canonical serialization.
+"""

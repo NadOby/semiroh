@@ -9,3 +9,15 @@ reason = """
 CellDeclaration defines its own __eq__ and __hash__, so enabling dataclass
 equality generation does not replace either explicit semantic method.
 """
+
+[[survivor]]
+kind = "return"
+source = "return NotImplemented"
+occurrence = 0
+classification = "unspecified"
+reason = """
+CellDeclaration equality is specified between semantic cell declarations.
+Returning NotImplemented for an unrelated Python object participates in
+Python's reflected equality protocol; that cross-type host-language behaviour
+is outside the SEMIROH cell semantic contract.
+"""

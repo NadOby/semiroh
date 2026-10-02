@@ -194,6 +194,12 @@ class SemanticEqualityRegressionTests(unittest.TestCase):
                 ("x",),
                 (),
             ),
+            State.create({
+                ENTITY: Value.create(
+                    ENTITY,
+                    1,
+                ),
+            }),
         )
 
         for record in records:

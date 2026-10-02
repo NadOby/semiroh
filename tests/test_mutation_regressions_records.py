@@ -10,14 +10,22 @@ from semiroh import (
     EntityID,
     Relation,
     RelationRewrite,
+    Runtime,
     State,
     TransformResult,
     TransformationMapping,
     Value,
+    canonical_serialize,
     canonicalize,
 )
 from semiroh.closures import Closure, closure_value
-from semiroh.lang import Function, define, load
+from semiroh.lang import (
+    Function,
+    LanguageError,
+    define,
+    load,
+    run,
+)
 
 
 OWNER = EntityID("owner")
@@ -59,6 +67,57 @@ class SemanticRecordRegressionTests(unittest.TestCase):
                 (),
                 ((1, 2),),
             )
+
+    def test_closure_snapshots_mutable_capture_values(self) -> None:
+        source = [1, 2]
+        closure = Closure(
+            OWNER,
+            BODY,
+            (),
+            (("items", source),),
+        )
+        expected = Closure(
+            OWNER,
+            BODY,
+            (),
+            (("items", [1, 2]),),
+        )
+        serialized = canonical_serialize(closure)
+        hashed = hash(closure)
+
+        source.append(3)
+
+        self.assertEqual(
+            canonical_serialize(closure),
+            serialized,
+        )
+        self.assertEqual(
+            hash(closure),
+            hashed,
+        )
+        self.assertEqual(
+            closure,
+            expected,
+        )
+
+    def test_unhashable_capture_name_raises_language_error(self) -> None:
+        body = (
+            "closure",
+            (),
+            ([],),
+            ("lit", 1),
+        )
+        state = load(
+            State.create({
+                F: Value.create(
+                    F,
+                    Function((), body),
+                ),
+            })
+        )
+
+        with self.assertRaises(LanguageError):
+            run(Runtime(state), F)
 
     def test_equal_semantic_records_have_equal_hashes(self) -> None:
         cases = (

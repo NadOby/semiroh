@@ -9,3 +9,27 @@ reason = """
 If exactly one decoded identity is absent, Closure construction rejects that
 non-EntityID and closure_value returns None through the same validation path.
 """
+
+[[survivor]]
+kind = "return"
+source = "return value"
+occurrence = 2
+classification = "equivalent"
+reason = """
+This is _entity's fast path for an already-live EntityID. closure_value returns
+an already-live Closure before decoding, while a canonical Closure represents
+owner and body as canonical entity_id nodes. Supported closure values
+therefore never call _entity with a live EntityID, so replacing this return
+with None cannot affect supported behaviour.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False)"
+occurrence = 1
+classification = "equivalent"
+reason = """
+This changes dataclass eq=False to eq=True. Closure defines explicit __eq__
+and __hash__ methods, which dataclass does not replace, while frozen=True is
+unchanged. Equality, hashing and mutability therefore remain identical.
+"""

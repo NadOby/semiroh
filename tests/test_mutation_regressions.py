@@ -28,6 +28,7 @@ from semiroh import (
     transform_with_mapping,
 )
 from semiroh.canonical import CanonicalNode
+from semiroh.cells import cell_declaration
 from semiroh.closures import Closure, closure_value
 from semiroh.continuity import (
     Case,
@@ -259,6 +260,23 @@ class CanonicalSerializationRegressionTests(unittest.TestCase):
         self.assertIsInstance(
             encoded,
             bytes,
+        )
+
+
+class SyntaxLiteralRegressionTests(unittest.TestCase):
+    def test_false_data_literal_remains_false(self) -> None:
+        state = parse(
+            "cell flag: bool = false\n"
+        )
+        declaration = cell_declaration(
+            state.values[EntityID("flag")]
+        )
+
+        self.assertIsNotNone(declaration)
+        assert declaration is not None
+        self.assertIs(
+            declaration.initial,
+            False,
         )
 
 

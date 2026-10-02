@@ -1,0 +1,22 @@
+source_blob = "1e8453cd7dcdc57d9540edf855f66d3c81a4957c"
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True)"
+occurrence = 0
+classification = "unspecified"
+reason = """
+_Constant is a private implementation helper and its mutability is not part of
+the constant-folding semantic contract; the folding implementation itself
+never mutates these records.
+"""
+
+[[survivor]]
+kind = "return"
+source = "return entity"
+occurrence = 0
+classification = "equivalent"
+reason = """
+The returned folded node is only consumed in a case where the enclosing
+constant if would already have folded as a whole.
+"""

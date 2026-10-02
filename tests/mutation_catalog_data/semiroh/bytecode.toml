@@ -1,0 +1,12 @@
+source_blob = "1a472965ece1fd9fd4608796bc82c94aef90bac4"
+
+[[survivor]]
+kind = "constant"
+source = "may_activate: bool = False,"
+occurrence = 0
+classification = "unspecified"
+reason = """
+bytecode.run is an internal execution wrapper; the language-level
+activation-capability contract is specified and tested through
+semiroh.lang.run.
+"""

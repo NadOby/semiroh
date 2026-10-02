@@ -1,0 +1,12 @@
+source_blob = "09dbc50c6f382b3158a5602e6c7658ef2a79dc83"
+
+[[survivor]]
+kind = "constant"
+source = 'operation=_edit(("bump", "k", ("lit", 2))),'
+occurrence = 0
+classification = "unspecified"
+reason = """
+The literal chosen by the activate_define corpus fixture is not itself part of
+the continuity contract; changing 2 to 3 preserves the case's specified
+identity and runtime-cell observations.
+"""

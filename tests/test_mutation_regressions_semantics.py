@@ -9,6 +9,8 @@ from semiroh import (
     AllOf,
     AnyOf,
     CellDeclaration,
+    Constraint,
+    ConstraintResult,
     Entity,
     EntityID,
     External,
@@ -220,6 +222,31 @@ class SemanticEqualityRegressionTests(unittest.TestCase):
             {first: "cell"}[second],
             "cell",
         )
+
+
+class ConstraintMutationRegressionTests(unittest.TestCase):
+    def test_default_length_accepts_empty_sized_values(self) -> None:
+        self.assertEqual(
+            Length().evaluate(""),
+            ConstraintResult.SATISFIED,
+        )
+
+    def test_external_name_must_not_be_empty(self) -> None:
+        with self.assertRaises(TypeError):
+            External("")
+
+    def test_from_content_rejects_plain_tuple_forgery(self) -> None:
+        forged = (
+            "__type__",
+            "constraint",
+            ("is_kind", "int"),
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "content is not a semantic constraint",
+        ):
+            Constraint.from_content(forged)
 
 
 class CanonicalSerializationRegressionTests(unittest.TestCase):

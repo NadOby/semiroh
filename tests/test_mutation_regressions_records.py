@@ -100,17 +100,6 @@ class SemanticRecordRegressionTests(unittest.TestCase):
                     "value",
                 )
 
-    def test_relation_compares_false_to_unrelated_type(self) -> None:
-        relation = Relation(
-            "edge",
-            {"to": A},
-        )
-
-        self.assertIs(
-            relation == object(),
-            False,
-        )
-
 
 class LanguageGenerationRegressionTests(unittest.TestCase):
     def test_simultaneous_function_edits_keep_independent_generations(

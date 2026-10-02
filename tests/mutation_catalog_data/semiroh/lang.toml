@@ -1,0 +1,21 @@
+source_blob = "6d49948b7d554869b4b65574079814a53b45541b"
+
+[[survivor]]
+kind = "compare"
+source = "if index is None:"
+occurrence = 0
+classification = "unspecified"
+reason = """
+_links_of is a private helper and every internal caller supplies a relation
+index; behavior of its optional omitted-index convenience is not part of the
+language semantic contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'f"let name must be a non-empty string, got {rest[0]!r}",'
+occurrence = 0
+classification = "unspecified"
+reason = """
+The selected value appears only in diagnostic text.
+"""

@@ -10,3 +10,71 @@ The byte width used to delimit ownership count in the Python StateID encoding
 is an implementation representation detail; identity is specified by semantic
 content, not this particular byte layout.
 """
+
+[[survivor]]
+kind = "boolean"
+source = "self.id == other.id"
+occurrence = 0
+classification = "unspecified"
+reason = """
+A constructed State always derives its id from the same canonical content that
+_content_bytes returns. Changing this conjunction to disjunction differs only
+for an internally forged inconsistent State or a SHA-256 collision; behaviour
+for either is outside the reference-model state contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "8,"
+occurrence = 0
+classification = "unspecified"
+reason = """
+The byte width used to delimit the value count in the Python StateID encoding
+is an implementation representation detail; identity is specified by semantic
+content, not this particular byte layout.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "key=lambda item: item[0]"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Sorting value entries by their canonical entity bytes is one deterministic
+serialization layout. Sorting the complete entity/version entries by their
+version component remains deterministic and preserves the binding of each
+entity to its version, but changes the concrete digest representation, which
+is not specified.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "key=lambda item: item[0]"
+occurrence = 1
+classification = "unspecified"
+reason = """
+Sorting ownership entries by their canonical owner bytes is one deterministic
+serialization layout. Sorting complete owner/children entries by their
+children component remains deterministic for a valid ownership forest but
+changes the concrete digest representation, which is not specified.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "signed=False,"
+occurrence = 0
+classification = "equivalent"
+reason = """
+The value count is always non-negative, so signed and unsigned eight-byte
+encoding produce identical bytes for every reachable state.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "signed=False,"
+occurrence = 1
+classification = "equivalent"
+reason = """
+The ownership-entry count is always non-negative, so signed and unsigned
+eight-byte encoding produce identical bytes for every reachable state.
+"""

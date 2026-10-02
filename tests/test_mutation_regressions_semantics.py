@@ -21,6 +21,7 @@ from semiroh import (
     OneOf,
     Relation,
     Role,
+    Runtime,
     State,
     StateID,
     Value,
@@ -30,7 +31,15 @@ from semiroh import (
 )
 from semiroh.canonical import CanonicalNode
 from semiroh.closures import Closure, closure_value
-from semiroh.lang import FUNCTION_ROLE, Function, load
+from semiroh.lang import (
+    FUNCTION_ROLE,
+    Function,
+    LanguageError,
+    define,
+    links,
+    load,
+    run,
+)
 from semiroh.transforms import (
     EntityChange,
     TransformationMapping,
@@ -279,6 +288,158 @@ class LanguageGraphMutationRegressionTests(unittest.TestCase):
         self.assertEqual(
             loaded.values[OTHER],
             state.values[OTHER],
+        )
+
+    def test_multitarget_link_loads_as_invalid_code(self) -> None:
+        left = EntityID("left")
+        right = EntityID("right")
+        links_entity = EntityID("entity.links")
+
+        state = State.create({
+            ENTITY: Value.create(
+                ENTITY,
+                Function(
+                    (),
+                    ("call", "many"),
+                ),
+            ),
+            left: Value.create(
+                left,
+                Function((), ("lit", 1)),
+            ),
+            right: Value.create(
+                right,
+                Function((), ("lit", 2)),
+            ),
+            links_entity: Value.create(
+                links_entity,
+                Relation(
+                    "links",
+                    {
+                        FUNCTION_ROLE: ENTITY,
+                        "many": (left, right),
+                    },
+                ),
+            ),
+        })
+
+        loaded = load(state)
+
+        with self.assertRaises(LanguageError):
+            run(Runtime(loaded), ENTITY)
+
+    def test_label_name_must_be_a_non_empty_string(self) -> None:
+        for name in ("", 0):
+            with self.subTest(name=name):
+                state = State.create({
+                    ENTITY: Value.create(
+                        ENTITY,
+                        Function(
+                            (),
+                            ("label", name, ("lit", 1)),
+                        ),
+                    ),
+                })
+
+                with self.assertRaises(LanguageError):
+                    load(state)
+
+    def test_define_rejects_malformed_label_target_key(self) -> None:
+        state = load(
+            State.create({
+                ENTITY: Value.create(
+                    ENTITY,
+                    Function(
+                        (),
+                        ("label", "spot", ("lit", 1)),
+                    ),
+                ),
+            })
+        )
+
+        with self.assertRaises(LanguageError):
+            define(
+                state,
+                {
+                    (ENTITY, "spot", "extra"):
+                        ("lit", 2),
+                },
+            )
+
+    def test_define_rejects_multitarget_links_function_role(self) -> None:
+        state = load(
+            State.create({
+                ENTITY: Value.create(
+                    ENTITY,
+                    Function((), ("lit", 1)),
+                ),
+                OTHER: Value.create(
+                    OTHER,
+                    Function((), ("lit", 2)),
+                ),
+            })
+        )
+        malformed = Relation(
+            "links",
+            {
+                FUNCTION_ROLE: (ENTITY, OTHER),
+            },
+        )
+
+        with self.assertRaises(LanguageError):
+            define(
+                state,
+                {
+                    EntityID("edit"): malformed,
+                },
+            )
+
+    def test_two_character_activation_link_is_not_a_node_target(self) -> None:
+        target = EntityID("target")
+        activator = EntityID("activator")
+        activator_links = EntityID("activator.links")
+
+        state = load(
+            State.create({
+                target: Value.create(
+                    target,
+                    Function((), ("lit", 1)),
+                ),
+                activator: Value.create(
+                    activator,
+                    Function(
+                        (),
+                        (
+                            "activate",
+                            "go",
+                            (
+                                "function",
+                                ("lit", ()),
+                                ("lit", ("lit", 2)),
+                            ),
+                        ),
+                    ),
+                ),
+                activator_links: Value.create(
+                    activator_links,
+                    links(
+                        activator,
+                        go=target,
+                    ),
+                ),
+            })
+        )
+        runtime = Runtime(state)
+
+        run(
+            runtime,
+            activator,
+            may_activate=True,
+        )
+
+        self.assertEqual(
+            run(runtime, target),
+            2,
         )
 
 

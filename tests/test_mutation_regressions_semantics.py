@@ -30,7 +30,7 @@ from semiroh import (
 )
 from semiroh.canonical import CanonicalNode
 from semiroh.closures import Closure, closure_value
-from semiroh.lang import Function
+from semiroh.lang import FUNCTION_ROLE, Function, load
 from semiroh.transforms import (
     EntityChange,
     TransformationMapping,
@@ -227,6 +227,58 @@ class SemanticEqualityRegressionTests(unittest.TestCase):
         self.assertEqual(
             {first: "cell"}[second],
             "cell",
+        )
+
+    def test_equal_functions_have_equal_hashes(self) -> None:
+        first = Function(
+            ("x",),
+            ("arg", "x"),
+        )
+        second = Function(
+            ("x",),
+            ("arg", "x"),
+        )
+
+        self.assertEqual(first, second)
+        self.assertEqual(
+            hash(first),
+            hash(second),
+        )
+        self.assertEqual(
+            {first: "function"}[second],
+            "function",
+        )
+
+
+class LanguageGraphMutationRegressionTests(unittest.TestCase):
+    def test_load_keeps_non_links_relation_with_function_role(self) -> None:
+        function = Function(
+            (),
+            ("lit", 1),
+        )
+        metadata = Relation(
+            "metadata",
+            {
+                FUNCTION_ROLE: ENTITY,
+            },
+        )
+        state = State.create({
+            ENTITY: Value.create(
+                ENTITY,
+                function,
+            ),
+            OTHER: Value.create(
+                OTHER,
+                metadata,
+            ),
+        })
+
+        loaded = load(state)
+
+        self.assertIn(OTHER, loaded.values)
+        self.assertEqual(
+            loaded.values[OTHER],
+            state.values[OTHER],
         )
 
 

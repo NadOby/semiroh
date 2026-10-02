@@ -66,3 +66,28 @@ values. No semantic state exposes a _Definition instance, and allowing that
 private helper object itself to be mutated does not change any specified
 language behaviour.
 """
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True)"
+occurrence = 1
+classification = "unspecified"
+reason = """
+_Entry is a private transient record used only while define infers one
+transformation. No _Entry instance is exposed as semantic state or public API,
+so mutability of that temporary Python object is not part of the language
+contract.
+"""
+
+[[survivor]]
+kind = "boolean"
+source = "if node is None or node.kind not in NODE_KINDS:"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Valid graph form requires every expression node reached from a function to
+exist and have one of the defined code-node kinds. Changing this guard only
+changes _node_at behaviour for malformed graph form containing a missing or
+non-code node; behaviour of such privately forged malformed graph state is not
+specified.
+"""

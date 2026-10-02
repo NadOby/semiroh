@@ -45,6 +45,15 @@ class BytecodeRegressionTests(unittest.TestCase):
             100_000,
         )
 
+    def test_disassemble_formats_tuple_operands(self) -> None:
+        self.assertEqual(
+            bytecode.disassemble((
+                ("PAIR", (1, 2)),
+                ("END",),
+            )),
+            "PAIR (1, 2)\nEND",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

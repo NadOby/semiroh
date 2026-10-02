@@ -416,3 +416,49 @@ adding parentheses around an additive operand. Addition already binds more
 tightly than equality, so parsing and behaviour are unchanged; exact
 parenthesization is provisional.
 """
+
+[[survivor]]
+kind = "constant"
+source = "0,"
+occurrence = 4
+classification = "unspecified"
+reason = """
+This is the minimum precedence requested for a block-if condition. Raising it
+from 0 to 1 only adds parentheses when the condition itself has precedence 0.
+Parentheses preserve the parsed expression; exact rendering layout is
+provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "0,"
+occurrence = 6
+classification = "unspecified"
+reason = """
+This is the minimum precedence requested for a cell-write value. Raising it
+from 0 to 1 only adds parentheses around precedence-0 expressions. Parsing and
+behaviour are unchanged; exact rendering layout is provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'f"{self.operand(node[2], locs, 0, False, 0)}"'
+occurrence = 2
+classification = "unspecified"
+reason = """
+This is the minimum precedence for the value of a write used as a let value.
+Changing 0 to 1 can only add redundant parentheses around a precedence-0
+expression. The resulting expression parses identically; exact layout is
+provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return self.operand(node, locs, 0, False, 0)"
+occurrence = 2
+classification = "unspecified"
+reason = """
+This is the minimum precedence for an ordinary let value. Raising it from 0
+to 1 only parenthesizes precedence-0 expressions and therefore preserves the
+parsed expression and behaviour. Exact parenthesization is provisional layout.
+"""

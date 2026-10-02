@@ -1,6 +1,23 @@
-"""Mutation targets and reviewed survivor classifications."""
+"""Mutation targets and reviewed survivor classifications.
+
+Mutation-target policy remains executable Python. Reviewed survivor data and
+its version pins live under tests/mutation_catalog_data/ and are loaded
+fail-closed from TOML.
+
+Catalog paths mirror mutation targets:
+
+    mutation_catalog_data/semiroh/lang.toml
+        -> semiroh/lang.py
+
+A target receives a TOML file only while it has reviewed survivors. Therefore
+the set of catalog source pins is exactly the set of classified targets.
+"""
 
 from __future__ import annotations
+
+from pathlib import Path
+import re
+import tomllib
 
 from tests.mutation import MutationKey
 
@@ -77,498 +94,347 @@ OMITTED = {
 }
 
 
-# Mutation-engine version under which the survivor classifications below were
-# reviewed. The site-discovery order, occurrence assignment and operator
-# semantics in tests/mutation.py are part of the meaning of a survivor key.
-#
-# Any edit to that engine therefore invalidates the reviewed survivor catalog
-# until its classifications are explicitly re-reviewed and this pin is updated.
-SURVIVOR_ENGINE_BLOB = (
-    "f9380e727e5662ea7f309229bd28a2ce11329910"
+CATALOG_ROOT = Path(__file__).with_name(
+    "mutation_catalog_data"
 )
+SCHEMA_VERSION = 1
+
+_BLOB_RE = re.compile(r"[0-9a-f]{40}")
 
 
-# Source versions under which the survivor classifications below were
-# reviewed. Values are Git blob object IDs for the exact file bytes.
-#
-# A classification is valid only while its whole target file has this exact
-# version. This is deliberately conservative: even an unrelated edit requires
-# the survivors in that file to be reviewed and the pin explicitly updated.
-# That prevents an occurrence-based key from silently rebinding to a different
-# semantic construct after source edits.
-SURVIVOR_SOURCE_BLOBS = {
-    "semiroh/bytecode.py":
-        "1a472965ece1fd9fd4608796bc82c94aef90bac4",
-    "semiroh/canonical.py":
-        "1f8789d0370a633425db2a8d26753bbc9f80f505",
-    "semiroh/cells.py":
-        "20e863b3494b14c8ce0fc0132c07355e7f9f8ee0",
-    "semiroh/closures.py":
-        "dfc12e8c2a6cad3bb0749fc1715759a19cd81488",
-    "semiroh/constraints.py":
-        "f28e80bb1c6fc633d739d5ce82436901653409ef",
-    "semiroh/continuity.py":
-        "09dbc50c6f382b3158a5602e6c7658ef2a79dc83",
-    "semiroh/fold.py":
-        "1e8453cd7dcdc57d9540edf855f66d3c81a4957c",
-    "semiroh/lang.py":
-        "6d49948b7d554869b4b65574079814a53b45541b",
-    "semiroh/machine.py":
-        "3c2ac3a0131dd59e3578fe45a35c4c49793eebaf",
-    "semiroh/matching.py":
-        "ee7d88dc9b82a2987e1b8b7cf8406a577d969c0d",
-    "semiroh/ownership.py":
-        "016b4704dcdfc1f493f8565bb08ce206ee608dfa",
-    "semiroh/reconcile.py":
-        "6351e808f1a1f96c0367e6bfd6b2e8e1b51ce3c3",
-    "semiroh/runtime.py":
-        "610c99adbf4dd9158c0efb3057fce2d332464d7d",
-    "semiroh/state.py":
-        "5d717ec8d0f0680754818788316369d8784c6626",
-    "semiroh/syntax.py":
-        "6c9fcf465a1ba74562b3e9355e1f4e746991b45a",
-    "semiroh/values.py":
-        "0c5974ffb4fb4b76c26542ee331406a1ef0a6835",
-    "semiroh/examples/self_hosting.py":
-        "270f94583613f44c344e4fc1600def38a4cd3111",
-    "semiroh/examples/vm.py":
-        "13e479099ab9250ca7127de25b176662c6496bb2",
-}
+class CatalogError(ValueError):
+    """The serialized mutation catalog is malformed or inconsistent."""
 
 
-# Exact reviewed survivors.
-#
-# Key:
-#
-#     (
-#         target path,
-#         mutation kind,
-#         complete stripped source line,
-#         occurrence among sites with that same kind and source line,
-#     )
-#
-# The key identifies one site within the source version pinned above.
-# Classification identity is not permitted to migrate automatically across an
-# edit to that file. Updating a pin therefore means explicitly accepting that
-# the survivor classifications in that target have been re-reviewed against
-# the new source.
-#
-# These classifications migrate the useful knowledge from the pre-Task-18
-# mutation catalog. Broad historical entries that covered several sites are
-# split where their reasoning applies independently.
-#
-# One historical entry is deliberately not migrated:
-#
-#     @dataclass(frozen=True, eq=False) in lang.py
-#
-# Its old reason explicitly called it an open test gap, not an equivalent
-# mutation. Test gaps are fixed with regressions rather than classified here.
-#
-# The historical self-hosting quote-template entry is also omitted for now:
-# formatting changes split its old broad source line into several sites, and
-# the old record does not identify which current constant actually survived.
-# A broad campaign may rediscover it under an exact key, at which point that
-# exact site can be reviewed.
-#
-# Generation allocation entries from the historical catalog are deliberately
-# not migrated: graph_form.md specifies exact generation semantics, so changing
-# generation 0, next-generation allocation, or collision advancement is a
-# semantic identity change and must be killed by regression tests.
-#
-# The historical bytecode _lowered initial-value entry is also not classified:
-# bytecode.md specifies lowered_count() as an absolute process-start count, so
-# changing its initial value is a semantic test gap now covered by a regression.
-#
-# A semantic test gap is never added here.
-SURVIVORS: dict[
+def _read_toml(path: Path) -> dict:
+    try:
+        with path.open("rb") as stream:
+            return tomllib.load(stream)
+    except FileNotFoundError as exc:
+        raise CatalogError(
+            f"missing mutation catalog file: {path}"
+        ) from exc
+    except tomllib.TOMLDecodeError as exc:
+        raise CatalogError(
+            f"invalid TOML in mutation catalog file {path}: {exc}"
+        ) from exc
+
+
+def _require_fields(
+    data: dict,
+    expected: set[str],
+    context: str,
+) -> None:
+    actual = set(data)
+    missing = expected - actual
+    unexpected = actual - expected
+
+    if not missing and not unexpected:
+        return
+
+    problems = []
+
+    if missing:
+        problems.append(
+            "missing fields: " + ", ".join(sorted(missing))
+        )
+
+    if unexpected:
+        problems.append(
+            "unexpected fields: "
+            + ", ".join(sorted(unexpected))
+        )
+
+    raise CatalogError(
+        f"{context}: " + "; ".join(problems)
+    )
+
+
+def _require_string(
+    data: dict,
+    field: str,
+    context: str,
+) -> str:
+    value = data[field]
+
+    if not isinstance(value, str):
+        raise CatalogError(
+            f"{context}: {field} must be a string"
+        )
+
+    if not value.strip():
+        raise CatalogError(
+            f"{context}: {field} must not be empty"
+        )
+
+    return value
+
+
+def _require_integer(
+    data: dict,
+    field: str,
+    context: str,
+) -> int:
+    value = data[field]
+
+    # bool is an int subclass, but is not a valid catalog integer.
+    if type(value) is not int:
+        raise CatalogError(
+            f"{context}: {field} must be an integer"
+        )
+
+    return value
+
+
+def _require_blob(
+    data: dict,
+    field: str,
+    context: str,
+) -> str:
+    value = _require_string(
+        data,
+        field,
+        context,
+    )
+
+    if _BLOB_RE.fullmatch(value) is None:
+        raise CatalogError(
+            f"{context}: {field} must be a lowercase "
+            "40-character Git blob ID"
+        )
+
+    return value
+
+
+def _target_for(
+    path: Path,
+    root: Path,
+) -> str:
+    relative = path.relative_to(root)
+
+    if (
+        len(relative.parts) < 2
+        or relative.parts[0] != "semiroh"
+    ):
+        raise CatalogError(
+            f"{relative.as_posix()}: catalog data must mirror "
+            "a target path below semiroh/"
+        )
+
+    target = relative.with_suffix(".py").as_posix()
+
+    if target not in TARGETS:
+        raise CatalogError(
+            f"{relative.as_posix()}: derived target "
+            f"{target!r} is not a mutation target"
+        )
+
+    return target
+
+
+def _load_survivor(
+    raw: object,
+    target: str,
+    index: int,
+) -> tuple[
     MutationKey,
     tuple[str, str],
-] = {
-    (
-        "semiroh/bytecode.py",
-        "constant",
-        "may_activate: bool = False,",
-        0,
-    ): (
-        UNSPECIFIED,
-        "bytecode.run is an internal execution wrapper; the language-level "
-        "activation-capability contract is specified and tested through "
-        "semiroh.lang.run",
-    ),
-    (
-        "semiroh/canonical.py",
-        "constant",
-        "8,",
-        0,
-    ): (
-        UNSPECIFIED,
-        "the Python canonical serializer's fixed byte width for length prefixes "
-        "is an implementation representation detail; the identity model "
-        "requires deterministic canonical representation and semantic "
-        "distinctions but does not prescribe this concrete byte encoding",
-    ),
-    (
-        "semiroh/cells.py",
-        "constant",
-        "@dataclass(frozen=True, eq=False)",
-        1,
-    ): (
-        EQUIVALENT,
-        "CellDeclaration defines its own __eq__ and __hash__, so enabling "
-        "dataclass equality generation does not replace either explicit "
-        "semantic method",
-    ),
-    (
-        "semiroh/closures.py",
-        "boolean",
-        "if owner is None or body is None:",
-        0,
-    ): (
-        EQUIVALENT,
-        "if exactly one decoded identity is absent, Closure construction "
-        "rejects that non-EntityID and closure_value returns None through "
-        "the same validation path",
-    ),
-    (
-        "semiroh/constraints.py",
-        "constant",
-        "@dataclass(frozen=True, eq=False, init=False)",
-        5,
-    ): (
-        EQUIVALENT,
-        "this occurrence is AllOf's init=False flag; AllOf defines its own "
-        "__init__, so changing dataclass init to True does not generate or "
-        "replace the explicit constructor",
-    ),
-    (
-        "semiroh/continuity.py",
-        "constant",
-        'operation=_edit(("bump", "k", ("lit", 2))),',
-        0,
-    ): (
-        UNSPECIFIED,
-        "the literal chosen by the activate_define corpus fixture is not "
-        "itself part of the continuity contract; changing 2 to 3 preserves "
-        "the case's specified identity and runtime-cell observations",
-    ),
-    (
-        "semiroh/runtime.py",
-        "return",
-        'return f"Version({self.id.value[:12]}, holds={len(self._holds)})"',
-        0,
-    ): (
-        UNSPECIFIED,
-        "Version repr text is diagnostic and not part of the semantic contract",
-    ),
-    (
-        "semiroh/runtime.py",
-        "constant",
-        'return f"Version({self.id.value[:12]}, holds={len(self._holds)})"',
-        0,
-    ): (
-        UNSPECIFIED,
-        "the number of StateID characters shown by repr is diagnostic only",
-    ),
-    (
-        "semiroh/ownership.py",
-        "constant",
-        "status[visited] = 2",
-        0,
-    ): (
-        EQUIVALENT,
-        "only status value 1 means on the current walk; every other stored "
-        "value means the entity was already visited, so changing 2 to 3 "
-        "does not alter cycle detection",
-    ),
-    (
-        "semiroh/reconcile.py",
-        "return",
-        "return {}",
-        1,
-    ): (
-        EQUIVALENT,
-        "_graph_links is called only after function_at identified the same "
-        "entity as a graph-form function; that implies _definition_of succeeds, "
-        "so this missing-definition return cannot affect reconciliation",
-    ),
-    (
-        "semiroh/reconcile.py",
-        "return",
-        "return dict(definition.links)",
-        0,
-    ): (
-        EQUIVALENT,
-        "returning None only causes reconcile to submit a redundant link-table "
-        "edit; define compares the reconstructed definition with the current "
-        "value and the resulting semantic state and mappings are unchanged",
-    ),
-    (
-        "semiroh/reconcile.py",
-        "constant",
-        "serial += 1",
-        0,
-    ): (
-        EQUIVALENT,
-        "the serial is used only to choose an unused temporary input key for "
-        "a links relation; the key is never installed in the destination and "
-        "define identifies the edited function from the relation itself, so "
-        "advancing by two instead of one changes no semantic result",
-    ),
-    (
-        "semiroh/reconcile.py",
-        "if",
-        "if added:",
-        0,
-    ): (
-        UNSPECIFIED,
-        "negating this diagnostic-only branch changes which cell names appear "
-        "in the ReconcileError message but does not change whether the "
-        "unsupported cell edit is rejected",
-    ),
-    (
-        "semiroh/reconcile.py",
-        "if",
-        "if removed:",
-        0,
-    ): (
-        UNSPECIFIED,
-        "negating this diagnostic-only branch changes which cell names appear "
-        "in the ReconcileError message but does not change whether the "
-        "unsupported cell edit is rejected",
-    ),
-    (
-        "semiroh/state.py",
-        "constant",
-        "8,",
-        1,
-    ): (
-        UNSPECIFIED,
-        "the byte width used to delimit ownership count in the Python StateID "
-        "encoding is an implementation representation detail; identity is "
-        "specified by semantic content, not this particular byte layout",
-    ),
-    (
-        "semiroh/syntax.py",
-        "constant",
-        "+ self.expr(value, locs, 2, True)[0]",
-        1,
-    ): (
-        EQUIVALENT,
-        "syntax rendering gives special behaviour only to modes 0 and 1; "
-        "changing this internal mode from 2 to 3 therefore follows the same "
-        "rendering and rejection paths for every expression",
-    ),
-    (
-        "semiroh/values.py",
-        "constant",
-        "@dataclass(frozen=True, eq=False)",
-        1,
-    ): (
-        EQUIVALENT,
-        "Value defines its own __eq__ and __hash__, so enabling dataclass "
-        "equality generation does not replace those explicit methods",
-    ),
-    (
-        "semiroh/examples/self_hosting.py",
-        "constant",
-        "IntRange(0, 100),",
-        1,
-    ): (
-        UNSPECIFIED,
-        "the instrumentation cell's upper bound is example scaffolding rather "
-        "than part of the embedded compiler's semantic contract",
-    ),
-    (
-        "semiroh/examples/vm.py",
-        "constant",
-        '("item", ("tuple",), _lit(0)),',
-        0,
-    ): (
-        EQUIVALENT,
-        "any index of the empty tuple traps",
-    ),
-    (
-        "semiroh/examples/vm.py",
-        "constant",
-        '("add", _top(), _lit(0)),',
-        0,
-    ): (
-        EQUIVALENT,
-        "adding any int performs the operand check and the sum is discarded",
-    ),
-    (
-        "semiroh/examples/vm.py",
-        "constant",
-        '("lt", length, _lit(2)),',
-        0,
-    ): (
-        EQUIVALENT,
-        "valid capability-tagged callables have length 3 or 6; a length-2 "
-        "value already traps later under the exact tag-specific length checks, "
-        "so changing the early threshold from 2 to 3 changes no outcome",
-    ),
-    (
-        "semiroh/examples/vm.py",
-        "constant",
-        "_lit(True),",
-        2,
-    ): (
-        EQUIVALENT,
-        "this is the success value of the reference branch in "
-        "_callable_tagged; its caller uses the check only for trapping and "
-        "discards the successful value in seq",
-    ),
-    (
-        "semiroh/examples/vm.py",
-        "constant",
-        "_lit(True),",
-        3,
-    ): (
-        EQUIVALENT,
-        "this is the success value of the closure branch in "
-        "_callable_tagged; its caller uses the check only for trapping and "
-        "discards the successful value in seq",
-    ),
-    (
-        "semiroh/examples/vm.py",
-        "constant",
-        "_validate_names(k(2)),",
-        0,
-    ): (
-        EQUIVALENT,
-        "the later validation of concat(k(2), k(3)) checks every parameter "
-        "and capture name together, including duplicates and overlap; concat "
-        "itself requires both operands to be tuples, so replacing this "
-        "redundant parameter-only validation with capture validation changes "
-        "no accepted or rejected closure metadata",
-    ),
-    (
-        "semiroh/machine.py",
-        "constant",
-        "(_RETURN, 0, False, None, activation)",
-        1,
-    ): (
-        EQUIVALENT,
-        "the tail flag of the RETURN sentinel is never read",
-    ),
-    (
-        "semiroh/machine.py",
-        "constant",
-        "False,",
-        0,
-    ): (
-        EQUIVALENT,
-        "this is the tail flag of the multiline RETURN sentinel installed "
-        "for a non-tail call; RETURN executes before that flag can be read "
-        "and restores the caller continuation directly",
-    ),
-    (
-        "semiroh/machine.py",
-        "constant",
-        "may_activate: bool = False,",
-        0,
-    ): (
-        UNSPECIFIED,
-        "machine.run is an internal execution layer reached through "
-        "bytecode.run; the specified language-level activation-capability "
-        "default is lang.run(..., may_activate=False)",
-    ),
-    (
-        "semiroh/machine.py",
-        "boolean",
-        "if type(left) in _PRIMITIVES and type(right) in _PRIMITIVES:",
-        0,
-    ): (
-        EQUIVALENT,
-        "the primitive branch is only a fast path; canonical comparison agrees",
-    ),
-    (
-        "semiroh/machine.py",
-        "compare",
-        "if type(left) in _PRIMITIVES and type(right) in _PRIMITIVES:",
-        0,
-    ): (
-        EQUIVALENT,
-        "changing the left fast-path guard only changes which equivalent path runs",
-    ),
-    (
-        "semiroh/machine.py",
-        "compare",
-        "if type(left) in _PRIMITIVES and type(right) in _PRIMITIVES:",
-        1,
-    ): (
-        EQUIVALENT,
-        "changing the right fast-path guard only changes which equivalent path runs",
-    ),
-    (
-        "semiroh/fold.py",
-        "constant",
-        "@dataclass(frozen=True)",
-        0,
-    ): (
-        UNSPECIFIED,
-        "_Constant is a private implementation helper and its mutability is "
-        "not part of the constant-folding semantic contract; the folding "
-        "implementation itself never mutates these records",
-    ),
-    (
-        "semiroh/fold.py",
-        "return",
-        "return entity",
-        0,
-    ): (
-        EQUIVALENT,
-        "the returned folded node is only consumed in a case where the enclosing "
-        "constant if would already have folded as a whole",
-    ),
-    (
-        "semiroh/lang.py",
-        "compare",
-        "if index is None:",
-        0,
-    ): (
-        UNSPECIFIED,
-        "_links_of is a private helper and every internal caller supplies a "
-        "relation index; behavior of its optional omitted-index convenience "
-        "is not part of the language semantic contract",
-    ),
-    (
-        "semiroh/lang.py",
-        "constant",
-        'f"let name must be a non-empty string, got {rest[0]!r}",',
-        0,
-    ): (
-        UNSPECIFIED,
-        "the selected value appears only in diagnostic text",
-    ),
-    (
-        "semiroh/matching.py",
-        "constant",
-        "size = 1",
-        0,
-    ): (
-        EQUIVALENT,
-        "starting at two doubles every subtree size, preserving grouping and order",
-    ),
-    (
-        "semiroh/matching.py",
-        "constant",
-        "keys.append((False, item))",
-        0,
-    ): (
-        EQUIVALENT,
-        "the flag separates shape numbers from endpoint EntityIDs; their value "
-        "types cannot collide",
-    ),
-    (
-        "semiroh/matching.py",
-        "constant",
-        "keys.append((True, shape))",
-        0,
-    ): (
-        EQUIVALENT,
-        "the flag separates subtree shape integers from external endpoint "
-        "EntityIDs; changing the flag cannot create a key collision because "
-        "those payload types are disjoint",
-    ),
-}
+]:
+    context = f"{target}: survivor {index}"
+
+    if not isinstance(raw, dict):
+        raise CatalogError(
+            f"{context}: survivor must be a table"
+        )
+
+    _require_fields(
+        raw,
+        {
+            "kind",
+            "source",
+            "occurrence",
+            "classification",
+            "reason",
+        },
+        context,
+    )
+
+    kind = _require_string(
+        raw,
+        "kind",
+        context,
+    )
+    source = _require_string(
+        raw,
+        "source",
+        context,
+    )
+    occurrence = _require_integer(
+        raw,
+        "occurrence",
+        context,
+    )
+    classification = _require_string(
+        raw,
+        "classification",
+        context,
+    )
+    reason = _require_string(
+        raw,
+        "reason",
+        context,
+    ).strip()
+
+    if kind != kind.strip():
+        raise CatalogError(
+            f"{context}: kind must be stripped"
+        )
+
+    if source != source.strip():
+        raise CatalogError(
+            f"{context}: source must be a stripped source line"
+        )
+
+    if occurrence < 0:
+        raise CatalogError(
+            f"{context}: occurrence must be non-negative"
+        )
+
+    if classification not in CLASSIFICATIONS:
+        raise CatalogError(
+            f"{context}: unknown classification "
+            f"{classification!r}"
+        )
+
+    key: MutationKey = (
+        target,
+        kind,
+        source,
+        occurrence,
+    )
+
+    return key, (
+        classification,
+        reason,
+    )
+
+
+def load_catalog(
+    root: Path,
+) -> tuple[
+    str,
+    dict[str, str],
+    dict[MutationKey, tuple[str, str]],
+]:
+    """Load and structurally validate one mutation catalog tree."""
+
+    root = Path(root)
+    manifest_path = root / "manifest.toml"
+    manifest = _read_toml(manifest_path)
+
+    _require_fields(
+        manifest,
+        {
+            "schema_version",
+            "engine_blob",
+        },
+        "manifest",
+    )
+
+    schema_version = _require_integer(
+        manifest,
+        "schema_version",
+        "manifest",
+    )
+
+    if schema_version != SCHEMA_VERSION:
+        raise CatalogError(
+            "manifest: unsupported schema_version "
+            f"{schema_version}; expected {SCHEMA_VERSION}"
+        )
+
+    engine_blob = _require_blob(
+        manifest,
+        "engine_blob",
+        "manifest",
+    )
+
+    source_blobs: dict[str, str] = {}
+    survivors: dict[
+        MutationKey,
+        tuple[str, str],
+    ] = {}
+
+    files = sorted(
+        path
+        for path in root.rglob("*.toml")
+        if path != manifest_path
+    )
+
+    for path in files:
+        relative = path.relative_to(root)
+        context = relative.as_posix()
+        target = _target_for(
+            path,
+            root,
+        )
+        data = _read_toml(path)
+
+        _require_fields(
+            data,
+            {
+                "source_blob",
+                "survivor",
+            },
+            context,
+        )
+
+        source_blob = _require_blob(
+            data,
+            "source_blob",
+            context,
+        )
+
+        raw_survivors = data["survivor"]
+
+        if (
+            not isinstance(raw_survivors, list)
+            or not raw_survivors
+        ):
+            raise CatalogError(
+                f"{context}: survivor must be a non-empty array of tables"
+            )
+
+        if target in source_blobs:
+            raise CatalogError(
+                f"{context}: duplicate catalog for target {target!r}"
+            )
+
+        source_blobs[target] = source_blob
+
+        for index, raw in enumerate(raw_survivors):
+            key, classification = _load_survivor(
+                raw,
+                target,
+                index,
+            )
+
+            if key in survivors:
+                raise CatalogError(
+                    f"{context}: duplicate survivor key {key!r}"
+                )
+
+            survivors[key] = classification
+
+    return (
+        engine_blob,
+        source_blobs,
+        survivors,
+    )
+
+
+(
+    SURVIVOR_ENGINE_BLOB,
+    SURVIVOR_SOURCE_BLOBS,
+    SURVIVORS,
+) = load_catalog(CATALOG_ROOT)

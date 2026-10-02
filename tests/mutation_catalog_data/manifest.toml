@@ -17,8 +17,10 @@ catalog_targets = [
     "semiroh/matching.py",
     "semiroh/ownership.py",
     "semiroh/reconcile.py",
+    "semiroh/relations.py",
     "semiroh/runtime.py",
     "semiroh/state.py",
     "semiroh/syntax.py",
+    "semiroh/transforms.py",
     "semiroh/values.py",
 ]

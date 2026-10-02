@@ -1,0 +1,12 @@
+source_blob = "6c9fcf465a1ba74562b3e9355e1f4e746991b45a"
+
+[[survivor]]
+kind = "constant"
+source = "+ self.expr(value, locs, 2, True)[0]"
+occurrence = 1
+classification = "equivalent"
+reason = """
+Syntax rendering gives special behaviour only to modes 0 and 1.
+Changing this internal mode from 2 to 3 therefore follows the same
+rendering and rejection paths for every expression.
+"""

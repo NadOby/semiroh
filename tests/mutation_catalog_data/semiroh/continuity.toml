@@ -10,3 +10,40 @@ The literal chosen by the activate_define corpus fixture is not itself part of
 the continuity contract; changing 2 to 3 preserves the case's specified
 identity and runtime-cell observations.
 """
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True)"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Expect is a corpus-description record. The continuity-corpus API specifies its
+fields and their meaning, but does not require the Python object itself to be
+immutable. Changing dataclass freezing is observable host-language behaviour
+without changing the continuity contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True)"
+occurrence = 1
+classification = "unspecified"
+reason = """
+Case is a corpus-description record. The continuity-corpus API specifies its
+fields and how check consumes them, but does not require Case instances to be
+immutable. Dataclass freezing is therefore host-language behaviour outside the
+specified continuity semantics.
+"""
+
+[[survivor]]
+kind = "boolean"
+source = "assert isinstance(content, CanonicalNode) and content[1] == \"tuple\""
+occurrence = 0
+classification = "equivalent"
+reason = """
+_element is private and is called only by the split_cell corpus converters.
+Those converters receive canonicalized content of the tuple-constrained pair
+cell, so every reachable call has a CanonicalNode whose kind is "tuple".
+Replacing and with or therefore leaves the assertion and returned element
+unchanged for every reachable internal call.
+"""

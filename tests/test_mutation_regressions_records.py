@@ -1,4 +1,4 @@
-"""Mutation regressions for semantic records and transformation results."""
+"""Mutation regressions for semantic records and graph transformations."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from semiroh import (
     canonicalize,
 )
 from semiroh.closures import Closure, closure_value
+from semiroh.lang import Function, define, load
 
 
 OWNER = EntityID("owner")
@@ -24,6 +25,8 @@ BODY = EntityID("body")
 A = EntityID("a")
 B = EntityID("b")
 C = EntityID("c")
+F = EntityID("f")
+G = EntityID("g")
 RELATION = EntityID("relation")
 
 
@@ -106,6 +109,101 @@ class SemanticRecordRegressionTests(unittest.TestCase):
         self.assertIs(
             relation == object(),
             False,
+        )
+
+
+class LanguageGenerationRegressionTests(unittest.TestCase):
+    def test_simultaneous_function_edits_keep_independent_generations(
+        self,
+    ) -> None:
+        state = load(
+            State.create({
+                F: Value.create(
+                    F,
+                    Function(
+                        (),
+                        ("lit", 1),
+                    ),
+                ),
+                G: Value.create(
+                    G,
+                    Function(
+                        (),
+                        ("lit", 2),
+                    ),
+                ),
+            })
+        )
+
+        # Advance only F from generation 0 to generation 1.
+        state = define(
+            state,
+            {
+                F: Function(
+                    (),
+                    (
+                        "add",
+                        ("lit", 10),
+                        ("lit", 11),
+                    ),
+                ),
+            },
+        ).destination
+
+        # F now builds generation 2 while G builds generation 1.
+        # Their definition generations must come from their own builders.
+        state = define(
+            state,
+            {
+                F: Function(
+                    (),
+                    (
+                        "mul",
+                        ("lit", 100),
+                        ("lit", 101),
+                    ),
+                ),
+                G: Function(
+                    (),
+                    (
+                        "add",
+                        ("lit", 200),
+                        ("lit", 201),
+                    ),
+                ),
+            },
+        ).destination
+
+        # A subsequent whole-function edit of G must therefore create
+        # generation-2 nodes, not skip to generation 3.
+        destination = define(
+            state,
+            {
+                G: Function(
+                    (),
+                    (
+                        "mul",
+                        ("lit", 300),
+                        ("lit", 301),
+                    ),
+                ),
+            },
+        ).destination
+
+        created = set(destination.values) - set(state.values)
+        created_for_g = {
+            entity.value
+            for entity in created
+            if entity in destination.owned_children(G)
+        }
+
+        self.assertTrue(created_for_g)
+        self.assertEqual(
+            {
+                name.split(".", 1)[0]
+                for name in created_for_g
+            },
+            {"g/2"},
         )
 
 

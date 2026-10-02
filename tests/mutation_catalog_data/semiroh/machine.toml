@@ -1,0 +1,59 @@
+source_blob = "3c2ac3a0131dd59e3578fe45a35c4c49793eebaf"
+
+[[survivor]]
+kind = "constant"
+source = "(_RETURN, 0, False, None, activation)"
+occurrence = 1
+classification = "equivalent"
+reason = """
+The tail flag of the RETURN sentinel is never read.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "False,"
+occurrence = 0
+classification = "equivalent"
+reason = """
+This is the tail flag of the multiline RETURN sentinel installed for a
+non-tail call; RETURN executes before that flag can be read and restores the
+caller continuation directly.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "may_activate: bool = False,"
+occurrence = 0
+classification = "unspecified"
+reason = """
+machine.run is an internal execution layer reached through bytecode.run; the
+specified language-level activation-capability default is
+lang.run(..., may_activate=False).
+"""
+
+[[survivor]]
+kind = "boolean"
+source = "if type(left) in _PRIMITIVES and type(right) in _PRIMITIVES:"
+occurrence = 0
+classification = "equivalent"
+reason = """
+The primitive branch is only a fast path; canonical comparison agrees.
+"""
+
+[[survivor]]
+kind = "compare"
+source = "if type(left) in _PRIMITIVES and type(right) in _PRIMITIVES:"
+occurrence = 0
+classification = "equivalent"
+reason = """
+Changing the left fast-path guard only changes which equivalent path runs.
+"""
+
+[[survivor]]
+kind = "compare"
+source = "if type(left) in _PRIMITIVES and type(right) in _PRIMITIVES:"
+occurrence = 1
+classification = "equivalent"
+reason = """
+Changing the right fast-path guard only changes which equivalent path runs.
+"""

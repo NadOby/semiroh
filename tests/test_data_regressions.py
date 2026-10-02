@@ -1,9 +1,9 @@
-"""Regression tests for gaps in the acceptance suite of docs/language_data.md.
+"""Regression tests for gaps in the language acceptance suites.
 
-Each test here fails on a plausible bug that test_data_ops.py and the corpus
-let through: a `slice` whose stop is not honoured, an arity check that only
-an unbound parameter hides, a `let` that binds in place, a tail call that is
-lost in the then-branch of an `if`. test_data_ops.py itself is unchanged.
+Each test here fails on a plausible bug that the broader acceptance suites
+let through: data-operation edge cases, tail-position mistakes, and malformed
+input-form expressions that must load as invalid graph nodes and fail only
+when executed.
 """
 
 import unittest
@@ -113,6 +113,29 @@ class ArityTests(unittest.TestCase):
                         run(runtime, F)
 
                     self.assertEqual(runtime.active.holds, frozenset())
+
+
+class MalformedInputFormTests(unittest.TestCase):
+    def assertInvalidAtRun(self, body: tuple) -> None:
+        # Loading malformed input-form code must succeed. The malformed
+        # expression is represented by an invalid graph node and checked only
+        # when execution reaches it.
+        state = build(body)
+
+        with self.assertRaises(LanguageError):
+            run(Runtime(state), F)
+
+    def test_call_without_a_link_loads_as_invalid(self) -> None:
+        self.assertInvalidAtRun(("call",))
+
+    def test_ref_with_an_unknown_link_loads_as_invalid(self) -> None:
+        self.assertInvalidAtRun(("ref", "missing"))
+
+    def test_apply_without_a_function_loads_as_invalid(self) -> None:
+        self.assertInvalidAtRun(("apply",))
+
+    def test_trial_without_a_call_form_loads_as_invalid(self) -> None:
+        self.assertInvalidAtRun(("trial",))
 
 
 class LetScopeTests(unittest.TestCase):

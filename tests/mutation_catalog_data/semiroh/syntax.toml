@@ -487,3 +487,114 @@ SourceError coordinates but does not define which column EOF occupies.
 Changing this generated token's column from 1 to 2 affects only unspecified
 diagnostic position detail.
 """
+
+[[survivor]]
+kind = "arithmetic"
+source = 'tokens.append(Token("newline", None, number, len(line) + 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the column attached to the synthetic NEWLINE token. The
+syntax API specifies 1-based SourceError coordinates but does not specify the
+exact source column assigned to a zero-width generated newline token.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'tokens.append(Token("newline", None, number, len(line) + 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the synthetic NEWLINE token's column from len(line)+1 to
+len(line)+2. Exact coordinates for generated structural tokens are not part of
+the documented syntax contract.
+"""
+
+[[survivor]]
+kind = "arithmetic"
+source = 'tokens.append(Token("indent", None, number, indent + 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the column stored on a synthetic INDENT token. INDENT has no
+source character of its own, and the documented syntax contract does not
+define a canonical column for generated indentation tokens.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'tokens.append(Token("indent", None, number, indent + 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the column metadata of the generated INDENT token. Exact
+synthetic-token positions are not specified syntax behaviour.
+"""
+
+[[survivor]]
+kind = "arithmetic"
+source = 'tokens.append(Token("dedent", None, number, indent + 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the column stored on a generated DEDENT token. DEDENT is a
+zero-width structural token and its exact column is not specified by the text
+syntax contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'tokens.append(Token("dedent", None, number, indent + 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only generated DEDENT position metadata. Parsing structure is
+unchanged, and the syntax specification does not define the exact column of a
+synthetic DEDENT token.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'elif code < 0x20 or code == 0x7F or 0xD800 <= code <= 0xDFFF:'
+occurrence = 0
+classification = "unspecified"
+reason = """
+Changing the lower control-character boundary from 0x20 to 0x21 makes U+0020
+render as a unicode escape instead of literally inside backquotes. Both forms
+parse to the same name; exact escaping is rendering layout, which is
+provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'elif code < 0x20 or code == 0x7F or 0xD800 <= code <= 0xDFFF:'
+occurrence = 1
+classification = "unspecified"
+reason = """
+Changing the DEL comparison from 0x7F to 0x80 changes which of those code
+points is emitted as a unicode escape. Both literal and escaped forms round
+trip to the same name, and the exact textual escaping choice is not specified.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'elif code < 0x20 or code == 0x7F or 0xD800 <= code <= 0xDFFF:'
+occurrence = 2
+classification = "unspecified"
+reason = """
+Changing the surrogate-range lower boundary affects only whether U+D800 is
+written literally or as a unicode escape in a backquoted name. The parser
+accepts either representation as the same Python string; the exact rendering
+escape choice is not specified.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'elif code < 0x20 or code == 0x7F or 0xD800 <= code <= 0xDFFF:'
+occurrence = 3
+classification = "unspecified"
+reason = """
+Changing the surrogate-range upper boundary to U+E000 only changes whether
+that boundary character is written literally or with a unicode escape. Both
+forms represent the same name; exact escaping is provisional rendering layout.
+"""

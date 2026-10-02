@@ -37,9 +37,10 @@ from semiroh.continuity import (
     check,
     resolve,
 )
-from semiroh.lang import Function, load
+from semiroh.examples._support import program
+from semiroh.lang import Function, links, load
 from semiroh.relations import relation_of
-from semiroh.syntax import parse
+from semiroh.syntax import parse, render
 from semiroh.transforms import (
     EntityChange,
     TransformationMapping,
@@ -277,6 +278,38 @@ class SyntaxLiteralRegressionTests(unittest.TestCase):
         self.assertIs(
             declaration.initial,
             False,
+        )
+
+
+class SyntaxRenderingRegressionTests(unittest.TestCase):
+    def test_raw_trial_target_uses_current_entity_name(self) -> None:
+        function = EntityID("f")
+        target = EntityID("target")
+
+        state = load(program({
+            target: Function(
+                (),
+                ("lit", 0),
+            ),
+            function: Function(
+                (),
+                (
+                    "trial",
+                    ("lit", 0),
+                    "alias",
+                    ("lit", 1),
+                ),
+            ),
+            EntityID("f.links"): links(
+                function,
+                alias=target,
+            ),
+        }))
+
+        self.assertEqual(
+            render(state, function),
+            "fn f():\n"
+            '    raw(("trial", ("lit", 0), "target", ("lit", 1)))\n',
         )
 
 

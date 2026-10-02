@@ -106,6 +106,11 @@ class Closure(SemanticRecord):
                 "closure parameter and capture names overlap"
             )
 
+        captures = tuple(
+            (name, canonicalize(value))
+            for name, value in captures
+        )
+
         object.__setattr__(self, "params", params)
         object.__setattr__(self, "captures", captures)
 

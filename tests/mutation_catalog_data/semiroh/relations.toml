@@ -1,0 +1,12 @@
+source_blob = "951bb7fee26632461e079dd7c0f12164335a907c"
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False)"
+occurrence = 1
+classification = "equivalent"
+reason = """
+This changes dataclass eq=False to eq=True. Relation defines explicit __eq__
+and __hash__ methods, which dataclass does not replace, while frozen=True is
+unchanged. Equality, hashing and mutability therefore remain identical.
+"""

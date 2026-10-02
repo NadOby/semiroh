@@ -9,8 +9,9 @@ Catalog paths mirror mutation targets:
     mutation_catalog_data/semiroh/lang.toml
         -> semiroh/lang.py
 
-A target receives a TOML file only while it has reviewed survivors. Therefore
-the set of catalog source pins is exactly the set of classified targets.
+A target receives a TOML file only while it has reviewed survivors. The
+manifest inventories those files so deleting a complete target catalog cannot
+silently erase its classifications.
 """
 
 from __future__ import annotations
@@ -206,6 +207,47 @@ def _require_blob(
     return value
 
 
+def _require_string_list(
+    data: dict,
+    field: str,
+    context: str,
+) -> tuple[str, ...]:
+    value = data[field]
+
+    if not isinstance(value, list):
+        raise CatalogError(
+            f"{context}: {field} must be an array of strings"
+        )
+
+    items = []
+
+    for index, item in enumerate(value):
+        if not isinstance(item, str):
+            raise CatalogError(
+                f"{context}: {field}[{index}] must be a string"
+            )
+
+        if not item or item != item.strip():
+            raise CatalogError(
+                f"{context}: {field}[{index}] must be a "
+                "non-empty stripped string"
+            )
+
+        items.append(item)
+
+    if len(items) != len(set(items)):
+        raise CatalogError(
+            f"{context}: {field} contains duplicate entries"
+        )
+
+    if items != sorted(items):
+        raise CatalogError(
+            f"{context}: {field} must be sorted"
+        )
+
+    return tuple(items)
+
+
 def _target_for(
     path: Path,
     root: Path,
@@ -337,6 +379,7 @@ def load_catalog(
         {
             "schema_version",
             "engine_blob",
+            "catalog_targets",
         },
         "manifest",
     )
@@ -358,6 +401,22 @@ def load_catalog(
         "engine_blob",
         "manifest",
     )
+    catalog_targets = _require_string_list(
+        manifest,
+        "catalog_targets",
+        "manifest",
+    )
+
+    unknown_targets = (
+        set(catalog_targets)
+        - set(TARGETS)
+    )
+
+    if unknown_targets:
+        raise CatalogError(
+            "manifest: catalog_targets contains non-targets: "
+            + ", ".join(sorted(unknown_targets))
+        )
 
     source_blobs: dict[str, str] = {}
     survivors: dict[
@@ -425,6 +484,31 @@ def load_catalog(
                 )
 
             survivors[key] = classification
+
+    actual_targets = set(source_blobs)
+    expected_targets = set(catalog_targets)
+
+    if actual_targets != expected_targets:
+        missing = expected_targets - actual_targets
+        unexpected = actual_targets - expected_targets
+        problems = []
+
+        if missing:
+            problems.append(
+                "missing catalogs: "
+                + ", ".join(sorted(missing))
+            )
+
+        if unexpected:
+            problems.append(
+                "unlisted catalogs: "
+                + ", ".join(sorted(unexpected))
+            )
+
+        raise CatalogError(
+            "manifest/catalog inventory mismatch; "
+            + "; ".join(problems)
+        )
 
     return (
         engine_blob,

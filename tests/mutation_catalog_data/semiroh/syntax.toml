@@ -112,3 +112,197 @@ Flipping this membership test changes only diagnostic wording for an
 already-rejected token. The exact wording is intentionally outside the
 documented syntax API.
 """
+
+[[survivor]]
+kind = "constant"
+source = "return self.literal(rest[0], locs, mode), 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+The second tuple item is renderer precedence. Atom precedence is 4 and no
+operand requires more than 4, so changing this value to 5 cannot change
+parenthesization or rendered text.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return _name(name), 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+The returned integer is only an atom-precedence marker. Since operand
+requirements never exceed 4, changing it from 4 to 5 has no observable
+effect.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return _name(name), 4"
+occurrence = 1
+classification = "equivalent"
+reason = """
+The returned integer is only an atom-precedence marker. Since operand
+requirements never exceed 4, changing it from 4 to 5 has no observable
+effect.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return f\"{op}({_name(name)})\", 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+This value reports atom precedence to operand(). Both 4 and 5 satisfy every
+possible precedence requirement, whose maximum is 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return f\"apply({target}, {packed})\", 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+This value is only the precedence assigned to an atomic call-form rendering.
+Raising it from 4 to 5 cannot affect the prec >= need decision because need
+never exceeds 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return \"(\" + \", \".join(items) + \")\", 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+Tuple syntax is atomic for renderer precedence. Changing its precedence marker
+from 4 to 5 leaves every operand-parenthesization decision unchanged.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return f\"({items[0]},)\", 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+Singleton tuple syntax is atomic for renderer precedence. No caller requests a
+precedence above 4, so 4 and 5 are indistinguishable.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return self.raw(node), 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+raw(...) is treated as an atom by the renderer. Its precedence marker is used
+only by prec >= need, with need at most 4, so changing 4 to 5 is equivalent.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 0
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 1
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 2
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 3
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 4
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 5
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 6
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 7
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 8
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 9
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""

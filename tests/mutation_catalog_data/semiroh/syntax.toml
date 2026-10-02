@@ -332,3 +332,29 @@ Function or raises while collapsing malformed graph form. Therefore definition
 and code cannot reach this guard with only one of them None, so replacing or
 with and changes no behaviour.
 """
+
+[[survivor]]
+kind = "constant"
+source = "first: bool = True,"
+occurrence = 0
+classification = "unspecified"
+reason = """
+The default is used by activate's TARGET = VALUE parser. Changing it to False
+only changes how activate() is rejected: instead of the explicit empty-list
+diagnostic, target_pair consumes the closing parenthesis and global_function
+raises SourceError on that same token. Acceptance and source position are
+unchanged; exact diagnostic prose is not specified.
+"""
+
+[[survivor]]
+kind = "boolean"
+source = "if definition is None or code is None:"
+occurrence = 0
+classification = "equivalent"
+reason = """
+code is function_at(state, function). function_at returns None exactly when
+the entity is absent or its value has no definition; otherwise it returns a
+Function or raises while collapsing malformed graph form. Therefore definition
+and code cannot reach this guard with only one of them None, so replacing or
+with and changes no behaviour.
+"""

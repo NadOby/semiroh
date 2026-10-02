@@ -33,3 +33,14 @@ This changes dataclass eq=False to eq=True. Closure defines explicit __eq__
 and __hash__ methods, which dataclass does not replace, while frozen=True is
 unchanged. Equality, hashing and mutability therefore remain identical.
 """
+
+[[survivor]]
+kind = "return"
+source = "return NotImplemented"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Closure equality is specified between closure semantic values by their code
+identities, parameters and captured semantic values. Python reflected equality
+dispatch against unrelated host objects is not part of the closure contract.
+"""

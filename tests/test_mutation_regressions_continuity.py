@@ -18,7 +18,14 @@ from semiroh.continuity import (
     check,
     resolve,
 )
-from semiroh.lang import load
+from semiroh.lang import (
+    Function,
+    LanguageError,
+    define,
+    function_at,
+    links,
+    load,
+)
 from semiroh.relations import relation_of
 from semiroh.syntax import parse
 from semiroh.transforms import rebase
@@ -26,6 +33,8 @@ from semiroh.transforms import rebase
 
 ENTITY = EntityID("entity")
 OTHER = EntityID("other")
+F = EntityID("f")
+G = EntityID("g")
 
 
 class ContinuityDesignatorRegressionTests(unittest.TestCase):
@@ -66,6 +75,204 @@ class ContinuityDesignatorRegressionTests(unittest.TestCase):
                 "node:f@0.0",
                 malformed,
             )
+
+
+class LanguageDefineRegressionTests(unittest.TestCase):
+    def test_label_edit_subtree_does_not_follow_call_target(self) -> None:
+        links_entity = EntityID("f.links")
+        state = load(
+            State.create({
+                F: Value.create(
+                    F,
+                    Function(
+                        (),
+                        (
+                            "label",
+                            "spot",
+                            ("call", "g"),
+                        ),
+                    ),
+                ),
+                G: Value.create(
+                    G,
+                    Function(
+                        (),
+                        ("lit", 1),
+                    ),
+                ),
+                links_entity: Value.create(
+                    links_entity,
+                    links(
+                        F,
+                        g=G,
+                    ),
+                ),
+            })
+        )
+
+        destination = define(
+            state,
+            {
+                (F, "spot"): ("lit", 2),
+            },
+        ).destination
+
+        self.assertEqual(
+            function_at(destination, F),
+            Function(
+                (),
+                (
+                    "label",
+                    "spot",
+                    ("lit", 2),
+                ),
+            ),
+        )
+
+    def test_simultaneous_node_edits_cannot_introduce_same_label(
+        self,
+    ) -> None:
+        state = load(
+            State.create({
+                F: Value.create(
+                    F,
+                    Function(
+                        (),
+                        (
+                            "add",
+                            (
+                                "label",
+                                "left",
+                                ("lit", 1),
+                            ),
+                            (
+                                "label",
+                                "right",
+                                ("lit", 2),
+                            ),
+                        ),
+                    ),
+                ),
+            })
+        )
+
+        with self.assertRaises(LanguageError):
+            define(
+                state,
+                {
+                    (F, "left"):
+                        (
+                            "label",
+                            "new",
+                            ("lit", 10),
+                        ),
+                    (F, "right"):
+                        (
+                            "label",
+                            "new",
+                            ("lit", 20),
+                        ),
+                },
+            )
+
+    def test_node_edit_may_introduce_unique_nested_label(self) -> None:
+        state = load(
+            State.create({
+                F: Value.create(
+                    F,
+                    Function(
+                        (),
+                        (
+                            "label",
+                            "spot",
+                            ("lit", 1),
+                        ),
+                    ),
+                ),
+            })
+        )
+
+        destination = define(
+            state,
+            {
+                (F, "spot"): (
+                    "add",
+                    (
+                        "label",
+                        "fresh",
+                        ("lit", 2),
+                    ),
+                    ("lit", 3),
+                ),
+            },
+        ).destination
+
+        self.assertEqual(
+            function_at(destination, F),
+            Function(
+                (),
+                (
+                    "label",
+                    "spot",
+                    (
+                        "add",
+                        (
+                            "label",
+                            "fresh",
+                            ("lit", 2),
+                        ),
+                        ("lit", 3),
+                    ),
+                ),
+            ),
+        )
+
+    def test_simultaneous_function_edits_keep_their_own_bodies(
+        self,
+    ) -> None:
+        state = load(
+            State.create({
+                F: Value.create(
+                    F,
+                    Function(
+                        (),
+                        ("lit", 1),
+                    ),
+                ),
+                G: Value.create(
+                    G,
+                    Function(
+                        (),
+                        ("lit", 2),
+                    ),
+                ),
+            })
+        )
+        replacement_f = Function(
+            (),
+            ("lit", 10),
+        )
+        replacement_g = Function(
+            (),
+            ("lit", 20),
+        )
+
+        destination = define(
+            state,
+            {
+                F: replacement_f,
+                G: replacement_g,
+            },
+        ).destination
+
+        self.assertEqual(
+            function_at(destination, F),
+            replacement_f,
+        )
+        self.assertEqual(
+            function_at(destination, G),
+            replacement_g,
+        )
 
 
 class ContinuityCheckerRegressionTests(unittest.TestCase):

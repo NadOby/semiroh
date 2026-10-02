@@ -10,3 +10,61 @@ Syntax rendering gives special behaviour only to modes 0 and 1.
 Changing this internal mode from 2 to 3 therefore follows the same
 rendering and rejection paths for every expression.
 """
+
+[[survivor]]
+kind = "constant"
+source = "def __init__(self, message: str, line: int = 1, column: int = 1) -> None:"
+occurrence = 0
+classification = "unspecified"
+reason = """
+The documented SourceError contract is that parser errors expose 1-based line
+and column coordinates. Internal syntax code supplies those coordinates
+explicitly. The default line used when a caller directly constructs
+SourceError without coordinates is not part of the syntax contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "def __init__(self, message: str, line: int = 1, column: int = 1) -> None:"
+occurrence = 1
+classification = "unspecified"
+reason = """
+The documented SourceError contract is that parser errors expose 1-based line
+and column coordinates. Internal syntax code supplies those coordinates
+explicitly. The default column used when a caller directly constructs
+SourceError without coordinates is not part of the syntax contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True)"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Token is an implementation record used by the tokenizer and parser. The syntax
+contract specifies tokenization and parsing behaviour, not mutability of Token
+objects returned by the implementation.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "_ORDINARY, _HOLES = 0, 1"
+occurrence = 1
+classification = "equivalent"
+reason = """
+_HOLES is an internal mode tag. Code enters hole mode using _HOLES and tests
+for that same symbolic value; its numeric value is neither serialized nor
+otherwise interpreted. Changing the tag from 1 to 2 therefore preserves all
+behaviour.
+"""
+
+[[survivor]]
+kind = "return"
+source = "return False"
+occurrence = 0
+classification = "equivalent"
+reason = """
+This is the false result of private _Parser.accept_op. Every internal caller
+uses the result only for truth testing, for which False and None are
+indistinguishable. No syntax result or diagnostic exposes the returned value.
+"""

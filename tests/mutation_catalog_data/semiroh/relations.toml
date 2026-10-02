@@ -10,3 +10,15 @@ This changes dataclass eq=False to eq=True. Relation defines explicit __eq__
 and __hash__ methods, which dataclass does not replace, while frozen=True is
 unchanged. Equality, hashing and mutability therefore remain identical.
 """
+
+[[survivor]]
+kind = "return"
+source = "return NotImplemented"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Relation equality is specified between semantic Relation records. Returning
+NotImplemented for an unrelated Python object only controls Python's reflected
+cross-type equality dispatch, which is not part of the relation semantic
+contract.
+"""

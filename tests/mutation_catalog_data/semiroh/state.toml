@@ -1,0 +1,12 @@
+source_blob = "5d717ec8d0f0680754818788316369d8784c6626"
+
+[[survivor]]
+kind = "constant"
+source = "8,"
+occurrence = 1
+classification = "unspecified"
+reason = """
+The byte width used to delimit ownership count in the Python StateID encoding
+is an implementation representation detail; identity is specified by semantic
+content, not this particular byte layout.
+"""

@@ -301,6 +301,13 @@ class SyntaxParserRegressionTests(unittest.TestCase):
                 "cell c: int = +0)\n"
             )
 
+    def test_label_requires_a_name(self) -> None:
+        with self.assertRaises(SourceError):
+            parse(
+                "fn f():\n"
+                "    label(1, 2)\n"
+            )
+
 
 class SyntaxRenderingRegressionTests(unittest.TestCase):
     def test_raw_trial_target_uses_current_entity_name(self) -> None:

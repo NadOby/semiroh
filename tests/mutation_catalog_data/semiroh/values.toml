@@ -1,0 +1,11 @@
+source_blob = "0c5974ffb4fb4b76c26542ee331406a1ef0a6835"
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False)"
+occurrence = 1
+classification = "equivalent"
+reason = """
+Value defines its own __eq__ and __hash__, so enabling dataclass equality
+generation does not replace those explicit methods.
+"""

@@ -82,6 +82,22 @@ class BasicClosureTests(unittest.TestCase):
         # MAKE's frame is gone before this separate run starts.
         self.assertEqual(run(runtime, APPLY, add7, 5), 12)
 
+    def test_closure_rejects_owner_that_is_no_longer_a_function(self) -> None:
+        state = loaded(helpers())
+        closure = run(Runtime(state), MAKE, 4)
+
+        changed = state.with_changes({
+            MAKE: 0,
+        })
+
+        with self.assertRaises(LanguageError):
+            run(
+                Runtime(changed),
+                APPLY,
+                closure,
+                3,
+            )
+
     def test_closures_can_be_passed_and_returned_as_values(self) -> None:
         entities = {
             **helpers(),

@@ -42,6 +42,11 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   earlier one to avoid conflicts.
 - Never edit the owner's tests to fit new code without saying so; if a test
   encodes an old rule, rename it to what it now checks and call it out.
+- AI sessions should not limit themselves to the immediate patch when the work
+  exposes a concrete architectural or process weakness. Surface the smallest
+  justified improvement and explain why it follows from the evidence.
+- Distinguish changes required for the current task from useful architectural
+  or process follow-ups so scope remains explicit.
 
 ## Conventions
 
@@ -50,6 +55,14 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 - PR descriptions: short. No link to the AI session. If the environment
   appends a session-link footer, remove it by editing the description.
 - Python, standard library only. Frozen dataclasses for semantic records.
+- Around 500 lines is a review threshold for source, test, and configuration
+  files, not a hard limit. When a file approaches or exceeds it, consider
+  splitting by coherent responsibility or subdomain. Keep it monolithic when
+  that is clearer; do not split mechanically just to satisfy a line count.
+- Large declarative catalogs should normally separate executable loading and
+  validation logic from serialized review data when that reduces churn and
+  makes review boundaries clearer. Prefer standard-library-readable formats
+  and keep validation fail-closed.
 
 ## Testing
 

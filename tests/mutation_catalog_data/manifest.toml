@@ -1,2 +1,23 @@
 schema_version = 1
 engine_blob = "f9380e727e5662ea7f309229bd28a2ce11329910"
+
+catalog_targets = [
+    "semiroh/bytecode.py",
+    "semiroh/canonical.py",
+    "semiroh/cells.py",
+    "semiroh/closures.py",
+    "semiroh/constraints.py",
+    "semiroh/continuity.py",
+    "semiroh/examples/self_hosting.py",
+    "semiroh/examples/vm.py",
+    "semiroh/fold.py",
+    "semiroh/lang.py",
+    "semiroh/machine.py",
+    "semiroh/matching.py",
+    "semiroh/ownership.py",
+    "semiroh/reconcile.py",
+    "semiroh/runtime.py",
+    "semiroh/state.py",
+    "semiroh/syntax.py",
+    "semiroh/values.py",
+]

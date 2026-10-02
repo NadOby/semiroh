@@ -289,6 +289,12 @@ class SyntaxParserRegressionTests(unittest.TestCase):
                 "    1 +\n"
             )
 
+    def test_cell_type_keyword_cannot_be_backquoted(self) -> None:
+        with self.assertRaises(SourceError):
+            parse(
+                "cell c: `int` = 0\n"
+            )
+
 
 class SyntaxRenderingRegressionTests(unittest.TestCase):
     def test_raw_trial_target_uses_current_entity_name(self) -> None:

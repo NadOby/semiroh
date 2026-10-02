@@ -19,3 +19,50 @@ classification = "unspecified"
 reason = """
 The selected value appears only in diagnostic text.
 """
+
+[[survivor]]
+kind = "if"
+source = "if index is None:"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Every internal caller of _links_of supplies a relation index. Negating this
+branch therefore only causes those callers to rebuild the same derived index.
+The changed behaviour when the private helper is called with its optional
+index omitted is not part of the language semantic contract.
+"""
+
+[[survivor]]
+kind = "return"
+source = "return NotImplemented"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Function equality is specified by canonical semantic content when comparing
+Functions. Returning NotImplemented for an unrelated Python object participates
+in Python's reflected equality protocol; that cross-type host-language
+interoperability is not part of the SEMIROH language contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False)"
+occurrence = 0
+classification = "equivalent"
+reason = """
+Function defines both __eq__ and __hash__ explicitly. Changing the dataclass
+eq option to true does not replace either explicit method, so Function
+equality and hashing are unchanged.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True)"
+occurrence = 0
+classification = "unspecified"
+reason = """
+_Definition is a private transient helper used to construct immutable Relation
+values. No semantic state exposes a _Definition instance, and allowing that
+private helper object itself to be mutated does not change any specified
+language behaviour.
+"""

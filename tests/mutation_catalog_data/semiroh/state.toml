@@ -78,3 +78,16 @@ reason = """
 The ownership-entry count is always non-negative, so signed and unsigned
 eight-byte encoding produce identical bytes for every reachable state.
 """
+
+[[survivor]]
+kind = "return"
+source = "return NotImplemented"
+occurrence = 0
+classification = "unspecified"
+reason = """
+State equality is specified for comparing semantic states. For a non-State
+operand, returning NotImplemented participates in Python's reflected equality
+protocol, while returning None suppresses that dispatch. That host-language
+cross-type interoperability is observable but is not part of the SEMIROH state
+equality contract.
+"""

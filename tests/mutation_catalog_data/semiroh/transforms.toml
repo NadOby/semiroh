@@ -1,0 +1,14 @@
+source_blob = "e2b9f0f5278b126c9f978a2d6f3ae0b9079eece0"
+
+[[survivor]]
+kind = "constant"
+source = "if len(matches) > 1:"
+occurrence = 0
+classification = "equivalent"
+reason = """
+TransformResult.__post_init__ rejects multiple mapping records for the same
+source entity. mapped_entities filters those validated records by source state
+and source entity, so a valid TransformResult can contain at most one match.
+Changing the ambiguity threshold from greater than 1 to greater than 2 is
+therefore unreachable for every valid result.
+"""

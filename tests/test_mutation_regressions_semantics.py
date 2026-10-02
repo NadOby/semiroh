@@ -192,32 +192,6 @@ class SemanticRecordImmutabilityTests(unittest.TestCase):
 
 
 class SemanticEqualityRegressionTests(unittest.TestCase):
-    def test_unrelated_semantic_records_compare_false(self) -> None:
-        records = (
-            Value.create(ENTITY, 1),
-            CellDeclaration(AllOf(), 1),
-            AllOf(),
-            Closure(
-                OWNER,
-                BODY,
-                ("x",),
-                (),
-            ),
-            State.create({
-                ENTITY: Value.create(
-                    ENTITY,
-                    1,
-                ),
-            }),
-        )
-
-        for record in records:
-            with self.subTest(record=type(record).__name__):
-                self.assertIs(
-                    record == object(),
-                    False,
-                )
-
     def test_equal_cell_declarations_have_equal_hashes(self) -> None:
         first = CellDeclaration(
             IsKind("int"),

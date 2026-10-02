@@ -1,0 +1,12 @@
+source_blob = "f28e80bb1c6fc633d739d5ce82436901653409ef"
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False, init=False)"
+occurrence = 5
+classification = "equivalent"
+reason = """
+This occurrence is AllOf's init=False flag; AllOf defines its own __init__, so
+changing dataclass init to True does not generate or replace the explicit
+constructor.
+"""

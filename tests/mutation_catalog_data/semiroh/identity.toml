@@ -1,0 +1,23 @@
+source_blob = "f89227bb0fe343f5eebef17cc906cfab8310939c"
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, order=True)"
+occurrence = 3
+classification = "unspecified"
+reason = """
+This occurrence is VersionID's order=True flag. Version identity and type
+separation are semantic; Python host ordering between VersionID instances is
+not specified by the identity model.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, order=True)"
+occurrence = 5
+classification = "unspecified"
+reason = """
+This occurrence is StateID's order=True flag. State identity and type
+separation are semantic; Python host ordering between StateID instances is not
+specified by the identity model.
+"""

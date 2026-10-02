@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from semiroh import (
+    ActivationRejected,
     EntityID,
     Relation,
     State,
@@ -285,6 +286,29 @@ class ContinuityCheckerRegressionTests(unittest.TestCase):
             {},
         )
 
+    @staticmethod
+    def _disjoint_pair(state: State):
+        return (
+            define(
+                state,
+                {
+                    G: Function(
+                        (),
+                        ("lit", 3),
+                    ),
+                },
+            ),
+            define(
+                state,
+                {
+                    F: Function(
+                        ("x",),
+                        ("lit", 0),
+                    ),
+                },
+            ),
+        )
+
     def test_wrong_activation_exception_is_a_mismatch(self) -> None:
         result = self._foreign_result()
 
@@ -325,6 +349,144 @@ class ContinuityCheckerRegressionTests(unittest.TestCase):
         self.assertIn(
             "ActivationRejected",
             problems[0],
+        )
+
+    def test_expected_activation_exception_is_accepted(self) -> None:
+        result = self._foreign_result()
+
+        case = Case(
+            name="expected-activation-exception",
+            group="inferred",
+            source="fn f():\n    1\n",
+            operation=lambda _: result,
+            expect=Expect(rejected=ActivationRejected),
+            status="probe",
+            note="mutation regression",
+        )
+
+        self.assertEqual(
+            check(case),
+            (),
+        )
+
+    def test_invalid_at_merge_and_split_targets_are_mismatches(
+        self,
+    ) -> None:
+        def identity(state: State):
+            return transform_with_mapping(
+                state,
+                {},
+                {
+                    entity: entity
+                    for entity in state.values
+                },
+            )
+
+        case = Case(
+            name="invalid-structural-designators",
+            group="inferred",
+            source="fn f():\n    1\n",
+            operation=identity,
+            expect=Expect(
+                at={
+                    "node:f@": "after:f@9",
+                },
+                merged={
+                    "fn:f": "after:f@9",
+                },
+                split={
+                    "fn:f": (
+                        "fn:f",
+                        "after:f@9",
+                    ),
+                },
+            ),
+            status="probe",
+            note="mutation regression",
+        )
+
+        problems = check(case)
+
+        self.assertEqual(
+            len(problems),
+            3,
+        )
+        self.assertTrue(
+            all(
+                "after:f@9" in problem
+                for problem in problems
+            )
+        )
+
+    def test_competing_checker_uses_nonidentity_mapping_record(
+        self,
+    ) -> None:
+        case = Case(
+            name="competing-mapping-record",
+            group="competing",
+            source=(
+                "fn f(x):\n"
+                "    x + 1\n"
+                "\n"
+                "fn g():\n"
+                "    2\n"
+            ),
+            operation=self._disjoint_pair,
+            expect=Expect(
+                gone=(
+                    "node:f@",
+                ),
+                merged={
+                    "fn:g": "fn:g",
+                },
+            ),
+            status="probe",
+            note="mutation regression",
+        )
+
+        self.assertEqual(
+            check(case),
+            (),
+        )
+
+    def test_competing_checker_checks_cell_expectations(self) -> None:
+        case = Case(
+            name="competing-cell-check",
+            group="competing",
+            source=(
+                "cell c: int = 0\n"
+                "\n"
+                "fn f(x):\n"
+                "    x + 1\n"
+                "\n"
+                "fn g():\n"
+                "    2\n"
+            ),
+            operation=self._disjoint_pair,
+            expect=Expect(
+                cells={
+                    "cell:c": 0,
+                },
+            ),
+            status="probe",
+            note="mutation regression",
+            writes={
+                "cell:c": 5,
+            },
+        )
+
+        problems = check(case)
+
+        self.assertEqual(
+            len(problems),
+            2,
+        )
+        self.assertTrue(
+            all(
+                "cells cell:c" in problem
+                and "holds 5" in problem
+                for problem in problems
+            )
         )
 
 

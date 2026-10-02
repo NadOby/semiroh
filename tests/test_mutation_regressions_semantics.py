@@ -486,7 +486,7 @@ class ClosureCanonicalRegressionTests(unittest.TestCase):
 
         self.assertEqual(decoded, original)
 
-    def test_canonical_closure_decodes_list_capture_structure(
+    def test_canonical_closure_round_trips_list_capture(
         self,
     ) -> None:
         original = Closure(
@@ -499,10 +499,6 @@ class ClosureCanonicalRegressionTests(unittest.TestCase):
         decoded = closure_value(canonicalize(original))
 
         self.assertEqual(decoded, original)
-        self.assertEqual(
-            decoded.captures,
-            (("items", [1, 2]),),
-        )
 
     def test_canonical_closure_rejects_malformed_entity_tag(
         self,

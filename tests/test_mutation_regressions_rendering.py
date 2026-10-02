@@ -397,6 +397,70 @@ class SyntaxRenderingRegressionTests(unittest.TestCase):
             '    raw(("trial", ("call",)))\n',
         )
 
+    def test_raw_fallback_preserves_malformed_shapes_and_maps_links(
+        self,
+    ) -> None:
+        function = EntityID("f")
+        target = EntityID("target")
+        cases = (
+            (
+                ("activate", ("alias", "k")),
+                '("activate", ("target", "k"))',
+            ),
+            (
+                (
+                    "let",
+                    "x",
+                    ("call", "alias"),
+                    ("lit", 0),
+                    ("lit", 1),
+                ),
+                '("let", "x", ("call", "target"), ("lit", 0), ("lit", 1))',
+            ),
+            (
+                (
+                    "label",
+                    "k",
+                    ("call", "alias"),
+                    ("lit", 0),
+                ),
+                '("label", "k", ("call", "target"), ("lit", 0))',
+            ),
+            (
+                (
+                    "closure",
+                    ("x",),
+                    (),
+                    ("call", "alias"),
+                    ("lit", 0),
+                ),
+                '("closure", ("x",), (), ("call", "target"), ("lit", 0))',
+            ),
+        )
+
+        for expression, expected in cases:
+            with self.subTest(expression=expression):
+                state = load(program({
+                    target: Function(
+                        (),
+                        ("lit", 0),
+                    ),
+                    function: Function(
+                        (),
+                        expression,
+                    ),
+                    EntityID("f.links"): links(
+                        function,
+                        alias=target,
+                    ),
+                }))
+
+                self.assertEqual(
+                    render(state, function),
+                    "fn f():\n"
+                    f"    raw({expected})\n",
+                )
+
     def test_closure_inside_quote_renders_raw(self) -> None:
         function = EntityID("f")
         state = load(program({

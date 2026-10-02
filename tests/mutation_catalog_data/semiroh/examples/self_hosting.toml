@@ -1,0 +1,11 @@
+source_blob = "270f94583613f44c344e4fc1600def38a4cd3111"
+
+[[survivor]]
+kind = "constant"
+source = "IntRange(0, 100),"
+occurrence = 1
+classification = "unspecified"
+reason = """
+The instrumentation cell's upper bound is example scaffolding rather than part
+of the embedded compiler's semantic contract.
+"""

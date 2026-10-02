@@ -40,7 +40,7 @@ from semiroh.continuity import (
 from semiroh.examples._support import program
 from semiroh.lang import Function, links, load
 from semiroh.relations import relation_of
-from semiroh.syntax import parse, render
+from semiroh.syntax import SourceError, parse, render
 from semiroh.transforms import (
     EntityChange,
     TransformationMapping,
@@ -279,6 +279,15 @@ class SyntaxLiteralRegressionTests(unittest.TestCase):
             declaration.initial,
             False,
         )
+
+
+class SyntaxParserRegressionTests(unittest.TestCase):
+    def test_incomplete_expression_raises_source_error(self) -> None:
+        with self.assertRaises(SourceError):
+            parse(
+                "fn f():\n"
+                "    1 +\n"
+            )
 
 
 class SyntaxRenderingRegressionTests(unittest.TestCase):

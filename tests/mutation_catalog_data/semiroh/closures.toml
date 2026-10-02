@@ -1,0 +1,11 @@
+source_blob = "dfc12e8c2a6cad3bb0749fc1715759a19cd81488"
+
+[[survivor]]
+kind = "boolean"
+source = "if owner is None or body is None:"
+occurrence = 0
+classification = "equivalent"
+reason = """
+If exactly one decoded identity is absent, Closure construction rejects that
+non-EntityID and closure_value returns None through the same validation path.
+"""

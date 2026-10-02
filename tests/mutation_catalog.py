@@ -397,6 +397,52 @@ SURVIVORS: dict[
         "adding any int performs the operand check and the sum is discarded",
     ),
     (
+        "semiroh/examples/vm.py",
+        "constant",
+        '("lt", length, _lit(2)),',
+        0,
+    ): (
+        EQUIVALENT,
+        "valid capability-tagged callables have length 3 or 6; a length-2 "
+        "value already traps later under the exact tag-specific length checks, "
+        "so changing the early threshold from 2 to 3 changes no outcome",
+    ),
+    (
+        "semiroh/examples/vm.py",
+        "constant",
+        "_lit(True),",
+        2,
+    ): (
+        EQUIVALENT,
+        "this is the success value of the reference branch in "
+        "_callable_tagged; its caller uses the check only for trapping and "
+        "discards the successful value in seq",
+    ),
+    (
+        "semiroh/examples/vm.py",
+        "constant",
+        "_lit(True),",
+        3,
+    ): (
+        EQUIVALENT,
+        "this is the success value of the closure branch in "
+        "_callable_tagged; its caller uses the check only for trapping and "
+        "discards the successful value in seq",
+    ),
+    (
+        "semiroh/examples/vm.py",
+        "constant",
+        "_validate_names(k(2)),",
+        0,
+    ): (
+        EQUIVALENT,
+        "the later validation of concat(k(2), k(3)) checks every parameter "
+        "and capture name together, including duplicates and overlap; concat "
+        "itself requires both operands to be tuples, so replacing this "
+        "redundant parameter-only validation with capture validation changes "
+        "no accepted or rejected closure metadata",
+    ),
+    (
         "semiroh/machine.py",
         "constant",
         "(_RETURN, 0, False, None, activation)",
@@ -404,6 +450,28 @@ SURVIVORS: dict[
     ): (
         EQUIVALENT,
         "the tail flag of the RETURN sentinel is never read",
+    ),
+    (
+        "semiroh/machine.py",
+        "constant",
+        "False,",
+        0,
+    ): (
+        EQUIVALENT,
+        "this is the tail flag of the multiline RETURN sentinel installed "
+        "for a non-tail call; RETURN executes before that flag can be read "
+        "and restores the caller continuation directly",
+    ),
+    (
+        "semiroh/machine.py",
+        "constant",
+        "may_activate: bool = False,",
+        0,
+    ): (
+        UNSPECIFIED,
+        "machine.run is an internal execution layer reached through "
+        "bytecode.run; the specified language-level activation-capability "
+        "default is lang.run(..., may_activate=False)",
     ),
     (
         "semiroh/machine.py",

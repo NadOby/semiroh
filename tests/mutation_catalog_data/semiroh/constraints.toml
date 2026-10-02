@@ -134,3 +134,15 @@ reason = """
 This occurrence is External's eq=False flag. Dataclass equality over its
 single name field agrees with canonical semantic equality.
 """
+
+[[survivor]]
+kind = "return"
+source = "return NotImplemented"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Constraint equality is specified between semantic constraints by canonical
+semantic content. The reflected-dispatch behaviour produced by returning
+NotImplemented for an unrelated Python object is host-language interoperability
+and is not part of the constraint semantic contract.
+"""

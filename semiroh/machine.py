@@ -123,6 +123,15 @@ def _closure(
             f"{owner.value}: closure captures must be a tuple"
         )
 
+    if not all(
+        isinstance(name, str) and name
+        for name in capture_names
+    ):
+        raise LanguageError(
+            f"{owner.value}: "
+            "closure captures need non-empty string names"
+        )
+
     captures: list[tuple[str, Any]] = []
 
     for name in capture_names:
@@ -940,4 +949,4 @@ def run(
             canonicalize(arg)
             for arg in args
         ],
-  )
+                    )

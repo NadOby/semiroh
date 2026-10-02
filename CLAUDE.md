@@ -93,13 +93,18 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 - A new regression test must fail on the old code. For a property test,
   plant a plausible bug and confirm the property catches it.
 - Test semantic contracts, not incidental implementation details.
-- Mutation targets, omissions and reviewed survivors live in
-  `tests/mutation_catalog.py`. A survivor classification is valid only for
-  the exact pinned target-source version and pinned mutation-engine version
-  under which it was reviewed. Any edit to a target file invalidates all
-  survivor classifications for that file until explicit re-review and
-  repinning; any edit to `tests/mutation.py` invalidates the survivor catalog
-  as a whole until explicit re-review and repinning.
+- Mutation target policy and explicit omissions live in
+  `tests/mutation_catalog.py`. Reviewed survivor classifications and exact
+  target-source pins live in per-target TOML files under
+  `tests/mutation_catalog_data/`; its manifest pins the mutation-engine version
+  and inventories every target with classified survivors. The Python loader
+  validates that serialized catalog fail-closed.
+- A survivor classification is valid only for the exact pinned target-source
+  version and pinned mutation-engine version under which it was reviewed. Any
+  edit to a target file invalidates all survivor classifications for that file
+  until explicit re-review and repinning; any edit to `tests/mutation.py`
+  invalidates the survivor catalog as a whole until explicit re-review and
+  repinning.
 - Run a seeded mutation sample with, for example:
 
       SEMIROH_MUTATE=1 SEMIROH_MUTATE_SEED=1 \

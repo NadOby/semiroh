@@ -16,6 +16,7 @@ from semiroh.continuity import (
     Case,
     DesignatorError,
     Expect,
+    _restate,
     check,
     resolve,
 )
@@ -273,6 +274,36 @@ class LanguageDefineRegressionTests(unittest.TestCase):
         self.assertEqual(
             function_at(destination, G),
             replacement_g,
+        )
+
+
+class ContinuityOperationRegressionTests(unittest.TestCase):
+    def test_restate_preserves_replacement_program_link_table(self) -> None:
+        source = load(
+            parse(
+                "fn g():\n"
+                "    1\n"
+                "\n"
+                "fn f():\n"
+                "    0\n"
+            )
+        )
+        operation = _restate(
+            "fn g():\n"
+            "    1\n"
+            "\n"
+            "fn f():\n"
+            "    g()\n"
+        )
+
+        destination = operation(source).destination
+        definition = relation_of(destination.values[F])
+
+        self.assertIsNotNone(definition)
+        assert definition is not None
+        self.assertEqual(
+            definition.roles["link:g"],
+            G,
         )
 
 

@@ -345,3 +345,74 @@ quote/unquote handling, function rendering and literal rendering all take the
 same branches for 2 and 3. Changing this internal tag from 2 to 3 therefore
 cannot change rendered text or rejection behaviour.
 """
+
+[[survivor]]
+kind = "constant"
+source = '"add": ("+", 2, 2, 3),'
+occurrence = 1
+classification = "unspecified"
+reason = """
+This raises the required precedence of add's left operand from 2 to 3. It can
+only add parentheses around a left additive expression. Additive parsing is
+left-associative, so the parsed expression and behaviour are unchanged; exact
+parenthesization is part of the provisional rendering layout.
+"""
+
+[[survivor]]
+kind = "constant"
+source = '"sub": ("-", 2, 2, 3),'
+occurrence = 2
+classification = "unspecified"
+reason = """
+This raises the required precedence of sub's right operand from 3 to 4. It can
+only add parentheses around a multiplicative right operand. Multiplication
+already binds more tightly than subtraction, so behaviour is unchanged; exact
+parenthesization is provisional layout.
+"""
+
+[[survivor]]
+kind = "constant"
+source = '"mul": ("*", 3, 3, 4),'
+occurrence = 1
+classification = "unspecified"
+reason = """
+This raises the required precedence of mul's left operand from 3 to 4. It can
+only parenthesize a left multiplication that the parser would already group
+left-associatively. The expression is unchanged; exact layout is provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = '"lt": ("<", 1, 2, 2),'
+occurrence = 1
+classification = "unspecified"
+reason = """
+This raises the required precedence of the comparison's left operand from 2
+to 3, adding parentheses around an additive operand. Addition already binds
+more tightly than comparison, so parsing and behaviour are unchanged; exact
+parenthesization is provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = '"lt": ("<", 1, 2, 2),'
+occurrence = 2
+classification = "unspecified"
+reason = """
+This raises the required precedence of the comparison's right operand from 2
+to 3, adding parentheses around an additive operand. Addition already binds
+more tightly than comparison, so parsing and behaviour are unchanged; exact
+parenthesization is provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = '"eq": ("==", 1, 2, 2),'
+occurrence = 2
+classification = "unspecified"
+reason = """
+This raises the required precedence of equality's right operand from 2 to 3,
+adding parentheses around an additive operand. Addition already binds more
+tightly than equality, so parsing and behaviour are unchanged; exact
+parenthesization is provisional.
+"""

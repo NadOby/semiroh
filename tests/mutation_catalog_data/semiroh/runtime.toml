@@ -1,6 +1,17 @@
 source_blob = "610c99adbf4dd9158c0efb3057fce2d332464d7d"
 
 [[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True)"
+occurrence = 0
+classification = "unspecified"
+reason = """
+This occurrence is Converter's frozen=True flag. Converter is an executable
+runtime mechanism rather than a semantic value; host-object mutability of the
+wrapper is not part of the runtime semantic contract.
+"""
+
+[[survivor]]
 kind = "return"
 source = 'return f"Version({self.id.value[:12]}, holds={len(self._holds)})"'
 occurrence = 0

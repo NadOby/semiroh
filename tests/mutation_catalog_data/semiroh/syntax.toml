@@ -332,3 +332,16 @@ Function or raises while collapsing malformed graph form. Therefore definition
 and code cannot reach this guard with only one of them None, so replacing or
 with and changes no behaviour.
 """
+
+[[survivor]]
+kind = "constant"
+source = "mode, template = 2, body[1]"
+occurrence = 0
+classification = "equivalent"
+reason = """
+Renderer mode 2 means a literal's template value. Rendering only distinguishes
+mode 0, mode 1, and all other mode values: link lookup, local-name checks,
+quote/unquote handling, function rendering and literal rendering all take the
+same branches for 2 and 3. Changing this internal tag from 2 to 3 therefore
+cannot change rendered text or rejection behaviour.
+"""

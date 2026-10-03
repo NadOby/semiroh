@@ -21,13 +21,41 @@ The semantic experiment itself is described in:
 docs/semantic_core_experiment.md
 ```
 
-## 1. Current formal model
+## 1. Current formal structure
 
-The bounded model is:
+The semantic model is:
+
+```text
+formal/core_model.als
+```
+
+The verification entrypoint is:
 
 ```text
 formal/core.als
 ```
+
+The split is intentional.
+
+`core_model.als` contains the candidate semantic structures and predicates.
+
+`core.als` contains:
+
+```text
+verification scaffolding
+assertions
+witness scenarios
+bounded commands
+```
+
+Verification-only structures such as:
+
+```text
+BisimWitness
+CompositionCase
+```
+
+are not proposed SHEAR semantic primitives.
 
 Current commands:
 
@@ -37,6 +65,8 @@ Current commands:
 2  CompositionIsBisimulation
 3  DistinctEntitiesCanNameEqualValues
 4  SharingDoesNotForceInequality
+5  ReverseWitnessExists
+6  CompositionWitnessesExist
 ```
 
 Expected results:
@@ -47,6 +77,8 @@ Expected results:
 2  UNSAT
 3  SAT
 4  SAT
+5  SAT
+6  SAT
 ```
 
 Interpretation:
@@ -63,15 +95,16 @@ Neither establishes an unbounded theorem.
 
 ## 2. Command isolation
 
-The first workflow executed all Alloy commands sequentially.
+The first workflow executed Alloy commands sequentially.
 
-That made one pathological command hide the status of all later commands.
+That allowed one pathological command to hide the status of all later
+commands.
 
 The workflow was changed to:
 
 1. discover Alloy command indices;
 2. run each command in an independent GitHub Actions matrix job;
-3. preserve the command's original scopes and expectation;
+3. preserve each command's declared scopes and expectation;
 4. allow expensive commands to continue without blocking unrelated results.
 
 This localized nearly all current verification cost to:
@@ -80,7 +113,18 @@ This localized nearly all current verification cost to:
 CompositionIsBisimulation
 ```
 
-The other four commands consistently complete in seconds.
+Commands:
+
+```text
+0
+1
+3
+4
+5
+6
+```
+
+complete comparatively quickly in the observed runs.
 
 Command isolation is therefore both a performance feature and an epistemic
 requirement.
@@ -88,7 +132,7 @@ requirement.
 A pathological command must not obscure successful or failed verification of
 unrelated properties.
 
-## 3. Solver evidence
+## 3. Historical solver evidence
 
 ### 3.1 SAT4J sequential run
 
@@ -111,7 +155,7 @@ CompositionIsBisimulation:
     unresolved when GitHub Actions terminated the job
 ```
 
-The job reached the GitHub Actions approximately six-hour execution limit.
+The job reached approximately the GitHub Actions six-hour execution limit.
 
 This is:
 
@@ -129,8 +173,6 @@ Run:
 37140819564
 ```
 
-Command 2 was isolated into its own job.
-
 Observed:
 
 ```text
@@ -147,7 +189,7 @@ timeout != verification failure
 timeout != verification success
 ```
 
-The explicit research timeout has since been removed.
+The explicit research timeout was subsequently removed.
 
 ### 3.3 Glucose completed composition – first run
 
@@ -170,15 +212,8 @@ equivalent:
     48 min 56 s
 ```
 
-This was the first completed bounded result for the current composition scope.
-
-It establishes only:
-
-```text
-no composition counterexample exists within that bounded command
-```
-
-It does not establish general bisimulation composition.
+This was the first completed bounded composition result at the original
+composition search surface.
 
 ### 3.4 Glucose completed composition – repeat
 
@@ -201,7 +236,8 @@ equivalent:
     95 min 36 s
 ```
 
-The formal model and composition command were unchanged.
+The formal model and composition command were unchanged relative to the first
+completed Glucose run.
 
 The difference between:
 
@@ -220,119 +256,7 @@ is almost a factor of two.
 Therefore single-run wall-clock timing is not a sufficiently stable basis for
 fine-grained solver comparisons on GitHub-hosted runners.
 
-### 3.5 Current solver interpretation
-
-Current evidence supports:
-
-```text
-verified:
-    composition dominates current bounded verification cost
-
-verified:
-    Glucose can prove the current bounded composition command UNSAT
-
-verified:
-    SAT4J is dramatically less practical for this command
-    under observed runs
-
-verified:
-    commands 0, 1, 3 and 4 are comparatively inexpensive
-
-verified:
-    Glucose runtime for composition has substantial run-to-run variance
-```
-
-Not established:
-
-```text
-why composition is expensive
-
-whether translation or SAT search dominates
-
-whether relational join is the main source of difficulty
-
-whether symmetry breaking is near-optimal
-
-whether decomposition improves this model
-
-whether another solver performs better than Glucose
-
-how runtime scales with scope
-```
-
-## 4. Decomposed analysis
-
-Alloy 6.2.0 exposes Pardinus decomposition through the Java API:
-
-```text
-decompose_mode = 0
-    batch / off
-
-decompose_mode = 1
-    Hybrid
-
-decompose_mode = 2
-    Parallel
-```
-
-The current Hybrid experiment uses:
-
-```text
-solver:
-    glucose
-
-decompose_mode:
-    1
-
-decompose_threads:
-    4
-```
-
-with the same:
-
-```text
-formal model
-composition command
-scope
-expectation
-symmetry setting
-partial-instance setting
-```
-
-as the batch Glucose comparison.
-
-Therefore decomposition mode is the intentional independent variable.
-
-An earlier Hybrid run exceeded both completed batch Glucose timings without
-producing a result at the time it was inspected.
-
-That establishes:
-
-```text
-no observed Hybrid speed advantage in that run
-```
-
-but not yet:
-
-```text
-Hybrid is universally slower
-Hybrid is hung
-Hybrid cannot solve the command
-```
-
-A long silent period was particularly difficult to interpret because the
-original runner used:
-
-```java
-A4Reporter.NOP
-```
-
-and therefore emitted no internal translation/solver diagnostics while
-executing.
-
-This motivated the instrumented runner.
-
-## 5. Instrumented runner
+## 4. Instrumented runner
 
 The experimental runner is:
 
@@ -347,9 +271,9 @@ CompUtil.parseEverything_fromFile(...)
 TranslateAlloyToKodkod.execute_commandFromBook(...)
 ```
 
-rather than constructing a separate solver pipeline.
+rather than constructing an independent solver pipeline.
 
-The runner now records:
+The runner records:
 
 ```text
 runtime environment
@@ -393,58 +317,418 @@ It does not mean:
 the SAT search has made measurable progress
 ```
 
-The relevant API details and classifications are documented in:
+The relevant Alloy API details and classifications are documented in:
 
 ```text
 docs/research/semantic-core/alloy_api_reference.md
 ```
 
-## 6. Instrumented workflow migration
+## 5. Instrumentation result
 
-The workflow now routes every normal matrix command through
-`AlloyRunner`, rather than using the stock Alloy CLI for normal commands and
-the custom runner only for Hybrid.
+Instrumentation established that the expensive composition command reaches the
+SAT solver quickly.
 
-Current workflow:
+Before the search-surface refactor, an instrumented batch composition run
+produced approximately:
+
+```text
+primary variables:
+    506
+
+total variables:
+    167253
+
+clauses:
+    377687
+```
+
+CNF translation completed in seconds.
+
+The subsequent long period occurred inside SAT solving.
+
+Therefore the dominant observed cost is:
+
+```text
+SAT search
+```
+
+rather than:
+
+```text
+parsing
+Alloy model loading
+CNF translation
+GitHub Actions setup
+JVM heap pressure
+```
+
+This does not identify which part of the logical encoding creates the hard SAT
+instance.
+
+## 6. Non-vacuity verification
+
+The original reversal and composition assertions had a residual
+false-confidence risk.
+
+A passing implication does not establish that its important antecedent is
+realizable.
+
+Explicit witness commands were therefore added:
+
+```text
+5  ReverseWitnessExists
+6  CompositionWitnessesExist
+```
+
+Both successfully produced SAT witnesses.
+
+`ReverseWitnessExists` requires:
+
+```text
+two distinct states
+a valid nonempty bisimulation
+a related source occurrence with actual role structure
+```
+
+`CompositionWitnessesExist` requires:
+
+```text
+a genuine three-state chain
+two valid compatible bisimulations
+a nonempty relational composition
+a composed source occurrence with actual role structure
+```
+
+Both witness commands passed in GitHub Actions.
+
+Therefore the previously identified bounded non-vacuity concern is closed for
+the currently selected witness bounds.
+
+This means:
+
+```text
+verified:
+    the relevant reversal structure exists within the selected bounds
+
+verified:
+    the relevant compatible composition structure exists within the selected
+    bounds
+```
+
+It does not mean:
+
+```text
+the algebraic properties are proved without bounds
+```
+
+## 7. Composition search-surface refactor
+
+The original composition verification used two arbitrary:
+
+```text
+BisimWitness
+```
+
+objects and checked:
+
+```text
+first.right = second.left implies
+    bisimulation[
+        first.left,
+        second.right,
+        first.pairs.second.pairs
+    ]
+```
+
+This required Alloy to search:
+
+```text
+witness identity
+endpoint assignments
+compatible witness pairs
+incompatible witness pairs
+two arbitrary pair relations
+```
+
+while only compatible witnesses matter to the property.
+
+The verification scaffolding was changed to:
+
+```text
+CompositionCase
+```
+
+which directly represents:
+
+```text
+left --firstPairs--> middle --secondPairs--> right
+```
+
+with facts requiring both pair relations to be valid nonempty
+bisimulations.
+
+The assertion is now directly:
+
+```text
+bisimulation[
+    c.left,
+    c.right,
+    c.firstPairs.c.secondPairs
+]
+```
+
+The semantic `bisimulation` predicate itself was not changed.
+
+The meaningful semantic signature bounds for the composition experiment remain:
+
+```text
+3 State
+6 Rel
+2 Role
+6 RoleUse
+6 Slot
+3 Atom
+```
+
+Verification-only and irrelevant signatures are explicitly scoped:
+
+```text
+0 EntityID
+0 View
+0 BisimWitness
+exactly 1 CompositionCase
+```
+
+The old and new SAT problems are therefore not identical encodings.
+
+The intended equivalence is representational:
+
+```text
+old:
+    two valid BisimWitness objects sharing the middle State
+
+new:
+    one CompositionCase directly containing the same left, middle, right,
+    firstPairs and secondPairs
+```
+
+This equivalence argument has not itself been separately mechanically proved.
+
+## 8. Search-surface result
+
+Run:
+
+```text
+37159091258
+```
+
+Commit:
+
+```text
+bceaae4d93edbdee798b047791423dc3778ab000
+```
+
+Command:
+
+```text
+CompositionIsBisimulation
+```
+
+Solver:
+
+```text
+Glucose
+```
+
+Mode:
+
+```text
+batch
+```
+
+Result:
+
+```text
+UNSAT
+```
+
+Instrumented encoding:
+
+```text
+primary variables:
+    360
+
+total variables:
+    164761
+
+clauses:
+    373172
+```
+
+Compared with the previous instrumented search surface:
+
+```text
+primary variables:
+    506 -> 360
+    approximately 29% reduction
+
+total variables:
+    167253 -> 164761
+    approximately 1.5% reduction
+
+clauses:
+    377687 -> 373172
+    approximately 1.2% reduction
+```
+
+Timing:
+
+```text
+CNF callback:
+    1122 ms
+
+solver-reported time:
+    1073944 ms
+
+runner execution wall time:
+    1074005 ms
+
+total runner wall time:
+    1074443 ms
+```
+
+Equivalent solver duration:
+
+```text
+approximately 17 min 54 s
+```
+
+This is materially faster than both previous completed Glucose observations:
+
+```text
+48 min 56 s
+95 min 36 s
+```
+
+The observed speedups are approximately:
+
+```text
+2.7x relative to the 48 min 56 s run
+
+5.3x relative to the 95 min 36 s run
+```
+
+Because historical composition runtime has substantial variance, these ratios
+must not be treated as stable benchmark factors.
+
+However, the new run is sufficiently below both previous completed observations
+to support:
+
+```text
+strong evidence:
+    reducing verification search freedom materially improved this bounded
+    composition check
+```
+
+The result also demonstrates that total CNF variable and clause counts alone
+are poor predictors of solver difficulty here.
+
+A large reduction in primary search variables coincided with a much larger
+runtime improvement than the change in total CNF size.
+
+## 9. Current solver interpretation
+
+Current evidence supports:
+
+```text
+verified:
+    composition dominates current bounded core verification cost
+
+verified:
+    Glucose proves the current bounded composition check UNSAT
+
+verified:
+    SAT4J was dramatically less practical for the observed composition
+    experiments
+
+verified:
+    SAT search dominates composition runtime after translation
+
+verified:
+    the original composition wrapper exposed substantial avoidable search
+    freedom
+
+verified:
+    explicit non-vacuity witnesses exist for reversal and composition
+
+verified:
+    commands 0, 1, 3, 4, 5 and 6 are comparatively inexpensive
+
+verified:
+    Glucose composition runtime has substantial run-to-run variance
+```
+
+Not established:
+
+```text
+which internal part of bisimulation dominates remaining SAT difficulty
+
+whether Slot / Int sequence representation is the main remaining source
+
+whether role matching dominates
+
+whether symmetry breaking is near-optimal
+
+how the optimized command scales with larger semantic bounds
+
+whether another modern SAT solver performs better
+
+whether the CompositionCase representational equivalence should be proved in a
+separate formalism
+```
+
+## 10. Hybrid decomposition
+
+Alloy 6.2.0 exposes Pardinus decomposition through the Java API:
+
+```text
+decompose_mode = 0
+    batch / off
+
+decompose_mode = 1
+    Hybrid
+
+decompose_mode = 2
+    Parallel
+```
+
+Historical experiments ran composition with Glucose Hybrid decomposition.
+
+Observed Hybrid executions did not demonstrate a practical advantage over
+batch Glucose.
+
+Instrumented Hybrid also generated essentially the same underlying composition
+CNF scale before entering a long solver execution.
+
+No evidence established that Hybrid was universally slower or semantically
+different.
+
+The dedicated Hybrid job was retained only as an experimental benchmark.
+
+It has now been removed from:
 
 ```text
 .github/workflows/semantic-core.yml
 ```
 
-Run:
+Future routine semantic-core commits therefore execute composition once through
+the normal instrumented Glucose matrix.
 
-```text
-37156350195
-```
+An already-started historical workflow may still contain a Hybrid job because
+GitHub Actions uses the workflow definition from the commit that created that
+run.
 
-verified the migration operationally.
-
-Completed successfully through the instrumented runner:
-
-```text
-command 0
-command 1
-command 3
-command 4
-```
-
-At the latest inspection:
-
-```text
-command 2 batch Glucose:
-    in progress
-
-command 2 Hybrid Glucose:
-    in progress
-```
-
-This establishes that instrumentation itself does not prevent the inexpensive
-commands from executing and satisfying their expectations.
-
-The long composition jobs are now positioned to produce substantially more
-diagnostic information than the historical CLI runs.
-
-## 7. Experimental configuration control
+## 11. Experimental configuration control
 
 Performance experiments must distinguish search controls from changes to the
 bounded problem.
@@ -457,22 +741,21 @@ symmetry-breaking strength
 decompose mode
 decompose thread count
 partial-instance inference
+verification scaffolding that preserves the checked property
 ```
-
-These should normally be varied one at a time.
 
 Controls that may change the bounded problem or semantics include:
 
 ```text
 scope
-exact signature scope
+exact semantic signature scope
 bitwidth
 maxseq
 unrolls
 noOverflow
-command formula
+semantic predicate
 facts
-assertions
+assertion meaning
 ```
 
 These must not be changed merely to obtain a faster green result.
@@ -480,14 +763,20 @@ These must not be changed merely to obtain a faster green result.
 In particular:
 
 ```text
-smaller scope
+smaller semantic scope
 ```
 
 is not a quality-preserving optimization.
 
 It weakens bounded coverage.
 
-## 8. Runtime policy
+Search-surface reductions must also be justified separately from semantic
+changes.
+
+A faster SAT instance is useful only if it still represents the intended
+property.
+
+## 12. Runtime policy
 
 Long runtime is experimental evidence.
 
@@ -501,7 +790,6 @@ poor formal encoding
 combinatorial explosion
 solver mismatch
 symmetry problems
-decomposition failure
 unexpected model growth
 semantic structure that scales badly
 ```
@@ -523,11 +811,11 @@ failed property
 A future routine verification lane may intentionally impose shorter operational
 limits.
 
-If so, it should remain distinct from the unrestricted research lane.
+If so, it should remain distinct from unrestricted research verification.
 
-## 9. Timing methodology
+## 13. Timing methodology
 
-The current Glucose observations demonstrate large runtime variance.
+The Glucose observations demonstrate large runtime variance.
 
 Therefore solver comparisons should use:
 
@@ -569,107 +857,11 @@ final SAT / UNSAT / no-result status
 
 A small wall-time difference between two single runs is not strong evidence.
 
-## 10. Potential composition pathology
+The approximately 18-minute optimized composition result is meaningful because
+it is substantially below both previous completed observations, but repeated
+measurements would still be required for a stable performance estimate.
 
-The current assertion checks composition of two explicit bisimulation
-witnesses.
-
-Conceptually:
-
-```text
-first.pairs
-second.pairs
-```
-
-are relational witnesses and composition uses:
-
-```text
-(first.pairs).(second.pairs)
-```
-
-The bounded command contains:
-
-```text
-3 State
-6 Rel
-2 Role
-6 RoleUse
-6 Slot
-3 Atom
-exactly 2 BisimWitness
-```
-
-A plausible hypothesis is that the search space involving:
-
-```text
-two arbitrary valid bisimulation relations
-plus relational composition
-plus an UNSAT proof obligation
-```
-
-is expensive.
-
-This is currently a hypothesis.
-
-It is not yet supported by profiling evidence.
-
-The new CNF and timing instrumentation should help determine whether cost is
-primarily associated with:
-
-```text
-translation
-CNF size
-SAT search
-decomposition
-```
-
-before changing the formal encoding.
-
-## 11. Non-vacuity risk
-
-Passing:
-
-```text
-ReverseIsBisimulation
-```
-
-and:
-
-```text
-CompositionIsBisimulation
-```
-
-does not by itself prove that the checked implication is exercised by a useful
-model.
-
-For composition, the antecedent includes:
-
-```text
-first.right = second.left
-```
-
-If no suitable pair of witnesses exists within the selected bounds, the
-assertion could pass vacuously.
-
-Therefore bounded theorem checks must be paired with explicit witness searches
-showing that their important antecedents are realizable.
-
-Required future witnesses include:
-
-```text
-a valid nontrivial BisimWitness for reversal
-
-two valid BisimWitness objects such that:
-    first.right = second.left
-
-preferably:
-    their relational composition is nonempty
-```
-
-Until these exist, bounded composition success carries a residual
-false-confidence risk.
-
-## 12. Current evidence summary
+## 14. Current evidence summary
 
 ```text
 IdentityIsBisimulation:
@@ -677,41 +869,43 @@ IdentityIsBisimulation:
 
 ReverseIsBisimulation:
     bounded UNSAT check passes
-    non-vacuity witness still required
+    explicit structural non-vacuity witness passes SAT
 
 CompositionIsBisimulation:
-    bounded UNSAT check passes with Glucose
-    2936 s in one run
-    5736 s in another run
-    non-vacuity witness still required
+    bounded UNSAT check passes
+    explicit compatible three-state non-vacuity witness passes SAT
+
+historical Glucose composition:
+    2936 s
+    5736 s
+
+optimized composition search surface:
+    1073944 ms solver time
+    approximately 17 min 54 s
+    UNSAT
 
 DistinctEntitiesCanNameEqualValues:
-    SAT witness found
+    SAT witness passes
 
 SharingDoesNotForceInequality:
-    SAT witness found
+    SAT witness passes
 
 SAT4J composition:
     no result in observed 120-minute isolated run
-    no result before observed 6-hour sequential cutoff
+    no result before observed approximately six-hour sequential cutoff
 
 command isolation:
     working
 
 custom Java runner:
-    compiles against pinned Alloy 6.2.0 in GitHub Actions
+    compiles and executes against pinned Alloy 6.2.0 in GitHub Actions
 
 instrumentation:
-    deployed to all normal matrix commands
+    deployed to all semantic-core matrix commands
 
-instrumented inexpensive commands:
-    successful
-
-instrumented batch composition:
-    in progress at latest inspection
-
-instrumented Hybrid composition:
-    in progress at latest inspection
+Hybrid benchmark:
+    no demonstrated advantage
+    removed from future routine semantic-core workflow runs
 ```
 
 These findings describe the current bounded experiment only.
@@ -719,32 +913,60 @@ These findings describe the current bounded experiment only.
 They must not be promoted into normative SHEAR semantics without separate
 semantic review.
 
-## 13. Next verification steps
+## 15. Next verification work
 
-Immediate priorities:
+The core bisimulation experiment is now sufficiently instrumented to stop
+making solver tuning the immediate focus.
+
+The next semantic layer is transformation continuity.
+
+Current candidate model:
 
 ```text
-1. collect the first complete instrumented composition result;
-
-2. compare batch and Hybrid:
-       translation events
-       CNF sizes
-       solver-reported time
-       wall time
-       memory behaviour;
-
-3. add explicit non-vacuity witnesses for reversal and composition;
-
-4. only then run controlled search-strategy experiments such as:
-       symmetry sweep
-       decomposition thread sweep
-       additional solver comparison;
-
-5. later measure scope scaling without presenting smaller scopes
-   as equivalent verification.
+formal/transformation_model.als
 ```
 
-The objective is not merely to make Alloy green or fast.
+Before defining continuity composition or transformation application, verify the
+representation itself.
 
-The objective is to determine whether the candidate semantic core is
-verifiable without hiding semantic weakness or impractical computational cost.
+Required bounded properties and witnesses:
+
+```text
+unknown continuity differs from explicit disappearance
+
+one -> zero continuity exists
+
+one -> one continuity exists
+
+one -> many continuity exists
+
+many -> one continuity exists
+
+at most one explicit claim exists per source occurrence
+
+continuity claims cannot escape their transformation's source and destination
+states
+
+structural equality alone does not manufacture continuity
+```
+
+Transformation verification should use a separate entrypoint and CI lane so
+changes to transformation experiments do not repeatedly launch the expensive
+core composition check.
+
+Only after these representation properties pass should the experiment add:
+
+```text
+continuity composition
+transformation application
+ownership propagation
+reference transfer
+```
+
+The objective remains:
+
+```text
+determine whether the candidate semantic core is sufficiently expressive,
+verifiable and operationally tractable without hiding semantic weakness behind
+implementation or verification artifacts
+```

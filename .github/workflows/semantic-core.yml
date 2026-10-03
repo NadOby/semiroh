@@ -89,7 +89,7 @@ jobs:
           echo "Discovered command indices: $commands"
 
   alloy:
-    name: Alloy command ${{ matrix.command }}
+    name: Alloy command ${{ matrix.command }} (Glucose)
     needs: discover
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -140,7 +140,7 @@ jobs:
             -jar "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
             version
 
-      - name: Run Alloy command ${{ matrix.command }}
+      - name: Run Alloy command ${{ matrix.command }} with Glucose
         shell: bash
         run: |
           set -euo pipefail
@@ -151,6 +151,7 @@ jobs:
           java \
             -jar "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
             exec \
+            --solver glucose \
             --command "${{ matrix.command }}" \
             formal/core.als
           status=$?
@@ -159,5 +160,6 @@ jobs:
           end="$(date +%s)"
           elapsed=$((end - start))
 
-          echo "Command ${{ matrix.command }} elapsed: ${elapsed}s"
+          echo "Command ${{ matrix.command }} with Glucose elapsed: ${elapsed}s"
           exit "$status"
+          

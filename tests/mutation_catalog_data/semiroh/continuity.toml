@@ -147,3 +147,15 @@ This comparison only selects which explanatory phrase is used after the
 checker has already detected a kept/changed version mismatch. Exact diagnostic
 wording is not part of the continuity contract.
 """
+
+[[survivor]]
+kind = "compare"
+source = "f\"{'has a new version' if label == 'kept' else 'kept its version'}\""
+occurrence = 0
+classification = "unspecified"
+reason = """
+This comparison only selects the explanatory phrase used after a version
+mismatch has already been detected. It cannot change whether the continuity
+checker accepts or rejects the result, and exact diagnostic wording is not
+part of the continuity contract.
+"""

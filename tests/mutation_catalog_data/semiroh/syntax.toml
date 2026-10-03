@@ -598,3 +598,57 @@ Changing the surrogate-range upper boundary to U+E000 only changes whether
 that boundary character is written literally or with a unicode escape. Both
 forms represent the same name; exact escaping is provisional rendering layout.
 """
+
+[[survivor]]
+kind = "return"
+source = 'return "end of text"'
+occurrence = 0
+classification = "unspecified"
+reason = """
+Public parse paths do not call _describe on EOF: tokenization inserts a
+synthetic NEWLINE before EOF for every source line, and parser paths either
+handle EOF explicitly or reject that structural token first. Calling the
+private helper directly with an EOF Token is outside the syntax API, including
+its exact descriptive return value.
+"""
+
+[[survivor]]
+kind = "arithmetic"
+source = "return self.tokens[min(self.pos + ahead, len(self.tokens) - 1)]"
+occurrence = 1
+classification = "equivalent"
+reason = """
+This mutation changes the upper clamp from len(tokens)-1 to len(tokens)+1.
+Every internal peek uses ahead=0 except the guarded one-token lookaheads for
+'=' while the current token is a name. Those lookaheads necessarily occur
+before the synthetic NEWLINE/EOF tail, so self.pos+ahead never exceeds the
+last token index and the changed clamp is never selected.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "at_start = False"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Changing False to True lets the prescan treat later bare 'cell' or 'fn' token
+sequences on the same top-level line as declarations. No valid grammar form
+contains such a sequence after the declaration start. It can therefore change
+which SourceError is reached for malformed input, but cannot change acceptance
+or semantics of a valid program. Exact malformed-input diagnostic ordering is
+not specified.
+"""
+
+[[survivor]]
+kind = "boolean"
+source = "elif code < 0x20 or code == 0x7F or 0xD800 <= code <= 0xDFFF:"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Changing the disjunction to a conjunction causes the remaining control
+characters, DEL, and surrogate code points to be emitted literally inside
+backquotes instead of with unicode escapes. _scan_name accepts the literal
+spelling and reconstructs the same Python name. Newline, carriage return, tab,
+backslash, and backquote still use their earlier dedicated escape branches.
+Exact escaping layout is provisional syntax rather than semantic behaviour.
+"""

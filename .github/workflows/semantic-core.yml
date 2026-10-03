@@ -8,6 +8,7 @@ on:
       - research/semantic-core
     paths:
       - "formal/**"
+      - ".github/scripts/**"
       - ".github/workflows/semantic-core.yml"
 
 jobs:
@@ -92,7 +93,6 @@ jobs:
     name: Alloy command ${{ matrix.command }} (Glucose)
     needs: discover
     runs-on: ubuntu-latest
-    timeout-minutes: 120
 
     strategy:
       fail-fast: false
@@ -162,4 +162,107 @@ jobs:
 
           echo "Command ${{ matrix.command }} with Glucose elapsed: ${elapsed}s"
           exit "$status"
-          
+
+  hybrid:
+    name: Composition (Glucose Hybrid)
+    needs: discover
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Alloy
+        id: cache-alloy
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/shear/alloy-6.2.0
+          key: alloy-6.2.0-dist
+
+      - name: Install Alloy
+        if: steps.cache-alloy.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$HOME/.cache/shear/alloy-6.2.0"
+
+          curl \
+            --fail \
+            --location \
+            --retry 3 \
+            --output "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
+            "https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v6.2.0/org.alloytools.alloy.dist.jar"
+
+      - name: Check Alloy version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          java \
+            -jar "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
+            version
+
+      - name: Verify composition command index
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          output="$(
+            java \
+              -jar "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
+              commands \
+              formal/core.als
+          )"
+
+          printf '%s\n' "$output"
+
+          printf '%s\n' "$output" \
+            | grep -E \
+              '^[[:space:]]*2[[:space:]]*\..*CompositionIsBisimulation'
+
+      - name: Compile Alloy runner
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p .build/alloy-runner
+
+          javac \
+            -cp "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
+            -d .build/alloy-runner \
+            .github/scripts/AlloyRunner.java
+
+      - name: Smoke-test runner in batch mode
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          java \
+            -cp ".build/alloy-runner:$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
+            AlloyRunner \
+            formal/core.als \
+            0 \
+            glucose \
+            0 \
+            4
+
+      - name: Run composition with Hybrid decomposition
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          java \
+            -cp ".build/alloy-runner:$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
+            AlloyRunner \
+            formal/core.als \
+            2 \
+            glucose \
+            1 \
+            4

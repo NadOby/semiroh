@@ -149,6 +149,15 @@ class SyntaxParserBoundaryMutationRegressions(unittest.TestCase):
         )
         self.assertIn(EntityID("A"), state.values)
 
+        high_digit = parse(
+            "fn `\\u1234`():\n"
+            "    1\n"
+        )
+        self.assertIn(
+            EntityID("\u1234"),
+            high_digit.values,
+        )
+
         with self.assertRaises(SourceError):
             parse(
                 "fn `\\u0x00`():\n"
@@ -260,6 +269,22 @@ class SyntaxRawMappingMutationRegressions(unittest.TestCase):
                 for fragment in absent:
                     self.assertNotIn(fragment, text)
 
+    def test_raw_let_keeps_binding_metadata_out_of_link_mapping(self) -> None:
+        text = rendered(
+            (
+                "let",
+                ("call", "a"),
+                ("call", "a"),
+                ("call", "a"),
+            )
+        )
+
+        self.assertIn(
+            'raw(("let", ("call", "a"), '
+            '("call", "target"), ("call", "target")))',
+            text,
+        )
+
     def test_raw_closure_keeps_metadata_and_maps_only_body_links(
         self,
     ) -> None:
@@ -275,6 +300,7 @@ class SyntaxRawMappingMutationRegressions(unittest.TestCase):
             )
         )
 
+        self.assertIn('("p",)', text)
         self.assertIn('(("call", "a"),)', text)
         self.assertIn('("label", "k", ("call", "target"))', text)
 
@@ -378,6 +404,39 @@ class SyntaxRendererBoundaryMutationRegressions(unittest.TestCase):
         for body, params, expected in cases:
             with self.subTest(body=body):
                 self.assertIn(expected, rendered(body, params))
+
+    def test_truthy_unhashable_closure_capture_renders_raw(self) -> None:
+        text = rendered(
+            (
+                "closure",
+                (),
+                ([1],),
+                ("lit", 1),
+            )
+        )
+
+        self.assertIn('raw(("closure"', text)
+        self.assertIn("<[1]>", text)
+
+    def test_unquote_keeps_raw_fallback_at_inner_expression(self) -> None:
+        text = rendered(
+            (
+                "quote",
+                (
+                    "unquote",
+                    ("seq", ("lit", 1), ("lit", 2)),
+                ),
+            )
+        )
+
+        self.assertIn(
+            'quote(unquote(raw(("seq",',
+            text,
+        )
+        self.assertNotIn(
+            'raw(("quote"',
+            text,
+        )
 
     def test_let_forms_use_current_link_targets(self) -> None:
         cases = (

@@ -1,7 +1,9 @@
-"""Tests for deterministic mutation campaign work selection and sharding."""
+"""Tests for mutation campaign selection, replay and reporting."""
 
 from __future__ import annotations
 
+import io
+import json
 import subprocess
 import tempfile
 import unittest
@@ -11,6 +13,7 @@ from unittest.mock import patch
 from tests import mutation
 from tests import mutation_campaign
 from tests import mutation_oracle
+from tests import mutation_reporting
 from tests.lanes import LANES
 
 
@@ -465,6 +468,275 @@ class MutationCampaignTests(unittest.TestCase):
         self.assertEqual(
             mutation_campaign._parse_key(encoded),
             mutant.key,
+        )
+
+    def test_report_records_versions_inputs_keys_and_outcomes(
+        self,
+    ) -> None:
+        source = (self.root / "first.py").read_text()
+        work = tuple(
+            mutation.site_descriptions(
+                source,
+                "first.py",
+            )[:3]
+        )
+        outcomes = {
+            work[0].key: (
+                True,
+                0.10,
+            ),
+            work[1].key: (
+                False,
+                0.20,
+            ),
+            work[2].key: (
+                False,
+                0.30,
+            ),
+        }
+        classifications = {
+            work[1].key: (
+                "equivalent",
+                "fixture classification",
+            ),
+        }
+
+        def execute(
+            root: Path,
+            selected: mutation.Mutant,
+            command: list[str],
+        ) -> tuple[
+            mutation.Mutant,
+            bool,
+            float,
+        ]:
+            dead, elapsed = outcomes[
+                selected.key
+            ]
+
+            return (
+                selected,
+                dead,
+                elapsed,
+            )
+
+        report = self.root / "report.jsonl"
+        human = io.StringIO()
+
+        with patch(
+            "tests.mutation_reporting._execute_one",
+            side_effect=execute,
+        ):
+            result = mutation_reporting.run_campaign(
+                self.root,
+                work,
+                ["fixture-oracle"],
+                classifications,
+                report,
+                {
+                    "count": 3,
+                    "seed": 7,
+                    "batch": 0,
+                    "shards": 1,
+                    "shard": 0,
+                },
+                workers=1,
+                progress_every=1,
+                stream=human,
+            )
+
+        events = [
+            json.loads(line)
+            for line in report.read_text().splitlines()
+        ]
+
+        self.assertEqual(
+            events[0]["event"],
+            "campaign_start",
+        )
+        self.assertEqual(
+            events[0]["engine_blob"],
+            self.engine_blob,
+        )
+        self.assertEqual(
+            events[0]["target_source_blobs"],
+            {
+                "first.py": self.source_blob(
+                    "first.py"
+                ),
+            },
+        )
+        self.assertEqual(
+            events[0]["inputs"]["seed"],
+            7,
+        )
+        self.assertEqual(
+            events[0]["selected_count"],
+            len(work),
+        )
+        self.assertEqual(
+            {
+                tuple(key)
+                for key in events[0]["selected_keys"]
+            },
+            {
+                mutant.key
+                for mutant in work
+            },
+        )
+
+        outcome_events = [
+            event
+            for event in events
+            if event["event"] == "mutant_outcome"
+        ]
+
+        self.assertEqual(
+            {
+                tuple(event["key"])
+                for event in outcome_events
+            },
+            {
+                mutant.key
+                for mutant in work
+            },
+        )
+        self.assertEqual(
+            {
+                event["outcome"]
+                for event in outcome_events
+            },
+            {
+                "killed",
+                "classified_survivor",
+                "unclassified_survivor",
+            },
+        )
+
+        for event in outcome_events:
+            self.assertEqual(
+                event["engine_blob"],
+                self.engine_blob,
+            )
+            self.assertEqual(
+                event["source_blob"],
+                self.source_blob("first.py"),
+            )
+
+        complete = events[-1]
+
+        self.assertEqual(
+            complete["event"],
+            "campaign_complete",
+        )
+        self.assertEqual(
+            complete["killed"],
+            1,
+        )
+        self.assertEqual(
+            complete["classified_survivors"],
+            1,
+        )
+        self.assertEqual(
+            complete["unclassified_survivors"],
+            1,
+        )
+        self.assertTrue(
+            complete["groups"]
+        )
+        self.assertEqual(
+            complete["target_timings"][0]["count"],
+            3,
+        )
+
+        self.assertEqual(
+            result.killed,
+            1,
+        )
+        self.assertEqual(
+            len(result.classified_survivors),
+            1,
+        )
+        self.assertEqual(
+            len(result.unclassified_survivors),
+            1,
+        )
+
+        text = human.getvalue()
+
+        self.assertIn(
+            self.engine_blob,
+            text,
+        )
+        self.assertIn(
+            self.source_blob("first.py"),
+            text,
+        )
+        self.assertIn(
+            "SURVIVOR classified_survivor",
+            text,
+        )
+        self.assertIn(
+            "SURVIVOR unclassified_survivor",
+            text,
+        )
+        self.assertNotIn(
+            "SURVIVOR killed",
+            text,
+        )
+        self.assertLess(
+            text.index("SURVIVOR"),
+            text.index("mutation campaign complete"),
+        )
+
+    def test_report_is_completed_with_unclassified_survivor(
+        self,
+    ) -> None:
+        mutant = self.first_arithmetic_mutant()
+        report = self.root / "survivor.jsonl"
+
+        with patch(
+            "tests.mutation_reporting._execute_one",
+            return_value=(
+                mutant,
+                False,
+                0.1,
+            ),
+        ):
+            result = mutation_reporting.run_campaign(
+                self.root,
+                (mutant,),
+                ["fixture-oracle"],
+                {},
+                report,
+                {
+                    "count": 1,
+                    "seed": 1,
+                    "batch": 0,
+                    "shards": 1,
+                    "shard": 0,
+                },
+                workers=1,
+                progress_every=1,
+                stream=io.StringIO(),
+            )
+
+        events = [
+            json.loads(line)
+            for line in report.read_text().splitlines()
+        ]
+
+        self.assertEqual(
+            events[-1]["event"],
+            "campaign_complete",
+        )
+        self.assertEqual(
+            events[-1]["unclassified_survivors"],
+            1,
+        )
+        self.assertEqual(
+            result.unclassified_survivors,
+            (mutant,),
         )
 
 

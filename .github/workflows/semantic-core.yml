@@ -90,7 +90,7 @@ jobs:
           echo "Discovered command indices: $commands"
 
   alloy:
-    name: Alloy command ${{ matrix.command }} (Glucose)
+    name: Alloy command ${{ matrix.command }} (Glucose instrumented)
     needs: discover
     runs-on: ubuntu-latest
 
@@ -140,31 +140,34 @@ jobs:
             -jar "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
             version
 
+      - name: Compile Alloy runner
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p .build/alloy-runner
+
+          javac \
+            -cp "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
+            -d .build/alloy-runner \
+            .github/scripts/AlloyRunner.java
+
       - name: Run Alloy command ${{ matrix.command }} with Glucose
         shell: bash
         run: |
           set -euo pipefail
 
-          start="$(date +%s)"
-
-          set +e
           java \
-            -jar "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
-            exec \
-            --solver glucose \
-            --command "${{ matrix.command }}" \
-            formal/core.als
-          status=$?
-          set -e
-
-          end="$(date +%s)"
-          elapsed=$((end - start))
-
-          echo "Command ${{ matrix.command }} with Glucose elapsed: ${elapsed}s"
-          exit "$status"
+            -cp ".build/alloy-runner:$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
+            AlloyRunner \
+            formal/core.als \
+            "${{ matrix.command }}" \
+            glucose \
+            0 \
+            4
 
   hybrid:
-    name: Composition (Glucose Hybrid)
+    name: Composition (Glucose Hybrid instrumented)
     needs: discover
     runs-on: ubuntu-latest
 

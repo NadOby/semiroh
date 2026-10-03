@@ -484,6 +484,9 @@ pred SharingDoesNotForceInequality {
  * Bounded checks
  * ---------------------------------------------------------------------- */
 
+/*
+ * `expect 0` means that no counterexample should exist.
+ */
 check IdentityIsBisimulation
     for 6
     but 3 State,
@@ -492,6 +495,7 @@ check IdentityIsBisimulation
         16 RoleUse,
         24 Slot,
         8 Atom
+    expect 0
 
 
 check ReverseIsBisimulation
@@ -503,6 +507,7 @@ check ReverseIsBisimulation
         24 Slot,
         8 Atom,
         3 BisimWitness
+    expect 0
 
 
 check CompositionIsBisimulation
@@ -514,12 +519,13 @@ check CompositionIsBisimulation
         24 Slot,
         8 Atom,
         4 BisimWitness
+    expect 0
 
 
 /*
- * These are expected to be satisfiable.
+ * `expect 1` means that an intended witness should exist.
  *
- * They establish that the bounded model admits the intended distinctions;
+ * These establish that the bounded model admits the intended distinctions;
  * they are not proofs that the candidate semantics is correct.
  */
 run DistinctEntitiesCanNameEqualValues
@@ -532,6 +538,7 @@ run DistinctEntitiesCanNameEqualValues
         6 Atom,
         4 EntityID,
         2 View
+    expect 1
 
 
 run SharingDoesNotForceInequality
@@ -542,3 +549,4 @@ run SharingDoesNotForceInequality
         exactly 2 RoleUse,
         exactly 4 Slot,
         exactly 1 Atom
+    expect 1

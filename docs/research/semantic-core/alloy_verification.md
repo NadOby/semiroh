@@ -23,21 +23,34 @@ docs/semantic_core_experiment.md
 
 ## 1. Current formal structure
 
-The semantic model is:
+The core semantic model is:
 
 ```text
 formal/core_model.als
 ```
 
-The verification entrypoint is:
+The core verification entrypoint is:
 
 ```text
 formal/core.als
 ```
 
-The split is intentional.
+The transformation continuity model is:
 
-`core_model.als` contains the candidate semantic structures and predicates.
+```text
+formal/transformation_model.als
+```
+
+The transformation verification entrypoint is:
+
+```text
+formal/transformation.als
+```
+
+The splits are intentional.
+
+`core_model.als` contains the candidate core semantic structures and
+predicates.
 
 `core.als` contains:
 
@@ -57,7 +70,13 @@ CompositionCase
 
 are not proposed SHEAR semantic primitives.
 
-Current commands:
+`transformation_model.als` contains the candidate transformation and explicit
+continuity representation.
+
+`transformation.als` contains bounded assertions and witnesses for that
+representation.
+
+Core verification commands:
 
 ```text
 0  IdentityIsBisimulation
@@ -69,7 +88,7 @@ Current commands:
 6  CompositionWitnessesExist
 ```
 
-Expected results:
+Expected core results:
 
 ```text
 0  UNSAT
@@ -79,6 +98,36 @@ Expected results:
 4  SAT
 5  SAT
 6  SAT
+```
+
+Transformation verification commands:
+
+```text
+0  UnknownIsNotExplicitDisappearance
+1  UnknownAndDisappearanceCanCoexist
+2  ExplicitDisappearanceExists
+3  UniqueContinuationExists
+4  SplitExists
+5  MergeExists
+6  ClaimPerSourceIsFunctional
+7  ClaimsStayInsideTheirTransformation
+8  IndependentClaimsCanCoexist
+9  EqualValuesWithoutContinuity
+```
+
+Expected transformation results:
+
+```text
+0  UNSAT
+1  SAT
+2  SAT
+3  SAT
+4  SAT
+5  SAT
+6  UNSAT
+7  UNSAT
+8  SAT
+9  SAT
 ```
 
 Interpretation:
@@ -107,13 +156,13 @@ The workflow was changed to:
 3. preserve each command's declared scopes and expectation;
 4. allow expensive commands to continue without blocking unrelated results.
 
-This localized nearly all current verification cost to:
+This localized nearly all current core verification cost to:
 
 ```text
 CompositionIsBisimulation
 ```
 
-Commands:
+Core commands:
 
 ```text
 0
@@ -131,6 +180,35 @@ requirement.
 
 A pathological command must not obscure successful or failed verification of
 unrelated properties.
+
+Transformation verification now has a separate workflow:
+
+```text
+.github/workflows/transformation.yml
+```
+
+The core workflow is restricted to:
+
+```text
+formal/core.als
+formal/core_model.als
+shared Alloy runner changes
+the core workflow itself
+```
+
+The transformation workflow covers:
+
+```text
+formal/core_model.als
+formal/transformation_model.als
+formal/transformation.als
+shared Alloy runner changes
+the transformation workflow itself
+```
+
+This prevents transformation-only experiments from repeatedly launching the
+expensive core composition check while still reverifying transformation
+semantics when their underlying core model changes.
 
 ## 3. Historical solver evidence
 
@@ -906,6 +984,10 @@ instrumentation:
 Hybrid benchmark:
     no demonstrated advantage
     removed from future routine semantic-core workflow runs
+
+transformation verification:
+    independent workflow operational
+    all initial representation commands 0 through 9 pass
 ```
 
 These findings describe the current bounded experiment only.
@@ -913,51 +995,273 @@ These findings describe the current bounded experiment only.
 They must not be promoted into normative SHEAR semantics without separate
 semantic review.
 
-## 15. Next verification work
+## 15. Transformation continuity representation
 
-The core bisimulation experiment is now sufficiently instrumented to stop
-making solver tuning the immediate focus.
-
-The next semantic layer is transformation continuity.
-
-Current candidate model:
+The candidate transformation model is:
 
 ```text
 formal/transformation_model.als
 ```
 
-Before defining continuity composition or transformation application, verify the
-representation itself.
-
-Required bounded properties and witnesses:
+Verification entrypoint:
 
 ```text
-unknown continuity differs from explicit disappearance
-
-one -> zero continuity exists
-
-one -> one continuity exists
-
-one -> many continuity exists
-
-many -> one continuity exists
-
-at most one explicit claim exists per source occurrence
-
-continuity claims cannot escape their transformation's source and destination
-states
-
-structural equality alone does not manufacture continuity
+formal/transformation.als
 ```
 
-Transformation verification should use a separate entrypoint and CI lane so
-changes to transformation experiments do not repeatedly launch the expensive
-core composition check.
+Workflow:
 
-Only after these representation properties pass should the experiment add:
+```text
+.github/workflows/transformation.yml
+```
+
+The representation distinguishes three states for a source occurrence:
+
+```text
+no ContinuityClaim
+    unknown / no continuity assertion
+
+ContinuityClaim with no destinations
+    explicit disappearance
+
+ContinuityClaim with one or more destinations
+    declared continuity
+```
+
+Run:
+
+```text
+37161864993
+```
+
+Commit:
+
+```text
+8c48ad6f8a60434820ac3a7734815b4cb9fc72c2
+```
+
+Solver:
+
+```text
+Glucose
+```
+
+Result:
+
+```text
+workflow success
+all commands 0 through 9 met their declared expectations
+```
+
+Verified bounded checks and witnesses:
+
+```text
+UnknownIsNotExplicitDisappearance:
+    UNSAT check passes
+
+UnknownAndDisappearanceCanCoexist:
+    SAT witness passes
+
+ExplicitDisappearanceExists:
+    SAT witness passes
+    1 -> 0 continuity is representable
+
+UniqueContinuationExists:
+    SAT witness passes
+    1 -> 1 continuity is representable
+
+SplitExists:
+    SAT witness passes
+    1 -> many continuity is representable
+
+MergeExists:
+    SAT witness passes
+    many -> 1 continuity is representable
+
+ClaimPerSourceIsFunctional:
+    UNSAT check passes
+
+ClaimsStayInsideTheirTransformation:
+    UNSAT check passes
+
+IndependentClaimsCanCoexist:
+    SAT witness passes
+
+EqualValuesWithoutContinuity:
+    SAT witness passes
+```
+
+The final witness is particularly important for the candidate semantics.
+
+It establishes within the selected bounds that:
+
+```text
+structurally equal values
+```
+
+can coexist across a transformation while:
+
+```text
+continuity remains unknown
+```
+
+Therefore the current model does not force continuity merely from structural
+value equality.
+
+Likewise, the successful coexistence witness demonstrates that:
+
+```text
+unknown continuity
+```
+
+and:
+
+```text
+explicit disappearance
+```
+
+are simultaneously representable as distinct states in the same
+transformation.
+
+The model also permits:
+
+```text
+splits
+merges
+multiple independent continuity claims
+```
+
+without violating the one-claim-per-source invariant.
+
+These results verify representational consistency only within the selected
+bounds.
+
+They do not yet establish semantics for:
 
 ```text
 continuity composition
+transformation composition
+transformation application
+creation
+ownership propagation
+reference transfer
+provenance
+```
+
+Several earlier transformation workflow runs failed during Alloy parsing or
+type checking because field names were shadowed by local parameters and because
+the initial uniqueness fact used an invalid `false` expression.
+
+Those runs produced:
+
+```text
+no semantic result
+```
+
+The successful run above is the first run that parsed the candidate
+transformation model, discovered the complete command set and executed all
+representation checks.
+
+## 16. Next verification work
+
+The next semantic question is continuity composition.
+
+For two compatible concrete transitions:
+
+```text
+A --first--> B --second--> C
+```
+
+composition must preserve the distinction between:
+
+```text
+known continuation
+explicit disappearance
+unknown
+```
+
+The critical cases are not equivalent to ordinary relational composition.
+
+Examples that must be specified and verified include:
+
+```text
+A -> B
+B -> C
+    => A -> C
+
+A -> B
+B -> {}
+    => A -> {}
+
+A -> B
+B unknown
+    => A unknown
+```
+
+The last case is essential.
+
+An absent second-step continuity claim means:
+
+```text
+unknown
+```
+
+not:
+
+```text
+identity
+```
+
+and not:
+
+```text
+disappearance
+```
+
+Composition must also address branching.
+
+For example:
+
+```text
+A -> [B1, B2]
+```
+
+cannot produce a known final result unless the semantic status of every
+relevant intermediate continuation is sufficient to determine that result.
+
+The next experiment should therefore define continuity composition before
+attempting complete transformation composition.
+
+Required initial bounded properties should include:
+
+```text
+known 1 -> 1 followed by known 1 -> 1 composes transitively
+
+known continuation followed by explicit disappearance produces explicit
+disappearance
+
+known continuation followed by unknown produces unknown
+
+explicit first-step disappearance remains disappearance
+
+unknown first-step continuity remains unknown
+
+split composition unions known downstream destinations when all relevant
+branches are known
+
+an unknown relevant branch prevents falsely claiming complete known
+continuity
+
+composition does not infer continuity from structural equality
+
+composition preserves source / destination state containment
+```
+
+Only after the three-way continuity algebra is coherent should the experiment
+add:
+
+```text
+complete transformation composition
 transformation application
 ownership propagation
 reference transfer

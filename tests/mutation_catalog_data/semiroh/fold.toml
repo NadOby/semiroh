@@ -14,9 +14,14 @@ never mutates these records.
 [[survivor]]
 kind = "return"
 source = "return entity"
-occurrence = 0
+occurrence = 1
 classification = "equivalent"
 reason = """
-The returned folded node is only consumed in a case where the enclosing
-constant if would already have folded as a whole.
+This return follows folding a non-literal constant subtree in place, so the
+subtree keeps the same entity. The only call to visit whose return value is
+consumed is the selected-branch path of a constant-condition if, and that path
+is entered only when the selected branch is not itself constant. This return
+is therefore reached only from root or child visits whose return value is
+ignored; replacing the returned entity with None cannot change folding,
+mapping, or destination semantics.
 """

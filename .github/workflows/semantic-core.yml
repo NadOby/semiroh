@@ -1,0 +1,67 @@
+name: Semantic core
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - research/semantic-core
+    paths:
+      - "formal/**"
+      - ".github/workflows/semantic-core.yml"
+
+jobs:
+  alloy:
+    name: Alloy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Alloy
+        id: cache-alloy
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/shear/alloy-6.2.0
+          key: alloy-6.2.0-dist
+
+      - name: Install Alloy
+        if: steps.cache-alloy.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$HOME/.cache/shear/alloy-6.2.0"
+
+          curl \
+            --fail \
+            --location \
+            --retry 3 \
+            --output "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
+            "https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v6.2.0/org.alloytools.alloy.dist.jar"
+
+      - name: Check Alloy version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          java \
+            -jar "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
+            version
+
+      - name: Run semantic core model
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          java \
+            -jar "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
+            exec \
+            formal/core.als

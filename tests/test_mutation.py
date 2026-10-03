@@ -4,9 +4,9 @@
 package and always run.
 
 ``SuiteMutationTests`` plant deterministic single-site bugs in the production
-model and run the whole suite against each. They run only when
+model and run the semantic oracle against each. They run only when
 ``SEMIROH_MUTATE`` is set to a positive number of mutants per target and may
-be divided into disjoint mutation batches and target shards:
+be divided into disjoint mutation batches and mutant-level shards:
 
     SEMIROH_MUTATE=3 python -m tests.test_mutation
 
@@ -18,8 +18,8 @@ be divided into disjoint mutation batches and target shards:
         python -m tests.test_mutation
 
 For a fixed source tree, count and seed, batches are disjoint and together
-cover every mutation site exactly once. Target shards partition the mutation
-targets without changing which mutants are selected for each target.
+cover every mutation site exactly once. Mutants are selected before sharding;
+the shards partition that selected work set without changing its membership.
 
 Known survivors live in ``tests/mutation_catalog.py``. Only exact reviewed
 mutation sites with equivalent or intentionally unspecified behaviour may
@@ -37,6 +37,8 @@ import unittest
 from pathlib import Path
 
 from tests import mutation
+from tests import mutation_campaign
+from tests import mutation_oracle
 from tests.mutation_catalog import (
     SURVIVORS,
     SURVIVOR_ENGINE_BLOB,
@@ -87,29 +89,6 @@ def probe(a, b):
         return a and b
     return a + b
 """
-
-
-def _targets_for_shard(
-    targets: tuple[str, ...],
-    shards: int,
-    shard: int,
-) -> tuple[str, ...]:
-    if shards < 1:
-        raise ValueError(
-            "SEMIROH_MUTATE_SHARDS must be a positive integer"
-        )
-
-    if shard < 0 or shard >= shards:
-        raise ValueError(
-            "SEMIROH_MUTATE_SHARD must be between 0 and "
-            "SEMIROH_MUTATE_SHARDS - 1"
-        )
-
-    return tuple(
-        target
-        for index, target in enumerate(targets)
-        if index % shards == shard
-    )
 
 
 def _survivor_pin_errors(
@@ -527,32 +506,6 @@ value = 1 + 2
                 batch=-1,
             )
 
-    def test_target_shards_are_disjoint_and_exhaustive(self) -> None:
-        targets = tuple(
-            f"target-{index}"
-            for index in range(17)
-        )
-        shards = [
-            set(_targets_for_shard(targets, 4, shard))
-            for shard in range(4)
-        ]
-
-        self.assertEqual(
-            set().union(*shards),
-            set(targets),
-        )
-        self.assertEqual(
-            sum(len(shard) for shard in shards),
-            len(targets),
-        )
-
-    def test_invalid_target_shard_is_rejected(self) -> None:
-        with self.assertRaises(ValueError):
-            _targets_for_shard(("target",), 0, 0)
-
-        with self.assertRaises(ValueError):
-            _targets_for_shard(("target",), 1, 1)
-
     def test_returning_none_is_not_a_mutation(self) -> None:
         self.assertEqual(
             mutation.site_count(
@@ -837,15 +790,24 @@ class SuiteMutationTests(unittest.TestCase):
             ),
         )
 
-        targets = _targets_for_shard(
+        full_work = mutation_campaign.build_work_set(
+            mutation.ROOT,
             TARGETS,
+            count,
+            seed,
+            batch,
+        )
+        work = mutation_campaign.shard_work(
+            full_work,
             shards,
             shard,
         )
 
+        oracle = mutation_oracle.command()
+
         baseline = mutation.baseline(
             mutation.ROOT,
-            mutation.SUITE,
+            oracle,
         )
 
         self.assertEqual(
@@ -861,34 +823,22 @@ class SuiteMutationTests(unittest.TestCase):
             ),
         )
 
+        by_target: dict[str, list[int]] = {}
+
+        for mutant in work:
+            by_target.setdefault(
+                mutant.target,
+                [],
+            ).append(mutant.index)
+
         escaped = []
-        total_sites = 0
-        selected_sites = 0
-        targets_with_work = 0
 
-        for target in targets:
-            source = (
-                mutation.ROOT / target
-            ).read_text()
-            sites = mutation.site_count(source)
-            indexes = mutation.sample(
-                source,
-                count,
-                seed,
-                batch=batch,
-            )
-
-            total_sites += sites
-            selected_sites += len(indexes)
-
-            if indexes:
-                targets_with_work += 1
-
+        for target, indexes in by_target.items():
             for mutant in mutation.survivors(
                 mutation.ROOT,
                 target,
                 indexes,
-                mutation.SUITE,
+                oracle,
             ):
                 classification = SURVIVORS.get(
                     mutant.key
@@ -903,18 +853,22 @@ class SuiteMutationTests(unittest.TestCase):
                         f"{mutant.text}"
                     )
 
+        selected_sites = len(work)
+        total_selected_sites = len(full_work)
+        targets_with_work = len(by_target)
+
         print(
             "\nmutation batch "
             f"{batch}, shard {shard}/{shards}: "
-            f"selected {selected_sites} sites across "
-            f"{targets_with_work}/{len(targets)} shard targets; "
-            f"{total_sites} mutation sites exist in this shard",
+            f"selected {selected_sites}/{total_selected_sites} "
+            "campaign mutants across "
+            f"{targets_with_work}/{len(TARGETS)} targets",
             flush=True,
         )
         print(
             "batch ordering: "
             f"count={count}, seed={seed}; "
-            f"run batches 0..N until every shard selects 0 sites",
+            "mutants selected before shard assignment",
             flush=True,
         )
 

@@ -652,3 +652,15 @@ spelling and reconstructs the same Python name. Newline, carriage return, tab,
 backslash, and backquote still use their earlier dedicated escape branches.
 Exact escaping layout is provisional syntax rather than semantic behaviour.
 """
+
+[[survivor]]
+kind = "constant"
+source = 'f"{operand(rest[1], 1)} "'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This is the minimum precedence requested when rendering the true branch of an
+inline if. Changing it from 1 to 2 only adds parentheses when that branch is a
+comparison expression. The parentheses preserve parsing and behaviour; exact
+parenthesization is provisional rendering layout.
+"""

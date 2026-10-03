@@ -2,23 +2,34 @@
 
 Status: experimental research  
 Branch: `research/semantic-core`  
-Alloy version: 6.2.0
+Alloy version: `6.2.0`
 
-This document records verification infrastructure, performance observations and Alloy API findings for the semantic-core experiment.
+This document records verification results, infrastructure observations and
+interpretation for the semantic-core experiment.
 
 It is not normative SHEAR semantics.
 
-The semantic experiment itself is described in `docs/semantic_core_experiment.md`. This document records evidence about how the current formal model is checked and how reliable or practical those checks are.
+Detailed Alloy 6.2 Java API information is kept separately in:
+
+```text
+docs/research/semantic-core/alloy_api_reference.md
+```
+
+The semantic experiment itself is described in:
+
+```text
+docs/semantic_core_experiment.md
+```
 
 ## 1. Current formal model
 
-The current bounded model is in:
+The bounded model is:
 
 ```text
 formal/core.als
 ```
 
-The initial command set contains:
+Current commands:
 
 ```text
 0  IdentityIsBisimulation
@@ -28,116 +39,225 @@ The initial command set contains:
 4  SharingDoesNotForceInequality
 ```
 
-The first three are checks expected to be UNSAT.
+Expected results:
 
-The last two are witness searches expected to be SAT.
+```text
+0  UNSAT
+1  UNSAT
+2  UNSAT
+3  SAT
+4  SAT
+```
 
-These are bounded results only. Passing a check does not establish a general theorem.
+Interpretation:
 
-Witness searches establish existence within the selected bounds, not universal validity.
+```text
+UNSAT check:
+    no counterexample exists within the selected bounds
+
+SAT witness:
+    at least one satisfying structure exists within the selected bounds
+```
+
+Neither establishes an unbounded theorem.
 
 ## 2. Command isolation
 
 The first workflow executed all Alloy commands sequentially.
 
-This obscured which command dominated runtime.
+That made one pathological command hide the status of all later commands.
 
 The workflow was changed to:
 
 1. discover Alloy command indices;
-2. create one GitHub Actions matrix job per command;
-3. execute the commands independently and in parallel;
-4. preserve each command's original scope and expectation.
+2. run each command in an independent GitHub Actions matrix job;
+3. preserve the command's original scopes and expectation;
+4. allow expensive commands to continue without blocking unrelated results.
 
-This immediately localized nearly all verification cost to:
+This localized nearly all current verification cost to:
 
 ```text
 CompositionIsBisimulation
 ```
 
-The other commands complete in seconds at the current bounds.
+The other four commands consistently complete in seconds.
 
-Command isolation should therefore remain part of the verification infrastructure even if the solver strategy changes.
+Command isolation is therefore both a performance feature and an epistemic
+requirement.
 
-It is useful both for performance and epistemics: one pathological check must not hide successful execution of unrelated checks.
+A pathological command must not obscure successful or failed verification of
+unrelated properties.
 
-## 3. Solver observations
+## 3. Solver evidence
 
-### 3.1 SAT4J
+### 3.1 SAT4J sequential run
 
-SAT4J was the initial solver.
-
-At the current bounds:
-
-```text
-IdentityIsBisimulation
-    completes in seconds
-
-ReverseIsBisimulation
-    completes in seconds
-
-DistinctEntitiesCanNameEqualValues
-    completes in seconds
-
-SharingDoesNotForceInequality
-    completes in seconds
-
-CompositionIsBisimulation
-    pathological runtime
-```
-
-A previous sequential run and an isolated SAT4J composition run both demonstrated that composition, rather than Alloy invocation in general, is the dominant cost.
-
-Long runtime is retained as diagnostic evidence rather than automatically hidden behind a short timeout.
-
-### 3.2 Glucose
-
-The matrix was repeated with the Alloy 6.2.0 `glucose` solver.
-
-The four inexpensive commands again completed successfully.
-
-The composition check completed successfully with:
+Run:
 
 ```text
-result: UNSAT
-elapsed: 2936 s
+37129982325
 ```
 
-Equivalent wall time:
+Observed:
 
 ```text
-48 min 56 s
+IdentityIsBisimulation:
+    UNSAT
+
+ReverseIsBisimulation:
+    UNSAT
+
+CompositionIsBisimulation:
+    unresolved when GitHub Actions terminated the job
 ```
 
-This is the first completed result for the current composition scope.
+The job reached the GitHub Actions approximately six-hour execution limit.
 
-It demonstrates that the composition assertion is solvable at the present bounds, but remains operationally expensive.
+This is:
 
-This result should not be interpreted as a general proof of bisimulation composition.
+```text
+no result
+```
 
-### 3.3 Interpretation
+It is neither a passing nor failing composition result.
 
-The evidence currently supports:
+### 3.2 SAT4J isolated composition
+
+Run:
+
+```text
+37140819564
+```
+
+Command 2 was isolated into its own job.
+
+Observed:
+
+```text
+CompositionIsBisimulation:
+    no result within 120 minutes
+```
+
+The job was cancelled by the explicit historical 120-minute timeout.
+
+Again:
+
+```text
+timeout != verification failure
+timeout != verification success
+```
+
+The explicit research timeout has since been removed.
+
+### 3.3 Glucose completed composition – first run
+
+Run:
+
+```text
+37142378947
+```
+
+Observed:
+
+```text
+CompositionIsBisimulation:
+    UNSAT
+
+elapsed:
+    2936 s
+
+equivalent:
+    48 min 56 s
+```
+
+This was the first completed bounded result for the current composition scope.
+
+It establishes only:
+
+```text
+no composition counterexample exists within that bounded command
+```
+
+It does not establish general bisimulation composition.
+
+### 3.4 Glucose completed composition – repeat
+
+Run:
+
+```text
+37148637570
+```
+
+Observed:
+
+```text
+CompositionIsBisimulation:
+    UNSAT
+
+elapsed:
+    5736 s
+
+equivalent:
+    95 min 36 s
+```
+
+The formal model and composition command were unchanged.
+
+The difference between:
+
+```text
+2936 s
+```
+
+and:
+
+```text
+5736 s
+```
+
+is almost a factor of two.
+
+Therefore single-run wall-clock timing is not a sufficiently stable basis for
+fine-grained solver comparisons on GitHub-hosted runners.
+
+### 3.5 Current solver interpretation
+
+Current evidence supports:
 
 ```text
 verified:
-    composition dominates bounded verification cost
+    composition dominates current bounded verification cost
 
 verified:
-    Glucose can prove the current bounded composition check UNSAT
+    Glucose can prove the current bounded composition command UNSAT
 
 verified:
-    the remaining current commands are comparatively cheap
+    SAT4J is dramatically less practical for this command
+    under observed runs
 
-not yet established:
-    why composition is difficult
+verified:
+    commands 0, 1, 3 and 4 are comparatively inexpensive
 
-not yet established:
-    whether the main cost is Alloy translation, CNF size,
-    SAT search, symmetry, or the relational encoding itself
+verified:
+    Glucose runtime for composition has substantial run-to-run variance
+```
 
-not yet established:
-    whether another solver or decomposition strategy scales better
+Not established:
+
+```text
+why composition is expensive
+
+whether translation or SAT search dominates
+
+whether relational join is the main source of difficulty
+
+whether symmetry breaking is near-optimal
+
+whether decomposition improves this model
+
+whether another solver performs better than Glucose
+
+how runtime scales with scope
 ```
 
 ## 4. Decomposed analysis
@@ -146,274 +266,216 @@ Alloy 6.2.0 exposes Pardinus decomposition through the Java API:
 
 ```text
 decompose_mode = 0
-    off / batch
+    batch / off
 
 decompose_mode = 1
-    hybrid
+    Hybrid
 
 decompose_mode = 2
-    parallel
+    Parallel
 ```
 
-It also exposes:
+The current Hybrid experiment uses:
 
 ```text
-decompose_threads
+solver:
+    glucose
+
+decompose_mode:
+    1
+
+decompose_threads:
+    4
 ```
 
-The stock Alloy CLI does not expose these controls directly.
+with the same:
 
-A small Java runner was therefore added at:
+```text
+formal model
+composition command
+scope
+expectation
+symmetry setting
+partial-instance setting
+```
+
+as the batch Glucose comparison.
+
+Therefore decomposition mode is the intentional independent variable.
+
+An earlier Hybrid run exceeded both completed batch Glucose timings without
+producing a result at the time it was inspected.
+
+That establishes:
+
+```text
+no observed Hybrid speed advantage in that run
+```
+
+but not yet:
+
+```text
+Hybrid is universally slower
+Hybrid is hung
+Hybrid cannot solve the command
+```
+
+A long silent period was particularly difficult to interpret because the
+original runner used:
+
+```java
+A4Reporter.NOP
+```
+
+and therefore emitted no internal translation/solver diagnostics while
+executing.
+
+This motivated the instrumented runner.
+
+## 5. Instrumented runner
+
+The experimental runner is:
 
 ```text
 .github/scripts/AlloyRunner.java
 ```
 
-The runner deliberately uses the same main parsing and execution path as normal Alloy execution:
+It uses:
 
 ```text
 CompUtil.parseEverything_fromFile(...)
 TranslateAlloyToKodkod.execute_commandFromBook(...)
 ```
 
-but allows decomposition parameters to be set explicitly.
+rather than constructing a separate solver pipeline.
 
-Before using it for the expensive command, CI verifies that:
-
-1. the requested command index still names `CompositionIsBisimulation`;
-2. the Java runner compiles against the pinned Alloy distribution;
-3. the runner can execute a known-fast command in ordinary batch mode;
-4. its result matches the command expectation.
-
-A direct comparison is currently running between:
+The runner now records:
 
 ```text
-Glucose batch
-```
-
-and:
-
-```text
-Glucose Hybrid
-decompose_threads = 4
-```
-
-on the same composition command and same Alloy scopes.
-
-Until that run completes, no performance conclusion about Hybrid decomposition is justified.
-
-## 5. Why the Java API is useful
-
-The Java API provides substantially more experimental control than the stock CLI.
-
-The runner should therefore evolve into a small verification harness rather than remain only a decomposition adapter.
-
-### 5.1 Reporter instrumentation
-
-`A4Reporter` provides callbacks for:
-
-```text
-parse(...)
-typecheck(...)
-warning(...)
-scope(...)
-bound(...)
-translate(...)
-solve(...)
-resultSAT(...)
-resultUNSAT(...)
-minimizing(...)
-minimized(...)
-```
-
-The most immediately useful callback is:
-
-```text
-solve(plength, primaryVars, totalVars, clauses)
-```
-
-It exposes:
-
-```text
-primary SAT variables
-total SAT variables
-CNF clause count
-```
-
-`resultSAT(...)` and `resultUNSAT(...)` additionally provide solver timing.
-
-Together these can distinguish:
-
-```text
-large Alloy/Kodkod translation
-large generated CNF
-hard SAT search
-decomposition overhead
-```
-
-This is more useful than wall-clock duration alone.
-
-Future expensive runs should record at least:
-
-```text
-command
-solver
-decomposition mode
-decomposition threads
-symmetry setting
+runtime environment
+solver capabilities
+effective A4Options
+command metadata
+parse wall time
+resolved scope messages
+resolved bound messages
+translation events
+CNF events
 primary variables
 total variables
-clauses
-solver time
-wall time
-SAT / UNSAT
-expected result
+clause count
+Alloy-reported solver-result time
+runner execution wall time
+total wall time
+JVM heap observations
+warnings
+final result
+expectation result
 ```
 
-### 5.2 Solver discovery
-
-`SATFactory` exposes the solvers actually available in the running Alloy distribution.
-
-Useful properties include:
+Long executions additionally emit periodic:
 
 ```text
-id
-name
-type
-availability
-incremental
-prover
-maxsat
-unbounded
-description
+ALLOY_HEARTBEAT
 ```
 
-The harness can therefore discover solver capabilities dynamically rather than maintaining an assumed hard-coded solver list.
+records containing elapsed time and JVM heap observations.
 
-A future runner mode such as:
+A heartbeat means:
 
 ```text
---list-solvers
+the Java runner process is alive
 ```
 
-would be useful for reproducible solver experiments.
-
-### 5.3 Symmetry breaking
-
-`A4Options.symmetry` controls symmetry breaking.
-
-The default is:
+It does not mean:
 
 ```text
-20
+the SAT search has made measurable progress
 ```
 
-Alloy's own API documentation notes that stronger symmetry breaking often helps UNSAT problems, although excessive symmetry processing can itself become expensive.
-
-Because the pathological composition command is UNSAT, symmetry is a plausible performance parameter to investigate.
-
-Changing symmetry is intended as a search optimization rather than a change to the bounded property being checked.
-
-It should nevertheless be benchmarked rather than assumed beneficial.
-
-### 5.4 Partial-instance inference
-
-Alloy exposes:
+The relevant API details and classifications are documented in:
 
 ```text
-inferPartialInstance
+docs/research/semantic-core/alloy_api_reference.md
 ```
 
-which allows bounds to be simplified using inferred partial instances before solving.
+## 6. Instrumented workflow migration
 
-This is another performance-related control worth recording explicitly in experiments.
+The workflow now routes every normal matrix command through
+`AlloyRunner`, rather than using the stock Alloy CLI for normal commands and
+the custom runner only for Hybrid.
 
-Changing it should not silently become part of the semantic model.
-
-### 5.5 Kodkod recording
-
-Alloy exposes:
+Current workflow:
 
 ```text
-recordKodkod
+.github/workflows/semantic-core.yml
 ```
 
-which can retain the translated Kodkod representation.
-
-This may help diagnose pathological checks or compare different encodings.
-
-It should be enabled selectively because recording large intermediate representations can itself add cost and generate substantial output.
-
-### 5.6 Unsat cores
-
-With an appropriate prover/core-capable solver, Alloy can expose high-level unsat cores through:
+Run:
 
 ```text
-A4Solution.highLevelCore()
+37156350195
 ```
 
-This maps an UNSAT result back toward source positions.
+verified the migration operationally.
 
-Potential uses include identifying which parts of a large assertion or fact set are actually involved in the proof.
-
-This is currently a diagnostic possibility, not part of the normal verification lane.
-
-## 6. Command-level control
-
-The Java API exposes parsed `Command` objects directly.
-
-Relevant command data includes:
+Completed successfully through the instrumented runner:
 
 ```text
-label
-check/run
-overall scope
-bitwidth
-max sequence length
-per-signature scopes
-exact scopes
-expected result
-formula
+command 0
+command 1
+command 3
+command 4
 ```
 
-`Command` is immutable but provides `change(...)` methods that construct modified commands.
-
-This allows controlled experiments such as:
+At the latest inspection:
 
 ```text
-Rel scope = 3
-Rel scope = 4
-Rel scope = 5
-...
+command 2 batch Glucose:
+    in progress
+
+command 2 Hybrid Glucose:
+    in progress
 ```
 
-without editing `formal/core.als`.
+This establishes that instrumentation itself does not prevent the inexpensive
+commands from executing and satisfying their expectations.
 
-This is particularly useful for measuring scaling curves.
+The long composition jobs are now positioned to produce substantially more
+diagnostic information than the historical CLI runs.
 
-However, scope changes are not merely solver optimizations.
+## 7. Experimental configuration control
 
-A different scope is a different bounded verification problem.
+Performance experiments must distinguish search controls from changes to the
+bounded problem.
 
-Results from scope sweeps must therefore always record the exact command scopes and must not be presented as equivalent checks.
+Search-strategy candidates include:
 
-## 7. Controls that may change semantics
+```text
+SAT solver
+symmetry-breaking strength
+decompose mode
+decompose thread count
+partial-instance inference
+```
 
-Performance experiments must distinguish search controls from semantic controls.
+These should normally be varied one at a time.
 
-Controls that can alter the bounded problem or its semantics include:
+Controls that may change the bounded problem or semantics include:
 
 ```text
 scope
+exact signature scope
 bitwidth
 maxseq
 unrolls
 noOverflow
 command formula
-exact signature scopes
+facts
+assertions
 ```
 
-These must never be changed merely to obtain a faster green result.
+These must not be changed merely to obtain a faster green result.
 
 In particular:
 
@@ -425,132 +487,264 @@ is not a quality-preserving optimization.
 
 It weakens bounded coverage.
 
-The current reduced scopes were introduced only as an initial bootstrap after larger runs exhausted available resources. They should be treated as explicit bounded assumptions, not as a solver optimization.
+## 8. Runtime policy
 
-## 8. Controls intended primarily for search strategy
+Long runtime is experimental evidence.
 
-Current candidates for performance experiments that preserve the same bounded command include:
+The research workflow should not automatically impose a short hard solver
+timeout merely to keep CI green.
 
-```text
-SAT solver
-symmetry-breaking strength
-decompose mode
-decompose thread count
-partial-instance inference
-```
-
-Any comparison should keep all other relevant settings constant.
-
-Prefer A/B experiments with one changed parameter.
-
-## 9. Runtime policy
-
-Long verification runtime is itself evidence.
-
-The research workflow should therefore not automatically convert every long-running command into an arbitrary timeout failure.
-
-A pathological increase in runtime may indicate:
+Pathological runtime may indicate:
 
 ```text
-poor encoding
+poor formal encoding
 combinatorial explosion
-insufficient symmetry breaking
 solver mismatch
+symmetry problems
 decomposition failure
 unexpected model growth
 semantic structure that scales badly
 ```
 
-Routine CI may eventually need a bounded-duration lane.
+GitHub Actions still imposes an external platform execution limit.
 
-If introduced, it should remain distinct from the unrestricted research verification lane.
-
-A timeout means:
+If that limit is reached, record:
 
 ```text
-no verification result obtained
+no result within platform execution limit
 ```
 
 not:
 
 ```text
-property failed
+failed property
 ```
 
-and not:
+A future routine verification lane may intentionally impose shorter operational
+limits.
+
+If so, it should remain distinct from the unrestricted research lane.
+
+## 9. Timing methodology
+
+The current Glucose observations demonstrate large runtime variance.
+
+Therefore solver comparisons should use:
 
 ```text
-property passed
+multiple repetitions
 ```
 
-## 10. Next instrumentation step
+or require an effect substantially larger than observed baseline noise.
 
-Before performing many more expensive solver experiments, extend `AlloyRunner` with an `A4Reporter` implementation that records:
+For every expensive run retain at minimum:
 
 ```text
-resolved translation configuration
-primary variable count
-total variable count
-clause count
-solver time
-wall time
-result
+git commit
+Alloy version
+runner version
+
+command
+effective scopes
+expected result
+
+solver
+symmetry
+partial-instance setting
+decomposition mode
+decomposition threads
+
+primary variables
+total variables
+clauses
+
+Alloy-reported solving time
+runner wall time
+
+runtime environment
+heap observations
+
+final SAT / UNSAT / no-result status
 ```
 
-This should be observational instrumentation only.
+A small wall-time difference between two single runs is not strong evidence.
 
-After that, useful controlled experiments include:
+## 10. Potential composition pathology
+
+The current assertion checks composition of two explicit bisimulation
+witnesses.
+
+Conceptually:
 
 ```text
-Hybrid versus batch
-
-decomposition thread-count sweep
-
-symmetry sweep
-
-additional SAT solver comparison
-
-scope scaling curve for CompositionIsBisimulation
+first.pairs
+second.pairs
 ```
 
-The objective is not merely to make the current check faster.
-
-The objective is to understand why it is expensive and whether the formal representation remains practical as the model grows.
-
-## 11. Current evidence summary
-
-As of the current experiment:
+are relational witnesses and composition uses:
 
 ```text
-bounded equality identity:
-    passes at current scope
+(first.pairs).(second.pairs)
+```
 
-bounded bisimulation reversal:
-    passes at current scope
+The bounded command contains:
 
-bounded bisimulation composition:
-    proven UNSAT with Glucose at current scope
-    2936 s
+```text
+3 State
+6 Rel
+2 Role
+6 RoleUse
+6 Slot
+3 Atom
+exactly 2 BisimWitness
+```
 
-distinct EntityIDs naming equal values:
-    witness found
+A plausible hypothesis is that the search space involving:
 
-shared versus duplicated equal structure:
-    witness found
+```text
+two arbitrary valid bisimulation relations
+plus relational composition
+plus an UNSAT proof obligation
+```
 
-command-level CI isolation:
+is expensive.
+
+This is currently a hypothesis.
+
+It is not yet supported by profiling evidence.
+
+The new CNF and timing instrumentation should help determine whether cost is
+primarily associated with:
+
+```text
+translation
+CNF size
+SAT search
+decomposition
+```
+
+before changing the formal encoding.
+
+## 11. Non-vacuity risk
+
+Passing:
+
+```text
+ReverseIsBisimulation
+```
+
+and:
+
+```text
+CompositionIsBisimulation
+```
+
+does not by itself prove that the checked implication is exercised by a useful
+model.
+
+For composition, the antecedent includes:
+
+```text
+first.right = second.left
+```
+
+If no suitable pair of witnesses exists within the selected bounds, the
+assertion could pass vacuously.
+
+Therefore bounded theorem checks must be paired with explicit witness searches
+showing that their important antecedents are realizable.
+
+Required future witnesses include:
+
+```text
+a valid nontrivial BisimWitness for reversal
+
+two valid BisimWitness objects such that:
+    first.right = second.left
+
+preferably:
+    their relational composition is nonempty
+```
+
+Until these exist, bounded composition success carries a residual
+false-confidence risk.
+
+## 12. Current evidence summary
+
+```text
+IdentityIsBisimulation:
+    bounded UNSAT check passes
+
+ReverseIsBisimulation:
+    bounded UNSAT check passes
+    non-vacuity witness still required
+
+CompositionIsBisimulation:
+    bounded UNSAT check passes with Glucose
+    2936 s in one run
+    5736 s in another run
+    non-vacuity witness still required
+
+DistinctEntitiesCanNameEqualValues:
+    SAT witness found
+
+SharingDoesNotForceInequality:
+    SAT witness found
+
+SAT4J composition:
+    no result in observed 120-minute isolated run
+    no result before observed 6-hour sequential cutoff
+
+command isolation:
     working
 
-custom Java Alloy runner:
-    compiles and passes batch smoke test
+custom Java runner:
+    compiles against pinned Alloy 6.2.0 in GitHub Actions
 
-Glucose Hybrid composition:
-    experiment in progress
+instrumentation:
+    deployed to all normal matrix commands
 
-stock Glucose composition repeat:
-    experiment in progress
+instrumented inexpensive commands:
+    successful
+
+instrumented batch composition:
+    in progress at latest inspection
+
+instrumented Hybrid composition:
+    in progress at latest inspection
 ```
 
 These findings describe the current bounded experiment only.
 
-They should not be promoted into normative SHEAR semantics without separate semantic review.
+They must not be promoted into normative SHEAR semantics without separate
+semantic review.
+
+## 13. Next verification steps
+
+Immediate priorities:
+
+```text
+1. collect the first complete instrumented composition result;
+
+2. compare batch and Hybrid:
+       translation events
+       CNF sizes
+       solver-reported time
+       wall time
+       memory behaviour;
+
+3. add explicit non-vacuity witnesses for reversal and composition;
+
+4. only then run controlled search-strategy experiments such as:
+       symmetry sweep
+       decomposition thread sweep
+       additional solver comparison;
+
+5. later measure scope scaling without presenting smaller scopes
+   as equivalent verification.
+```
+
+The objective is not merely to make Alloy green or fast.
+
+The objective is to determine whether the candidate semantic core is
+verifiable without hiding semantic weakness or impractical computational cost.

@@ -1,0 +1,23 @@
+source_blob = "270f94583613f44c344e4fc1600def38a4cd3111"
+
+[[survivor]]
+kind = "constant"
+source = "IntRange(0, 100),"
+occurrence = 1
+classification = "unspecified"
+reason = """
+The instrumentation cell's upper bound is example scaffolding rather than part
+of the embedded compiler's semantic contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "(\"lit\", 1),"
+occurrence = 8
+classification = "unspecified"
+reason = """
+This literal is only the payload of the curated unsupported-quote corpus case.
+The self-hosting contract requires unsupported operations to lower to
+RAISE \"unknown operation\"; it does not prescribe the particular payload used
+by that fixture.
+"""

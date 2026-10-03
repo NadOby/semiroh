@@ -1,0 +1,666 @@
+source_blob = "6c9fcf465a1ba74562b3e9355e1f4e746991b45a"
+
+[[survivor]]
+kind = "constant"
+source = "+ self.expr(value, locs, 2, True)[0]"
+occurrence = 1
+classification = "equivalent"
+reason = """
+Syntax rendering gives special behaviour only to modes 0 and 1.
+Changing this internal mode from 2 to 3 therefore follows the same
+rendering and rejection paths for every expression.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "def __init__(self, message: str, line: int = 1, column: int = 1) -> None:"
+occurrence = 0
+classification = "unspecified"
+reason = """
+The documented SourceError contract is that parser errors expose 1-based line
+and column coordinates. Internal syntax code supplies those coordinates
+explicitly. The default line used when a caller directly constructs
+SourceError without coordinates is not part of the syntax contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "def __init__(self, message: str, line: int = 1, column: int = 1) -> None:"
+occurrence = 1
+classification = "unspecified"
+reason = """
+The documented SourceError contract is that parser errors expose 1-based line
+and column coordinates. Internal syntax code supplies those coordinates
+explicitly. The default column used when a caller directly constructs
+SourceError without coordinates is not part of the syntax contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True)"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Token is an implementation record used by the tokenizer and parser. The syntax
+contract specifies tokenization and parsing behaviour, not mutability of Token
+objects returned by the implementation.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "_ORDINARY, _HOLES = 0, 1"
+occurrence = 1
+classification = "equivalent"
+reason = """
+_HOLES is an internal mode tag. Code enters hole mode using _HOLES and tests
+for that same symbolic value; its numeric value is neither serialized nor
+otherwise interpreted. Changing the tag from 1 to 2 therefore preserves all
+behaviour.
+"""
+
+[[survivor]]
+kind = "return"
+source = "return False"
+occurrence = 0
+classification = "equivalent"
+reason = """
+This is the false result of private _Parser.accept_op. Every internal caller
+uses the result only for truth testing, for which False and None are
+indistinguishable. No syntax result or diagnostic exposes the returned value.
+"""
+
+[[survivor]]
+kind = "if"
+source = "if token.kind == \"eof\":"
+occurrence = 0
+classification = "unspecified"
+reason = """
+This branch only chooses the human-readable description inserted into an
+already-detected SourceError. The syntax API specifies SourceError and its
+1-based line/column coordinates, not exact diagnostic prose.
+"""
+
+[[survivor]]
+kind = "if"
+source = "if token.kind in (\"newline\", \"indent\", \"dedent\"):"
+occurrence = 0
+classification = "unspecified"
+reason = """
+This branch only chooses the human-readable token description used in an
+already-detected SourceError. Exact diagnostic wording is not part of the
+documented syntax contract.
+"""
+
+[[survivor]]
+kind = "compare"
+source = "if token.kind == \"eof\":"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Flipping this comparison changes only which textual description _describe
+returns for an already-rejected token. It does not alter parsing, rejection,
+or SourceError position information.
+"""
+
+[[survivor]]
+kind = "compare"
+source = "if token.kind in (\"newline\", \"indent\", \"dedent\"):"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Flipping this membership test changes only diagnostic wording for an
+already-rejected token. The exact wording is intentionally outside the
+documented syntax API.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return self.literal(rest[0], locs, mode), 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+The second tuple item is renderer precedence. Atom precedence is 4 and no
+operand requires more than 4, so changing this value to 5 cannot change
+parenthesization or rendered text.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return _name(name), 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+The returned integer is only an atom-precedence marker. Since operand
+requirements never exceed 4, changing it from 4 to 5 has no observable
+effect.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return _name(name), 4"
+occurrence = 1
+classification = "equivalent"
+reason = """
+The returned integer is only an atom-precedence marker. Since operand
+requirements never exceed 4, changing it from 4 to 5 has no observable
+effect.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return f\"{op}({_name(name)})\", 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+This value reports atom precedence to operand(). Both 4 and 5 satisfy every
+possible precedence requirement, whose maximum is 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return f\"apply({target}, {packed})\", 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+This value is only the precedence assigned to an atomic call-form rendering.
+Raising it from 4 to 5 cannot affect the prec >= need decision because need
+never exceeds 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return \"(\" + \", \".join(items) + \")\", 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+Tuple syntax is atomic for renderer precedence. Changing its precedence marker
+from 4 to 5 leaves every operand-parenthesization decision unchanged.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return f\"({items[0]},)\", 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+Singleton tuple syntax is atomic for renderer precedence. No caller requests a
+precedence above 4, so 4 and 5 are indistinguishable.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return self.raw(node), 4"
+occurrence = 0
+classification = "equivalent"
+reason = """
+raw(...) is treated as an atom by the renderer. Its precedence marker is used
+only by prec >= need, with need at most 4, so changing 4 to 5 is equivalent.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 0
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 1
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 2
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 3
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 4
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 5
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 6
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 7
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 8
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "4,"
+occurrence = 9
+classification = "equivalent"
+reason = """
+This is an atom-precedence result in _Renderer._expr. Raising atom precedence
+from 4 to 5 cannot change rendering because operand requirements are bounded
+at 4.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "first: bool = True,"
+occurrence = 0
+classification = "unspecified"
+reason = """
+The default is used by activate's TARGET = VALUE parser. Changing it to False
+only changes how activate() is rejected: instead of the explicit empty-list
+diagnostic, target_pair consumes the closing parenthesis and global_function
+raises SourceError on that same token. Acceptance and source position are
+unchanged; exact diagnostic prose is not specified.
+"""
+
+[[survivor]]
+kind = "boolean"
+source = "if definition is None or code is None:"
+occurrence = 0
+classification = "equivalent"
+reason = """
+code is function_at(state, function). function_at returns None exactly when
+the entity is absent or its value has no definition; otherwise it returns a
+Function or raises while collapsing malformed graph form. Therefore definition
+and code cannot reach this guard with only one of them None, so replacing or
+with and changes no behaviour.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "mode, template = 2, body[1]"
+occurrence = 0
+classification = "equivalent"
+reason = """
+Renderer mode 2 means a literal's template value. Rendering only distinguishes
+mode 0, mode 1, and all other mode values: link lookup, local-name checks,
+quote/unquote handling, function rendering and literal rendering all take the
+same branches for 2 and 3. Changing this internal tag from 2 to 3 therefore
+cannot change rendered text or rejection behaviour.
+"""
+
+[[survivor]]
+kind = "constant"
+source = '"add": ("+", 2, 2, 3),'
+occurrence = 1
+classification = "unspecified"
+reason = """
+This raises the required precedence of add's left operand from 2 to 3. It can
+only add parentheses around a left additive expression. Additive parsing is
+left-associative, so the parsed expression and behaviour are unchanged; exact
+parenthesization is part of the provisional rendering layout.
+"""
+
+[[survivor]]
+kind = "constant"
+source = '"sub": ("-", 2, 2, 3),'
+occurrence = 2
+classification = "unspecified"
+reason = """
+This raises the required precedence of sub's right operand from 3 to 4. It can
+only add parentheses around a multiplicative right operand. Multiplication
+already binds more tightly than subtraction, so behaviour is unchanged; exact
+parenthesization is provisional layout.
+"""
+
+[[survivor]]
+kind = "constant"
+source = '"mul": ("*", 3, 3, 4),'
+occurrence = 1
+classification = "unspecified"
+reason = """
+This raises the required precedence of mul's left operand from 3 to 4. It can
+only parenthesize a left multiplication that the parser would already group
+left-associatively. The expression is unchanged; exact layout is provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = '"lt": ("<", 1, 2, 2),'
+occurrence = 1
+classification = "unspecified"
+reason = """
+This raises the required precedence of the comparison's left operand from 2
+to 3, adding parentheses around an additive operand. Addition already binds
+more tightly than comparison, so parsing and behaviour are unchanged; exact
+parenthesization is provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = '"lt": ("<", 1, 2, 2),'
+occurrence = 2
+classification = "unspecified"
+reason = """
+This raises the required precedence of the comparison's right operand from 2
+to 3, adding parentheses around an additive operand. Addition already binds
+more tightly than comparison, so parsing and behaviour are unchanged; exact
+parenthesization is provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = '"eq": ("==", 1, 2, 2),'
+occurrence = 2
+classification = "unspecified"
+reason = """
+This raises the required precedence of equality's right operand from 2 to 3,
+adding parentheses around an additive operand. Addition already binds more
+tightly than equality, so parsing and behaviour are unchanged; exact
+parenthesization is provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "0,"
+occurrence = 4
+classification = "unspecified"
+reason = """
+This is the minimum precedence requested for a block-if condition. Raising it
+from 0 to 1 only adds parentheses when the condition itself has precedence 0.
+Parentheses preserve the parsed expression; exact rendering layout is
+provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "0,"
+occurrence = 6
+classification = "unspecified"
+reason = """
+This is the minimum precedence requested for a cell-write value. Raising it
+from 0 to 1 only adds parentheses around precedence-0 expressions. Parsing and
+behaviour are unchanged; exact rendering layout is provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'f"{self.operand(node[2], locs, 0, False, 0)}"'
+occurrence = 2
+classification = "unspecified"
+reason = """
+This is the minimum precedence for the value of a write used as a let value.
+Changing 0 to 1 can only add redundant parentheses around a precedence-0
+expression. The resulting expression parses identically; exact layout is
+provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "return self.operand(node, locs, 0, False, 0)"
+occurrence = 2
+classification = "unspecified"
+reason = """
+This is the minimum precedence for an ordinary let value. Raising it from 0
+to 1 only parenthesizes precedence-0 expressions and therefore preserves the
+parsed expression and behaviour. Exact parenthesization is provisional layout.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'tokens.append(Token("dedent", None, last, 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This column belongs to a synthetic DEDENT emitted only to close indentation at
+end of input. SourceError coordinates are specified as 1-based, but no
+canonical source column is defined for this zero-width generated token.
+Changing its column from 1 to 2 therefore changes only unspecified diagnostic
+position detail.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'tokens.append(Token("eof", None, last, 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+EOF is a synthetic zero-width token. The syntax contract requires 1-based
+SourceError coordinates but does not define which column EOF occupies.
+Changing this generated token's column from 1 to 2 affects only unspecified
+diagnostic position detail.
+"""
+
+[[survivor]]
+kind = "arithmetic"
+source = 'tokens.append(Token("newline", None, number, len(line) + 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the column attached to the synthetic NEWLINE token. The
+syntax API specifies 1-based SourceError coordinates but does not specify the
+exact source column assigned to a zero-width generated newline token.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'tokens.append(Token("newline", None, number, len(line) + 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the synthetic NEWLINE token's column from len(line)+1 to
+len(line)+2. Exact coordinates for generated structural tokens are not part of
+the documented syntax contract.
+"""
+
+[[survivor]]
+kind = "arithmetic"
+source = 'tokens.append(Token("indent", None, number, indent + 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the column stored on a synthetic INDENT token. INDENT has no
+source character of its own, and the documented syntax contract does not
+define a canonical column for generated indentation tokens.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'tokens.append(Token("indent", None, number, indent + 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the column metadata of the generated INDENT token. Exact
+synthetic-token positions are not specified syntax behaviour.
+"""
+
+[[survivor]]
+kind = "arithmetic"
+source = 'tokens.append(Token("dedent", None, number, indent + 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the column stored on a generated DEDENT token. DEDENT is a
+zero-width structural token and its exact column is not specified by the text
+syntax contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'tokens.append(Token("dedent", None, number, indent + 1))'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only generated DEDENT position metadata. Parsing structure is
+unchanged, and the syntax specification does not define the exact column of a
+synthetic DEDENT token.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'elif code < 0x20 or code == 0x7F or 0xD800 <= code <= 0xDFFF:'
+occurrence = 0
+classification = "unspecified"
+reason = """
+Changing the lower control-character boundary from 0x20 to 0x21 makes U+0020
+render as a unicode escape instead of literally inside backquotes. Both forms
+parse to the same name; exact escaping is rendering layout, which is
+provisional.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'elif code < 0x20 or code == 0x7F or 0xD800 <= code <= 0xDFFF:'
+occurrence = 1
+classification = "unspecified"
+reason = """
+Changing the DEL comparison from 0x7F to 0x80 changes which of those code
+points is emitted as a unicode escape. Both literal and escaped forms round
+trip to the same name, and the exact textual escaping choice is not specified.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'elif code < 0x20 or code == 0x7F or 0xD800 <= code <= 0xDFFF:'
+occurrence = 2
+classification = "unspecified"
+reason = """
+Changing the surrogate-range lower boundary affects only whether U+D800 is
+written literally or as a unicode escape in a backquoted name. The parser
+accepts either representation as the same Python string; the exact rendering
+escape choice is not specified.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'elif code < 0x20 or code == 0x7F or 0xD800 <= code <= 0xDFFF:'
+occurrence = 3
+classification = "unspecified"
+reason = """
+Changing the surrogate-range upper boundary to U+E000 only changes whether
+that boundary character is written literally or with a unicode escape. Both
+forms represent the same name; exact escaping is provisional rendering layout.
+"""
+
+[[survivor]]
+kind = "return"
+source = 'return "end of text"'
+occurrence = 0
+classification = "unspecified"
+reason = """
+Public parse paths do not call _describe on EOF: tokenization inserts a
+synthetic NEWLINE before EOF for every source line, and parser paths either
+handle EOF explicitly or reject that structural token first. Calling the
+private helper directly with an EOF Token is outside the syntax API, including
+its exact descriptive return value.
+"""
+
+[[survivor]]
+kind = "arithmetic"
+source = "return self.tokens[min(self.pos + ahead, len(self.tokens) - 1)]"
+occurrence = 1
+classification = "equivalent"
+reason = """
+This mutation changes the upper clamp from len(tokens)-1 to len(tokens)+1.
+Every internal peek uses ahead=0 except the guarded one-token lookaheads for
+'=' while the current token is a name. Those lookaheads necessarily occur
+before the synthetic NEWLINE/EOF tail, so self.pos+ahead never exceeds the
+last token index and the changed clamp is never selected.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "at_start = False"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Changing False to True lets the prescan treat later bare 'cell' or 'fn' token
+sequences on the same top-level line as declarations. No valid grammar form
+contains such a sequence after the declaration start. It can therefore change
+which SourceError is reached for malformed input, but cannot change acceptance
+or semantics of a valid program. Exact malformed-input diagnostic ordering is
+not specified.
+"""
+
+[[survivor]]
+kind = "boolean"
+source = "elif code < 0x20 or code == 0x7F or 0xD800 <= code <= 0xDFFF:"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Changing the disjunction to a conjunction causes the remaining control
+characters, DEL, and surrogate code points to be emitted literally inside
+backquotes instead of with unicode escapes. _scan_name accepts the literal
+spelling and reconstructs the same Python name. Newline, carriage return, tab,
+backslash, and backquote still use their earlier dedicated escape branches.
+Exact escaping layout is provisional syntax rather than semantic behaviour.
+"""
+
+[[survivor]]
+kind = "constant"
+source = 'f"{operand(rest[1], 1)} "'
+occurrence = 0
+classification = "unspecified"
+reason = """
+This is the minimum precedence requested when rendering the true branch of an
+inline if. Changing it from 1 to 2 only adds parentheses when that branch is a
+comparison expression. The parentheses preserve parsing and behaviour; exact
+parenthesization is provisional rendering layout.
+"""

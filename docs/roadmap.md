@@ -298,7 +298,9 @@ empty.
 
 ### 18. Verification hardening (handoff)
 
-**Planned.** The plan is in verification_hardening.md.
+**Implemented** (PR #42). The verification design and policy are in
+verification_hardening.md; execution evidence is recorded in `CHANGES.md`
+and the PR.
 
 Strengthen the evidence that the semantic model is correct before changing
 its architecture. This is broader than adversarial testing: combine
@@ -318,6 +320,59 @@ at least one small domain is exhaustively explored, mutation coverage is
 substantially broader with survivors classified, generated failures can be
 reproduced and minimized, and ordinary CI is split and parallelized with its
 before/after wall time recorded.
+
+### 18a. Verification infrastructure follow-up (one session)
+
+**Planned.**
+
+Improve the verification harness itself before task 19 changes the language
+architecture. This task changes test infrastructure and CI only, not production
+semantics or the verification policy established by task 18.
+
+Replace target-level mutation sharding with deterministic mutant-level
+sharding. Build the selected mutation work set first, shuffle it
+deterministically from the existing seed, then divide individual mutants
+across shards as evenly as possible. Sharding must not change which mutants
+the seed, batch and budget selected; the union of all shards must equal the
+unsharded work set exactly, with no duplicates. Do not add historical
+timing-weighted scheduling – equal mutant counts are the intended simple
+balancing rule.
+
+Make mutation campaigns observable while they run. At campaign start, log the
+mutation-engine version, target-source versions, campaign inputs and exact
+selected-mutant count. Emit flushed periodic progress with completed/total
+mutants, killed mutants, classified and unclassified survivors, elapsed time
+and current target. Report every survivor immediately when it is discovered
+rather than waiting for the final assertion. Do not log every ordinary killed
+mutant by default.
+
+At completion, print a compact summary grouped by target and mutation kind,
+including elapsed time and per-target timing statistics. Timing data is
+diagnostic only and must not affect deterministic shard assignment.
+
+Make mutation campaigns produce machine-readable evidence from the same event
+stream as the human-readable log. Each shard should record the mutation-engine
+version, target-source versions, campaign inputs, selected mutation keys and
+their outcomes, with explicit counts for killed, classified surviving and
+unclassified surviving mutants. Publish the report even when the shard fails
+because survivors were found.
+
+Add direct replay of one exact mutation key under its pinned target-source and
+mutation-engine versions, so a survivor found by a campaign can be reproduced
+locally without reconstructing its batch and shard.
+
+Make the mutation subprocess oracle explicit in one place. Harness-integrity
+and survivor-catalog checks must remain mandatory in ordinary CI but must not
+be able to become mutation-kill oracles. Add a regression proving that baseline
+and mutant subprocesses execute the same semantic oracle set.
+
+Done when: for a fixed source tree, budget, seed and batch, mutant-level shards
+are deterministic, disjoint and exhaustive and differ in selected mutant count
+by at most one; campaigns provide useful live progress and immediate survivor
+reporting; machine-readable results are emitted even on failure; any reported
+mutation key can be replayed directly; mutation-oracle selection is centralized
+and regression-tested; and no production file or intended semantic behaviour
+changes.
 
 ### 19. Language architecture hardening (handoff)
 

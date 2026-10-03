@@ -30,6 +30,24 @@ class ReconcileTests(unittest.TestCase):
 
         self.assertEqual(result.destination.id, state.id)
 
+    def test_identical_duplicate_functions_are_a_noop(self):
+        text = (
+            "fn f(x):\n"
+            "    x + 1\n"
+            "\n"
+            "fn g(x):\n"
+            "    x + 1\n"
+        )
+        state = program(text)
+        old_f = owned(state, F)
+        old_g = owned(state, G)
+
+        destination = reconcile(state, text).destination
+
+        self.assertEqual(destination.id, state.id)
+        self.assertEqual(owned(destination, F), old_f)
+        self.assertEqual(owned(destination, G), old_g)
+
     def test_changed_body_preserves_unambiguous_descendants(self):
         before = "fn f(x):\n    x + 1\n"
         after = "fn f(x):\n    x - 1\n"
@@ -276,6 +294,42 @@ class ReconcileTests(unittest.TestCase):
         self.assertEqual(
             function_at(destination, USE),
             function_at(program(after), USE),
+        )
+
+    def test_temporary_link_key_cannot_be_overwritten_by_later_edit(self):
+        before = (
+            "fn `!a`(x):\n"
+            "    f(x)\n"
+            "\n"
+            "fn `.reconcile/0`(x):\n"
+            "    x + 1\n"
+            "\n"
+            "fn f(x):\n"
+            "    x\n"
+            "\n"
+            "fn g(x):\n"
+            "    x\n"
+        )
+        after = (
+            "fn `!a`(x):\n"
+            "    g(x)\n"
+            "\n"
+            "fn `.reconcile/0`(x):\n"
+            "    x + 2\n"
+            "\n"
+            "fn f(x):\n"
+            "    x\n"
+            "\n"
+            "fn g(x):\n"
+            "    x\n"
+        )
+        state = program(before)
+
+        destination = reconcile(state, after).destination
+
+        self.assertEqual(
+            render_program(destination),
+            render_program(program(after)),
         )
 
     def test_unchanged_other_function_keeps_all_nodes(self):

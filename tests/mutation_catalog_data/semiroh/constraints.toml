@@ -1,0 +1,148 @@
+source_blob = "f28e80bb1c6fc633d739d5ce82436901653409ef"
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True)"
+occurrence = 1
+classification = "unspecified"
+reason = """
+This occurrence is EvaluationContext's frozen=True flag. EvaluationContext is
+an execution-time evaluation mechanism rather than a semantic value, and its
+host-object mutability is not part of the constraint semantic contract.
+"""
+
+[[survivor]]
+kind = "return"
+source = "return False"
+occurrence = 0
+classification = "equivalent"
+reason = """
+_Evaluation.step is consumed only through `if not evaluation.step()`. Replacing
+this false return with None preserves that truth-value result and therefore
+every evaluation outcome.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False)"
+occurrence = 1
+classification = "equivalent"
+reason = """
+This occurrence is IsKind's eq=False flag. Dataclass field equality on its
+single kind field agrees with Constraint's canonical semantic equality.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False)"
+occurrence = 3
+classification = "equivalent"
+reason = """
+This occurrence is IntRange's eq=False flag. Dataclass equality over min and
+max agrees with its canonical semantic equality.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False)"
+occurrence = 5
+classification = "equivalent"
+reason = """
+This occurrence is Length's eq=False flag. Dataclass equality over min and max
+agrees with its canonical semantic equality.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False, init=False)"
+occurrence = 2
+classification = "equivalent"
+reason = """
+This occurrence is OneOf's init=False flag. OneOf defines its own __init__, so
+changing dataclass init to True does not generate or replace that constructor.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False, init=False)"
+occurrence = 4
+classification = "equivalent"
+reason = """
+This occurrence is AllOf's eq=False flag. Its parts are canonicalized,
+deduplicated and sorted constraints, so dataclass field equality agrees with
+Constraint's canonical semantic equality.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False, init=False)"
+occurrence = 5
+classification = "equivalent"
+reason = """
+This occurrence is AllOf's init=False flag; AllOf defines its own __init__, so
+changing dataclass init to True does not generate or replace the explicit
+constructor.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False, init=False)"
+occurrence = 7
+classification = "equivalent"
+reason = """
+This occurrence is AnyOf's eq=False flag. Its parts are canonicalized,
+deduplicated and sorted constraints, so dataclass field equality agrees with
+Constraint's canonical semantic equality.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False, init=False)"
+occurrence = 8
+classification = "equivalent"
+reason = """
+This occurrence is AnyOf's init=False flag. AnyOf defines its own __init__, so
+changing dataclass init to True does not generate or replace that constructor.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False)"
+occurrence = 7
+classification = "equivalent"
+reason = """
+This occurrence is Not's eq=False flag. Dataclass equality compares its part
+using semantic Constraint equality, which agrees with canonical equality.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False)"
+occurrence = 9
+classification = "equivalent"
+reason = """
+This occurrence is Role's eq=False flag. Dataclass equality over the role name
+and semantic constraint agrees with canonical semantic equality.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False)"
+occurrence = 11
+classification = "equivalent"
+reason = """
+This occurrence is External's eq=False flag. Dataclass equality over its
+single name field agrees with canonical semantic equality.
+"""
+
+[[survivor]]
+kind = "return"
+source = "return NotImplemented"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Constraint equality is specified between semantic constraints by canonical
+semantic content. The reflected-dispatch behaviour produced by returning
+NotImplemented for an unrelated Python object is host-language interoperability
+and is not part of the constraint semantic contract.
+"""

@@ -1,0 +1,92 @@
+source_blob = "6351e808f1a1f96c0367e6bfd6b2e8e1b51ce3c3"
+
+[[survivor]]
+kind = "return"
+source = "return {}"
+occurrence = 1
+classification = "equivalent"
+reason = """
+_graph_links is called only after function_at identified the same entity as a
+graph-form function; that implies _definition_of succeeds, so this
+missing-definition return cannot affect reconciliation.
+"""
+
+[[survivor]]
+kind = "return"
+source = "return dict(definition.links)"
+occurrence = 0
+classification = "equivalent"
+reason = """
+Returning None only causes reconcile to submit a redundant link-table edit;
+define compares the reconstructed definition with the current value and the
+resulting semantic state and mappings are unchanged.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "serial += 1"
+occurrence = 0
+classification = "equivalent"
+reason = """
+The serial is used only to choose an unused temporary input key for a links
+relation; the key is never installed in the destination and define identifies
+the edited function from the relation itself, so advancing by two instead of
+one changes no semantic result.
+"""
+
+[[survivor]]
+kind = "if"
+source = "if added:"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Negating this diagnostic-only branch changes which cell names appear in the
+ReconcileError message but does not change whether the unsupported cell edit
+is rejected.
+"""
+
+[[survivor]]
+kind = "if"
+source = "if removed:"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Negating this diagnostic-only branch changes which cell names appear in the
+ReconcileError message but does not change whether the unsupported cell edit
+is rejected.
+"""
+
+[[survivor]]
+kind = "if"
+source = "if changed:"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Negating this branch changes only whether changed cell names are included in
+the ReconcileError text. Cell declaration changes are still rejected, and the
+reconciliation contract specifies the error type but not this diagnostic text.
+"""
+
+[[survivor]]
+kind = "return"
+source = "return {}"
+occurrence = 2
+classification = "equivalent"
+reason = """
+_graph_links is reached only for an entity already identified by
+_graph_functions as a graph-form function. Its value therefore exists and has
+a definition, so this missing-definition return is unreachable during
+reconciliation.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "serial = 0"
+occurrence = 0
+classification = "equivalent"
+reason = """
+The serial only selects a collision-free temporary EntityID used as an input
+key for a links relation. Starting the search at 1 instead of 0 merely skips
+one candidate; the chosen key is not installed in the destination and has no
+semantic role.
+"""

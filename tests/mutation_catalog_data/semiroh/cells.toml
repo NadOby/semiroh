@@ -1,0 +1,23 @@
+source_blob = "20e863b3494b14c8ce0fc0132c07355e7f9f8ee0"
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True, eq=False)"
+occurrence = 1
+classification = "equivalent"
+reason = """
+CellDeclaration defines its own __eq__ and __hash__, so enabling dataclass
+equality generation does not replace either explicit semantic method.
+"""
+
+[[survivor]]
+kind = "return"
+source = "return NotImplemented"
+occurrence = 0
+classification = "unspecified"
+reason = """
+CellDeclaration equality is specified between semantic cell declarations.
+Returning NotImplemented for an unrelated Python object participates in
+Python's reflected equality protocol; that cross-type host-language behaviour
+is outside the SEMIROH cell semantic contract.
+"""

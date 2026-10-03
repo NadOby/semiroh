@@ -2,33 +2,105 @@ name: Semantic model
 
 on:
   workflow_dispatch:
+    inputs:
+      generated_cases:
+        description: "Generated cases per participating family; 0 uses ordinary defaults"
+        required: false
+        default: "0"
+      mutation_count:
+        description: "Mutation sites per target per batch; 0 skips the heavy mutation campaign"
+        required: false
+        default: "0"
+      mutation_seed:
+        description: "Mutation ordering seed"
+        required: false
+        default: "1"
+      mutation_batch:
+        description: "Zero-based disjoint mutation batch"
+        required: false
+        default: "0"
+
   push:
     paths:
       - "semiroh/**"
       - "tests/**"
       - "README.md"
+      - "CLAUDE.md"
+      - "CHANGES.md"
       - "docs/**"
       - ".github/workflows/semantic-model.yml"
+
   pull_request:
     paths:
       - "semiroh/**"
       - "tests/**"
       - "README.md"
+      - "CLAUDE.md"
+      - "CHANGES.md"
       - "docs/**"
       - ".github/workflows/semantic-model.yml"
 
 jobs:
-  semantic-model:
+  tests:
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+    strategy:
+      fail-fast: false
+      matrix:
+        lane:
+          - core-model
+          - language-runtime
+          - transform-continuity
+          - syntax-reconcile
+          - compiler-self-hosting
+          - vm-bootstrap
+          - cross-boundary
+          - mutation
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+    name: tests (${{ matrix.lane }})
+
+    env:
+      SEMIROH_CASES: ${{ inputs.generated_cases || '0' }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      - name: Run semantic model tests
-        run: python -m unittest discover -v
+      - name: Run ${{ matrix.lane }}
+        run: python -m tests.lanes "${{ matrix.lane }}"
+
+  mutation-campaign:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mutation_count != '' && inputs.mutation_count != '0' }}
+
+    runs-on: ubuntu-latest
+    name: mutation campaign (shard ${{ matrix.shard }}/4)
+
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard:
+          - 0
+          - 1
+          - 2
+          - 3
+
+    env:
+      SEMIROH_MUTATE: ${{ inputs.mutation_count }}
+      SEMIROH_MUTATE_SEED: ${{ inputs.mutation_seed }}
+      SEMIROH_MUTATE_BATCH: ${{ inputs.mutation_batch }}
+      SEMIROH_MUTATE_SHARDS: "4"
+      SEMIROH_MUTATE_SHARD: ${{ matrix.shard }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Run mutation batch shard
+        run: python -m tests.lanes mutation

@@ -1,0 +1,161 @@
+source_blob = "09dbc50c6f382b3158a5602e6c7658ef2a79dc83"
+
+[[survivor]]
+kind = "constant"
+source = 'operation=_edit(("bump", "k", ("lit", 2))),'
+occurrence = 0
+classification = "unspecified"
+reason = """
+The literal chosen by the activate_define corpus fixture is not itself part of
+the continuity contract; changing 2 to 3 preserves the case's specified
+identity and runtime-cell observations.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True)"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Expect is a corpus-description record. The continuity-corpus API specifies its
+fields and their meaning, but does not require the Python object itself to be
+immutable. Changing dataclass freezing is observable host-language behaviour
+without changing the continuity contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True)"
+occurrence = 1
+classification = "unspecified"
+reason = """
+Case is a corpus-description record. The continuity-corpus API specifies its
+fields and how check consumes them, but does not require Case instances to be
+immutable. Dataclass freezing is therefore host-language behaviour outside the
+specified continuity semantics.
+"""
+
+[[survivor]]
+kind = "boolean"
+source = "assert isinstance(content, CanonicalNode) and content[1] == \"tuple\""
+occurrence = 0
+classification = "equivalent"
+reason = """
+_element is private and is called only by the split_cell corpus converters.
+Those converters receive canonicalized content of the tuple-constrained pair
+cell, so every reachable call has a CanonicalNode whose kind is "tuple".
+Replacing and with or therefore leaves the assertion and returned element
+unchanged for every reachable internal call.
+"""
+
+[[survivor]]
+kind = "boolean"
+source = "f\"{[item.value for item in found] or 'nothing'}, \""
+occurrence = 0
+classification = "unspecified"
+reason = """
+This boolean expression only chooses how an incorrect merge mapping is rendered
+in a checker diagnostic. The checker contract requires the mismatch to be
+reported and identified, not this exact prose representation.
+"""
+
+[[survivor]]
+kind = "boolean"
+source = "f\"{[item.value for item in found] or 'nothing'}, expected \""
+occurrence = 0
+classification = "unspecified"
+reason = """
+This boolean expression only chooses how an incorrect split mapping is rendered
+in a checker diagnostic. Exact diagnostic prose is not part of the continuity
+semantics.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "operation=_edit((\"f\", \"one\", (\"lit\", 10))),"
+occurrence = 0
+classification = "unspecified"
+reason = """
+The replacement literal in the leaf_replace corpus fixture is not itself part
+of the continuity rule. Changing 10 to 11 preserves the same node kind,
+identity inference and expectations exercised by the case.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "(\"f\", \"left\", (\"lit\", 10)),"
+occurrence = 0
+classification = "unspecified"
+reason = """
+The literal chosen for the left edit of rebase_disjoint is fixture data. Its
+exact value is not part of the continuity contract; the case specifies that
+the two disjoint nodes both change and that both edits compose.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "(\"f\", \"right\", (\"lit\", 20)),"
+occurrence = 0
+classification = "unspecified"
+reason = """
+The literal chosen for the right edit of rebase_disjoint is fixture data. Its
+exact value is not part of the continuity contract; changing it preserves the
+identity and composition properties the case specifies.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "(\"f\", \"left\", (\"lit\", 10)),"
+occurrence = 1
+classification = "unspecified"
+reason = """
+The first replacement literal in conflicting_edits is fixture data. The
+continuity contract exercised by the case is that two independently built
+edits of the same node conflict, not that one replacement specifically uses
+the value 10.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "(\"f\", \"left\", (\"lit\", 20)),"
+occurrence = 0
+classification = "unspecified"
+reason = """
+The second replacement literal in conflicting_edits is fixture data. Its exact
+value is not part of the conflict semantics; the case only requires two
+independent edits of the same node.
+"""
+
+[[survivor]]
+kind = "compare"
+source = "f\"{[item.value for item in wanted if item is not None]}\""
+occurrence = 0
+classification = "unspecified"
+reason = """
+This comparison only filters values while formatting the expected destinations
+of an already-detected split mismatch. It changes diagnostic rendering, not
+whether the checker accepts or rejects the continuity result.
+"""
+
+[[survivor]]
+kind = "compare"
+source = "label == \"kept\""
+occurrence = 0
+classification = "unspecified"
+reason = """
+This comparison only selects which explanatory phrase is used after the
+checker has already detected a kept/changed version mismatch. Exact diagnostic
+wording is not part of the continuity contract.
+"""
+
+[[survivor]]
+kind = "compare"
+source = "f\"{'has a new version' if label == 'kept' else 'kept its version'}\""
+occurrence = 0
+classification = "unspecified"
+reason = """
+This comparison only selects the explanatory phrase used after a version
+mismatch has already been detected. It cannot change whether the continuity
+checker accepts or rejects the result, and exact diagnostic wording is not
+part of the continuity contract.
+"""

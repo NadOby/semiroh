@@ -1,0 +1,12 @@
+source_blob = "016b4704dcdfc1f493f8565bb08ce206ee608dfa"
+
+[[survivor]]
+kind = "constant"
+source = "status[visited] = 2"
+occurrence = 0
+classification = "equivalent"
+reason = """
+Only status value 1 means on the current walk; every other stored value means
+the entity was already visited, so changing 2 to 3 does not alter cycle
+detection.
+"""

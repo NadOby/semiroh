@@ -1,58 +1,54 @@
 # Verification hardening
 
-**Status: planned** (roadmap task 18).
+**Status: implemented** (roadmap task 18, PR #42).
 
 Task 18 strengthens the evidence that SEMIROH's semantics are correct before
-task 19 changes the architecture. It is deliberately separate from the
-refactor: this task should change tests, test infrastructure and CI, not
-production semantics except for minimal testability hooks where unavoidable.
+task 19 changes the architecture. It remains verification hardening rather
+than an architectural refactor. During mutation review it exposed two
+production-semantic defects, which were fixed: closure capture values are
+canonicalized when captured so later host mutation cannot change the captured
+semantic value, and malformed closure capture names are rejected with
+`LanguageError`. Apart from those defect fixes, the task changes tests, test
+infrastructure, documentation and CI rather than redesigning production
+semantics.
 
-The current suite is broad and already contains property, differential,
-negative, atomicity, continuity and mutation tests. The problem is uneven
-strength rather than absence of serious testing. In particular, interactions
-across subsystem boundaries, malformed generated inputs, long stateful
-sequences and newer features have less systematic coverage.
-
-The ordinary suite currently takes roughly 27–40 seconds in normal development,
-so test execution itself also needs structure before substantially heavier
-verification is added.
+This document records the resulting verification architecture and policies.
+One-off CI timings, workflow run IDs and campaign measurements are historical
+evidence and belong in `CHANGES.md` and the PR record rather than in this
+document.
 
 ## 1. Goals
 
-**Decided:**
+Task 18 has four goals:
 
-The task has four goals:
-
-1. make important semantic failures harder to hide behind individually correct
-   subsystems;
-2. discover missing counterexamples and invariants rather than merely increase
+1. make cross-subsystem semantic failures harder to hide behind individually
+   correct components;
+2. discover counterexamples and missing invariants rather than merely increase
    the test count;
-3. make generated failures reproducible and reducible to permanent regression
-   cases;
-4. split and parallelize the test run so stronger verification does not make
-   normal development unnecessarily slow.
+3. make generated failures reproducible and reducible into permanent
+   regressions;
+4. keep normal feedback practical while allowing substantially heavier
+   verification campaigns when needed.
 
-Task 19, architecture hardening/refactoring, follows this task and is separate.
+Task 19 can therefore change architecture against a stronger baseline without
+mixing verification work into the refactor itself.
 
 ## 2. Verification layers
 
 **Decided:**
 
-Keep several independent kinds of evidence rather than one universal test
-framework.
+SEMIROH uses several independent kinds of evidence rather than one universal
+test framework:
 
-The suite should contain:
-
-- small unit tests for local contracts;
-- minimized regression tests for every discovered bug;
-- corpus/whole-program acceptance tests;
-- invariant and property tests;
-- negative tests generated specifically to violate preconditions;
+- focused unit tests for local contracts;
+- minimized deterministic regressions for discovered defects;
+- corpus and whole-program acceptance tests;
+- invariant and generated property tests;
+- generated malformed and negative inputs;
 - differential tests between independent implementations;
-- metamorphic tests where semantics-preserving input changes must preserve
-  observable behaviour;
-- bounded exhaustive tests over small state spaces;
-- stateful sequence tests over runtime and transformation operations;
+- metamorphic tests for semantics-preserving relationships;
+- bounded exhaustive checks over small complete state spaces;
+- deterministic stateful operation sequences;
 - mutation testing that checks whether the rest of the suite notices planted
   implementation faults.
 
@@ -62,7 +58,7 @@ Coverage and raw test count are diagnostics, not correctness metrics.
 
 **Decided:**
 
-Testing subsystem seams is a primary goal.
+Subsystem seams are first-class verification targets.
 
 Important paths include:
 
@@ -87,8 +83,8 @@ as well as:
     transform   → mapping → reference transfer → runtime cells
     activation  → code in flight → version holds → closures
 
-Tests should deliberately cross several boundaries in one case when that is
-where the semantic contract lives.
+Tests deliberately cross several boundaries in one case when that is where the
+semantic contract lives.
 
 Examples include:
 
@@ -96,197 +92,412 @@ Examples include:
     → parse
     → graph
     → render
-    → parse
     → reconcile
-    → lower
-    → execute
-    → compare with the independent execution path
+
+and:
+
+    input form
+    → graph form
+    → collapse
+    → execute malformed code
+    → LanguageError
+
+and:
+
+    graph
+    → embedded compiler
+    → bytecode
+    → SEMIROH VM
+    ↕
+    host execution
 
 and:
 
     transform
-    → activate
-    → transfer runtime content and references
-    → execute old and new callable values
-    → verify holds, identity and observable behaviour
+    → trial / activate
+    → runtime cell transfer
+    → holds and version lifecycle
 
-A subsystem agreeing with itself is weaker evidence than two independently
-implemented paths agreeing.
+A subsystem agreeing with itself is weaker evidence than independent semantic
+paths agreeing.
 
 ## 4. Differential testing
 
 **Decided:**
 
-Expand existing differential tests around the independent implementations
-already present in the project.
+Differential tests use independently implemented paths already present in the
+project.
 
-Where their domains overlap, generated programs should compare:
+Where their domains overlap, the suite checks relationships including:
 
     host lowering == embedded compiler lowering
     host machine behaviour == SEMIROH VM behaviour
     graph execution before transform == graph execution after
         semantics-preserving transform
-    trial behaviour == activation behaviour where the specification says
-        they coincide
+    trial behaviour == activation behaviour where specified
 
-Comparison includes failures where relevant, not only successful return values.
+Failures are compared where relevant, not only successful return values.
 
-The generator must avoid declaring disagreement when the two paths
-intentionally have different supported subsets.
+Task 18 adds deterministic closure-heavy differential generation across host
+execution and the embedded compiler/VM path. Cases exercise:
+
+- direct closure calls;
+- `applyv`;
+- nested closures;
+- closures capturing ordinary values;
+- closures capturing other closures.
+
+The generator stays within the common host/embedded-VM subset.
+
+Generated cases identify their seed and can be replayed with:
+
+    SEMIROH_SEED=<seed> \
+        python -m unittest tests.test_closure_differential
+
+Larger generated budgets belong to the manual/heavy verification tier.
 
 ## 5. Metamorphic testing
 
 **Decided:**
 
-Add transformations whose expected relationship is known without needing a
+Metamorphic tests check relationships whose expected result is known without a
 separate reference interpreter.
 
-Candidate relations include:
+Task 18 checks low-level transformation relationships including:
 
-- rebuilding mappings or dictionaries in another insertion order;
-- adding or removing semantically irrelevant structure where the language
-  permits it;
-- alpha-like renaming where identity semantics permit it;
-- applying independent transformations in either order;
-- folding twice;
-- rendering and reparsing a renderable program;
-- loading and collapsing graph form;
-- changing unreachable or observationally irrelevant code in carefully
-  delimited cases.
+- independent value changes commute;
+- batching independent changes agrees with applying them sequentially;
+- repeating the same semantic change is idempotent.
 
-The exact transformations must be justified by the SEMIROH specification.
-Tests must not silently assume conventional-language equivalences that are
-false under SEMIROH identity or continuity semantics.
+It also checks language-level relationships that exercise substantially more of
+SEMIROH:
+
+- rendering an authoritative graph-form program and reconciling that rendered
+  source back into the same program is a no-op;
+- projecting a loaded function through `function_at` and defining that same
+  function again is a no-op;
+- rebasing two independent function definitions produces the same language
+  projection and observable execution as defining both edits together.
+
+The last relation deliberately does not require exact `StateID` equality.
+Independent and batched edits may allocate graph nodes through different
+histories even when their source projection and observable language semantics
+agree. Metamorphic tests must assert the semantic contract, not accidental
+allocation history.
+
+Existing tests independently cover other metamorphic relationships such as
+canonical mapping order, matching order independence, folding twice,
+render/reparse and trial/activation agreement.
+
+Generated metamorphic cases use the common deterministic replay mechanism.
 
 ## 6. Negative and malformed generation
 
 **Decided:**
 
-Generated testing must include invalid inputs rather than constructing only
+Generated verification includes invalid inputs rather than constructing only
 valid programs.
 
-For operation forms this includes, as applicable:
+Task 18 generates malformed language cases including:
 
-- too few and too many operands;
-- wrong operand kinds;
-- malformed names;
-- duplicate names;
-- unknown links;
-- dangling entities;
-- malformed semantic records;
-- invalid nested forms;
-- invalid ownership;
-- inconsistent transformation mappings;
-- invalid closure owner/body/capture combinations.
+- unknown operations;
+- wrong arity;
+- malformed `let` names;
+- wrong arithmetic and condition operand kinds;
+- malformed tuple operations;
+- non-callable values;
+- malformed closure parameter/capture containers;
+- malformed closure names;
+- duplicate closure names;
+- overlapping parameter/capture names;
+- missing declared captures.
 
-For every rejection that promises atomicity, the test also checks that all
-relevant state remains unchanged.
+Each malformed case is loaded into graph form and collapsed back to input form.
+The malformed body must survive that round trip rather than being normalized
+away.
 
-An exception alone is not sufficient evidence of a correct rejected operation.
+Execution must then fail with `LanguageError`, not a leaked host exception.
+
+These tests do not impose transactional rollback on arbitrary language errors.
+Effects that occur before a later error remain governed by the language's
+normal effect-ordering semantics. Atomicity is asserted separately only for
+operations whose contracts promise it, such as rejected writes and rejected
+activations.
+
+Replay is:
+
+    SEMIROH_SEED=<seed> \
+        python -m unittest tests.test_malformed_generation
+
+Existing targeted tests continue to cover malformed semantic records,
+ownership, mappings, links, relations and other subsystem-specific invalid
+states.
 
 ## 7. Stateful semantic simulation
 
 **Decided:**
 
-Add deterministic generated sequences of operations, with every sequence
-identified by a reproducible seed.
+Task 18 adds deterministic generated operation sequences over a live runtime.
 
-Operations should eventually include appropriate combinations of:
+Operations include:
 
-    run
-    read/write
-    create callable values
-    edit
-    define
-    transform
+    write
+    rejected write
+    enter frame / hold
+    keep reference
+    release hold
     trial
     activate
-    hold/release
-    reconcile
-    rebase
-    rename
-    merge/split/disappear
-    call old and new references/closures
-    deliberately fail an operation
 
-After every step, check global invariants rather than only the final result.
+These deliberately cross state, runtime-cell, transformation, reference and
+version-lifecycle boundaries.
 
-Important invariants include:
+After every generated operation the harness checks global invariants including:
 
-- relation endpoints exist;
-- ownership is valid and acyclic;
-- an entity has at most one owner;
-- transformation mappings name valid sources and destinations;
-- disappearance and continuation records agree with state presence;
-- runtime cell content satisfies its required constraints;
-- rejected atomic operations leave the runtime unchanged;
-- holds correspond to live versions;
-- semantic identity remains deterministic.
+- the runtime owns an active version;
+- at most two main runtime versions are loaded;
+- the active version is not retired;
+- the `previous` view agrees with version ownership;
+- recorded holds are live and belong to exactly one version;
+- runtime cell content belongs only to declared cells;
+- runtime cell content satisfies its constraint;
+- the harness's live hold handles agree with runtime hold records;
+- the independently tracked cell content agrees with the runtime;
+- the independently tracked semantic value agrees with the active state;
+- rejected writes and rejected activations are atomic;
+- trials leave the main runtime unchanged.
 
-Failures must print enough information to reproduce the sequence from its seed.
+Failures report the operation step and seed.
+
+Replay is:
+
+    SEMIROH_SEED=<seed> \
+        python -m unittest tests.test_stateful_sequences
+
+A failing sequence is passed through deterministic delta-debugging reduction
+before it is reported. Reduction preserves the underlying failure fingerprint
+rather than merely preserving the fact that some assertion fails.
+
+The harness is intentionally extensible. Future semantic features can add
+operations such as reconcile, explicit merge/split/disappearance and old/new
+callable invocation without replacing the framework.
 
 ## 8. Bounded exhaustive testing
 
 **Decided:**
 
-For small domains, exhaustive enumeration complements random generation.
+Small semantic domains are checked exhaustively where practical.
 
-Useful candidates are tiny expression trees, tiny ownership graphs, small
-continuity mappings and short transformation compositions.
+Task 18 exhaustively checks continuity composition over a two-entity universe.
 
-The purpose is complete coverage of small combinatorial corners that random
-sampling can repeatedly miss.
+For each source entity, each relation can independently be:
 
-Bounds must remain small enough for deterministic CI execution.
+- absent;
+- known disappearance;
+- mapped to the first entity;
+- mapped to the second entity;
+- split to both entities.
 
-## 9. Failure reduction
+This produces a complete finite set of two-step relation compositions.
+
+The raw finite relation domain is defined independently of
+`TransformationDefinition.create()`. Construction is checked against that raw
+domain, and the expected composition is computed from the raw relations rather
+than by reading production-normalized objects back into the oracle.
+
+The implementation is compared against a small independent relational oracle
+that distinguishes:
+
+    absent
+    known continuation/disappearance
+    unknown continuity
+
+This complements generated testing by completely covering a small semantic
+domain rather than sampling it.
+
+## 9. Failure reproduction and reduction
 
 **Decided:**
 
-Generated failures should be minimized before becoming permanent tests.
+Generated failures must be reproducible and reducible before being promoted to
+permanent regressions.
 
-Prefer a framework with shrinking where it fits. If a custom generator is
-kept, provide structural reduction for the important generated objects and
-operation sequences.
+`tests/generation.py` provides shared infrastructure.
 
-Every real discovered defect becomes a small deterministic regression test.
-The random seed may remain as provenance, but the regression test should not
-depend on rediscovering the original large case.
+`SEMIROH_SEED` accepts one integer or a comma-separated list:
+
+    SEMIROH_SEED=37 \
+        python -m unittest tests.test_stateful_sequences
+
+or:
+
+    SEMIROH_SEED=7,11,19 \
+        python -m unittest tests.test_metamorphic
+
+`SEMIROH_CASES` changes the deterministic generated-case budget:
+
+    SEMIROH_CASES=1000 \
+        python -m tests.lanes cross-boundary
+
+Unset, empty, or `0` means that each test uses its ordinary default budget.
+
+An explicit replay seed takes precedence over the case budget.
+
+The shared helper also implements deterministic sequence delta-debugging. It
+repeatedly removes chunks while the supplied failure predicate still holds,
+producing a smaller sequence suitable for diagnosis.
+
+Every real defect discovered by generated verification should become a small,
+ordinary deterministic regression. A seed may remain as provenance, but the
+regression should not depend on rediscovery.
 
 ## 10. Mutation testing
 
 **Decided:**
 
-Expand mutation testing beyond its current production targets.
+Mutation testing covers the semantic implementation broadly enough that new
+model modules cannot silently disappear from the campaign.
 
-Semantic modules should either be mutation targets or have an explicit reason
-why mutation testing is not useful for them. In particular, newer boundaries
-such as the machine, syntax, closures and continuity should not be omitted
-accidentally.
+Before Task 18 the mutation campaign targeted eight implementation files.
+Task 18 expands this to 23 targets, including identity records, the independent
+embedded compiler and the SEMIROH VM.
 
-Mutation operators should also grow beyond simple arithmetic/comparison/
-constant changes where experience shows useful missing fault classes.
+`tests/mutation_catalog.py` is the explicit inventory.
 
-A surviving mutant is classified as one of:
+Every top-level production Python module and every example module must either:
 
-1. genuinely equivalent, with a written reason;
-2. intentionally unspecified behaviour;
-3. a test gap, which receives a regression test.
+- be a mutation target; or
+- appear in `OMITTED` with a written reason.
 
-The goal is not a nominal 100% mutation score. Equivalent and irrelevant
-mutants should not cause tests to encode meaningless implementation details.
+Ordinary tests enforce this accounting.
 
-## 11. Practices to borrow
+The mutation engine uses Python's standard `ast` module to mutate the Python
+reference implementation. That AST is test-tool implementation machinery only;
+it is not a SEMIROH program representation or compiler IR.
 
-**Provisional:**
+Before planting mutants, a campaign runs the exact mutation test command
+against an unmodified repository copy made with the same copy and environment
+rules used for mutant execution. A failing baseline aborts the campaign rather
+than allowing unrelated infrastructure failures to count as killed mutants.
 
-Use established practices selectively rather than cargo-culting one project's
-test architecture.
+Baseline and mutant child suites run with
+`SEMIROH_MUTATION_SUBPROCESS=1`. Source-tree and mutation-catalog integrity
+tests are harness meta-tests rather than semantic kill oracles, so they are
+excluded identically from both child-suite kinds while remaining mandatory in
+ordinary CI. This prevents a mutant, or the whole-file `ast.unparse()` rewrite
+used to emit it, from being counted as killed merely because it changed source
+text inspected by the mutation harness itself.
 
-Relevant sources of techniques include:
+Campaign selection is deterministic. For a fixed target source,
+`mutation_count`, seed and batch number, mutation sites are shuffled once by
+the seed and the batch selects one consecutive slice of that ordering.
+Successive batch numbers are therefore disjoint and running batches until they
+become empty covers every mutation site exactly once.
 
-- LLVM – separation of focused regression tests and whole-program suites;
-- Rust – first-class negative/UI testing;
+The heavy CI campaign also partitions mutation targets into four deterministic
+target shards. Sharding changes only which job owns a target; it does not
+change that target's mutation ordering or selected sites. Every individual
+mutant still runs the complete semantic test suite, so target sharding does not
+weaken the kill criterion.
+
+### Survivor identity
+
+A reviewed survivor has a compact site key:
+
+    target file
+    mutation kind
+    complete stripped source line
+    occurrence among sites with the same kind and source line
+
+The occurrence distinguishes multiple mutable constructs represented by the
+same line, including nested constructs.
+
+That key is deliberately valid only for one reviewed target-source version
+under one reviewed mutation-engine version. It is not treated as a persistent
+identifier across edits to either the target source or the machinery that
+discovers and interprets mutation sites.
+
+Every file containing one or more reviewed survivor classifications is
+therefore pinned in `SURVIVOR_SOURCE_BLOBS` to the Git blob ID of the exact
+source bytes under which those classifications were reviewed.
+
+The mutation engine itself is separately pinned in `SURVIVOR_ENGINE_BLOB` to
+the exact Git blob ID of `tests/mutation.py` under which the classifications
+were reviewed. Site-discovery order, occurrence assignment and mutation
+operator semantics are part of the meaning of a survivor key, so changing the
+engine can invalidate a classification even when the production source is
+byte-for-byte unchanged.
+
+Any edit to a pinned production file – including an unrelated edit or
+insertion of another identical mutable line – changes its blob ID and
+invalidates all reviewed survivors in that file. Any edit to
+`tests/mutation.py` invalidates the reviewed survivor catalog as a whole.
+Affected classifications must be explicitly re-reviewed before the
+corresponding source or engine pin is updated.
+
+Ordinary catalog tests require:
+
+- source pins to cover exactly the targets that have classified survivors;
+- every source pin to name a current mutation target;
+- each pinned source to match its reviewed Git blob ID;
+- the mutation engine to match its reviewed Git blob ID;
+- every survivor key to identify exactly one mutation site under those
+  reviewed source and engine versions.
+
+Direct mutation campaigns perform both source-pin and mutation-engine-pin
+validation before baseline or mutant execution and refuse to run with missing,
+obsolete or stale survivor review pins.
+
+This deliberately conservative version pinning prevents a compact
+occurrence-based key from silently rebinding to a different semantic construct
+after a source edit or silently changing meaning after a mutation-engine edit.
+
+### Survivor classification
+
+The useful historical survivor knowledge from earlier mutation campaigns was
+migrated to exact current keys where the reason remained defensible.
+
+Historical entries are not copied blindly:
+
+- semantically equivalent mutations are classified `equivalent`;
+- behaviour deliberately outside the semantic contract may be classified
+  `unspecified`;
+- a known semantic test gap is never classified as a permitted survivor;
+- an old entry that cannot be mapped confidently to one current mutation site
+  remains unclassified until a campaign rediscovers an exact survivor.
+
+In particular, the historical `Function` equality survivor was documented as
+an open test gap, not an equivalence, so it is not whitelisted.
+
+Generation-allocation mutations are likewise not whitelisted: graph-form
+generation numbers are part of node identity, so changing initial generation,
+next-generation allocation or collision advancement changes specified semantic
+identity and must be killed by regression tests.
+
+Every survivor classification carries a written reason.
+
+A new unclassified survivor therefore means one of three things must happen:
+
+1. prove it equivalent and record the reason;
+2. establish that the changed behaviour is intentionally unspecified and
+   record the reason;
+3. treat it as a test gap, add a regression, and kill the mutant.
+
+A test gap is never resolved by adding it to the survivor catalog.
+
+Mutation operators remain intentionally simple. New operators should be added
+when a concrete missing fault class justifies them rather than to increase a
+nominal mutation score.
+
+## 11. Practices borrowed
+
+Established verification practices are used selectively rather than treating
+another project's test architecture as a template.
+
+Relevant influences include:
+
+- LLVM – separation of focused regressions and whole-program suites;
+- Rust – first-class negative testing;
 - Csmith – valid-program differential generation;
 - EMI – equivalence-modulo-inputs compiler testing;
 - Alive2 – validating transformations against semantic contracts;
@@ -296,17 +507,14 @@ Relevant sources of techniques include:
 - deterministic simulation used in complex stateful systems – long,
   reproducible operation sequences with invariant checking.
 
-SEMIROH's graph identity and continuity rules take precedence over assumptions
-from conventional languages.
+SEMIROH's own graph identity and continuity rules take precedence over
+assumptions from conventional languages.
 
 ## 12. CI structure
 
 **Decided:**
 
-Split the ordinary suite into semantically meaningful jobs and run independent
-jobs in parallel.
-
-Initial lanes should be approximately:
+The ordinary deterministic suite is partitioned into eight semantic lanes:
 
     core-model
     language-runtime
@@ -315,20 +523,39 @@ Initial lanes should be approximately:
     compiler-self-hosting
     vm-bootstrap
     cross-boundary
+    mutation
 
-The exact file assignment is determined from measured runtime and dependency
-boundaries during the task.
+`tests/lanes.py` owns the exact partition. Every ordinary `test_*.py` module
+must belong to exactly one lane. Missing, duplicate and stale assignments are
+errors.
 
-Prefer semantic partitioning over arbitrary equal-size sharding because it
-gives useful failure localization. If one semantic lane remains substantially
-slower than the others, shard that lane internally.
+The lanes run independently in CI with fail-fast disabled at the matrix level,
+so one semantic failure does not hide results from unrelated lanes.
 
-Do not create nested uncontrolled parallelism. In particular, mutation testing
-already launches test processes and should control concurrency at one level.
+The ordinary `mutation` lane runs mutation-engine and catalog integrity tests.
+It does not launch the expensive planted-mutant campaign by default.
 
-Measure wall-clock time before and after the split. The purpose of
-parallelization is lower development/PR latency while preserving deterministic
-results, not merely more simultaneous processes.
+Heavy mutation verification is a separate four-shard job. Targets are
+partitioned deterministically across those shards while each individual mutant
+still runs the complete semantic suite.
+
+Manual workflow dispatch exposes:
+
+    generated_cases
+    mutation_count
+    mutation_seed
+    mutation_batch
+
+`generated_cases=0` uses ordinary generated-test budgets.
+`mutation_count=0` skips the heavy mutation campaign.
+
+A positive mutation count selects that many sites per target in the requested
+deterministic batch. A count larger than the number of sites in a target
+selects all of that target's sites in batch 0.
+
+The purpose of parallelization is lower development/PR latency while preserving
+deterministic results. Hosted-runner queueing is not treated as semantic test
+runtime.
 
 ## 13. CI tiers
 
@@ -338,21 +565,28 @@ Use different budgets for different feedback loops.
 
 Every PR runs:
 
-- the complete ordinary deterministic suite, split into parallel lanes;
-- cheap deterministic differential/cross-boundary properties;
-- bounded small exhaustive cases;
-- a small deterministic stateful/adversarial budget;
-- a small deterministic mutation sample where runtime permits.
+- the complete ordinary deterministic suite, split into the eight semantic
+  lanes;
+- deterministic generated differential and cross-boundary tests at their
+  ordinary budgets;
+- bounded exhaustive checks;
+- deterministic stateful/adversarial tests at their ordinary budgets;
+- mutation-engine, target-accounting, survivor-catalog, source-pin and
+  mutation-engine-pin integrity tests.
 
-Larger scheduled or manually triggered verification runs:
+Larger manually triggered verification runs may use:
 
-- substantially larger stateful/random campaigns;
-- broader bounded exploration where feasible;
-- broad mutation sweeps;
-- multiple random seeds or larger generated-program populations.
+- substantially larger generated-case budgets;
+- broader deterministic stateful campaigns where configured;
+- planted-mutant campaigns across selected deterministic batches;
+- exhaustive mutation selection by choosing a per-target count larger than the
+  current mutation-site population.
 
-A failure in a heavy run must be reproducible locally from recorded inputs or
-a seed.
+A heavy-run failure must remain reproducible from its recorded seed, batch,
+target and site identity.
+
+Historical timings and campaign results belong in `CHANGES.md` and the PR
+record rather than becoming normative CI requirements here.
 
 ## 14. Acceptance
 
@@ -369,7 +603,8 @@ Task 18 is done when:
 - a deterministic stateful sequence harness checks global invariants;
 - at least one bounded-exhaustive test family covers a small semantic domain;
 - mutation targets cover the semantic implementation substantially more
-  completely, with survivors classified;
+  completely, with survivors explicitly reviewed and fail-closed against
+  target-source and mutation-engine version drift;
 - generated failures can be reproduced and reduced;
 - discovered real defects are preserved as minimized regression tests;
 - no production semantic behaviour is intentionally changed.

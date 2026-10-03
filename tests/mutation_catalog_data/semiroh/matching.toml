@@ -1,0 +1,31 @@
+source_blob = "ee7d88dc9b82a2987e1b8b7cf8406a577d969c0d"
+
+[[survivor]]
+kind = "constant"
+source = "size = 1"
+occurrence = 0
+classification = "equivalent"
+reason = """
+Starting at two doubles every subtree size, preserving grouping and order.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "keys.append((False, item))"
+occurrence = 0
+classification = "equivalent"
+reason = """
+The flag separates shape numbers from endpoint EntityIDs; their value types
+cannot collide.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "keys.append((True, shape))"
+occurrence = 0
+classification = "equivalent"
+reason = """
+The flag separates subtree shape integers from external endpoint EntityIDs;
+changing the flag cannot create a key collision because those payload types
+are disjoint.
+"""

@@ -1,0 +1,524 @@
+"""Mutation targets and reviewed survivor classifications.
+
+Mutation-target policy remains executable Python. Reviewed survivor data and
+its version pins live under tests/mutation_catalog_data/ and are loaded
+fail-closed from TOML.
+
+Catalog paths mirror mutation targets:
+
+    mutation_catalog_data/semiroh/lang.toml
+        -> semiroh/lang.py
+
+A target receives a TOML file only while it has reviewed survivors. The
+manifest inventories those files so deleting a complete target catalog cannot
+silently erase its classifications.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+import re
+import tomllib
+
+from tests.mutation import MutationKey
+
+
+EQUIVALENT = "equivalent"
+UNSPECIFIED = "unspecified"
+
+CLASSIFICATIONS = frozenset({
+    EQUIVALENT,
+    UNSPECIFIED,
+})
+
+
+# Production semantic implementation exercised by mutation campaigns.
+#
+# Examples are normally inputs/fixtures rather than implementation, but the
+# embedded compiler and VM are independent implementations and therefore are
+# deliberate mutation targets.
+TARGETS = (
+    "semiroh/bytecode.py",
+    "semiroh/canonical.py",
+    "semiroh/cells.py",
+    "semiroh/closures.py",
+    "semiroh/constraints.py",
+    "semiroh/continuity.py",
+    "semiroh/equality.py",
+    "semiroh/fold.py",
+    "semiroh/identity.py",
+    "semiroh/lang.py",
+    "semiroh/machine.py",
+    "semiroh/matching.py",
+    "semiroh/ownership.py",
+    "semiroh/reconcile.py",
+    "semiroh/references.py",
+    "semiroh/relations.py",
+    "semiroh/runtime.py",
+    "semiroh/state.py",
+    "semiroh/syntax.py",
+    "semiroh/transforms.py",
+    "semiroh/values.py",
+    "semiroh/examples/self_hosting.py",
+    "semiroh/examples/vm.py",
+)
+
+
+# Python files intentionally not mutation targets. This makes omissions
+# explicit rather than allowing new semantic modules to fall out of mutation
+# coverage silently.
+OMITTED = {
+    "semiroh/__init__.py":
+        "public re-export surface; semantic behaviour lives in its modules",
+    "semiroh/examples/__init__.py":
+        "example/corpus harness rather than a semantic implementation",
+    "semiroh/examples/_support.py":
+        "example construction helper rather than semantic implementation",
+    "semiroh/examples/closures.py":
+        "example program exercised through the corpus",
+    "semiroh/examples/control.py":
+        "example program exercised through the corpus",
+    "semiroh/examples/data.py":
+        "example program exercised through the corpus",
+    "semiroh/examples/higher_order.py":
+        "example program exercised through the corpus",
+    "semiroh/examples/ledger.py":
+        "example program exercised through the corpus",
+    "semiroh/examples/missing.py":
+        "wanted-feature corpus data rather than implementation",
+    "semiroh/examples/recursion.py":
+        "example program exercised through the corpus",
+    "semiroh/examples/self_modification.py":
+        "example program exercised through the corpus",
+    "semiroh/examples/side_effects.py":
+        "example program exercised through the corpus",
+}
+
+
+CATALOG_ROOT = Path(__file__).with_name(
+    "mutation_catalog_data"
+)
+SCHEMA_VERSION = 1
+
+_BLOB_RE = re.compile(r"[0-9a-f]{40}")
+
+
+class CatalogError(ValueError):
+    """The serialized mutation catalog is malformed or inconsistent."""
+
+
+def _read_toml(path: Path) -> dict:
+    try:
+        with path.open("rb") as stream:
+            return tomllib.load(stream)
+    except FileNotFoundError as exc:
+        raise CatalogError(
+            f"missing mutation catalog file: {path}"
+        ) from exc
+    except tomllib.TOMLDecodeError as exc:
+        raise CatalogError(
+            f"invalid TOML in mutation catalog file {path}: {exc}"
+        ) from exc
+
+
+def _require_fields(
+    data: dict,
+    expected: set[str],
+    context: str,
+) -> None:
+    actual = set(data)
+    missing = expected - actual
+    unexpected = actual - expected
+
+    if not missing and not unexpected:
+        return
+
+    problems = []
+
+    if missing:
+        problems.append(
+            "missing fields: " + ", ".join(sorted(missing))
+        )
+
+    if unexpected:
+        problems.append(
+            "unexpected fields: "
+            + ", ".join(sorted(unexpected))
+        )
+
+    raise CatalogError(
+        f"{context}: " + "; ".join(problems)
+    )
+
+
+def _require_string(
+    data: dict,
+    field: str,
+    context: str,
+) -> str:
+    value = data[field]
+
+    if not isinstance(value, str):
+        raise CatalogError(
+            f"{context}: {field} must be a string"
+        )
+
+    if not value.strip():
+        raise CatalogError(
+            f"{context}: {field} must not be empty"
+        )
+
+    return value
+
+
+def _require_integer(
+    data: dict,
+    field: str,
+    context: str,
+) -> int:
+    value = data[field]
+
+    # bool is an int subclass, but is not a valid catalog integer.
+    if type(value) is not int:
+        raise CatalogError(
+            f"{context}: {field} must be an integer"
+        )
+
+    return value
+
+
+def _require_blob(
+    data: dict,
+    field: str,
+    context: str,
+) -> str:
+    value = _require_string(
+        data,
+        field,
+        context,
+    )
+
+    if _BLOB_RE.fullmatch(value) is None:
+        raise CatalogError(
+            f"{context}: {field} must be a lowercase "
+            "40-character Git blob ID"
+        )
+
+    return value
+
+
+def _require_string_list(
+    data: dict,
+    field: str,
+    context: str,
+) -> tuple[str, ...]:
+    value = data[field]
+
+    if not isinstance(value, list):
+        raise CatalogError(
+            f"{context}: {field} must be an array of strings"
+        )
+
+    items = []
+
+    for index, item in enumerate(value):
+        if not isinstance(item, str):
+            raise CatalogError(
+                f"{context}: {field}[{index}] must be a string"
+            )
+
+        if not item or item != item.strip():
+            raise CatalogError(
+                f"{context}: {field}[{index}] must be a "
+                "non-empty stripped string"
+            )
+
+        items.append(item)
+
+    if len(items) != len(set(items)):
+        raise CatalogError(
+            f"{context}: {field} contains duplicate entries"
+        )
+
+    if items != sorted(items):
+        raise CatalogError(
+            f"{context}: {field} must be sorted"
+        )
+
+    return tuple(items)
+
+
+def _target_for(
+    path: Path,
+    root: Path,
+) -> str:
+    relative = path.relative_to(root)
+
+    if (
+        len(relative.parts) < 2
+        or relative.parts[0] != "semiroh"
+    ):
+        raise CatalogError(
+            f"{relative.as_posix()}: catalog data must mirror "
+            "a target path below semiroh/"
+        )
+
+    target = relative.with_suffix(".py").as_posix()
+
+    if target not in TARGETS:
+        raise CatalogError(
+            f"{relative.as_posix()}: derived target "
+            f"{target!r} is not a mutation target"
+        )
+
+    return target
+
+
+def _load_survivor(
+    raw: object,
+    target: str,
+    index: int,
+) -> tuple[
+    MutationKey,
+    tuple[str, str],
+]:
+    context = f"{target}: survivor {index}"
+
+    if not isinstance(raw, dict):
+        raise CatalogError(
+            f"{context}: survivor must be a table"
+        )
+
+    _require_fields(
+        raw,
+        {
+            "kind",
+            "source",
+            "occurrence",
+            "classification",
+            "reason",
+        },
+        context,
+    )
+
+    kind = _require_string(
+        raw,
+        "kind",
+        context,
+    )
+    source = _require_string(
+        raw,
+        "source",
+        context,
+    )
+    occurrence = _require_integer(
+        raw,
+        "occurrence",
+        context,
+    )
+    classification = _require_string(
+        raw,
+        "classification",
+        context,
+    )
+    reason = _require_string(
+        raw,
+        "reason",
+        context,
+    ).strip()
+
+    if kind != kind.strip():
+        raise CatalogError(
+            f"{context}: kind must be stripped"
+        )
+
+    if source != source.strip():
+        raise CatalogError(
+            f"{context}: source must be a stripped source line"
+        )
+
+    if occurrence < 0:
+        raise CatalogError(
+            f"{context}: occurrence must be non-negative"
+        )
+
+    if classification not in CLASSIFICATIONS:
+        raise CatalogError(
+            f"{context}: unknown classification "
+            f"{classification!r}"
+        )
+
+    key: MutationKey = (
+        target,
+        kind,
+        source,
+        occurrence,
+    )
+
+    return key, (
+        classification,
+        reason,
+    )
+
+
+def load_catalog(
+    root: Path,
+) -> tuple[
+    str,
+    dict[str, str],
+    dict[MutationKey, tuple[str, str]],
+]:
+    """Load and structurally validate one mutation catalog tree."""
+
+    root = Path(root)
+    manifest_path = root / "manifest.toml"
+    manifest = _read_toml(manifest_path)
+
+    _require_fields(
+        manifest,
+        {
+            "schema_version",
+            "engine_blob",
+            "catalog_targets",
+        },
+        "manifest",
+    )
+
+    schema_version = _require_integer(
+        manifest,
+        "schema_version",
+        "manifest",
+    )
+
+    if schema_version != SCHEMA_VERSION:
+        raise CatalogError(
+            "manifest: unsupported schema_version "
+            f"{schema_version}; expected {SCHEMA_VERSION}"
+        )
+
+    engine_blob = _require_blob(
+        manifest,
+        "engine_blob",
+        "manifest",
+    )
+    catalog_targets = _require_string_list(
+        manifest,
+        "catalog_targets",
+        "manifest",
+    )
+
+    unknown_targets = (
+        set(catalog_targets)
+        - set(TARGETS)
+    )
+
+    if unknown_targets:
+        raise CatalogError(
+            "manifest: catalog_targets contains non-targets: "
+            + ", ".join(sorted(unknown_targets))
+        )
+
+    source_blobs: dict[str, str] = {}
+    survivors: dict[
+        MutationKey,
+        tuple[str, str],
+    ] = {}
+
+    files = sorted(
+        path
+        for path in root.rglob("*.toml")
+        if path != manifest_path
+    )
+
+    for path in files:
+        relative = path.relative_to(root)
+        context = relative.as_posix()
+        target = _target_for(
+            path,
+            root,
+        )
+        data = _read_toml(path)
+
+        _require_fields(
+            data,
+            {
+                "source_blob",
+                "survivor",
+            },
+            context,
+        )
+
+        source_blob = _require_blob(
+            data,
+            "source_blob",
+            context,
+        )
+
+        raw_survivors = data["survivor"]
+
+        if (
+            not isinstance(raw_survivors, list)
+            or not raw_survivors
+        ):
+            raise CatalogError(
+                f"{context}: survivor must be a non-empty array of tables"
+            )
+
+        if target in source_blobs:
+            raise CatalogError(
+                f"{context}: duplicate catalog for target {target!r}"
+            )
+
+        source_blobs[target] = source_blob
+
+        for index, raw in enumerate(raw_survivors):
+            key, classification = _load_survivor(
+                raw,
+                target,
+                index,
+            )
+
+            if key in survivors:
+                raise CatalogError(
+                    f"{context}: duplicate survivor key {key!r}"
+                )
+
+            survivors[key] = classification
+
+    actual_targets = set(source_blobs)
+    expected_targets = set(catalog_targets)
+
+    if actual_targets != expected_targets:
+        missing = expected_targets - actual_targets
+        unexpected = actual_targets - expected_targets
+        problems = []
+
+        if missing:
+            problems.append(
+                "missing catalogs: "
+                + ", ".join(sorted(missing))
+            )
+
+        if unexpected:
+            problems.append(
+                "unlisted catalogs: "
+                + ", ".join(sorted(unexpected))
+            )
+
+        raise CatalogError(
+            "manifest/catalog inventory mismatch; "
+            + "; ".join(problems)
+        )
+
+    return (
+        engine_blob,
+        source_blobs,
+        survivors,
+    )
+
+
+(
+    SURVIVOR_ENGINE_BLOB,
+    SURVIVOR_SOURCE_BLOBS,
+    SURVIVORS,
+) = load_catalog(CATALOG_ROOT)

@@ -191,10 +191,10 @@ fun indicesOf[r: Rel, role: Role]: set Int {
 }
 
 
-fun targetAt[r: Rel, role: Role, index: Int]: lone Rel {
+fun targetAt[r: Rel, role: Role, position: Int]: lone Rel {
     {
         slot: slotsOf[r, role] |
-            slot.index = index
+            slot.index = position
     }.target
 }
 

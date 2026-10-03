@@ -39,6 +39,7 @@ from pathlib import Path
 from tests import mutation
 from tests import mutation_campaign
 from tests import mutation_oracle
+from tests import mutation_reporting
 from tests.mutation_catalog import (
     SURVIVORS,
     SURVIVOR_ENGINE_BLOB,
@@ -823,74 +824,56 @@ class SuiteMutationTests(unittest.TestCase):
             ),
         )
 
-        by_target: dict[str, list[int]] = {}
-
-        for mutant in work:
-            by_target.setdefault(
-                mutant.target,
-                [],
-            ).append(mutant.index)
-
-        escaped = []
-
-        for target, indexes in by_target.items():
-            for mutant in mutation.survivors(
-                mutation.ROOT,
-                target,
-                indexes,
-                oracle,
-            ):
-                classification = SURVIVORS.get(
-                    mutant.key
-                )
-
-                if classification is None:
-                    escaped.append(
-                        f"{target}:site-{mutant.index}:"
-                        f"line-{mutant.line} "
-                        f"{mutant.kind}"
-                        f"[{mutant.occurrence}]: "
-                        f"{mutant.text}"
-                    )
-
-        selected_sites = len(work)
-        total_selected_sites = len(full_work)
-        targets_with_work = len(by_target)
-
-        print(
-            "\nmutation batch "
-            f"{batch}, shard {shard}/{shards}: "
-            f"selected {selected_sites}/{total_selected_sites} "
-            "campaign mutants across "
-            f"{targets_with_work}/{len(TARGETS)} targets",
-            flush=True,
-        )
-        print(
-            "batch ordering: "
-            f"count={count}, seed={seed}; "
-            "mutants selected before shard assignment",
-            flush=True,
+        report_setting = os.environ.get(
+            "SEMIROH_MUTATION_REPORT"
         )
 
-        if escaped:
-            print(
-                "\nunclassified surviving mutants:",
-                flush=True,
+        if report_setting:
+            report_path = Path(
+                report_setting
             )
 
-            for survivor in escaped:
-                print(
-                    f"  {survivor}",
-                    flush=True,
+            if not report_path.is_absolute():
+                report_path = (
+                    mutation.ROOT
+                    / report_path
                 )
+        else:
+            report_path = (
+                mutation.ROOT
+                / (
+                    "mutation-report-"
+                    f"batch-{batch}-"
+                    f"shard-{shard}.jsonl"
+                )
+            )
+
+        result = mutation_reporting.run_campaign(
+            mutation.ROOT,
+            work,
+            oracle,
+            SURVIVORS,
+            report_path,
+            {
+                "count": count,
+                "seed": seed,
+                "batch": batch,
+                "shards": shards,
+                "shard": shard,
+                "selected_unsharded": len(
+                    full_work
+                ),
+            },
+        )
 
         self.assertEqual(
-            escaped,
-            [],
+            result.unclassified_survivors,
+            (),
             (
                 "unclassified surviving mutants; determine whether each is "
                 "equivalent, intentionally unspecified, or a semantic test "
-                "gap. Fix test gaps rather than classifying them."
+                "gap. Fix test gaps rather than classifying them. "
+                "The mutation report was completed before this failure."
             ),
         )
 

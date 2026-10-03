@@ -3,9 +3,14 @@
 **Status: implemented** (roadmap task 18, PR #42).
 
 Task 18 strengthens the evidence that SEMIROH's semantics are correct before
-task 19 changes the architecture. It is deliberately separate from that
-refactor: this task changes tests, test infrastructure, documentation and CI,
-not production semantics.
+task 19 changes the architecture. It remains verification hardening rather
+than an architectural refactor. During mutation review it exposed two
+production-semantic defects, which were fixed: closure capture values are
+canonicalized when captured so later host mutation cannot change the captured
+semantic value, and malformed closure capture names are rejected with
+`LanguageError`. Apart from those defect fixes, the task changes tests, test
+infrastructure, documentation and CI rather than redesigning production
+semantics.
 
 This document records the resulting verification architecture and policies.
 One-off CI timings, workflow run IDs and campaign measurements are historical

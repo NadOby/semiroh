@@ -480,6 +480,60 @@ pred SharingDoesNotForceInequality {
 }
 
 
+/*
+ * Non-vacuity witness for reversal.
+ *
+ * This requires a valid BisimWitness between two distinct states and at
+ * least one related source relation with an actual role. The witness
+ * therefore exercises structural bisimulation rather than merely showing
+ * that a roleless empty relation can be related to another.
+ */
+pred ReverseWitnessExists {
+    some
+        witness: BisimWitness,
+        source: witness.left.rels,
+        destination: witness.right.rels
+    {
+        witness.left != witness.right
+        (source -> destination) in witness.pairs
+        some roleNames[source]
+    }
+}
+
+
+/*
+ * Non-vacuity witness for composition.
+ *
+ * The two witnesses form a genuine three-state chain:
+ *
+ *     first.left -> first.right = second.left -> second.right
+ *
+ * Their relational composition must contain a pair whose source has an
+ * actual role. This establishes that the antecedent used by
+ * CompositionIsBisimulation is realizable by nonempty structural
+ * bisimulations within the bounded model.
+ */
+pred CompositionWitnessesExist {
+    some disj first, second: BisimWitness {
+        first.right = second.left
+
+        first.left != first.right
+        first.right != second.right
+        first.left != second.right
+
+        some
+            source: first.left.rels,
+            destination: second.right.rels
+        {
+            (source -> destination)
+                in (first.pairs).(second.pairs)
+
+            some roleNames[source]
+        }
+    }
+}
+
+
 /* -------------------------------------------------------------------------
  * Bounded checks
  * ---------------------------------------------------------------------- */
@@ -556,4 +610,38 @@ run SharingDoesNotForceInequality
         exactly 2 RoleUse,
         exactly 4 Slot,
         exactly 1 Atom
+    expect 1
+
+
+/*
+ * Explicit non-vacuity checks.
+ *
+ * These commands are intentionally appended after the original five
+ * commands so their established command indices remain stable.
+ */
+run ReverseWitnessExists
+    for 4
+    but exactly 2 State,
+        exactly 4 Rel,
+        exactly 1 Role,
+        exactly 2 RoleUse,
+        exactly 2 Slot,
+        0 Atom,
+        0 EntityID,
+        0 View,
+        exactly 1 BisimWitness
+    expect 1
+
+
+run CompositionWitnessesExist
+    for 6
+    but exactly 3 State,
+        exactly 6 Rel,
+        exactly 1 Role,
+        exactly 3 RoleUse,
+        exactly 3 Slot,
+        0 Atom,
+        0 EntityID,
+        0 View,
+        exactly 2 BisimWitness
     expect 1

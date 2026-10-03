@@ -152,12 +152,12 @@ fact AtMostOneClaimPerSource {
  * ---------------------------------------------------------------------- */
 
 fun claimFor[
-    transformation: Transformation,
+    tx: Transformation,
     occurrence: Rel
 ]: lone ContinuityClaim {
     {
         claim: ContinuityClaim |
-            claim.transformation = transformation
+            claim.transformation = tx
             and
             claim.sourceOccurrence = occurrence
     }
@@ -170,11 +170,11 @@ fun claimFor[
  * This includes explicit disappearance.
  */
 pred continuityKnown[
-    transformation: Transformation,
+    tx: Transformation,
     occurrence: Rel
 ] {
-    occurrence in transformation.source.rels
-    one claimFor[transformation, occurrence]
+    occurrence in tx.source.rels
+    one claimFor[tx, occurrence]
 }
 
 
@@ -184,11 +184,11 @@ pred continuityKnown[
  * Unknown continuity does NOT mean disappearance.
  */
 pred continuityUnknown[
-    transformation: Transformation,
+    tx: Transformation,
     occurrence: Rel
 ] {
-    occurrence in transformation.source.rels
-    no claimFor[transformation, occurrence]
+    occurrence in tx.source.rels
+    no claimFor[tx, occurrence]
 }
 
 
@@ -208,10 +208,10 @@ pred continuityUnknown[
  * Callers must also inspect continuityKnown / continuityUnknown.
  */
 fun continuityTargets[
-    transformation: Transformation,
+    tx: Transformation,
     occurrence: Rel
 ]: set Rel {
-    claimFor[transformation, occurrence].destinations
+    claimFor[tx, occurrence].destinations
 }
 
 
@@ -221,13 +221,13 @@ fun continuityTargets[
  *     source -> {}
  */
 pred explicitlyDisappears[
-    transformation: Transformation,
+    tx: Transformation,
     occurrence: Rel
 ] {
-    continuityKnown[transformation, occurrence]
+    continuityKnown[tx, occurrence]
 
     no continuityTargets[
-        transformation,
+        tx,
         occurrence
     ]
 }
@@ -237,13 +237,13 @@ pred explicitlyDisappears[
  * One explicitly declared destination.
  */
 pred hasUniqueContinuation[
-    transformation: Transformation,
+    tx: Transformation,
     occurrence: Rel
 ] {
-    continuityKnown[transformation, occurrence]
+    continuityKnown[tx, occurrence]
 
     one continuityTargets[
-        transformation,
+        tx,
         occurrence
     ]
 }
@@ -253,13 +253,13 @@ pred hasUniqueContinuation[
  * More than one explicitly declared destination.
  */
 pred splits[
-    transformation: Transformation,
+    tx: Transformation,
     occurrence: Rel
 ] {
-    continuityKnown[transformation, occurrence]
+    continuityKnown[tx, occurrence]
 
     #continuityTargets[
-        transformation,
+        tx,
         occurrence
     ] > 1
 }
@@ -269,24 +269,24 @@ pred splits[
  * Explicit pairwise continuity relation.
  */
 pred continuesTo[
-    transformation: Transformation,
+    tx: Transformation,
     sourceOccurrence: Rel,
     destinationOccurrence: Rel
 ] {
     sourceOccurrence
-        in transformation.source.rels
+        in tx.source.rels
 
     destinationOccurrence
-        in transformation.destination.rels
+        in tx.destination.rels
 
     continuityKnown[
-        transformation,
+        tx,
         sourceOccurrence
     ]
 
     destinationOccurrence
         in continuityTargets[
-            transformation,
+            tx,
             sourceOccurrence
         ]
 }
@@ -303,13 +303,13 @@ pred continuesTo[
  * Multiple predecessors are allowed.
  */
 fun declaredPredecessors[
-    transformation: Transformation,
+    tx: Transformation,
     destinationOccurrence: Rel
 ]: set Rel {
     {
-        sourceOccurrence: transformation.source.rels |
+        sourceOccurrence: tx.source.rels |
             continuesTo[
-                transformation,
+                tx,
                 sourceOccurrence,
                 destinationOccurrence
             ]
@@ -325,14 +325,14 @@ fun declaredPredecessors[
  * transformation application is modeled.
  */
 pred hasDeclaredPredecessor[
-    transformation: Transformation,
+    tx: Transformation,
     destinationOccurrence: Rel
 ] {
     destinationOccurrence
-        in transformation.destination.rels
+        in tx.destination.rels
 
     some declaredPredecessors[
-        transformation,
+        tx,
         destinationOccurrence
     ]
 }

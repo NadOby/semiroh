@@ -32,7 +32,7 @@ from semiroh.syntax import SourceError, parse, render
 F = EntityID("f")
 TARGET = EntityID("target")
 OTHER = EntityID("other")
-CELL = EntityID("cell")
+CELL = EntityID("counter")
 
 
 def language_state_of(body: tuple) -> State:
@@ -245,7 +245,7 @@ class SyntaxRawMappingMutationRegressions(unittest.TestCase):
                     "c",
                     ("lit", 3),
                 ),
-                ('"target"', '"other"', '"cell"'),
+                ('"target"', '"other"', '"counter"'),
                 ('"a"', '"b"', '"c"'),
             ),
         )
@@ -312,7 +312,7 @@ class SyntaxRendererBoundaryMutationRegressions(unittest.TestCase):
             (
                 ("write", "c", ("seq", ("lit", 1), ("lit", 2))),
                 (),
-                'cell = raw(("seq", ("lit", 1), ("lit", 2)))',
+                'counter = raw(("seq", ("lit", 1), ("lit", 2)))',
             ),
             (
                 ("let", "x", ("seq", ("lit", 1), ("lit", 2)), ("arg", "x")),
@@ -327,7 +327,7 @@ class SyntaxRendererBoundaryMutationRegressions(unittest.TestCase):
                     ("arg", "x"),
                 ),
                 (),
-                'let x = cell = raw(("seq", ("lit", 1), ("lit", 2)))',
+                'let x = counter = raw(("seq", ("lit", 1), ("lit", 2)))',
             ),
             (
                 ("apply", 1, ("lit", 2)),
@@ -340,9 +340,9 @@ class SyntaxRendererBoundaryMutationRegressions(unittest.TestCase):
                 'apply(raw(("arg", "")), (1,))',
             ),
             (
-                ("label", "", ("lit", 1)),
+                ("label", "k", ()),
                 (),
-                'raw(("label", "", ("lit", 1)))',
+                "label(k, raw(()))",
             ),
             (
                 (
@@ -392,7 +392,7 @@ class SyntaxRendererBoundaryMutationRegressions(unittest.TestCase):
                     ("write", "c", ("call", "a")),
                     ("arg", "x"),
                 ),
-                "let x = cell = target()",
+                "let x = counter = target()",
             ),
             (
                 ("closure", (), (), ("call", "a")),

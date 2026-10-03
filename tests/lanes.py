@@ -86,6 +86,7 @@ LANES: dict[str, tuple[str, ...]] = {
         "test_corpus",
         "test_docs",
         "test_malformed_generation",
+        "test_mutation_regressions_boundaries",
         "test_mutation_regressions_records",
         "test_properties",
         "test_stateful_sequences",

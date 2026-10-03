@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import sys
 import time
 from collections import defaultdict
@@ -173,6 +174,22 @@ class EventReporter:
                     f"{event['reason']}"
                 )
 
+            key_json = json.dumps(
+                event["key"]
+            )
+            replay = shlex.join([
+                "python",
+                "-m",
+                "tests.mutation_campaign",
+                "replay",
+                "--key-json",
+                key_json,
+                "--source-blob",
+                str(event["source_blob"]),
+                "--engine-blob",
+                str(event["engine_blob"]),
+            ])
+
             return (
                 "SURVIVOR "
                 f"{outcome}: "
@@ -184,11 +201,13 @@ class EventReporter:
                 f"{event['source']}"
                 f"{classification}\n"
                 "  key-json: "
-                f"{json.dumps(event['key'])}\n"
+                f"{key_json}\n"
                 "  source-blob: "
                 f"{event['source_blob']}\n"
                 "  engine-blob: "
-                f"{event['engine_blob']}"
+                f"{event['engine_blob']}\n"
+                "  replay: "
+                f"{replay}"
             )
 
         if kind == "progress":
@@ -318,6 +337,7 @@ def run_campaign(
     *,
     workers: int | None = None,
     progress_every: int = 25,
+    progress_interval_seconds: float = 30.0,
     stream: TextIO | None = None,
 ) -> CampaignResult:
     """Run one already-selected shard and emit one evidence event stream."""
@@ -325,6 +345,11 @@ def run_campaign(
     if progress_every < 1:
         raise ValueError(
             "progress_every must be a positive integer"
+        )
+
+    if progress_interval_seconds <= 0:
+        raise ValueError(
+            "progress_interval_seconds must be positive"
         )
 
     if workers is None:
@@ -369,6 +394,7 @@ def run_campaign(
     )
 
     started = time.perf_counter()
+    last_progress = started
 
     try:
         reporter.emit({
@@ -397,7 +423,6 @@ def run_campaign(
             }
 
             for future in as_completed(futures):
-                selected = futures[future]
                 mutant, dead, elapsed = future.result()
 
                 timings[mutant.target].append(
@@ -462,9 +487,15 @@ def run_campaign(
 
                 reporter.emit(event)
 
+                now = time.perf_counter()
+
                 if (
                     completed % progress_every == 0
                     or completed == len(work)
+                    or (
+                        now - last_progress
+                        >= progress_interval_seconds
+                    )
                 ):
                     reporter.emit({
                         "event": "progress",
@@ -478,13 +509,13 @@ def run_campaign(
                             unclassified
                         ),
                         "elapsed_seconds": (
-                            time.perf_counter()
-                            - started
+                            now - started
                         ),
                         "current_target": (
-                            selected.target
+                            mutant.target
                         ),
                     })
+                    last_progress = now
 
         elapsed_total = (
             time.perf_counter()

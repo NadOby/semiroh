@@ -40,6 +40,37 @@ class MutationCampaignTests(unittest.TestCase):
             + "\n"
         )
 
+        engine = self.root / "tests" / "mutation.py"
+        engine.parent.mkdir()
+        engine.write_text(
+            "fixture mutation engine\n"
+        )
+        self.engine_blob = mutation.git_blob_id(
+            engine.read_bytes()
+        )
+
+    def source_blob(
+        self,
+        target: str,
+    ) -> str:
+        return mutation.git_blob_id(
+            (self.root / target).read_bytes()
+        )
+
+    def first_arithmetic_mutant(
+        self,
+    ) -> mutation.Mutant:
+        source = (self.root / "first.py").read_text()
+
+        return next(
+            mutant
+            for mutant in mutation.site_descriptions(
+                source,
+                "first.py",
+            )
+            if mutant.kind == "arithmetic"
+        )
+
     def old_selected_keys(
         self,
         count: int,
@@ -286,15 +317,7 @@ class MutationCampaignTests(unittest.TestCase):
         )
 
     def test_baseline_and_mutant_use_same_oracle_command(self) -> None:
-        source = (self.root / "first.py").read_text()
-        mutant = next(
-            site
-            for site in mutation.site_descriptions(
-                source,
-                "first.py",
-            )
-            if site.kind == "arithmetic"
-        )
+        mutant = self.first_arithmetic_mutant()
         command = mutation_oracle.command()
         completed = subprocess.CompletedProcess(
             command,
@@ -332,6 +355,116 @@ class MutationCampaignTests(unittest.TestCase):
         self.assertEqual(
             run.call_args_list[0].kwargs["env"],
             run.call_args_list[1].kwargs["env"],
+        )
+
+    def test_exact_key_resolves_under_matching_pins(self) -> None:
+        expected = self.first_arithmetic_mutant()
+
+        resolved = mutation_campaign.resolve_exact_key(
+            self.root,
+            expected.key,
+            self.source_blob("first.py"),
+            self.engine_blob,
+        )
+
+        self.assertEqual(
+            resolved,
+            expected,
+        )
+
+    def test_exact_key_rejects_source_version_mismatch(self) -> None:
+        mutant = self.first_arithmetic_mutant()
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "source version mismatch",
+        ):
+            mutation_campaign.resolve_exact_key(
+                self.root,
+                mutant.key,
+                "0" * 40,
+                self.engine_blob,
+            )
+
+    def test_exact_key_rejects_engine_version_mismatch(self) -> None:
+        mutant = self.first_arithmetic_mutant()
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "mutation engine version mismatch",
+        ):
+            mutation_campaign.resolve_exact_key(
+                self.root,
+                mutant.key,
+                self.source_blob("first.py"),
+                "0" * 40,
+            )
+
+    def test_exact_key_must_resolve_once(self) -> None:
+        mutant = self.first_arithmetic_mutant()
+        missing: mutation.MutationKey = (
+            mutant.target,
+            mutant.kind,
+            "not the source line",
+            mutant.occurrence,
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "resolved to 0 sites",
+        ):
+            mutation_campaign.resolve_exact_key(
+                self.root,
+                missing,
+                self.source_blob("first.py"),
+                self.engine_blob,
+            )
+
+    def test_exact_replay_runs_resolved_mutant(self) -> None:
+        mutant = self.first_arithmetic_mutant()
+        command = [
+            "python",
+            "-m",
+            "fixture-oracle",
+        ]
+
+        with patch(
+            "tests.mutation_campaign.mutation.killed",
+            return_value=(mutant, False),
+        ) as killed:
+            replayed, dead = mutation_campaign.replay_exact(
+                self.root,
+                mutant.key,
+                self.source_blob("first.py"),
+                self.engine_blob,
+                command,
+            )
+
+        self.assertEqual(
+            replayed,
+            mutant,
+        )
+        self.assertFalse(dead)
+        killed.assert_called_once_with(
+            self.root,
+            mutant.target,
+            mutant.index,
+            command,
+        )
+
+    def test_replay_key_json_round_trips(self) -> None:
+        mutant = self.first_arithmetic_mutant()
+        encoded = (
+            '["first.py", "arithmetic", '
+            f'{mutant.text!r}, 0]'
+        ).replace(
+            "'",
+            '"',
+        )
+
+        self.assertEqual(
+            mutation_campaign._parse_key(encoded),
+            mutant.key,
         )
 
 

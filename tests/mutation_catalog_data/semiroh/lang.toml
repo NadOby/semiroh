@@ -47,7 +47,7 @@ interoperability is not part of the SEMIROH language contract.
 [[survivor]]
 kind = "constant"
 source = "@dataclass(frozen=True, eq=False)"
-occurrence = 0
+occurrence = 1
 classification = "equivalent"
 reason = """
 Function defines both __eq__ and __hash__ explicitly. Changing the dataclass

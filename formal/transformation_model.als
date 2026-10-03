@@ -140,10 +140,8 @@ fact ContinuityClaimsStayWithinTransformation {
 fact AtMostOneClaimPerSource {
     all disj first, second: ContinuityClaim |
         first.transformation = second.transformation
-        and
-        first.sourceOccurrence = second.sourceOccurrence
         implies
-            false
+            first.sourceOccurrence != second.sourceOccurrence
 }
 
 

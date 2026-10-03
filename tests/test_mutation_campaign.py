@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from tests import mutation
 from tests import mutation_campaign
+from tests import mutation_oracle
+from tests.lanes import LANES
 
 
 class MutationCampaignTests(unittest.TestCase):
@@ -262,6 +266,73 @@ class MutationCampaignTests(unittest.TestCase):
                 shards=4,
                 shard=4,
             )
+
+    def test_oracle_is_exactly_non_mutation_lanes(self) -> None:
+        expected = tuple(
+            module
+            for lane, modules in LANES.items()
+            if lane != "mutation"
+            for module in modules
+        )
+
+        self.assertEqual(
+            mutation_oracle.modules(),
+            expected,
+        )
+        self.assertTrue(
+            set(mutation_oracle.modules()).isdisjoint(
+                LANES["mutation"]
+            )
+        )
+
+    def test_baseline_and_mutant_use_same_oracle_command(self) -> None:
+        source = (self.root / "first.py").read_text()
+        mutant = next(
+            site
+            for site in mutation.site_descriptions(
+                source,
+                "first.py",
+            )
+            if site.kind == "arithmetic"
+        )
+        command = mutation_oracle.command()
+        completed = subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=b"",
+            stderr=b"",
+        )
+
+        with patch(
+            "tests.mutation.subprocess.run",
+            return_value=completed,
+        ) as run:
+            baseline = mutation.baseline(
+                self.root,
+                command,
+            )
+            _, dead = mutation.killed(
+                self.root,
+                "first.py",
+                mutant.index,
+                command,
+            )
+
+        self.assertEqual(baseline.returncode, 0)
+        self.assertFalse(dead)
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(
+            run.call_args_list[0].args[0],
+            command,
+        )
+        self.assertEqual(
+            run.call_args_list[1].args[0],
+            command,
+        )
+        self.assertEqual(
+            run.call_args_list[0].kwargs["env"],
+            run.call_args_list[1].kwargs["env"],
+        )
 
 
 if __name__ == "__main__":

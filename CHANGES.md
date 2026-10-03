@@ -1132,3 +1132,50 @@ valid evidence after the relevant oracle was shown to be unsound.
   campaign therefore uses the exact engine and target-source versions now
   reviewed and pinned. If it completes cleanly, its shard logs and exact
   mutation-site counts will provide the final Task 18 mutation-kill evidence.
+
+## 2026-10-04
+
+### Verification hardening final evidence and scope correction
+
+- Corrected the earlier Task 18 scope statement that described the work as
+  having no production-semantic changes. Mutation review exposed two real
+  production defects and the task includes their fixes:
+  - closure capture values are canonicalized when the closure is constructed,
+    so later mutation of a host container cannot change the captured semantic
+    value;
+  - closure capture names are validated as non-empty strings before lookup, so
+    malformed names produce `LanguageError` rather than leaking host container
+    behaviour.
+- Earlier mutation runs remain historical discovery evidence rather than final
+  mutation-kill evidence:
+  - runs `36690295906` and `36708852109` used an incomplete mutation repository
+    copy that omitted `docs/`;
+  - the following deterministic batches and exhaustive run `36891181744`
+    still allowed source-sensitive mutation-catalog integrity tests to kill
+    mutants for nonsemantic reasons;
+  - run `36908901083`, after fixing that false-kill path, established a
+    3447-site census and exposed 288 survivors for review;
+  - run `37065518652` on the reviewed infrastructure contained 3449 sites and
+    exposed 62 remaining unclassified survivors, which drove further
+    regressions and classifications;
+  - attempted exhaustive run `37122470634` exposed the final seven unresolved
+    cases: six syntax survivors requiring five regressions plus one
+    intentionally unspecified rendering-layout classification, and one
+    `fold.py` survivor whose existing equivalent classification had been
+    attached to the wrong same-text occurrence. The occurrence key was
+    corrected rather than adding another classification.
+- Final exhaustive mutation campaign `37140471232` ran on exact head
+  `39a20617a32bcb35059d7e99fae2b8f72e6423b7` with
+  `SEMIROH_MUTATE=10000`, seed `1`, batch `0`, and four deterministic target
+  shards.
+- The final shard census was:
+  - shard 0: 481 / 481 sites;
+  - shard 1: 999 / 999 sites;
+  - shard 2: 1529 / 1529 sites;
+  - shard 3: 440 / 440 sites;
+  - total: 3449 mutation sites.
+- All four mutation shards passed with zero unclassified survivors. The eight
+  ordinary semantic CI lanes also passed on the same workflow run.
+- This completes Task 18 verification hardening on that exact tree. The result
+  is strong mutation evidence for the reviewed implementation and test suite;
+  it is not a formal proof of semantic correctness.

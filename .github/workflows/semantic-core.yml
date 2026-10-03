@@ -7,7 +7,8 @@ on:
     branches:
       - research/semantic-core
     paths:
-      - "formal/**"
+      - "formal/core.als"
+      - "formal/core_model.als"
       - ".github/scripts/**"
       - ".github/workflows/semantic-core.yml"
 

@@ -1,307 +1,21 @@
 module formal/core
 
-/*
- * SHEAR candidate semantic core – bounded structural model.
- *
- * This is an experimental model, not a normative language specification.
- *
- * Ontological candidates:
- *
- *     Atom
- *     Role
- *     Rel
- *     State
- *     View
- *     EntityID
- *
- * RoleUse, Slot, and BisimWitness are Alloy encoding / verification
- * scaffolding. They are not proposed SHEAR semantic primitives.
- *
- * A Rel atom represents a state-local relation occurrence – effectively the
- * formal RelationRef used in the architectural notes. Rel atoms carry no
- * semantic identity field.
- */
-
-
-/* -------------------------------------------------------------------------
- * Atomic content
- * ---------------------------------------------------------------------- */
+open formal/core_model
 
 /*
- * Atomic values are deliberately opaque here.
+ * SHEAR semantic-core verification entrypoint.
  *
- * The concrete Atom domain – Bool, Int, Text, Bytes, Symbol, sentinels, etc. –
- * is an open design question and is not needed for the structural experiment.
+ * This module contains verification scaffolding, assertions, witness
+ * scenarios and bounded commands for the candidate model defined in:
  *
- * Equality of Atom atoms represents equality of irreducible atomic values.
+ *     formal/core_model.als
+ *
+ * Neither this module nor core_model.als is a normative language
+ * specification.
+ *
+ * BisimWitness is Alloy verification scaffolding, not a proposed SHEAR
+ * semantic primitive.
  */
-sig Atom {}
-
-
-/* -------------------------------------------------------------------------
- * Relations
- * ---------------------------------------------------------------------- */
-
-sig Role {}
-
-/*
- * The only candidate graph-semantic object.
- *
- * A relation may:
- *
- *   - have no atom;
- *   - have one atom;
- *   - have no roles;
- *   - have roles;
- *   - have both an atom and roles.
- *
- * Whether the last case should eventually be restricted is deliberately
- * not decided here.
- */
-sig Rel {
-    atom: lone Atom
-}
-
-
-/*
- * Alloy scaffolding for:
- *
- *     Role -> Sequence<Rel>
- *
- * RoleUse exists so that an explicitly present empty role can be
- * distinguished from an absent role.
- *
- * RoleUse is NOT a candidate semantic object.
- */
-sig RoleUse {
-    owner: one Rel,
-    name: one Role
-}
-
-/*
- * Slot encodes one position in an ordered role target sequence.
- *
- * Slot is NOT a candidate semantic object.
- */
-sig Slot {
-    use: one RoleUse,
-    index: one Int,
-    target: one Rel
-}
-
-
-/*
- * A relation has at most one occurrence of a given role name.
- */
-fact UniqueRoleNames {
-    all disj a, b: RoleUse |
-        a.owner = b.owner implies a.name != b.name
-}
-
-
-/*
- * Each role target collection is a finite sequence indexed:
- *
- *     0, 1, ..., n - 1
- *
- * There may be zero slots, representing an explicitly present empty role.
- */
-fact RoleTargetsAreSequences {
-    all disj a, b: Slot |
-        a.use = b.use implies a.index != b.index
-
-    all s: Slot {
-        s.index >= 0
-
-        s.index > 0 implies
-            (one previous: Slot |
-                previous.use = s.use and
-                previous.index = minus[s.index, 1])
-    }
-}
-
-
-/* -------------------------------------------------------------------------
- * State
- * ---------------------------------------------------------------------- */
-
-/*
- * State is a finite collection of relation occurrences.
- *
- * Alloy instances are finite by construction.
- */
-sig State {
-    rels: set Rel
-}
-
-
-/*
- * Rel atoms are state-local occurrence handles.
- *
- * One occurrence belongs to exactly one State.
- *
- * This does NOT assert that equal relational values cannot occur in
- * multiple states or multiple times in one state.
- */
-fact RelationOccurrencesAreStateLocal {
-    all r: Rel |
-        one s: State | r in s.rels
-}
-
-
-fun stateOf[r: Rel]: one State {
-    { s: State | r in s.rels }
-}
-
-
-/*
- * Structural references are closed within a state.
- */
-fact RoleTargetsRemainInState {
-    all s: Slot |
-        s.target in stateOf[s.use.owner].rels
-}
-
-
-/* -------------------------------------------------------------------------
- * Structural helpers
- * ---------------------------------------------------------------------- */
-
-fun roleNames[r: Rel]: set Role {
-    (r.~owner).name
-}
-
-
-fun roleUse[r: Rel, role: Role]: lone RoleUse {
-    {
-        use: RoleUse |
-            use.owner = r and
-            use.name = role
-    }
-}
-
-
-fun slotsOf[r: Rel, role: Role]: set Slot {
-    roleUse[r, role].~use
-}
-
-
-fun indicesOf[r: Rel, role: Role]: set Int {
-    slotsOf[r, role].index
-}
-
-
-fun targetAt[r: Rel, role: Role, position: Int]: lone Rel {
-    {
-        slot: slotsOf[r, role] |
-            slot.index = position
-    }.target
-}
-
-
-/* -------------------------------------------------------------------------
- * Entry points and entity bindings
- * ---------------------------------------------------------------------- */
-
-sig EntityID {}
-
-
-/*
- * View is formal scaffolding for interpreting a State from an arbitrary
- * entry relation.
- *
- * `entities` represents the proposed entry-scoped finite mapping:
- *
- *     EntityID -> RelationOccurrence
- *
- * It is intentionally represented directly as an Alloy relation here.
- * This does not decide how the map is represented inside SHEAR itself.
- */
-sig View {
-    state: one State,
-    entry: one Rel,
-    entities: EntityID -> lone Rel
-}
-
-
-fact ViewsStayInsideTheirState {
-    all v: View {
-        v.entry in v.state.rels
-        EntityID.(v.entities) in v.state.rels
-    }
-}
-
-
-/* -------------------------------------------------------------------------
- * Structural equality
- * ---------------------------------------------------------------------- */
-
-/*
- * Candidate structural/value equality is bisimilarity.
- *
- * `pairs` relates occurrences in `left` with occurrences in `right`.
- *
- * For every related pair:
- *
- *   - atomic content is equal;
- *   - the same role names are present;
- *   - each role has the same sequence positions;
- *   - corresponding targets are themselves related by `pairs`.
- *
- * Importantly, `pairs` need not be one-to-one.
- *
- * This permits equal values with different sharing topology. For example,
- * one source child may correspond to two equal destination children.
- */
-pred bisimulation[
-    left: State,
-    right: State,
-    pairs: Rel -> Rel
-] {
-    pairs in left.rels -> right.rels
-
-    all a: left.rels, b: right.rels |
-        (a -> b) in pairs implies {
-            a.atom = b.atom
-            roleNames[a] = roleNames[b]
-
-            all role: roleNames[a] {
-                indicesOf[a, role] = indicesOf[b, role]
-
-                all index: indicesOf[a, role] |
-                    (
-                        targetAt[a, role, index]
-                        ->
-                        targetAt[b, role, index]
-                    ) in pairs
-            }
-        }
-}
-
-
-/*
- * Mathematical candidate for structural value equality:
- *
- *     two occurrences are equal iff some bisimulation relates them.
- *
- * This uses existential higher-order quantification. Positive uses are
- * suitable for bounded witness searches; the first-order BisimWitness
- * scaffolding below is used for checking algebraic closure properties
- * without relying on higher-order assertions.
- */
-pred valueEqual[
-    left: State,
-    a: Rel,
-    right: State,
-    b: Rel
-] {
-    a in left.rels
-    b in right.rels
-
-    some pairs: left.rels -> right.rels |
-        (a -> b) in pairs and
-        bisimulation[left, right, pairs]
-}
 
 
 /* -------------------------------------------------------------------------
@@ -311,7 +25,9 @@ pred valueEqual[
 /*
  * A first-order container for an explicit bisimulation witness.
  *
- * This is verification machinery, not part of the candidate SHEAR core.
+ * The underlying bisimulation predicate is part of the candidate model.
+ * This container exists only so Alloy can quantify over explicit witnesses
+ * while checking algebraic closure properties.
  */
 sig BisimWitness {
     left: one State,
@@ -320,6 +36,9 @@ sig BisimWitness {
 }
 
 
+/*
+ * Every BisimWitness atom denotes a nonempty valid bisimulation.
+ */
 fact BisimWitnessesAreValid {
     all witness: BisimWitness {
         some witness.pairs
@@ -332,6 +51,10 @@ fact BisimWitnessesAreValid {
     }
 }
 
+
+/* -------------------------------------------------------------------------
+ * Algebraic properties
+ * ---------------------------------------------------------------------- */
 
 /*
  * Reflexivity basis:
@@ -381,14 +104,14 @@ assert CompositionIsBisimulation {
 
 
 /* -------------------------------------------------------------------------
- * Intended witness scenarios
+ * Intended semantic witness scenarios
  * ---------------------------------------------------------------------- */
 
 /*
  * Entity identity and structural value equality are independent.
  *
  * Two distinct EntityIDs may designate two distinct occurrences whose
- * relation values are structurally equal.
+ * relational values are structurally equal.
  */
 pred DistinctEntitiesCanNameEqualValues {
     some
@@ -480,13 +203,18 @@ pred SharingDoesNotForceInequality {
 }
 
 
+/* -------------------------------------------------------------------------
+ * Non-vacuity witnesses
+ * ---------------------------------------------------------------------- */
+
 /*
  * Non-vacuity witness for reversal.
  *
  * This requires a valid BisimWitness between two distinct states and at
- * least one related source relation with an actual role. The witness
- * therefore exercises structural bisimulation rather than merely showing
- * that a roleless empty relation can be related to another.
+ * least one related source relation with an actual role.
+ *
+ * It therefore exercises structural bisimulation rather than merely
+ * demonstrating that two roleless values can be related.
  */
 pred ReverseWitnessExists {
     some
@@ -495,7 +223,9 @@ pred ReverseWitnessExists {
         destination: witness.right.rels
     {
         witness.left != witness.right
+
         (source -> destination) in witness.pairs
+
         some roleNames[source]
     }
 }
@@ -504,14 +234,20 @@ pred ReverseWitnessExists {
 /*
  * Non-vacuity witness for composition.
  *
- * The two witnesses form a genuine three-state chain:
+ * The witnesses form a genuine three-state chain:
  *
- *     first.left -> first.right = second.left -> second.right
+ *     first.left
+ *         ->
+ *     first.right = second.left
+ *         ->
+ *     second.right
  *
  * Their relational composition must contain a pair whose source has an
- * actual role. This establishes that the antecedent used by
+ * actual role.
+ *
+ * This establishes that the antecedent used by
  * CompositionIsBisimulation is realizable by nonempty structural
- * bisimulations within the bounded model.
+ * bisimulations within the selected bounds.
  */
 pred CompositionWitnessesExist {
     some disj first, second: BisimWitness {
@@ -541,13 +277,15 @@ pred CompositionWitnessesExist {
 /*
  * Initial scopes are deliberately small.
  *
- * Their purpose is to validate the model and obtain useful bounded checks
- * before increasing search depth systematically. Large arbitrary scopes
- * create a very large SAT encoding without adding a correspondingly clear
- * verification claim.
+ * Their purpose is to validate the candidate model and obtain useful
+ * bounded evidence before increasing search depth systematically.
+ *
+ * Large arbitrary scopes create very large SAT encodings without
+ * automatically adding a correspondingly clear verification claim.
  *
  * `expect 0` means that no counterexample should exist.
  */
+
 check IdentityIsBisimulation
     for 4
     but exactly 1 State,
@@ -586,9 +324,12 @@ check CompositionIsBisimulation
 /*
  * `expect 1` means that an intended witness should exist.
  *
- * These establish that the bounded model admits the intended distinctions;
- * they are not proofs that the candidate semantics is correct.
+ * These commands establish that the bounded model admits the intended
+ * distinctions or non-vacuity conditions.
+ *
+ * They are not proofs of the candidate semantics.
  */
+
 run DistinctEntitiesCanNameEqualValues
     for 3
     but exactly 1 State,
@@ -616,9 +357,18 @@ run SharingDoesNotForceInequality
 /*
  * Explicit non-vacuity checks.
  *
- * These commands are intentionally appended after the original five
- * commands so their established command indices remain stable.
+ * These remain after the original five commands so established command
+ * indices remain stable:
+ *
+ *     0  IdentityIsBisimulation
+ *     1  ReverseIsBisimulation
+ *     2  CompositionIsBisimulation
+ *     3  DistinctEntitiesCanNameEqualValues
+ *     4  SharingDoesNotForceInequality
+ *     5  ReverseWitnessExists
+ *     6  CompositionWitnessesExist
  */
+
 run ReverseWitnessExists
     for 4
     but exactly 2 State,

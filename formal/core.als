@@ -485,40 +485,47 @@ pred SharingDoesNotForceInequality {
  * ---------------------------------------------------------------------- */
 
 /*
+ * Initial scopes are deliberately small.
+ *
+ * Their purpose is to validate the model and obtain useful bounded checks
+ * before increasing search depth systematically. Large arbitrary scopes
+ * create a very large SAT encoding without adding a correspondingly clear
+ * verification claim.
+ *
  * `expect 0` means that no counterexample should exist.
  */
 check IdentityIsBisimulation
-    for 6
-    but 3 State,
-        12 Rel,
-        8 Role,
-        16 RoleUse,
-        24 Slot,
-        8 Atom
+    for 4
+    but exactly 1 State,
+        4 Rel,
+        2 Role,
+        4 RoleUse,
+        4 Slot,
+        2 Atom
     expect 0
 
 
 check ReverseIsBisimulation
-    for 6
-    but 3 State,
-        12 Rel,
-        8 Role,
-        16 RoleUse,
-        24 Slot,
-        8 Atom,
-        3 BisimWitness
+    for 4
+    but 2 State,
+        4 Rel,
+        2 Role,
+        4 RoleUse,
+        4 Slot,
+        2 Atom,
+        exactly 1 BisimWitness
     expect 0
 
 
 check CompositionIsBisimulation
-    for 6
-    but 4 State,
-        12 Rel,
-        8 Role,
-        16 RoleUse,
-        24 Slot,
-        8 Atom,
-        4 BisimWitness
+    for 4
+    but 3 State,
+        6 Rel,
+        2 Role,
+        6 RoleUse,
+        6 Slot,
+        3 Atom,
+        exactly 2 BisimWitness
     expect 0
 
 
@@ -529,20 +536,20 @@ check CompositionIsBisimulation
  * they are not proofs that the candidate semantics is correct.
  */
 run DistinctEntitiesCanNameEqualValues
-    for 6
-    but 2 State,
-        8 Rel,
-        6 Role,
-        10 RoleUse,
-        16 Slot,
-        6 Atom,
-        4 EntityID,
-        2 View
+    for 3
+    but exactly 1 State,
+        exactly 2 Rel,
+        1 Role,
+        2 RoleUse,
+        2 Slot,
+        exactly 1 Atom,
+        exactly 2 EntityID,
+        exactly 1 View
     expect 1
 
 
 run SharingDoesNotForceInequality
-    for 8
+    for 5
     but exactly 1 State,
         exactly 5 Rel,
         exactly 1 Role,

@@ -28,64 +28,39 @@ open formal/transformation_model
  * Unknown versus explicit disappearance
  * ---------------------------------------------------------------------- */
 
-/*
- * Unknown continuity and explicit disappearance are distinct.
- *
- * Unknown:
- *
- *     no ContinuityClaim
- *
- * Explicit disappearance:
- *
- *     ContinuityClaim exists
- *     destinations = {}
- */
 assert UnknownIsNotExplicitDisappearance {
     all
-        transformation: Transformation,
-        sourceOccurrence: transformation.source.rels
+        t: Transformation,
+        src: t.source.rels
     |
         continuityUnknown[
-            transformation,
-            sourceOccurrence
+            t,
+            src
         ]
         implies
             not explicitlyDisappears[
-                transformation,
-                sourceOccurrence
+                t,
+                src
             ]
 }
 
 
-/*
- * Non-vacuity witness for the distinction.
- *
- * Require one transformation containing two source occurrences:
- *
- *     unknownSource
- *         has no continuity claim
- *
- *     disappearingSource
- *         has an explicit empty continuity claim
- *
- * Both states therefore coexist inside the same transition.
- */
 pred UnknownAndDisappearanceCanCoexist {
-    some transformation: Transformation {
-        transformation.source != transformation.destination
+    some t: Transformation {
+        t.source != t.destination
 
         some disj
             unknownSource,
             disappearingSource:
-                transformation.source.rels
+                t.source.rels
         {
             continuityUnknown[
-                transformation,
+                t,
                 unknownSource
             ]
 
             explicitlyDisappears[
-                transformation,
+                t,
                 disappearingSource
             ]
         }
@@ -97,113 +72,87 @@ pred UnknownAndDisappearanceCanCoexist {
  * Continuity cardinality witnesses
  * ---------------------------------------------------------------------- */
 
-/*
- * One source occurrence may explicitly disappear:
- *
- *     1 -> 0
- */
 pred ExplicitDisappearanceExists {
-    some transformation: Transformation {
-        transformation.source != transformation.destination
+    some t: Transformation {
+        t.source != t.destination
 
-        some sourceOccurrence: transformation.source.rels {
+        some src: t.source.rels {
             explicitlyDisappears[
-                transformation,
-                sourceOccurrence
+                t,
+                src
             ]
         }
     }
 }
 
 
-/*
- * One source occurrence may have exactly one explicit continuation:
- *
- *     1 -> 1
- */
 pred UniqueContinuationExists {
-    some transformation: Transformation {
-        transformation.source != transformation.destination
+    some t: Transformation {
+        t.source != t.destination
 
         some
-            sourceOccurrence: transformation.source.rels,
-            destinationOccurrence: transformation.destination.rels
+            src: t.source.rels,
+            dst: t.destination.rels
         {
             hasUniqueContinuation[
-                transformation,
-                sourceOccurrence
+                t,
+                src
             ]
 
             continuesTo[
-                transformation,
-                sourceOccurrence,
-                destinationOccurrence
+                t,
+                src,
+                dst
             ]
         }
     }
 }
 
 
-/*
- * One source occurrence may split into multiple explicit continuations:
- *
- *     1 -> many
- */
 pred SplitExists {
-    some transformation: Transformation {
-        transformation.source != transformation.destination
+    some t: Transformation {
+        t.source != t.destination
 
-        some sourceOccurrence: transformation.source.rels {
+        some src: t.source.rels {
             splits[
-                transformation,
-                sourceOccurrence
+                t,
+                src
             ]
         }
     }
 }
 
 
-/*
- * Multiple source occurrences may explicitly continue to the same
- * destination:
- *
- *     many -> 1
- *
- * Each source has exactly one continuation here so this witness isolates
- * many-to-one continuity rather than combining merge and split.
- */
 pred MergeExists {
-    some transformation: Transformation {
-        transformation.source != transformation.destination
+    some t: Transformation {
+        t.source != t.destination
 
         some disj
             firstSource,
             secondSource:
-                transformation.source.rels
+                t.source.rels
         {
-            some destinationOccurrence:
-                transformation.destination.rels
-            {
+            some dst: t.destination.rels {
                 hasUniqueContinuation[
-                    transformation,
+                    t,
                     firstSource
                 ]
 
                 hasUniqueContinuation[
-                    transformation,
+                    t,
                     secondSource
                 ]
 
                 continuesTo[
-                    transformation,
+                    t,
                     firstSource,
-                    destinationOccurrence
+                    dst
                 ]
 
                 continuesTo[
-                    transformation,
+                    t,
                     secondSource,
-                    destinationOccurrence
+                    dst
                 ]
             }
         }
@@ -215,34 +164,20 @@ pred MergeExists {
  * Representation invariants
  * ---------------------------------------------------------------------- */
 
-/*
- * A transformation may contain at most one explicit continuity claim for a
- * given source occurrence.
- *
- * This independently checks the externally observable consequence of
- * AtMostOneClaimPerSource.
- */
 assert ClaimPerSourceIsFunctional {
     all
-        transformation: Transformation,
-        sourceOccurrence: transformation.source.rels
+        t: Transformation,
+        src: t.source.rels
     |
         lone {
             claim: ContinuityClaim |
-                claim.transformation = transformation
+                claim.transformation = t
                 and
-                claim.sourceOccurrence = sourceOccurrence
+                claim.sourceOccurrence = src
         }
 }
 
 
-/*
- * Every claim is confined to the source and destination states named by its
- * transformation.
- *
- * This checks the externally visible consequence of
- * ContinuityClaimsStayWithinTransformation.
- */
 assert ClaimsStayInsideTheirTransformation {
     all claim: ContinuityClaim {
         claim.sourceOccurrence
@@ -254,28 +189,22 @@ assert ClaimsStayInsideTheirTransformation {
 }
 
 
-/*
- * Non-vacuity witness for multiple independent claims.
- *
- * This ensures the functional-per-source invariant is not checked only in
- * models containing zero or one ContinuityClaim.
- */
 pred IndependentClaimsCanCoexist {
-    some transformation: Transformation {
-        transformation.source != transformation.destination
+    some t: Transformation {
+        t.source != t.destination
 
         some disj
             firstSource,
             secondSource:
-                transformation.source.rels
+                t.source.rels
         {
             continuityKnown[
-                transformation,
+                t,
                 firstSource
             ]
 
             continuityKnown[
-                transformation,
+                t,
                 secondSource
             ]
         }
@@ -287,45 +216,28 @@ pred IndependentClaimsCanCoexist {
  * Structural equality is not continuity
  * ---------------------------------------------------------------------- */
 
-/*
- * Structural/value equality does not create continuity.
- *
- * Require:
- *
- *     two distinct States
- *     one source occurrence
- *     one destination occurrence
- *     equal atomic values
- *     structural value equality
- *     no continuity assertion for the source
- *
- * This is a witness, rather than a universal theorem about inference,
- * because the current transformation model contains no inference mechanism
- * at all. The relevant question at this layer is whether equal values can
- * exist while continuity remains unknown.
- */
 pred EqualValuesWithoutContinuity {
-    some transformation: Transformation {
-        transformation.source != transformation.destination
+    some t: Transformation {
+        t.source != t.destination
 
         some
-            sourceOccurrence: transformation.source.rels,
-            destinationOccurrence: transformation.destination.rels,
+            src: t.source.rels,
+            dst: t.destination.rels,
             value: Atom
         {
-            sourceOccurrence.atom = value
-            destinationOccurrence.atom = value
+            src.atom = value
+            dst.atom = value
 
             valueEqual[
-                transformation.source,
-                sourceOccurrence,
-                transformation.destination,
-                destinationOccurrence
+                t.source,
+                src,
+                t.destination,
+                dst
             ]
 
             continuityUnknown[
-                transformation,
-                sourceOccurrence
+                t,
+                src
             ]
         }
     }
@@ -335,14 +247,6 @@ pred EqualValuesWithoutContinuity {
 /* -------------------------------------------------------------------------
  * Bounded verification commands
  * ---------------------------------------------------------------------- */
-
-/*
- * These scopes deliberately eliminate unrelated semantic structures.
- *
- * The purpose is to test the continuity representation itself before adding
- * continuity composition or transformation application.
- */
-
 
 /*
  * Command 0
@@ -468,9 +372,6 @@ run MergeExists
  * Command 6
  *
  * Functional claim lookup.
- *
- * Exactly two claims are required so the bounded check does not operate only
- * over a zero- or one-claim universe.
  */
 check ClaimPerSourceIsFunctional
     for 4

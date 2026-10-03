@@ -13,8 +13,8 @@ open formal/core_model
  * Neither this module nor core_model.als is a normative language
  * specification.
  *
- * BisimWitness is Alloy verification scaffolding, not a proposed SHEAR
- * semantic primitive.
+ * BisimWitness and CompositionCase are Alloy verification scaffolding,
+ * not proposed SHEAR semantic primitives.
  */
 
 
@@ -27,7 +27,7 @@ open formal/core_model
  *
  * The underlying bisimulation predicate is part of the candidate model.
  * This container exists only so Alloy can quantify over explicit witnesses
- * while checking algebraic closure properties.
+ * while checking properties such as reversal.
  */
 sig BisimWitness {
     left: one State,
@@ -47,6 +47,65 @@ fact BisimWitnessesAreValid {
             witness.left,
             witness.right,
             witness.pairs
+        ]
+    }
+}
+
+
+/*
+ * Verification-specific representation of two compatible bisimulations:
+ *
+ *     left --firstPairs--> middle --secondPairs--> right
+ *
+ * This replaces the earlier composition check over two arbitrary
+ * BisimWitness atoms plus:
+ *
+ *     first.right = second.left
+ *
+ * The earlier representation introduced irrelevant witness-object symmetry
+ * and required the solver to search both compatible and incompatible witness
+ * pairs.
+ *
+ * CompositionCase encodes compatibility directly.
+ *
+ * It does not weaken the property being checked:
+ *
+ *   - left, middle and right may still be equal or distinct;
+ *   - firstPairs and secondPairs are independently arbitrary;
+ *   - the pair relations may be equal;
+ *   - each relation need only be a nonempty valid bisimulation.
+ *
+ * Therefore every compatible pair admitted by the previous representation
+ * can be represented by a CompositionCase.
+ */
+sig CompositionCase {
+    left: one State,
+    middle: one State,
+    right: one State,
+    firstPairs: Rel -> Rel,
+    secondPairs: Rel -> Rel
+}
+
+
+/*
+ * The two relations carried by a CompositionCase are valid nonempty
+ * bisimulations with their common middle State encoded directly.
+ */
+fact CompositionCasesAreValid {
+    all c: CompositionCase {
+        some c.firstPairs
+        some c.secondPairs
+
+        bisimulation[
+            c.left,
+            c.middle,
+            c.firstPairs
+        ]
+
+        bisimulation[
+            c.middle,
+            c.right,
+            c.secondPairs
         ]
     }
 }
@@ -89,17 +148,26 @@ assert ReverseIsBisimulation {
 /*
  * Transitivity basis:
  *
- * relational composition of compatible bisimulations is again a
+ * relational composition of two compatible bisimulations is again a
  * bisimulation.
+ *
+ * Compatibility and validity are supplied by CompositionCasesAreValid.
+ *
+ * The check therefore searches directly for a counterexample consisting of:
+ *
+ *     valid first bisimulation
+ *     valid second bisimulation
+ *     invalid relational composition
+ *
+ * rather than also searching irrelevant incompatible witness pairs.
  */
 assert CompositionIsBisimulation {
-    all first, second: BisimWitness |
-        first.right = second.left implies
-            bisimulation[
-                first.left,
-                second.right,
-                (first.pairs).(second.pairs)
-            ]
+    all c: CompositionCase |
+        bisimulation[
+            c.left,
+            c.right,
+            (c.firstPairs).(c.secondPairs)
+        ]
 }
 
 
@@ -232,37 +300,26 @@ pred ReverseWitnessExists {
 
 
 /*
- * Non-vacuity witness for composition.
+ * Non-vacuity witness for the composition search surface.
  *
- * The witnesses form a genuine three-state chain:
+ * Require a genuine three-state chain and a nonempty relational composition
+ * containing a source relation with actual role structure.
  *
- *     first.left
- *         ->
- *     first.right = second.left
- *         ->
- *     second.right
- *
- * Their relational composition must contain a pair whose source has an
- * actual role.
- *
- * This establishes that the antecedent used by
- * CompositionIsBisimulation is realizable by nonempty structural
- * bisimulations within the selected bounds.
+ * This directly exercises the same CompositionCase representation used by
+ * CompositionIsBisimulation.
  */
 pred CompositionWitnessesExist {
-    some disj first, second: BisimWitness {
-        first.right = second.left
-
-        first.left != first.right
-        first.right != second.right
-        first.left != second.right
+    some c: CompositionCase {
+        c.left != c.middle
+        c.middle != c.right
+        c.left != c.right
 
         some
-            source: first.left.rels,
-            destination: second.right.rels
+            source: c.left.rels,
+            destination: c.right.rels
         {
             (source -> destination)
-                in (first.pairs).(second.pairs)
+                in (c.firstPairs).(c.secondPairs)
 
             some roleNames[source]
         }
@@ -283,6 +340,12 @@ pred CompositionWitnessesExist {
  * Large arbitrary scopes create very large SAT encodings without
  * automatically adding a correspondingly clear verification claim.
  *
+ * Verification-only signatures that are irrelevant to a command are
+ * explicitly scoped to zero.
+ *
+ * This reduces the SAT search surface without reducing the bounds of the
+ * semantic structures actually involved in that property.
+ *
  * `expect 0` means that no counterexample should exist.
  */
 
@@ -293,7 +356,11 @@ check IdentityIsBisimulation
         2 Role,
         4 RoleUse,
         4 Slot,
-        2 Atom
+        2 Atom,
+        0 EntityID,
+        0 View,
+        0 BisimWitness,
+        0 CompositionCase
     expect 0
 
 
@@ -305,7 +372,10 @@ check ReverseIsBisimulation
         4 RoleUse,
         4 Slot,
         2 Atom,
-        exactly 1 BisimWitness
+        0 EntityID,
+        0 View,
+        exactly 1 BisimWitness,
+        0 CompositionCase
     expect 0
 
 
@@ -317,7 +387,10 @@ check CompositionIsBisimulation
         6 RoleUse,
         6 Slot,
         3 Atom,
-        exactly 2 BisimWitness
+        0 EntityID,
+        0 View,
+        0 BisimWitness,
+        exactly 1 CompositionCase
     expect 0
 
 
@@ -339,7 +412,9 @@ run DistinctEntitiesCanNameEqualValues
         2 Slot,
         exactly 1 Atom,
         exactly 2 EntityID,
-        exactly 1 View
+        exactly 1 View,
+        0 BisimWitness,
+        0 CompositionCase
     expect 1
 
 
@@ -350,7 +425,11 @@ run SharingDoesNotForceInequality
         exactly 1 Role,
         exactly 2 RoleUse,
         exactly 4 Slot,
-        exactly 1 Atom
+        exactly 1 Atom,
+        0 EntityID,
+        0 View,
+        0 BisimWitness,
+        0 CompositionCase
     expect 1
 
 
@@ -379,7 +458,8 @@ run ReverseWitnessExists
         0 Atom,
         0 EntityID,
         0 View,
-        exactly 1 BisimWitness
+        exactly 1 BisimWitness,
+        0 CompositionCase
     expect 1
 
 
@@ -393,5 +473,6 @@ run CompositionWitnessesExist
         0 Atom,
         0 EntityID,
         0 View,
-        exactly 2 BisimWitness
+        0 BisimWitness,
+        exactly 1 CompositionCase
     expect 1

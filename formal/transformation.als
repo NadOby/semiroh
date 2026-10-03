@@ -43,16 +43,16 @@ open formal/transformation_model
 assert UnknownIsNotExplicitDisappearance {
     all
         transformation: Transformation,
-        source: transformation.source.rels
+        sourceOccurrence: transformation.source.rels
     |
         continuityUnknown[
             transformation,
-            source
+            sourceOccurrence
         ]
         implies
             not explicitlyDisappears[
                 transformation,
-                source
+                sourceOccurrence
             ]
 }
 
@@ -106,10 +106,10 @@ pred ExplicitDisappearanceExists {
     some transformation: Transformation {
         transformation.source != transformation.destination
 
-        some source: transformation.source.rels {
+        some sourceOccurrence: transformation.source.rels {
             explicitlyDisappears[
                 transformation,
-                source
+                sourceOccurrence
             ]
         }
     }
@@ -126,18 +126,18 @@ pred UniqueContinuationExists {
         transformation.source != transformation.destination
 
         some
-            source: transformation.source.rels,
-            destination: transformation.destination.rels
+            sourceOccurrence: transformation.source.rels,
+            destinationOccurrence: transformation.destination.rels
         {
             hasUniqueContinuation[
                 transformation,
-                source
+                sourceOccurrence
             ]
 
             continuesTo[
                 transformation,
-                source,
-                destination
+                sourceOccurrence,
+                destinationOccurrence
             ]
         }
     }
@@ -153,10 +153,10 @@ pred SplitExists {
     some transformation: Transformation {
         transformation.source != transformation.destination
 
-        some source: transformation.source.rels {
+        some sourceOccurrence: transformation.source.rels {
             splits[
                 transformation,
-                source
+                sourceOccurrence
             ]
         }
     }
@@ -181,7 +181,9 @@ pred MergeExists {
             secondSource:
                 transformation.source.rels
         {
-            some destination: transformation.destination.rels {
+            some destinationOccurrence:
+                transformation.destination.rels
+            {
                 hasUniqueContinuation[
                     transformation,
                     firstSource
@@ -195,13 +197,13 @@ pred MergeExists {
                 continuesTo[
                     transformation,
                     firstSource,
-                    destination
+                    destinationOccurrence
                 ]
 
                 continuesTo[
                     transformation,
                     secondSource,
-                    destination
+                    destinationOccurrence
                 ]
             }
         }
@@ -223,13 +225,13 @@ pred MergeExists {
 assert ClaimPerSourceIsFunctional {
     all
         transformation: Transformation,
-        source: transformation.source.rels
+        sourceOccurrence: transformation.source.rels
     |
         lone {
             claim: ContinuityClaim |
                 claim.transformation = transformation
                 and
-                claim.sourceOccurrence = source
+                claim.sourceOccurrence = sourceOccurrence
         }
 }
 
@@ -307,23 +309,23 @@ pred EqualValuesWithoutContinuity {
         transformation.source != transformation.destination
 
         some
-            source: transformation.source.rels,
-            destination: transformation.destination.rels,
+            sourceOccurrence: transformation.source.rels,
+            destinationOccurrence: transformation.destination.rels,
             value: Atom
         {
-            source.atom = value
-            destination.atom = value
+            sourceOccurrence.atom = value
+            destinationOccurrence.atom = value
 
             valueEqual[
                 transformation.source,
-                source,
+                sourceOccurrence,
                 transformation.destination,
-                destination
+                destinationOccurrence
             ]
 
             continuityUnknown[
                 transformation,
-                source
+                sourceOccurrence
             ]
         }
     }

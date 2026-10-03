@@ -375,7 +375,7 @@ assert CompositionIsBisimulation {
             bisimulation[
                 first.left,
                 second.right,
-                first.pairs.second.pairs
+                (first.pairs).(second.pairs)
             ]
 }
 

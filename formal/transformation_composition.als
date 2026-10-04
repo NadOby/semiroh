@@ -325,8 +325,10 @@ assert PartialSplitCannotBecomeKnown {
         and
         some continuityTargets[first, src]
         and
-        some mid: continuityTargets[first, src] |
-            continuityUnknown[second, mid]
+        (
+            some mid: continuityTargets[first, src] |
+                continuityUnknown[second, mid]
+        )
         implies
             not composedContinuityKnown[
                 first,

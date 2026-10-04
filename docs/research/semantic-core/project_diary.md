@@ -449,3 +449,160 @@ peer_reviews/
 
 The purpose of the split is to keep current evidence documents readable without
 discarding research history.
+
+---
+
+## 2026-10-04T06:17+02:00 – Verification documentation refactor completed
+
+### FACT
+
+The planned verification-documentation refactor has been completed.
+
+The documentation is now separated by responsibility:
+
+```text
+docs/research/semantic-core/alloy_verification.md
+    shared Alloy verification policy and navigation
+
+docs/research/semantic-core/core_verification.md
+    bounded core evidence and relevant solver/performance observations
+
+docs/research/semantic-core/transformation_verification.md
+    bounded transformation/continuity representation evidence
+
+docs/research/semantic-core/continuity_composition.md
+    active semantic hypothesis for continuity composition
+
+docs/research/semantic-core/alloy_api_reference.md
+    Alloy 6.2 API and runner reference
+
+docs/research/semantic-core/project_diary.md
+    append-only chronological research record
+
+docs/research/semantic-core/peer_reviews/
+    external reviews and project assessments
+```
+
+The former `alloy_verification.md` combined:
+
+```text
+shared verification policy
+core evidence
+solver history
+transformation evidence
+future transformation work
+```
+
+in one document.
+
+It has been replaced by a substantially narrower policy/index document.
+
+### FACT
+
+`core_verification.md` now contains the previously mixed core-specific evidence,
+including:
+
+```text
+bisimulation checks
+non-vacuity witnesses
+solver history
+composition performance observations
+verification search-surface experiments
+```
+
+### FACT
+
+The first split version of `transformation_verification.md` remained too large.
+
+Although it separated transformation material from core material, it still
+combined:
+
+```text
+established evidence
+formalization history
+future composition design
+information-refinement hypotheses
+dependency planning
+```
+
+This was identified as a second form of documentation monolith rather than a
+successful final decomposition.
+
+### DECISION
+
+`transformation_verification.md` was reduced to established bounded evidence and
+interpretation of the current continuity representation.
+
+Active continuity-composition design was moved into:
+
+```text
+docs/research/semantic-core/continuity_composition.md
+```
+
+Historical workflow failures and development chronology belong in this diary
+rather than the evidence document.
+
+### DECISION
+
+The documentation boundary is now:
+
+```text
+verification evidence
+    what has actually been checked or witnessed
+
+active design hypothesis
+    what is proposed for the next experiment
+
+project diary
+    how the research arrived there
+
+handoff
+    what the next working session needs to know
+```
+
+This boundary should be preserved as the research grows.
+
+### FACT
+
+The active continuity-composition document currently records the leading
+candidate algebra:
+
+```text
+Unknown
+
+Known(Set<DestinationOccurrence>)
+```
+
+with conservative composition when any relevant downstream branch is unknown.
+
+That composition rule remains:
+
+```text
+hypothesis
+```
+
+not established semantics.
+
+### OPEN
+
+The next formal semantic work remains:
+
+```text
+encode continuity composition in Alloy
+
+test basic known / disappearance / unknown cases
+
+test split and merge composition
+
+test equality independence through composition
+
+test associativity
+
+investigate information refinement only after the basic algebra is coherent
+```
+
+### DECISION
+
+Before returning to peer-review findings or new formal work, `handoff.md` should
+be refreshed once more so it records the completed documentation structure
+rather than describing the split as planned.

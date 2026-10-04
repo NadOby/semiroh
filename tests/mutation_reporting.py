@@ -399,6 +399,27 @@ def run_campaign(
 
     started = time.perf_counter()
     last_progress = started
+    error_reported = False
+
+    def emit_error(
+        exc: BaseException,
+    ) -> None:
+        nonlocal error_reported
+
+        if error_reported:
+            return
+
+        error_reported = True
+        reporter.emit({
+            "event": "campaign_error",
+            "error": (
+                f"{type(exc).__name__}: {exc}"
+            ),
+            "elapsed_seconds": (
+                time.perf_counter()
+                - started
+            ),
+        })
 
     try:
         reporter.emit({
@@ -488,9 +509,18 @@ def run_campaign(
                         future
                     )
                     last_selected = selected
-                    mutant, dead, elapsed = (
-                        future.result()
-                    )
+
+                    try:
+                        mutant, dead, elapsed = (
+                            future.result()
+                        )
+                    except BaseException as exc:
+                        emit_error(exc)
+
+                        for remaining in pending:
+                            remaining.cancel()
+
+                        raise
 
                     timings[
                         mutant.target
@@ -631,16 +661,7 @@ def run_campaign(
         )
 
     except BaseException as exc:
-        reporter.emit({
-            "event": "campaign_error",
-            "error": (
-                f"{type(exc).__name__}: {exc}"
-            ),
-            "elapsed_seconds": (
-                time.perf_counter()
-                - started
-            ),
-        })
+        emit_error(exc)
         raise
 
     finally:

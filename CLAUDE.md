@@ -30,8 +30,12 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 
 ## Workflow
 
-- Work follows `docs/roadmap.md`: its task order and its plan, write,
-  review, publish loop.
+- Work follows `docs/roadmap.md`: its task order and its plan, execute,
+  review loop. Planning and review run on Opus, execution on Sonnet; each
+  phase ends by updating `handoff.md` and asking the owner to switch model.
+  No background agents.
+- Start from `handoff.md`: it is the compact current state (task, phase,
+  decisions, next steps), not a log. Keep it short and current.
 - Docs, tests, and code are three representations of one spec: change them
   together. Mark doc sections Decided / Provisional / Open where a design
   decision actually has that status.

@@ -1283,3 +1283,12 @@ valid evidence after the relevant oracle was shown to be unsound.
 - Mutation survivors were carried only where their enclosing top-level
   definition is AST-identical after the change (79); the 8 in changed
   definitions were dropped for the CI campaign to rediscover and review.
+
+### Phased chats with a handoff file
+
+- The roadmap's workflow no longer uses background writer and reviewer
+  agents. Each task runs as Plan (Opus), Execute (Sonnet) and Review and
+  publish (Opus), one chat per phase; each phase ends by updating
+  `handoff.md` and asking the owner to switch model.
+- Added `handoff.md` at the repository root: the compact current state a
+  new chat starts from, as on the research branch.

@@ -606,3 +606,57 @@ investigate information refinement only after the basic algebra is coherent
 Before returning to peer-review findings or new formal work, `handoff.md` should
 be refreshed once more so it records the completed documentation structure
 rather than describing the split as planned.
+
+## 2026-10-04 – Alloy verification hardening and consolidation
+
+Continuity-composition verification was expanded with bounded positive,
+negative, non-vacuity, associativity, and targeted mutation experiments.
+
+The shared Alloy runner was hardened to reject commands without an explicit
+`expect 0` or `expect 1` before solver execution.
+
+A solver comparison used `CompositionIsBisimulation`, the historically dominant
+core verification workload, without reducing its semantic scope.
+
+Observed completed results included:
+
+```text
+lingeling.parallel:
+    UNSAT
+    approximately 166 s
+
+glucose:
+    UNSAT
+    approximately 1494 s
+```
+
+Both used the same bounded problem and generated CNF dimensions:
+
+```text
+164761 variables
+373172 clauses
+```
+
+`minisat`, `minisat.prover`, `sat4j`, and `sat4j.light` produced no SAT or UNSAT
+result before the two-hour experiment cutoff.
+
+The approximately 9x observed advantage over Glucose made
+`lingeling.parallel` the routine CI solver. This is an engineering result for
+the current workload, not a universal solver-performance claim.
+
+The separate core, transformation, and transformation-mutation Alloy workflows
+were consolidated into:
+
+```text
+.github/workflows/alloy-verification.yml
+```
+
+The consolidated workflow discovers commands across the verification
+entrypoints, executes them independently, and runs on every push to
+`research/semantic-core`.
+
+Its first complete run passed all discovered verification commands.
+
+The Python semantic-model workflow remains separate because it verifies a
+different implementation layer.
+

@@ -74,18 +74,24 @@ def _program(example: examples.Example) -> dict[str, str]:
 
 
 def _api() -> dict[str, list[str]]:
-    """Public names defined in SHEAR, per language module."""
+    """Public names per language module: its ``__all__``, or else the names
+    it defines itself (not names it merely imports)."""
 
     surface = {}
 
     for name in API_MODULES:
         module = importlib.import_module(name)
-        surface[name] = sorted(
-            attr for attr in dir(module)
-            if not attr.startswith("_")
-            and not isinstance(getattr(module, attr), type(module))
-            and str(getattr(getattr(module, attr), "__module__", "shear")).startswith("shear")
-        )
+        names = getattr(module, "__all__", None)
+
+        if names is None:
+            names = [
+                attr for attr in dir(module)
+                if not attr.startswith("_")
+                and not isinstance(getattr(module, attr), type(module))
+                and getattr(getattr(module, attr), "__module__", name) == name
+            ]
+
+        surface[name] = sorted(names)
 
     return surface
 

@@ -21,8 +21,17 @@ Code as data stays in the input format: ``quote`` builds tuples,
 change program state only through ``activate``, and only when the run was
 granted the activation capability.
 
-:func:`run` lowers each node to bytecode and runs it on a virtual machine
-(``shear/bytecode.py``, docs/bytecode.md).
+:func:`run` lowers each node to bytecode (``shear/bytecode.py``) and runs it
+on the virtual machine (``shear/machine.py``, docs/bytecode.md).
+
+Structure. The module has four parts, in this order: the input format
+(:class:`Function`, links); graph form (the definition record, the builder,
+:func:`load`); editing (:func:`define` with continuity inference,
+docs/continuity_inference.md); and collapsing (:func:`function_at`). Editing
+and collapsing both read graph form's private records, which is why they
+stay in one module rather than becoming cross-module private API. Operation
+shapes come from ``shear/operations.py``. :func:`run` is the one lazy edge,
+to the machine, which is itself built on graph form.
 
 This module is a layer on top of the core model, not part of it: it is not
 re-exported from ``shear/__init__.py``.

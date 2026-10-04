@@ -1,6 +1,6 @@
 """Regression tests found by review of text syntax version 0 (docs/syntax.md).
 
-Each pins a rule of the syntax that a planted bug in ``shear/syntax.py`` got
+Each pins a rule of the syntax that a planted bug in the ``shear/syntax`` package got
 past the earlier tests: precedence, the scope of ``unquote`` and ``literal``
 holes, the columns of parser errors, and the ``else`` of an inline ``if``.
 """

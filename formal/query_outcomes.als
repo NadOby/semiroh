@@ -291,9 +291,16 @@ pred EqualityBudgetExhausted[c: Comparison] {
  * Direct result interpretation
  * ---------------------------------------------------------------------- */
 
+/*
+ * `result` is optional because evaluator failure does not manufacture a
+ * semantic value.
+ *
+ * Complete equality produces exactly Yes or No. Budget exhaustion produces
+ * no semantic result and reports only the evaluator status.
+ */
 pred DirectEqualityResult[
     c: Comparison,
-    result: DirectResult,
+    result: lone DirectResult,
     status: EvaluationStatus
 ] {
     (
@@ -310,6 +317,7 @@ pred DirectEqualityResult[
     or
     (
         EqualityBudgetExhausted[c]
+        and no result
         and status = BudgetExhausted
     )
 }
@@ -319,9 +327,15 @@ pred DirectEqualityResult[
  * Graph-native result interpretation
  * ---------------------------------------------------------------------- */
 
+/*
+ * The graph-native representation follows the same distinction:
+ *
+ *   - completed evaluation returns an ordinary result relation;
+ *   - exhausted evaluation returns no semantic relation at all.
+ */
 pred GraphEqualityResult[
     c: Comparison,
-    result: Rel,
+    result: lone Rel,
     status: EvaluationStatus
 ] {
     (
@@ -338,6 +352,7 @@ pred GraphEqualityResult[
     or
     (
         EqualityBudgetExhausted[c]
+        and no result
         and status = BudgetExhausted
     )
 }
@@ -399,8 +414,8 @@ pred GraphIdentityResult[
 
 pred DirectAndGraphEqualityAgree[
     c: Comparison,
-    direct: DirectResult,
-    graph: Rel,
+    direct: lone DirectResult,
+    graph: lone Rel,
     status: EvaluationStatus
 ] {
     DirectEqualityResult[c, direct, status]
@@ -560,6 +575,8 @@ pred CyclicEqualityClosesWithinBudget {
  *
  * No contradiction has been discovered. The fifth pair remains on the
  * frontier, so evaluation ends with BudgetExhausted rather than Unknown.
+ *
+ * Exhaustion produces no semantic result in either representation.
  */
 pred EqualityBudgetExhaustionExists {
     some
@@ -612,6 +629,18 @@ pred EqualityBudgetExhaustionExists {
         c.frontier = l4 -> r4
 
         EqualityBudgetExhausted[c]
+
+        DirectEqualityResult[
+            c,
+            none,
+            BudgetExhausted
+        ]
+
+        GraphEqualityResult[
+            c,
+            none,
+            BudgetExhausted
+        ]
     }
 }
 

@@ -62,22 +62,25 @@ jobs:
         run: |
           set -euo pipefail
 
-          models=(
-            "formal/core.als"
-            "formal/transformation.als"
-            "formal/transformation_composition.als"
-            "formal/transformation_associativity.als"
-            "formal/transformation_composition_mutation.als"
+          mapfile -t models < <(
+            find formal/verify \
+              -type f \
+              -name '*.als' \
+              -print \
+              | sort
           )
+
+          if (( ${#models[@]} == 0 )); then
+            echo "No Alloy verification entrypoints found under formal/verify." >&2
+            exit 1
+          fi
+
+          echo "Discovered verification entrypoints:"
+          printf '  %s\n' "${models[@]}"
 
           commands='[]'
 
           for model in "${models[@]}"; do
-            if [[ ! -f "$model" ]]; then
-              echo "Skipping absent verification model: $model"
-              continue
-            fi
-
             echo "Discovering commands in $model"
 
             output="$(
@@ -99,7 +102,7 @@ jobs:
             )"
 
             if [[ "$indices" == "[]" ]]; then
-              echo "No Alloy commands discovered in $model." >&2
+              echo "No Alloy commands discovered in verification entrypoint: $model" >&2
               exit 1
             fi
 

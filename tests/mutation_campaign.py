@@ -6,10 +6,18 @@ import argparse
 import json
 import random
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 from tests import mutation
 from tests import mutation_oracle
+
+
+@dataclass(frozen=True)
+class ReplayCase:
+    key: mutation.MutationKey
+    source_blob: str
+    engine_blob: str
 
 
 def build_work_set(
@@ -213,14 +221,9 @@ def replay_exact(
     return executed, dead
 
 
-def _parse_key(raw: str) -> mutation.MutationKey:
-    try:
-        value = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ValueError(
-            "mutation key must be valid JSON"
-        ) from exc
-
+def _key_from_value(
+    value: object,
+) -> mutation.MutationKey:
     if (
         not isinstance(value, list)
         or len(value) != 4
@@ -242,6 +245,292 @@ def _parse_key(raw: str) -> mutation.MutationKey:
         value[2],
         value[3],
     )
+
+
+def _parse_key(raw: str) -> mutation.MutationKey:
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            "mutation key must be valid JSON"
+        ) from exc
+
+    return _key_from_value(value)
+
+
+def _blob_id(
+    value: object,
+    field: str,
+) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 40
+        or any(
+            character not in "0123456789abcdef"
+            for character in value
+        )
+    ):
+        raise ValueError(
+            f"{field} must be a lowercase 40-character Git blob ID"
+        )
+
+    return value
+
+
+def _report_failure_cases(
+    path: Path,
+) -> tuple[ReplayCase, ...]:
+    if not path.is_file():
+        raise ValueError(
+            f"mutation report is missing: {path}"
+        )
+
+    start_events: list[dict[str, object]] = []
+    complete_events: list[dict[str, object]] = []
+    failures: list[ReplayCase] = []
+
+    for line_number, raw in enumerate(
+        path.read_text(
+            encoding="utf-8"
+        ).splitlines(),
+        start=1,
+    ):
+        if not raw.strip():
+            continue
+
+        try:
+            event = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"{path}:{line_number}: invalid JSON"
+            ) from exc
+
+        if not isinstance(event, dict):
+            raise ValueError(
+                f"{path}:{line_number}: event must be an object"
+            )
+
+        event_kind = event.get("event")
+
+        if event_kind == "campaign_start":
+            start_events.append(event)
+            continue
+
+        if event_kind == "campaign_complete":
+            complete_events.append(event)
+            continue
+
+        if (
+            event_kind != "mutant_outcome"
+            or event.get("outcome")
+            != "unclassified_survivor"
+        ):
+            continue
+
+        try:
+            key = _key_from_value(
+                event.get("key")
+            )
+            source_blob = _blob_id(
+                event.get("source_blob"),
+                "source_blob",
+            )
+            engine_blob = _blob_id(
+                event.get("engine_blob"),
+                "engine_blob",
+            )
+        except ValueError as exc:
+            raise ValueError(
+                f"{path}:{line_number}: {exc}"
+            ) from exc
+
+        failures.append(
+            ReplayCase(
+                key=key,
+                source_blob=source_blob,
+                engine_blob=engine_blob,
+            )
+        )
+
+    if len(start_events) != 1:
+        raise ValueError(
+            f"{path}: expected exactly one campaign_start event, "
+            f"found {len(start_events)}"
+        )
+
+    if len(complete_events) != 1:
+        raise ValueError(
+            f"{path}: expected exactly one campaign_complete event, "
+            f"found {len(complete_events)}"
+        )
+
+    start = start_events[0]
+    complete = complete_events[0]
+
+    try:
+        start_engine = _blob_id(
+            start.get("engine_blob"),
+            "campaign_start engine_blob",
+        )
+    except ValueError as exc:
+        raise ValueError(
+            f"{path}: {exc}"
+        ) from exc
+
+    sources = start.get(
+        "target_source_blobs"
+    )
+
+    if not isinstance(sources, dict):
+        raise ValueError(
+            f"{path}: campaign_start target_source_blobs "
+            "must be an object"
+        )
+
+    expected_failures = complete.get(
+        "unclassified_survivors"
+    )
+
+    if (
+        not isinstance(
+            expected_failures,
+            int,
+        )
+        or isinstance(
+            expected_failures,
+            bool,
+        )
+        or expected_failures < 0
+    ):
+        raise ValueError(
+            f"{path}: campaign_complete "
+            "unclassified_survivors must be "
+            "a non-negative integer"
+        )
+
+    if expected_failures != len(failures):
+        raise ValueError(
+            f"{path}: campaign_complete records "
+            f"{expected_failures} unclassified survivors "
+            f"but {len(failures)} outcome events were found"
+        )
+
+    for case in failures:
+        if case.engine_blob != start_engine:
+            raise ValueError(
+                f"{path}: mutation outcome engine blob "
+                "does not match campaign_start"
+            )
+
+        start_source = sources.get(
+            case.key[0]
+        )
+
+        if start_source != case.source_blob:
+            raise ValueError(
+                f"{path}: mutation outcome source blob "
+                f"for {case.key[0]} does not match "
+                "campaign_start"
+            )
+
+    return tuple(failures)
+
+
+def failure_cases(
+    report_paths: tuple[Path, ...],
+) -> tuple[ReplayCase, ...]:
+    """Load the exact unclassified survivors from completed shard reports."""
+
+    if not report_paths:
+        raise ValueError(
+            "at least one mutation report is required"
+        )
+
+    selected: list[ReplayCase] = []
+    seen: dict[
+        mutation.MutationKey,
+        tuple[str, str],
+    ] = {}
+
+    for path in report_paths:
+        for case in _report_failure_cases(
+            path
+        ):
+            pins = (
+                case.source_blob,
+                case.engine_blob,
+            )
+            previous = seen.get(
+                case.key
+            )
+
+            if previous is not None:
+                if previous != pins:
+                    raise ValueError(
+                        "same mutation key appears with "
+                        "conflicting source or engine pins"
+                    )
+
+                continue
+
+            seen[case.key] = pins
+            selected.append(case)
+
+    return tuple(selected)
+
+
+def replay_failures(
+    root: Path,
+    report_paths: tuple[Path, ...],
+    command: list[str] | None = None,
+) -> tuple[
+    tuple[mutation.Mutant, bool],
+    ...,
+]:
+    """Replay only unclassified survivors recorded by completed campaigns."""
+
+    cases = failure_cases(
+        report_paths
+    )
+
+    if not cases:
+        return ()
+
+    oracle = (
+        mutation_oracle.command()
+        if command is None
+        else command
+    )
+
+    baseline = mutation.baseline(
+        root,
+        oracle,
+    )
+
+    if baseline.returncode != 0:
+        raise RuntimeError(
+            "mutation replay baseline failed; "
+            "replay results would be invalid\n\n"
+            "stdout:\n"
+            f"{baseline.stdout.decode(errors='replace')}\n"
+            "stderr:\n"
+            f"{baseline.stderr.decode(errors='replace')}"
+        )
+
+    results = []
+
+    for case in cases:
+        results.append(
+            replay_exact(
+                root,
+                case.key,
+                case.source_blob,
+                case.engine_blob,
+                oracle,
+            )
+        )
+
+    return tuple(results)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -281,34 +570,39 @@ def _parser() -> argparse.ArgumentParser:
         help="repository root; defaults to the current repository",
     )
 
+    replay_failures_parser = subparsers.add_parser(
+        "replay-failures",
+        help=(
+            "replay only unclassified survivors "
+            "from completed JSONL campaign reports"
+        ),
+    )
+    replay_failures_parser.add_argument(
+        "reports",
+        nargs="+",
+        help=(
+            "one or more mutation-report JSONL files; "
+            "shell globs may be used"
+        ),
+    )
+    replay_failures_parser.add_argument(
+        "--root",
+        default=str(mutation.ROOT),
+        help="repository root; defaults to the current repository",
+    )
+
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = _parser()
-    args = parser.parse_args(argv)
-
-    if args.action != "replay":
-        parser.error(
-            f"unsupported action: {args.action}"
-        )
-
-    try:
-        key = _parse_key(args.key_json)
-        mutant, dead = replay_exact(
-            Path(args.root),
-            key,
-            args.source_blob,
-            args.engine_blob,
-        )
-    except (ValueError, RuntimeError) as exc:
-        print(
-            f"mutation replay failed: {exc}",
-            file=sys.stderr,
-        )
-        return 2
-
-    outcome = "killed" if dead else "survived"
+def _print_result(
+    mutant: mutation.Mutant,
+    dead: bool,
+) -> None:
+    outcome = (
+        "killed"
+        if dead
+        else "survived"
+    )
 
     print(
         f"{outcome}: "
@@ -319,7 +613,90 @@ def main(argv: list[str] | None = None) -> int:
         flush=True,
     )
 
-    return 0
+
+def main(argv: list[str] | None = None) -> int:
+    parser = _parser()
+    args = parser.parse_args(argv)
+
+    if args.action == "replay":
+        try:
+            key = _parse_key(
+                args.key_json
+            )
+            mutant, dead = replay_exact(
+                Path(args.root),
+                key,
+                args.source_blob,
+                args.engine_blob,
+            )
+        except (
+            ValueError,
+            RuntimeError,
+        ) as exc:
+            print(
+                f"mutation replay failed: {exc}",
+                file=sys.stderr,
+            )
+            return 2
+
+        _print_result(
+            mutant,
+            dead,
+        )
+        return 0
+
+    if args.action == "replay-failures":
+        try:
+            results = replay_failures(
+                Path(args.root),
+                tuple(
+                    Path(path)
+                    for path in args.reports
+                ),
+            )
+        except (
+            ValueError,
+            RuntimeError,
+        ) as exc:
+            print(
+                f"mutation replay failed: {exc}",
+                file=sys.stderr,
+            )
+            return 2
+
+        if not results:
+            print(
+                "no unclassified survivors recorded "
+                "in the supplied reports",
+                flush=True,
+            )
+            return 0
+
+        surviving = 0
+
+        for mutant, dead in results:
+            _print_result(
+                mutant,
+                dead,
+            )
+
+            if not dead:
+                surviving += 1
+
+        print(
+            "replayed "
+            f"{len(results)} previously unclassified "
+            "survivors; "
+            f"{surviving} still survive",
+            flush=True,
+        )
+
+        return 1 if surviving else 0
+
+    parser.error(
+        f"unsupported action: {args.action}"
+    )
+    return 2
 
 
 if __name__ == "__main__":

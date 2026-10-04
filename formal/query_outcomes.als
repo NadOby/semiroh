@@ -159,15 +159,27 @@ fun RequiredChildren[a: Rel, b: Rel]: Rel -> Rel {
 
 
 /*
- * Every examined compatible pair contributes its corresponding child pairs
- * either to the already examined set or to the unresolved frontier.
+ * Child pairs demanded by all examined locally compatible pairs.
+ */
+fun RequiredByExamined[c: Comparison]: Rel -> Rel {
+    {
+        childA: c.leftState.rels,
+        childB: c.rightState.rels |
+            some a: c.leftState.rels,
+                 b: c.rightState.rels |
+                (a -> b) in c.examined
+                and PairLocallyCompatible[a, b]
+                and (childA -> childB) in RequiredChildren[a, b]
+    }
+}
+
+
+/*
+ * The frontier is exactly the required child pairs that have not yet been
+ * examined.
  */
 pred ComparisonIsExpanded[c: Comparison] {
-    all a: c.leftState.rels, b: c.rightState.rels |
-        (a -> b) in c.examined
-        and PairLocallyCompatible[a, b]
-        implies
-        RequiredChildren[a, b] in c.examined + c.frontier
+    c.frontier = RequiredByExamined[c] - c.examined
 }
 
 

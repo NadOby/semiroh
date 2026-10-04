@@ -1,6 +1,6 @@
 # Testing Model
 
-This document defines the role of the executable semantic test corpus in SEMIROH.
+This document defines the role of the executable semantic test corpus in SHEAR.
 
 The Python implementation is an executable semantic reference model. Tests
 validate semantic behaviour and architectural invariants against that model.

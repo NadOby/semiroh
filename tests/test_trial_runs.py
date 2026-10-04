@@ -3,7 +3,7 @@
 import random
 import unittest
 
-from semiroh import (
+from shear import (
     ActivationRejected,
     ConstraintResult,
     Converter,

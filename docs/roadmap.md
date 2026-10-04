@@ -51,7 +51,7 @@ first line is that the graph is the source of truth.
 
 **Decided.** Task 7 lowers graph form to a small bytecode, plain tuples of
 instructions such as `ARG x`, `MUL`, `CALL f`, run by a VM with its own
-explicit stack, rather than to Python closures. A SEMIROH program can emit
+explicit stack, rather than to Python closures. A SHEAR program can emit
 bytecode as data, which the self-hosting milestone (task 8) needs; it
 cannot emit Python closures. An explicit stack also removes the recursion
 limit the corpus found (about 200 levels of non-tail recursion). The
@@ -70,7 +70,7 @@ owned subtree (relation_model.md §7).
 **Done** (#20).
 
 A library of small programs with expected results, in
-`semiroh/examples/`. Every interpreter and representation must run them
+`shear/examples/`. Every interpreter and representation must run them
 unchanged, so the corpus gives differential tests when there are two.
 Each program is data: a program state, an entry, and cases
 `(args, expected result, expected cells)`. A self-modifying program may
@@ -179,7 +179,7 @@ what it emits is not run yet (task 10).
 
 First, an operation that reads a function's code as data (input form or
 nodes), so a program can see the code it compiles; today only the host has
-`function_at`. Then write the lowering pass from task 7 in SEMIROH itself:
+`function_at`. Then write the lowering pass from task 7 in SHEAR itself:
 a program recompiles and hot swaps part of itself with its own compiler.
 
 ### 9. A compiler pass that keeps continuity (one session)
@@ -190,9 +190,9 @@ For example, constant folding written as a graph transformation that
 declares its merges. Optimised, hot-swapped code keeps a mapping to its
 source nodes, which a test checks. Independent of task 8.
 
-### 10. A bytecode interpreter in SEMIROH (one session)
+### 10. A bytecode interpreter in SHEAR (one session)
 
-**Done** (#32). The design is in vm_in_semiroh.md.
+**Done** (#32). The design is in vm_in_shear.md.
 
 Owner's direction after task 8: "probably". A small VM written in the
 language runs the chunks the compiler of task 8 emits, so a program compiles
@@ -291,7 +291,7 @@ has finished. Creating or calling a closure requires no activation capability.
 returned, stored and captured as ordinary values; closure calls obey ordinary
 arity and tail-call rules; continuity keeps closure code identities meaningful
 across activation; the host and self-hosted compilers agree on closure
-lowering; the SEMIROH VM runs the emitted closure bytecode; and `MISSING` is
+lowering; the SHEAR VM runs the emitted closure bytecode; and `MISSING` is
 empty.
 
 ## F. Verification and architecture

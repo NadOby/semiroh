@@ -1,7 +1,7 @@
 # Data, Local Names and Callable Values
 
 **Status: implemented** (roadmap.md task 6; extended by tasks 10 and 17).
-`semiroh/lang.py` and `semiroh/bytecode.py` implement it;
+`shear/lang.py` and `shear/bytecode.py` implement it;
 `tests/test_data_ops.py` is the main acceptance suite, and
 `tests/test_data_graph_form.py` covers graph form and the frames of tail calls.
 Closures are specified in closures.md and tested in `tests/test_closures.py`.
@@ -140,7 +140,7 @@ Task 6 added the `data` and `higher order` tags and the tier-2 examples:
 Task 7 later removed the remaining host-stack limit for non-tail recursion.
 
 Task 17 added closure examples `make_adder` and `compose`, closing the final
-corpus gap. `semiroh.examples.MISSING` is currently empty.
+corpus gap. `shear.examples.MISSING` is currently empty.
 
 ## 6. Acceptance tests and notes
 

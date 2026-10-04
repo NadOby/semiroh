@@ -1,11 +1,11 @@
-"""Acceptance tests for the code reader and the compiler written in SEMIROH
+"""Acceptance tests for the code reader and the compiler written in SHEAR
 (docs/self_hosting.md, roadmap task 8).
 """
 
 import random
 import unittest
 
-from semiroh import (
+from shear import (
     CellDeclaration,
     EntityID,
     IntRange,
@@ -14,10 +14,10 @@ from semiroh import (
     canonicalize,
     canonical_serialize,
 )
-from semiroh.bytecode import chunk_of
-from semiroh.examples import self_hosting
-from semiroh.examples._support import program
-from semiroh.lang import (
+from shear.bytecode import chunk_of
+from shear.examples import self_hosting
+from shear.examples._support import program
+from shear.lang import (
     Function,
     LanguageError,
     _decode,
@@ -27,7 +27,7 @@ from semiroh.lang import (
     load,
     run,
 )
-from semiroh.relations import relation_of
+from shear.relations import relation_of
 
 F = EntityID("f")
 G = EntityID("g")
@@ -39,7 +39,7 @@ LOWER = self_hosting.LOWER
 def expand(state: State, entity: EntityID):
     """The chunk of a node with every child reference replaced by the
     child's own expanded chunk, and every entity operand by its link name,
-    which is the form the compiler in SEMIROH produces.
+    which is the form the compiler in SHEAR produces.
     """
 
     node = relation_of(state.values[entity])
@@ -193,7 +193,7 @@ class CodeOperationTests(unittest.TestCase):
 
 
 class CompilerAgreesWithTheHostTests(unittest.TestCase):
-    """``lower`` in SEMIROH gives what ``semiroh.bytecode`` gives."""
+    """``lower`` in SHEAR gives what ``shear.bytecode`` gives."""
 
     def runtime(self) -> Runtime:
         return Runtime(load(program(self_hosting.compiler_entities())))

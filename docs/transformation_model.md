@@ -1,7 +1,7 @@
 # Transformation Model
 
 This document defines the current semantic contract for transformations in
-SEMIROH.
+SHEAR.
 
 It is normative where stated. Implementation details that are not part of the
 semantic contract must not be inferred from the Python reference

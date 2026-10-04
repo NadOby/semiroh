@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError
 import unittest
 
-from semiroh import (
+from shear import (
     AllOf,
     AnyOf,
     CellDeclaration,
@@ -29,9 +29,9 @@ from semiroh import (
     canonical_serialize,
     canonicalize,
 )
-from semiroh.canonical import CanonicalNode
-from semiroh.closures import Closure, closure_value
-from semiroh.lang import (
+from shear.canonical import CanonicalNode
+from shear.closures import Closure, closure_value
+from shear.lang import (
     FUNCTION_ROLE,
     Function,
     LanguageError,
@@ -40,7 +40,7 @@ from semiroh.lang import (
     load,
     run,
 )
-from semiroh.transforms import (
+from shear.transforms import (
     EntityChange,
     TransformationMapping,
 )

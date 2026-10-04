@@ -6,8 +6,8 @@ import unittest
 from dataclasses import replace
 from typing import Iterator
 
-from semiroh import DanglingRelation, EntityID, State
-from semiroh.continuity import (
+from shear import DanglingRelation, EntityID, State
+from shear.continuity import (
     CASES,
     Case,
     DesignatorError,
@@ -15,12 +15,12 @@ from semiroh.continuity import (
     check,
     resolve,
 )
-from semiroh.examples import EXAMPLES
-from semiroh.lang import Function, define, load
-from semiroh.relations import relation_of
-from semiroh.runtime import ActivationRejected
-from semiroh.syntax import parse
-from semiroh.transforms import TransformResult, transform_with_mapping
+from shear.examples import EXAMPLES
+from shear.lang import Function, define, load
+from shear.relations import relation_of
+from shear.runtime import ActivationRejected
+from shear.syntax import parse
+from shear.transforms import TransformResult, transform_with_mapping
 
 F = EntityID("f")
 

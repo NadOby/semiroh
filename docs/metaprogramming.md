@@ -1,6 +1,6 @@
 # Metaprogramming
 
-**Status: implemented.** `semiroh/lang.py` and `semiroh/bytecode.py`
+**Status: implemented.** `shear/lang.py` and `shear/bytecode.py`
 implement the metaprogramming operations below, and `tests/test_metaprogramming.py` passes; since
 roadmap task 4 its programs are loaded into graph form (graph_form.md), with
 the behaviour assertions unchanged.
@@ -178,7 +178,7 @@ retires.
 
 ## 6. API
 
-Additions to `semiroh/lang.py`:
+Additions to `shear/lang.py`:
 
     ("quote", template)               code as data with ("unquote", e) holes
     ("function", params, body)        a Function value

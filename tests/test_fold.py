@@ -5,11 +5,11 @@
 import random
 import unittest
 
-from semiroh import CellDeclaration, EntityID, IntRange, Runtime, State
-from semiroh.bytecode import lowered_count
-from semiroh.examples._support import program
-from semiroh.fold import fold_constants, sources_of
-from semiroh.lang import (
+from shear import CellDeclaration, EntityID, IntRange, Runtime, State
+from shear.bytecode import lowered_count
+from shear.examples._support import program
+from shear.fold import fold_constants, sources_of
+from shear.lang import (
     Function,
     LanguageError,
     _definition_of,
@@ -19,7 +19,7 @@ from semiroh.lang import (
     load,
     run,
 )
-from semiroh.relations import relation_of
+from shear.relations import relation_of
 
 F = EntityID("f")
 G = EntityID("g")

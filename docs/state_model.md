@@ -1,6 +1,6 @@
 # State Model
 
-This document defines the current semantic state model of SEMIROH.
+This document defines the current semantic state model of SHEAR.
 
 A semantic state is an immutable collection of semantic values together with
 its semantic ownership relation.

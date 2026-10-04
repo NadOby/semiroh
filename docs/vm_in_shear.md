@@ -1,14 +1,14 @@
-# A Bytecode Interpreter in SEMIROH
+# A Bytecode Interpreter in SHEAR
 
 **Status: implemented** (roadmap.md task 10; extended by task 17).
-`semiroh/lang.py` and `semiroh/bytecode.py` implement the operations below;
-`semiroh/examples/vm.py` holds the interpreter and the program that swaps the
+`shear/lang.py` and `shear/bytecode.py` implement the operations below;
+`shear/examples/vm.py` holds the interpreter and the program that swaps the
 compiler onto it; `tests/test_vm.py` and `tests/test_closure_self_hosting.py`
 cover the interpreted path.
 
 Task 8 wrote the compiler in the language and checked its output against the
 host's. This step runs that output: an interpreter for the chunks of `lower`,
-written in SEMIROH, so a program can compile a function of its own, swap in a
+written in SHEAR, so a program can compile a function of its own, swap in a
 function that runs the chunk on the interpreter, and do this to the compiler
 itself (self_hosting.md section 5). The host's virtual machine still runs
 everything; the interpreter is one more program on it.
@@ -113,7 +113,7 @@ where:
 - `captures` is the captured lexical environment as `(name, value)` pairs;
 - `links` is the link table of the function in which the closure was created.
 
-This representation is internal to the SEMIROH-written VM. It intentionally
+This representation is internal to the SHEAR-written VM. It intentionally
 does not reuse the host Python `Closure` record.
 
 `CLOSURE` constructs that value by calling `vm_capture` for the declared
@@ -161,7 +161,7 @@ evaluating later arguments.
 
 **Decided:**
 
-`semiroh/examples/vm.py` builds `swap_all()`. It reads each function of the
+`shear/examples/vm.py` builds `swap_all()`. It reads each function of the
 compiler (`upper`, `evals`, `seq_code`, `lower`) with `code` and `linksof`,
 compiles it with `lower`, and activates one function per name with the same
 parameters and a body equivalent to:
@@ -179,7 +179,7 @@ chunk.
 The interpreter's own functions are not swapped, since the swapped interpreter
 would otherwise call itself recursively through the same abstraction layer.
 
-After `swap_all()`, compiler calls pass through the SEMIROH-written
+After `swap_all()`, compiler calls pass through the SHEAR-written
 interpreter and `lower` produces the same results as before. Compiling its own
 source on its own bytecode therefore reaches the same bootstrap fixpoint.
 
@@ -203,11 +203,11 @@ The acceptance suites cover:
 - applying tagged references and closures;
 - closure arity rejection;
 - host compiler versus embedded compiler closure lowering;
-- execution of compiled closure code by the SEMIROH VM.
+- execution of compiled closure code by the SHEAR VM.
 
 Mutation testing of `vm.py` remains part of the broader verification suite.
 
-The SEMIROH interpreter is intentionally much slower than the host machine;
+The SHEAR interpreter is intentionally much slower than the host machine;
 performance is not its purpose. It exists as an independent executable path
 for compiler output.
 

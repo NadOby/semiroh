@@ -7,7 +7,7 @@ A chunk holds the instructions of one node only and names child nodes by
 ``EntityID``. It therefore depends only on the node's semantic value and can
 be cached on that value across program versions.
 
-Execution lives in :mod:`semiroh.machine`.
+Execution lives in :mod:`shear.machine`.
 """
 
 from __future__ import annotations
@@ -472,7 +472,7 @@ def run(
     *args: Any,
     may_activate: bool = False,
 ) -> Any:
-    """Execute bytecode through :mod:`semiroh.machine`."""
+    """Execute bytecode through :mod:`shear.machine`."""
 
     # Lazy import keeps machine -> bytecode access to chunks and the mutable
     # CALL_DEPTH_LIMIT possible without an import cycle during module setup.

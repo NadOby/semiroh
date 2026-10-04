@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # integrity checks are test-harness meta-tests rather than mutation kill
 # oracles. They use this marker to exclude themselves identically from both
 # subprocess kinds while remaining mandatory in the ordinary suite.
-MUTATION_SUBPROCESS_ENV = "SEMIROH_MUTATION_SUBPROCESS"
+MUTATION_SUBPROCESS_ENV = "SHEAR_MUTATION_SUBPROCESS"
 
 _COMPARE = {
     ast.Lt: ast.GtE,
@@ -273,7 +273,7 @@ def _suite_environment() -> dict[str, str]:
         key: value
         for key, value in os.environ.items()
         if (
-            not key.startswith("SEMIROH_MUTATE")
+            not key.startswith("SHEAR_MUTATE")
             and key != MUTATION_SUBPROCESS_ENV
         )
     }

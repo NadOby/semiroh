@@ -8,7 +8,7 @@ core transformations; only whole-body replacement needs `define`.
 
 import unittest
 
-from semiroh import (
+from shear import (
     CellDeclaration,
     DanglingRelation,
     EntityID,
@@ -20,7 +20,7 @@ from semiroh import (
     relation_of,
     transform_with_mapping,
 )
-from semiroh.lang import Function, define, function_at, links, load, run
+from shear.lang import Function, define, function_at, links, load, run
 
 DOUBLE = EntityID("double")
 TWICE = EntityID("twice")

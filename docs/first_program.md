@@ -1,6 +1,6 @@
 # First Program
 
-**Status: done.** `semiroh/lang.py` and `semiroh/bytecode.py` implement this
+**Status: done.** `shear/lang.py` and `shear/bytecode.py` implement this
 document; the acceptance
 tests in `tests/test_first_program.py` pass unchanged, and no design question
 deferred by ownership_model.md §13 turned out to be needed (section 8).
@@ -95,8 +95,8 @@ activation that leaves the old program running.
 
 ## 5. API
 
-Module `semiroh/lang.py`, a layer on top of the core (not re-exported from
-`semiroh/__init__.py`):
+Module `shear/lang.py`, a layer on top of the core (not re-exported from
+`shear/__init__.py`):
 
     Function(params, body)      semantic record; body stored canonicalized
     function_of(value)          Function held by a Value, or None
@@ -111,7 +111,7 @@ plain core transformations on it.
 ## 6. Acceptance tests
 
 `tests/test_first_program.py` pins the behaviour above. It fails until
-`semiroh/lang.py` exists; the implementation is done when it passes without
+`shear/lang.py` exists; the implementation is done when it passes without
 changes. The implementer adds unit tests for the interpreter itself
 (each operation, each `LanguageError` case) and a seeded property test where
 it fits.
@@ -135,6 +135,6 @@ Section 2 already decided ownership is not used by this program: functions
 and cells sit in `State.values` with an empty ownership relation, entity
 continuity for activation is declared through `transform_with_mapping`'s
 `entity_mappings` alone (`identity()` in the tests), and nothing in
-`semiroh/lang.py` reads or writes ownership. A future program that needs a
+`shear/lang.py` reads or writes ownership. A future program that needs a
 module or program root, explicit ownership transfer, or creation placing a
 new entity under an owner would be the first to force an answer there.

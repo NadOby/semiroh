@@ -1,4 +1,4 @@
-"""Canonical immutable serialization for SEMIROH semantic values."""
+"""Canonical immutable serialization for SHEAR semantic values."""
 
 from __future__ import annotations
 

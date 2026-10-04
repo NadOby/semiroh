@@ -1,4 +1,4 @@
-"""Execution machine for SEMIROH bytecode."""
+"""Execution machine for SHEAR bytecode."""
 
 from __future__ import annotations
 

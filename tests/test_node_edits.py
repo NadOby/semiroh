@@ -2,7 +2,7 @@
 
 import unittest
 
-from semiroh import (
+from shear import (
     ActivationRejected,
     CellDeclaration,
     EntityID,
@@ -12,7 +12,7 @@ from semiroh import (
     Value,
     relation_of,
 )
-from semiroh.lang import (
+from shear.lang import (
     Function,
     LanguageError,
     _definition_of,

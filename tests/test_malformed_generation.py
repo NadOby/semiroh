@@ -5,9 +5,9 @@ from __future__ import annotations
 import random
 import unittest
 
-from semiroh import EntityID, Runtime
-from semiroh.examples._support import program
-from semiroh.lang import (
+from shear import EntityID, Runtime
+from shear.examples._support import program
+from shear.lang import (
     Function,
     LanguageError,
     function_at,

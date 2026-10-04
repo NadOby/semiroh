@@ -9,7 +9,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from semiroh.examples.ledger import measurements
+from shear.examples.ledger import measurements
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,7 +19,7 @@ LEDGER = ROOT / "docs" / "graph_ledger.md"
 class LedgerTests(unittest.TestCase):
     def test_script_runs_and_prints_its_measurements(self):
         completed = subprocess.run(
-            [sys.executable, "-m", "semiroh.examples.ledger"],
+            [sys.executable, "-m", "shear.examples.ledger"],
             cwd=ROOT,
             check=True,
             capture_output=True,

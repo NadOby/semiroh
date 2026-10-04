@@ -1,15 +1,15 @@
 """Regression tests found by review of text syntax version 0 (docs/syntax.md).
 
-Each pins a rule of the syntax that a planted bug in ``semiroh/syntax.py`` got
+Each pins a rule of the syntax that a planted bug in ``shear/syntax.py`` got
 past the earlier tests: precedence, the scope of ``unquote`` and ``literal``
 holes, the columns of parser errors, and the ``else`` of an inline ``if``.
 """
 
 import unittest
 
-from semiroh import EntityID, Runtime
-from semiroh.lang import load, run
-from semiroh.syntax import SourceError, parse
+from shear import EntityID, Runtime
+from shear.lang import load, run
+from shear.syntax import SourceError, parse
 
 
 def value_of(expression: str) -> object:

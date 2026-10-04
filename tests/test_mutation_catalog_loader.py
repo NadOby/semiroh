@@ -14,7 +14,7 @@ from tests.mutation_catalog import (
 
 ENGINE_BLOB = "a" * 40
 SOURCE_BLOB = "b" * 40
-TARGET = "semiroh/bytecode.py"
+TARGET = "shear/bytecode.py"
 
 VALID_CATALOG = f'''source_blob = "{SOURCE_BLOB}"
 
@@ -94,7 +94,7 @@ class MutationCatalogLoaderTests(unittest.TestCase):
 
     def write_valid_catalog(self) -> None:
         self.write(
-            "semiroh/bytecode.toml",
+            "shear/bytecode.toml",
             VALID_CATALOG,
         )
 
@@ -156,7 +156,7 @@ class MutationCatalogLoaderTests(unittest.TestCase):
 
         with self.assertRaisesRegex(
             CatalogError,
-            "missing catalogs: semiroh/bytecode.py",
+            "missing catalogs: shear/bytecode.py",
         ):
             load_catalog(self.root)
 
@@ -166,7 +166,7 @@ class MutationCatalogLoaderTests(unittest.TestCase):
 
         with self.assertRaisesRegex(
             CatalogError,
-            "unlisted catalogs: semiroh/bytecode.py",
+            "unlisted catalogs: shear/bytecode.py",
         ):
             load_catalog(self.root)
 
@@ -174,7 +174,7 @@ class MutationCatalogLoaderTests(unittest.TestCase):
         self,
     ) -> None:
         self.write_manifest(
-            "semiroh/not_a_target.py",
+            "shear/not_a_target.py",
         )
 
         with self.assertRaisesRegex(
@@ -185,8 +185,8 @@ class MutationCatalogLoaderTests(unittest.TestCase):
 
     def test_manifest_targets_must_be_sorted(self) -> None:
         self.write_manifest(
-            "semiroh/canonical.py",
-            "semiroh/bytecode.py",
+            "shear/canonical.py",
+            "shear/bytecode.py",
         )
 
         with self.assertRaisesRegex(
@@ -204,14 +204,14 @@ class MutationCatalogLoaderTests(unittest.TestCase):
 
         with self.assertRaisesRegex(
             CatalogError,
-            "catalog data must mirror a target path below semiroh/",
+            "catalog data must mirror a target path below shear/",
         ):
             load_catalog(self.root)
 
     def test_invalid_source_blob_is_rejected(self) -> None:
         self.write_manifest(TARGET)
         self.write(
-            "semiroh/bytecode.toml",
+            "shear/bytecode.toml",
             VALID_CATALOG.replace(
                 SOURCE_BLOB,
                 "not-a-blob",
@@ -229,7 +229,7 @@ class MutationCatalogLoaderTests(unittest.TestCase):
     ) -> None:
         self.write_manifest(TARGET)
         self.write(
-            "semiroh/bytecode.toml",
+            "shear/bytecode.toml",
             VALID_CATALOG.replace(
                 "\n\n[[survivor]]",
                 "\nunexpected = true\n\n[[survivor]]",
@@ -245,7 +245,7 @@ class MutationCatalogLoaderTests(unittest.TestCase):
     def test_boolean_occurrence_is_rejected(self) -> None:
         self.write_manifest(TARGET)
         self.write(
-            "semiroh/bytecode.toml",
+            "shear/bytecode.toml",
             VALID_CATALOG.replace(
                 "occurrence = 0",
                 "occurrence = true",
@@ -263,7 +263,7 @@ class MutationCatalogLoaderTests(unittest.TestCase):
     ) -> None:
         self.write_manifest(TARGET)
         self.write(
-            "semiroh/bytecode.toml",
+            "shear/bytecode.toml",
             VALID_CATALOG.replace(
                 'classification = "unspecified"',
                 'classification = "probably-fine"',
@@ -281,7 +281,7 @@ class MutationCatalogLoaderTests(unittest.TestCase):
     ) -> None:
         self.write_manifest(TARGET)
         self.write(
-            "semiroh/bytecode.toml",
+            "shear/bytecode.toml",
             VALID_CATALOG + SURVIVOR_BLOCK,
         )
 
@@ -294,7 +294,7 @@ class MutationCatalogLoaderTests(unittest.TestCase):
     def test_malformed_toml_is_rejected(self) -> None:
         self.write_manifest(TARGET)
         self.write(
-            "semiroh/bytecode.toml",
+            "shear/bytecode.toml",
             'source_blob = "unterminated\n',
         )
 

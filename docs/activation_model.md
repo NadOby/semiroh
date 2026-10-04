@@ -3,7 +3,7 @@
 This document describes what happens when a running program activates a new
 version of its own program state.
 
-Every SEMIROH program carries its compiler and can modify itself. Program
+Every SHEAR program carries its compiler and can modify itself. Program
 modification produces a new immutable state (see
 [`transformation_model.md`](transformation_model.md)). Activation is the
 separate step that makes the running program execute that state.
@@ -272,7 +272,7 @@ A hold is deliberately much narrower than a borrow:
 - it is internal: it does not appear in types, has no lifetimes or aliasing
   rules, and user code never creates or checks one.
 
-SEMIROH does not introduce a general borrowing system to retire versions.
+SHEAR does not introduce a general borrowing system to retire versions.
 
 At most two versions run in one runtime: the active version and the previous
 one, as in Erlang. Two is the minimum compatible with pinned references
@@ -393,7 +393,7 @@ The Python reference model currently provides:
         is rejected whenever the activation would be, and the main runtime
         is unchanged and not limited by its two-version bound (section 8)
 
-The language layer in `semiroh.lang` additionally provides:
+The language layer in `shear.lang` additionally provides:
 
     Function
         semantic function value containing parameter names and expression

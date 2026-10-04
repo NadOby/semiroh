@@ -2,10 +2,10 @@
 
 import unittest
 
-from semiroh import EntityID, State, Value
-from semiroh.lang import function_at, load
-from semiroh.reconcile import ReconcileError, reconcile
-from semiroh.syntax import parse, render_program
+from shear import EntityID, State, Value
+from shear.lang import function_at, load
+from shear.reconcile import ReconcileError, reconcile
+from shear.syntax import parse, render_program
 
 
 F = EntityID("f")

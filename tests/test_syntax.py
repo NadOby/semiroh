@@ -3,10 +3,10 @@
 import dataclasses
 import unittest
 
-from semiroh import EntityID, Runtime, canonical_serialize, canonicalize, transform_with_mapping
-from semiroh.examples import EXAMPLES, play
-from semiroh.lang import load, run
-from semiroh.syntax import SourceError, parse, render, render_program
+from shear import EntityID, Runtime, canonical_serialize, canonicalize, transform_with_mapping
+from shear.examples import EXAMPLES, play
+from shear.lang import load, run
+from shear.syntax import SourceError, parse, render, render_program
 
 COUNTER_TEXT = """\
 cell counter: int in 0..100 = 0

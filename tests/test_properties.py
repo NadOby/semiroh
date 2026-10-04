@@ -14,7 +14,7 @@ import random
 import unittest
 from typing import Any
 
-from semiroh import (
+from shear import (
     AmbiguousEntityMapping,
     CompositionResult,
     EntityID,

@@ -22,7 +22,7 @@ on:
 
   push:
     paths:
-      - "semiroh/**"
+      - "shear/**"
       - "tests/**"
       - "README.md"
       - "CLAUDE.md"
@@ -32,7 +32,7 @@ on:
 
   pull_request:
     paths:
-      - "semiroh/**"
+      - "shear/**"
       - "tests/**"
       - "README.md"
       - "CLAUDE.md"
@@ -60,7 +60,7 @@ jobs:
     name: tests (${{ matrix.lane }})
 
     env:
-      SEMIROH_CASES: ${{ inputs.generated_cases || '0' }}
+      SHEAR_CASES: ${{ inputs.generated_cases || '0' }}
 
     steps:
       - uses: actions/checkout@v7
@@ -89,12 +89,12 @@ jobs:
           - 3
 
     env:
-      SEMIROH_MUTATE: ${{ inputs.mutation_count }}
-      SEMIROH_MUTATE_SEED: ${{ inputs.mutation_seed }}
-      SEMIROH_MUTATE_BATCH: ${{ inputs.mutation_batch }}
-      SEMIROH_MUTATE_SHARDS: "4"
-      SEMIROH_MUTATE_SHARD: ${{ matrix.shard }}
-      SEMIROH_MUTATION_REPORT: mutation-report-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}.jsonl
+      SHEAR_MUTATE: ${{ inputs.mutation_count }}
+      SHEAR_MUTATE_SEED: ${{ inputs.mutation_seed }}
+      SHEAR_MUTATE_BATCH: ${{ inputs.mutation_batch }}
+      SHEAR_MUTATE_SHARDS: "4"
+      SHEAR_MUTATE_SHARD: ${{ matrix.shard }}
+      SHEAR_MUTATION_REPORT: mutation-report-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}.jsonl
 
     steps:
       - uses: actions/checkout@v7

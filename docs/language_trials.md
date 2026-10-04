@@ -1,6 +1,6 @@
 # Trials in the Language
 
-**Status: implemented.** `semiroh/lang.py` and `semiroh/bytecode.py`
+**Status: implemented.** `shear/lang.py` and `shear/bytecode.py`
 implement the `trial` operation below, and `tests/test_language_trials.py` passes; since roadmap task 4 its
 programs are loaded into graph form (graph_form.md), with the behaviour
 assertions unchanged.
@@ -102,7 +102,7 @@ before or after its one activation.
 
 ## 6. API
 
-Addition to `semiroh/lang.py`:
+Addition to `shear/lang.py`:
 
     ("trial", ("call", link, e, ...), link, f, ...)
         the call's result against the candidate; the real runtime unchanged
@@ -112,7 +112,7 @@ No new Python API: `trial` uses the existing `may_activate` grant of `run`.
 ## 7. Acceptance tests
 
 `tests/test_language_trials.py` pins the behaviour above. It fails until
-`semiroh/lang.py` implements it; the implementation is done when it passes
+`shear/lang.py` implements it; the implementation is done when it passes
 without changes, together with the rest of the suite. The implementer adds
 unit tests for each `LanguageError` case of `trial` (first operand not a
 call form, unknown call link, the pair errors), for the order of checks

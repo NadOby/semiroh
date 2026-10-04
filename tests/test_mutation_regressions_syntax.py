@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import unittest
 
-from semiroh import EntityID
-from semiroh.cells import cell_declaration
-from semiroh.lang import function_of
-from semiroh.syntax import SourceError, parse
+from shear import EntityID
+from shear.cells import cell_declaration
+from shear.lang import function_of
+from shear.syntax import SourceError, parse
 
 
 class SyntaxLiteralRegressionTests(unittest.TestCase):

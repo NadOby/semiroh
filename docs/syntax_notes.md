@@ -7,7 +7,7 @@ The first syntax built from them is specified in syntax.md.
 
 # Core Principle
 
-SEMIROH should have multiple representations of the same program.
+SHEAR should have multiple representations of the same program.
 
 No single representation should be forced to serve simultaneously as:
 
@@ -113,7 +113,7 @@ Optimized for:
 
 Possible forms:
 
-- SEMIROH IR
+- SHEAR IR
 - MLIR
 - LLVM IR
 - WASM IR
@@ -438,7 +438,7 @@ Possible architecture:
 ```text
 Semantic Graph
         ↓
-SEMIROH MLIR Dialect
+SHEAR MLIR Dialect
         ↓
 Standard MLIR
         ↓
@@ -447,17 +447,17 @@ LLVM Dialect
 LLVM IR
 ```
 
-Possible SEMIROH dialect operations:
+Possible SHEAR dialect operations:
 
 ```text
-semiroh.entity
-semiroh.relation
-semiroh.function
-semiroh.cell
-semiroh.read
-semiroh.write
-semiroh.activate
-semiroh.constraint
+shear.entity
+shear.relation
+shear.function
+shear.cell
+shear.read
+shear.write
+shear.activate
+shear.constraint
 ```
 
 ---

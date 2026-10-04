@@ -7,9 +7,9 @@ the code, in the enclosing function, are not.
 
 import unittest
 
-from semiroh.lang import FUNCTION_ROLE, LINKS_KIND
-from semiroh.relations import relation_of
-from semiroh.syntax import parse
+from shear.lang import FUNCTION_ROLE, LINKS_KIND
+from shear.relations import relation_of
+from shear.syntax import parse
 
 
 def links(text: str) -> dict[str, list[str]]:

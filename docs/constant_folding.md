@@ -1,6 +1,6 @@
 # Constant Folding as a Graph Transformation
 
-**Status: implemented** (roadmap.md task 9). `semiroh/fold.py` implements it
+**Status: implemented** (roadmap.md task 9). `shear/fold.py` implements it
 and `tests/test_fold.py` is its acceptance suite.
 
 The first compiler pass that changes code and keeps its identity honest:
@@ -84,13 +84,13 @@ nodes with a new version are lowered again (bytecode.md section 5): folding
   and after folding on several arguments, results and exceptions alike, fold
   to a fixed point, and never grow; every source node has a mapping whose
   destinations exist.
-- Mutation testing (`SEMIROH_MUTATE`) of `fold.py`: every one of its 64
+- Mutation testing (`SHEAR_MUTATE`) of `fold.py`: every one of its 64
   sites was tried; the two that survive change nothing (a dataclass flag and
   a return value that is never used).
 
 ## 5. Open
 
-- The pass is host code. Writing it in SEMIROH needs a way to build and
+- The pass is host code. Writing it in SHEAR needs a way to build and
   apply a transformation from inside the language (self_hosting.md).
 - Further folds: `seq` of constants, `len`/`item` on tuple literals,
   algebraic identities (`x + 0`), inlining a call to a constant function.

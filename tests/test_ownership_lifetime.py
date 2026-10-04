@@ -5,7 +5,7 @@ section 13).
 
 import unittest
 
-from semiroh import (
+from shear import (
     CellDeclaration,
     DanglingRelation,
     EntityID,

@@ -1,6 +1,6 @@
 # Constraint Model
 
-This document defines the current semantic model for constraints in SEMIROH.
+This document defines the current semantic model for constraints in SHEAR.
 
 The constraint system is not yet fully implemented. This document records the
 current semantic design rather than claiming a completed implementation.
@@ -180,7 +180,7 @@ truth or knowledge claim that it supports.
 
 ## 7. Constraint identity
 
-A constraint is a semantic value and therefore participates in the SEMIROH
+A constraint is a semantic value and therefore participates in the SHEAR
 identity model.
 
 Constraint identity must be independent of mutable evaluation state.
@@ -203,7 +203,7 @@ Evaluating a constraint does not modify it.
 Updating information relevant to a constraint therefore produces another
 semantic object rather than mutating the existing constraint.
 
-This is consistent with the general SEMIROH rule that semantic state and
+This is consistent with the general SHEAR rule that semantic state and
 semantic values are immutable by default.
 
 Physical implementations may use:

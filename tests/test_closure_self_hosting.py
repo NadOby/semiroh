@@ -2,12 +2,12 @@
 
 import unittest
 
-from semiroh import EntityID, Runtime, canonical_serialize, canonicalize
-from semiroh.bytecode import chunk_of
-from semiroh.examples import self_hosting, vm
-from semiroh.examples._support import program
-from semiroh.lang import Function, LanguageError, load, run
-from semiroh.relations import relation_of
+from shear import EntityID, Runtime, canonical_serialize, canonicalize
+from shear.bytecode import chunk_of
+from shear.examples import self_hosting, vm
+from shear.examples._support import program
+from shear.lang import Function, LanguageError, load, run
+from shear.relations import relation_of
 
 TARGET = EntityID("closure_target")
 
@@ -35,7 +35,7 @@ def closure_expression() -> tuple:
 
 
 def expanded_chunk(state, entity):
-    """Expand child EntityIDs the way the compiler written in SEMIROH does."""
+    """Expand child EntityIDs the way the compiler written in SHEAR does."""
 
     out = []
 
@@ -141,7 +141,7 @@ class ClosureSelfHostingTests(unittest.TestCase):
             f"\nactual:   {actual!r}\nexpected: {expected!r}",
         )
 
-    def test_semiroh_vm_runs_compiled_closure(self) -> None:
+    def test_shear_vm_runs_compiled_closure(self) -> None:
         runtime = self.runtime()
         chunk = run(
             runtime,

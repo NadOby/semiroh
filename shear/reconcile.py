@@ -2,7 +2,7 @@
 
 The graph is authoritative. ``reconcile`` parses a complete edited source
 view, compares its declarations with the graph, and expresses supported
-changes through :func:`semiroh.lang.define`. ``define`` performs continuity
+changes through :func:`shear.lang.define`. ``define`` performs continuity
 inference across the complete edit.
 
 Task 15 deliberately keeps this layer small. Version 0 has one program

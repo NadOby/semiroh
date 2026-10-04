@@ -1,6 +1,6 @@
 # Reference Model
 
-This document defines the current semantic model of references in SEMIROH.
+This document defines the current semantic model of references in SHEAR.
 
 A reference is a state-local, version-pinned handle to one semantic value.
 

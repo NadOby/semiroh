@@ -1,6 +1,6 @@
 # Identity Model
 
-This document defines the current identity model of SEMIROH.
+This document defines the current identity model of SHEAR.
 
 It distinguishes conceptual entity identity, semantic value version identity,
 semantic state identity, and runtime identity.
@@ -10,7 +10,7 @@ model are not themselves semantic requirements.
 
 ## 1. Identity kinds
 
-SEMIROH distinguishes several kinds of identity.
+SHEAR distinguishes several kinds of identity.
 
 ### Entity identity
 

@@ -1,6 +1,6 @@
 # Contract Model
 
-This document defines the current semantic model for contracts in SEMIROH.
+This document defines the current semantic model for contracts in SHEAR.
 
 The contract system is not yet fully implemented. This document records the
 current semantic design rather than claiming a completed implementation.
@@ -489,7 +489,7 @@ rules of the values being manipulated.
 
 ## 23. Contract identity
 
-A contract has semantic identity according to the general SEMIROH identity
+A contract has semantic identity according to the general SHEAR identity
 model.
 
 Its identity must be determined by its canonical semantic content.

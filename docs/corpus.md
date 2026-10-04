@@ -1,6 +1,6 @@
 # Canary Corpus
 
-**Status: implemented.** `semiroh/examples/` exists; the acceptance tests in
+**Status: implemented.** `shear/examples/` exists; the acceptance tests in
 `tests/test_corpus.py` pass.
 
 A library of small programs with expected results. Every interpreter and
@@ -13,7 +13,7 @@ feature.
 
 **Decided.**
 
-In scope: tier 1, programs the current language (`semiroh/lang.py`) can
+In scope: tier 1, programs the current language (`shear/lang.py`) can
 express; the data format; `play`, which runs an example with a given
 interpreter; the list of wanted programs the language cannot express yet.
 
@@ -25,7 +25,7 @@ library.
 
 **Decided.**
 
-Module `semiroh/examples/` (a package, so programs can be split across
+Module `shear/examples/` (a package, so programs can be split across
 files):
 
     Raises(error)
@@ -60,7 +60,7 @@ files):
         first mismatch; a step expecting a value that raises instead is a
         mismatch too
 
-`run` has the signature of `semiroh.lang.run`; another interpreter passes
+`run` has the signature of `shear.lang.run`; another interpreter passes
 its own.
 
 ## 3. Tier 1 programs
@@ -96,13 +96,13 @@ Tier 2 (roadmap.md task 6, language_data.md section 5) adds:
   tail call, ten thousand calls deep;
 - higher order and recursion: `map_long_tuple`, `map` over tuples of a
   thousand and two thousand elements;
-- self-hosting (roadmap.md task 8): `compiler`, `lower` written in SEMIROH,
+- self-hosting (roadmap.md task 8): `compiler`, `lower` written in SHEAR,
   and `instrument`, a program that reads its own function, swaps in a
   version that counts its calls and compiles what it installed
   (self_hosting.md);
 - self-hosting (roadmap.md task 10): `bootstrap`, the compiler swapped for
-  functions that run their own chunks on an interpreter written in SEMIROH,
-  then compiling again (vm_in_semiroh.md);
+  functions that run their own chunks on an interpreter written in SHEAR,
+  then compiling again (vm_in_shear.md);
 - self-modification: `sort_swap`, which sorts a tuple in a cell with the
   function `order` refers to, activates a different `order` between two
   runs, and sorts again with the data still in its cell;
@@ -112,7 +112,7 @@ Tier 2 (roadmap.md task 6, language_data.md section 5) adds:
 
 ## 4. Wanted programs
 
-**Open.** Recorded in `semiroh/examples/missing.py` (`MISSING`).
+**Open.** Recorded in `shear/examples/missing.py` (`MISSING`).
 
 `MISSING` is currently empty. The gaps discovered while extending the corpus
 have all been closed by implemented roadmap tasks.
@@ -152,10 +152,10 @@ recorded, now tier 2 examples. What each needed, as first written:
 - `deep_loop` needs tail-call elimination, or an iteration primitive, in
   the reference interpreter. The language has no loop construct, only
   recursion, and every `call` nests further Python stack frames in
-  `semiroh/lang.py`'s `_call`/`_eval`. Measured against the `sum_to_n`
+  `shear/lang.py`'s `_call`/`_eval`. Measured against the `sum_to_n`
   tier-1 example: under the interpreter's default recursion limit of 1000,
   `sum_to_n(197)` succeeds and `sum_to_n(198)` raises `RecursionError` -
-  about 5 Python stack frames per SEMIROH call (measured on graph form;
+  about 5 Python stack frames per SHEAR call (measured on graph form;
   the tuple-body interpreter stopped one call earlier).
 
 ## 5. Acceptance tests
@@ -167,7 +167,7 @@ implementation is done when it passes without changes.
 
 ## 6. Implementation notes
 
-- Programs are data. Build them with `semiroh.lang` (`Function`, `links`)
+- Programs are data. Build them with `shear.lang` (`Function`, `links`)
   and core constructors only; host code appears only as evaluators in an
   example's `context`.
 - Keep each program small and readable; one module per tag is fine.

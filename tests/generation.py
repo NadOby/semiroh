@@ -13,7 +13,7 @@ T = TypeVar("T")
 def case_count(default: int) -> int:
     """Return the ordinary or explicitly requested generated-case budget."""
 
-    requested = os.environ.get("SEMIROH_CASES")
+    requested = os.environ.get("SHEAR_CASES")
 
     if requested in (None, "", "0"):
         return default
@@ -21,16 +21,16 @@ def case_count(default: int) -> int:
     value = int(requested)
 
     if value < 1:
-        raise ValueError("SEMIROH_CASES must be a positive integer or 0")
+        raise ValueError("SHEAR_CASES must be a positive integer or 0")
 
     return value
 
 
-def seeds(count: int, variable: str = "SEMIROH_SEED") -> tuple[int, ...]:
+def seeds(count: int, variable: str = "SHEAR_SEED") -> tuple[int, ...]:
     """Return deterministic seeds for normal, heavy, or replay execution.
 
-    SEMIROH_SEED accepts one integer or a comma-separated list and takes
-    precedence over SEMIROH_CASES.  SEMIROH_CASES enlarges the ordinary
+    SHEAR_SEED accepts one integer or a comma-separated list and takes
+    precedence over SHEAR_CASES.  SHEAR_CASES enlarges the ordinary
     range while preserving deterministic seeds starting at zero.
     """
 
@@ -94,6 +94,6 @@ def minimize_sequence(
 
 def reproduction(module: str, seed: int) -> str:
     return (
-        f"SEMIROH_SEED={seed} "
+        f"SHEAR_SEED={seed} "
         f"python -m unittest {module}"
     )

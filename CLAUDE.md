@@ -1,14 +1,14 @@
 # CLAUDE.md
 
-Guidance for AI sessions working on SEMIROH. Read this first; read the docs it
+Guidance for AI sessions working on SHEAR. Read this first; read the docs it
 points to only when the task touches them.
 
 ## What this is
 
-SEMIROH is the skeleton of a systems programming language whose canonical
+SHEAR is the skeleton of a systems programming language whose canonical
 program is an immutable semantic graph, and whose programs carry their own
 compiler and can modify themselves at runtime (Erlang-style hot loading in
-spirit). `semiroh/` is an executable Python *reference model* of the semantic
+spirit). `shear/` is an executable Python *reference model* of the semantic
 rules, not the language implementation. `README.md` is the overview; `docs/`
 holds one spec per concept; `CHANGES.md` is the architectural log.
 
@@ -82,10 +82,10 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   so `python3 -m tests.test_x` runs one module.
 - Generated/property tests use deterministic seeds. Shared generated-test
   infrastructure lives in `tests/generation.py`.
-- `SEMIROH_SEED=<seed>` replays a generated case. A comma-separated list
+- `SHEAR_SEED=<seed>` replays a generated case. A comma-separated list
   replays several explicit seeds. An explicit seed overrides the generated
   case budget.
-- `SEMIROH_CASES=<n>` changes the deterministic generated-case budget for
+- `SHEAR_CASES=<n>` changes the deterministic generated-case budget for
   participating tests. Unset, empty, or `0` means use each test's ordinary
   default budget; a positive integer selects the heavy budget.
 - Property tests use `random.Random(seed)` with `subTest(seed=...)`, so
@@ -107,16 +107,16 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   repinning.
 - Run a seeded mutation sample with, for example:
 
-      SEMIROH_MUTATE=1 SEMIROH_MUTATE_SEED=1 \
+      SHEAR_MUTATE=1 SHEAR_MUTATE_SEED=1 \
           python3 -m tests.test_mutation
 
-  `SEMIROH_MUTATE` is the number of mutants sampled per target. A survivor may
+  `SHEAR_MUTATE` is the number of mutants sampled per target. A survivor may
   be catalogued only when it is reviewed as semantically equivalent or
   intentionally unspecified, with a reason. A semantic test gap receives a
   regression test and must not be whitelisted as a survivor.
 - Mutation work is selected before sharding. The complete selected set is
-  deterministically shuffled from `SEMIROH_MUTATE_SEED`, then individual
-  mutants are distributed round-robin across `SEMIROH_MUTATE_SHARDS`.
+  deterministically shuffled from `SHEAR_MUTATE_SEED`, then individual
+  mutants are distributed round-robin across `SHEAR_MUTATE_SHARDS`.
   Changing the shard count must not change the selected mutation set, and shard
   sizes differ by at most one mutant.
 - The mutation subprocess semantic oracle is centralized in
@@ -125,14 +125,14 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   excluded from mutation-kill decisions. Baseline and mutant subprocesses must
   use the same semantic oracle command.
 - Mutation campaigns emit flushed human progress plus JSONL evidence. Set
-  `SEMIROH_MUTATION_REPORT=<path>` to choose the report path. Each report pins
+  `SHEAR_MUTATION_REPORT=<path>` to choose the report path. Each report pins
   the mutation engine and target sources, records campaign inputs and exact
   selected keys, records every mutant outcome, and ends with reconciled counts
   and diagnostic timing summaries.
 - Replay one reported mutation directly from its key and pins:
 
       python3 -m tests.mutation_campaign replay \
-          --key-json '["semiroh/example.py","constant","value = False",0]' \
+          --key-json '["shear/example.py","constant","value = False",0]' \
           --source-blob <source-blob> \
           --engine-blob <engine-blob>
 

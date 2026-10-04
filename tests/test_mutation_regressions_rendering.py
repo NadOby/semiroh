@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import unittest
 
-from semiroh import CellDeclaration, EntityID, IsKind
-from semiroh.examples._support import program
-from semiroh.lang import Function, function_of, links, load
-from semiroh.syntax import parse, render
+from shear import CellDeclaration, EntityID, IsKind
+from shear.examples._support import program
+from shear.lang import Function, function_of, links, load
+from shear.syntax import parse, render
 
 
 class SyntaxRenderingRegressionTests(unittest.TestCase):

@@ -7,7 +7,7 @@ unchanged.
 
 import unittest
 
-from semiroh import (
+from shear import (
     CellContentRejected,
     CellDeclaration,
     EntityID,
@@ -15,8 +15,8 @@ from semiroh import (
     State,
     Value,
 )
-from semiroh import lang
-from semiroh.examples import (
+from shear import lang
+from shear.examples import (
     EXAMPLES,
     MISSING,
     TAGS,
@@ -26,7 +26,7 @@ from semiroh.examples import (
     Step,
     play,
 )
-from semiroh.lang import Function, links
+from shear.lang import Function, links
 
 
 def off_by_one(runtime, entry, *args, may_activate=False):

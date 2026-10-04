@@ -22,10 +22,10 @@ change program state only through ``activate``, and only when the run was
 granted the activation capability.
 
 :func:`run` lowers each node to bytecode and runs it on a virtual machine
-(``semiroh/bytecode.py``, docs/bytecode.md).
+(``shear/bytecode.py``, docs/bytecode.md).
 
 This module is a layer on top of the core model, not part of it: it is not
-re-exported from ``semiroh/__init__.py``.
+re-exported from ``shear/__init__.py``.
 """
 
 from __future__ import annotations
@@ -131,7 +131,7 @@ class LanguageError(ValueError):
 
 class CallDepthExceeded(LanguageError):
     """A run has more calls waiting on each other than the machine allows
-    (``semiroh.bytecode.CALL_DEPTH_LIMIT``, bytecode.md section 4).
+    (``shear.bytecode.CALL_DEPTH_LIMIT``, bytecode.md section 4).
     """
 
 
@@ -1018,7 +1018,7 @@ def define(
     (code as data) that replaces the labelled node and the nodes below it.
 
     Every entry's old nodes and new nodes form one pool, which
-    :func:`semiroh.matching.match` matches: a matched node keeps its
+    :func:`shear.matching.match` matches: a matched node keeps its
     EntityID (and its VersionID when its content is equal), moving to the
     function whose new side holds it; an unmatched old node disappears; an
     unmatched new node is created, named ``<function>/<generation>.<index>``
@@ -1678,7 +1678,7 @@ def run(
 
     The runtime's program must be in graph form (:func:`load`). Nodes lower
     to bytecode that a virtual machine runs (bytecode.md); see
-    :func:`semiroh.bytecode.run`, which this calls, for the details of a
+    :func:`shear.bytecode.run`, which this calls, for the details of a
     run.
 
     Arguments are canonicalized before being bound to the entry function's

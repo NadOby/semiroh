@@ -12,7 +12,7 @@ import sys
 import unittest
 from unittest import mock
 
-from semiroh import (
+from shear import (
     CellDeclaration,
     ConstraintResult,
     EntityID,
@@ -27,9 +27,9 @@ from semiroh import (
     relation_of,
     transform_with_mapping,
 )
-from semiroh import bytecode
-from semiroh.bytecode import chunk_of, disassemble, lower, lowered_count
-from semiroh.lang import (
+from shear import bytecode
+from shear.bytecode import chunk_of, disassemble, lower, lowered_count
+from shear.lang import (
     CallDepthExceeded,
     Function,
     LanguageError,

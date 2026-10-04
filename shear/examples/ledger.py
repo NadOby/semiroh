@@ -2,7 +2,7 @@
 
 Run from the repository root:
 
-    python3 -m semiroh.examples.ledger
+    python3 -m shear.examples.ledger
 
 Every reported number is derived from the live model.  Corpus expectations
 are used only by continuity.check to say whether a case holds; measurement
@@ -14,14 +14,14 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from semiroh import EntityID, State, Value
-from semiroh.bytecode import lowered_count
-from semiroh.continuity import CASES, check
-from semiroh.fold import sources_of
-from semiroh.lang import Function, define, links, load, run
-from semiroh.runtime import Runtime
-from semiroh.syntax import parse
-from semiroh.transforms import TransformResult
+from shear import EntityID, State, Value
+from shear.bytecode import lowered_count
+from shear.continuity import CASES, check
+from shear.fold import sources_of
+from shear.lang import Function, define, links, load, run
+from shear.runtime import Runtime
+from shear.syntax import parse
+from shear.transforms import TransformResult
 
 
 def _program(functions: dict[str, Function]) -> State:

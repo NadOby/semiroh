@@ -1,5 +1,5 @@
 """Acceptance tests for the two operations the interpreter needs and for the
-bytecode interpreter written in SEMIROH (docs/vm_in_semiroh.md, roadmap
+bytecode interpreter written in SHEAR (docs/vm_in_shear.md, roadmap
 task 10).
 """
 
@@ -7,7 +7,7 @@ import random
 import unittest
 from unittest import mock
 
-from semiroh import (
+from shear import (
     ActivationRejected,
     CellDeclaration,
     EntityID,
@@ -17,11 +17,11 @@ from semiroh import (
     canonical_serialize,
     canonicalize,
 )
-from semiroh import bytecode
-from semiroh.bytecode import chunk_of
-from semiroh.examples import self_hosting, vm
-from semiroh.examples._support import program
-from semiroh.lang import (
+from shear import bytecode
+from shear.bytecode import chunk_of
+from shear.examples import self_hosting, vm
+from shear.examples._support import program
+from shear.lang import (
     Function,
     LanguageError,
     _definition_of,
@@ -31,7 +31,7 @@ from semiroh.lang import (
     load,
     run,
 )
-from semiroh.relations import relation_of
+from shear.relations import relation_of
 
 T = EntityID("t")
 G = EntityID("g")
@@ -107,7 +107,7 @@ def native(runtime: Runtime, *args):
 
 
 def compiled(runtime: Runtime):
-    """The chunk of ``t``, compiled by ``lower`` written in SEMIROH."""
+    """The chunk of ``t``, compiled by ``lower`` written in SHEAR."""
 
     return run(runtime, LOWER, function_at(runtime.active.state, T).body)
 
@@ -244,7 +244,7 @@ class EqualityTests(unittest.TestCase):
 
 
 class InterpreterTests(unittest.TestCase):
-    """The interpreter written in SEMIROH does what the machine does."""
+    """The interpreter written in SHEAR does what the machine does."""
 
     def agree(self, body: tuple, *arguments) -> tuple:
         runtime = machine(body)
@@ -315,7 +315,7 @@ class InterpreterTests(unittest.TestCase):
         self.assertEqual(self.agree(body, 0), ("raised", "LanguageError"))
 
     def test_what_it_does_not_run_raises_where_the_machine_does_not(self) -> None:
-        # Deviation (vm_in_semiroh.md section 3): the interpreter has no way
+        # Deviation (vm_in_shear.md section 3): the interpreter has no way
         # to name a cell or read a function by name, so these instructions
         # raise.
         for body in (

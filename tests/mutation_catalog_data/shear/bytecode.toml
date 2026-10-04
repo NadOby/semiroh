@@ -1,4 +1,4 @@
-source_blob = "1a472965ece1fd9fd4608796bc82c94aef90bac4"
+source_blob = "bb72c3d3143b240d4de48f30f1bb1f9f09e4bda0"
 
 [[survivor]]
 kind = "constant"
@@ -8,5 +8,5 @@ classification = "unspecified"
 reason = """
 bytecode.run is an internal execution wrapper; the language-level
 activation-capability contract is specified and tested through
-semiroh.lang.run.
+shear.lang.run.
 """

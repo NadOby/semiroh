@@ -6,12 +6,12 @@ construct of docs/syntax.md on its own.
 
 import unittest
 
-from semiroh import CellDeclaration, EntityID, IntRange, IsKind, Runtime
-from semiroh.cells import cell_declaration
-from semiroh.examples._support import program
-from semiroh.lang import Function, function_of, links, load, run
-from semiroh.relations import relation_of
-from semiroh.syntax import SourceError, parse, render, render_program, tokenize
+from shear import CellDeclaration, EntityID, IntRange, IsKind, Runtime
+from shear.cells import cell_declaration
+from shear.examples._support import program
+from shear.lang import Function, function_of, links, load, run
+from shear.relations import relation_of
+from shear.syntax import SourceError, parse, render, render_program, tokenize
 
 X, Y, Z = ("arg", "x"), ("arg", "y"), ("arg", "z")
 ONE, TWO = ("lit", 1), ("lit", 2)

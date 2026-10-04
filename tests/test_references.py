@@ -2,7 +2,7 @@
 
 import unittest
 
-from semiroh import (
+from shear import (
     Reference,
     StateID,
     VersionID,
@@ -21,7 +21,7 @@ from semiroh import (
     version_id_for,
 )
 
-from semiroh.references import make_reference
+from shear.references import make_reference
 
 
 class ReferenceTests(unittest.TestCase):

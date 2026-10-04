@@ -1,19 +1,19 @@
 """Unit tests for continuity inference beyond the acceptance tests
-(docs/continuity_inference.md): the matching rules of ``semiroh.matching``,
+(docs/continuity_inference.md): the matching rules of ``shear.matching``,
 moves between functions, and ``rebase``.
 """
 
 import random
 import unittest
 
-from semiroh import EntityID, State, Value
-from semiroh.cells import cell_declaration
-from semiroh.lang import Function, _definition_of, define, function_at, links, load, run
-from semiroh.matching import match, shapes
-from semiroh.relations import Relation, relation_of
-from semiroh.runtime import ActivationConflict, Runtime
-from semiroh.syntax import parse
-from semiroh.transforms import (
+from shear import EntityID, State, Value
+from shear.cells import cell_declaration
+from shear.lang import Function, _definition_of, define, function_at, links, load, run
+from shear.matching import match, shapes
+from shear.relations import Relation, relation_of
+from shear.runtime import ActivationConflict, Runtime
+from shear.syntax import parse
+from shear.transforms import (
     TransformationConflict,
     rebase,
     touched,
@@ -392,7 +392,7 @@ class RebaseTests(unittest.TestCase):
     def test_results_and_their_records_are_frozen(self) -> None:
         from dataclasses import FrozenInstanceError
 
-        from semiroh.transforms import TransformationDefinition
+        from shear.transforms import TransformationDefinition
 
         state = load(parse("fn f(x):\n    label(k, 1) + x\n"))
         result = define(state, {(F, "k"): ("lit", 10)})

@@ -1,4 +1,4 @@
-source_blob = "0c5974ffb4fb4b76c26542ee331406a1ef0a6835"
+source_blob = "4d23855227d1aaf0638a13e93bb357744ee019b1"
 
 [[survivor]]
 kind = "constant"
@@ -19,5 +19,5 @@ reason = """
 Value equality is specified by semantic value identity when comparing Values.
 Returning NotImplemented for an unrelated Python object affects Python's
 reflected equality protocol only; that cross-type host-language interaction is
-not part of the SEMIROH value contract.
+not part of the SHEAR value contract.
 """

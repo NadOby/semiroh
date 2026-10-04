@@ -11,7 +11,7 @@ with an explicitly supplied destination ownership relation.
 
 import unittest
 
-from semiroh import EntityID, OwnershipError, State, Value, transform_with_mapping
+from shear import EntityID, OwnershipError, State, Value, transform_with_mapping
 
 ROOT = EntityID("root")
 CHILD = EntityID("child")

@@ -1,7 +1,7 @@
 # Graph Form
 
-**Status: implemented.** `semiroh/lang.py` stores code in graph form and
-`semiroh/bytecode.py` runs it (roadmap.md D1, tasks 4, 7 and 17).
+**Status: implemented.** `shear/lang.py` stores code in graph form and
+`shear/bytecode.py` runs it (roadmap.md D1, tasks 4, 7 and 17).
 `tests/test_graph_form.py` is the acceptance suite; the unit tests are at the
 end of `tests/test_lang.py`, with closure graph-form behaviour additionally
 covered by `tests/test_closures.py`.

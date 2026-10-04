@@ -1,4 +1,4 @@
-"""Identity primitives for the SEMIROH semantic model."""
+"""Identity primitives for the SHEAR semantic model."""
 
 from __future__ import annotations
 

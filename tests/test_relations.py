@@ -4,7 +4,7 @@ import random
 import time
 import unittest
 
-from semiroh import (
+from shear import (
     DanglingRelation,
     EntityID,
     MissingEntityMapping,

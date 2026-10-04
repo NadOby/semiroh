@@ -8,7 +8,7 @@ import random
 import time
 import unittest
 
-from semiroh import EntityID, State, Value, transform_with_mapping
+from shear import EntityID, State, Value, transform_with_mapping
 
 
 def random_content(rng: random.Random) -> object:

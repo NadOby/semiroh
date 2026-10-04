@@ -1,7 +1,7 @@
 # Text Syntax, Version 0
 
 **Status: implemented** (roadmap.md task 11; extended by task 17) in
-`semiroh/syntax.py`. The acceptance tests are `tests/test_syntax.py`;
+`shear/syntax.py`. The acceptance tests are `tests/test_syntax.py`;
 `tests/test_syntax_units.py` pins each construct. Section 8 lists what the
 implementation had to decide.
 
@@ -239,7 +239,7 @@ tuples that behave the same):
     SourceError(ValueError)
         with .line and .column (1-based)
 
-Module `semiroh/syntax.py`, built on `semiroh.lang`.
+Module `shear/syntax.py`, built on `shear.lang`.
 
 ## 8. Implementation notes
 

@@ -10,7 +10,7 @@ Programs are written in the input format and loaded into graph form
 
 import unittest
 
-from semiroh import (
+from shear import (
     ActivationRejected,
     CellContentRejected,
     CellDeclaration,
@@ -26,7 +26,7 @@ from semiroh import (
     State,
     Value,
 )
-from semiroh.lang import Function, LanguageError, links, load, run
+from shear.lang import Function, LanguageError, links, load, run
 
 COUNTER = EntityID("counter")
 INCREMENT = EntityID("increment")

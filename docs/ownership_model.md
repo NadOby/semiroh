@@ -1,6 +1,6 @@
 # Ownership Model
 
-This document defines the current semantic ownership model of SEMIROH.
+This document defines the current semantic ownership model of SHEAR.
 
 Ownership is a semantic state relation concerned with lifetime authority.
 Ordinary references are a separate relation concerned with access.

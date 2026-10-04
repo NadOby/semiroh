@@ -6,7 +6,7 @@ node moves between functions, and what happens to two transformations of
 the same state. Every case of the continuity corpus holds
 (continuity_corpus.md §5); `tests/test_continuity_inference.py` is the
 acceptance test and `tests/test_matching.py` tests the rules one by one.
-The rules live in `semiroh/matching.py` (`match`, `shapes`), `lang.define`
+The rules live in `shear/matching.py` (`match`, `shapes`), `lang.define`
 builds the two sides, and `transforms.rebase` combines two results.
 
 ## 1. Terms

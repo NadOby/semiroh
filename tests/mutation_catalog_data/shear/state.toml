@@ -88,6 +88,6 @@ reason = """
 State equality is specified for comparing semantic states. For a non-State
 operand, returning NotImplemented participates in Python's reflected equality
 protocol, while returning None suppresses that dispatch. That host-language
-cross-type interoperability is observable but is not part of the SEMIROH state
+cross-type interoperability is observable but is not part of the SHEAR state
 equality contract.
 """

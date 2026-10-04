@@ -5,10 +5,10 @@ from __future__ import annotations
 import random
 import unittest
 
-from semiroh import EntityID, Runtime, canonical_serialize, canonicalize
-from semiroh.examples import self_hosting, vm
-from semiroh.examples._support import program
-from semiroh.lang import (
+from shear import EntityID, Runtime, canonical_serialize, canonicalize
+from shear.examples import self_hosting, vm
+from shear.examples._support import program
+from shear.lang import (
     Function,
     LanguageError,
     define,

@@ -2,7 +2,7 @@
 
 import unittest
 
-from semiroh import (
+from shear import (
     EntityID,
     State,
     Value,

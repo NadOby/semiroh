@@ -1,4 +1,4 @@
-"""Unit tests for the tiny language in semiroh.lang (docs/first_program.md).
+"""Unit tests for the tiny language in shear.lang (docs/first_program.md).
 
 The acceptance tests in ``test_first_program.py`` pin the language's
 observable behaviour end to end. These tests exercise the interpreter and
@@ -13,7 +13,7 @@ tests at the end, including a seeded round-trip property.
 import random
 import unittest
 
-from semiroh import (
+from shear import (
     ActivationRejected,
     CellContentRejected,
     CellDeclaration,
@@ -24,7 +24,7 @@ from semiroh import (
     Value,
     relation_of,
 )
-from semiroh.lang import (
+from shear.lang import (
     FUNCTION_ROLE,
     Function,
     LanguageError,
@@ -35,7 +35,7 @@ from semiroh.lang import (
     load,
     run,
 )
-from semiroh.transforms import transform_with_mapping
+from shear.transforms import transform_with_mapping
 
 F = EntityID("f")
 F_LINKS = EntityID("f.links")

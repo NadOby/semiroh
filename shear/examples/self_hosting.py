@@ -1,4 +1,4 @@
-"""A compiler written in SEMIROH, and a program that rewrites itself
+"""A compiler written in SHEAR, and a program that rewrites itself
 (docs/self_hosting.md, roadmap task 8).
 
 ``compiler_entities()`` is the lowering pass of bytecode.md written in the
@@ -8,7 +8,7 @@ returns it, and gives the chunk of that expression with every ``EVAL``,
 child instead of a reference to it. It covers every operation but ``quote``,
 ``unquote``, ``function``, ``activate`` and ``trial``, which lower to a
 ``RAISE``. ``tests/test_self_hosting.py`` checks it against
-``semiroh.bytecode`` on the whole language it covers, and on the compiler
+``shear.bytecode`` on the whole language it covers, and on the compiler
 itself.
 
 The examples here run the compiler on a few expressions, and a program that
@@ -882,7 +882,7 @@ def _compiler() -> Example:
             ),
         ),
         description=(
-            "lower(e), the lowering pass of bytecode.md written in SEMIROH: "
+            "lower(e), the lowering pass of bytecode.md written in SHEAR: "
             "an expression in input form in, its chunk out with children "
             "in place of references (self_hosting.md section 3)."
         ),

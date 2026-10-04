@@ -1,6 +1,6 @@
 # Semantic Graph
 
-This document describes the current architectural model of the SEMIROH
+This document describes the current architectural model of the SHEAR
 semantic graph.
 
 The graph is the canonical representation of the semantic program.
@@ -32,7 +32,7 @@ itself.
 
 ## 2. Generalized graph model
 
-SEMIROH's fundamental semantic structure is a generalization of a hypergraph
+SHEAR's fundamental semantic structure is a generalization of a hypergraph
 in which there is no distinction between nodes and edges.
 
 There are only entities. An entity whose value is a relation record relates

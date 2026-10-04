@@ -109,17 +109,24 @@ public final class AlloyRunner {
 
         Command command = commands.get(commandIndex);
 
-        A4Options options = new A4Options();
-        options.originalFilename = model;
-        options.solver = solver;
-        options.decompose_mode = decomposeMode;
-        options.decompose_threads = threads;
-
         printCommandMetadata(
             model,
             commandIndex,
             command
         );
+
+        if (command.expects != 0 && command.expects != 1) {
+            fail(
+                "verification command must declare "
+                    + "expect 0 or expect 1"
+            );
+        }
+
+        A4Options options = new A4Options();
+        options.originalFilename = model;
+        options.solver = solver;
+        options.decompose_mode = decomposeMode;
+        options.decompose_threads = threads;
 
         printOptions(options);
 

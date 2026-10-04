@@ -46,11 +46,23 @@ Contains:
 
 ```text
 continuity representation
+continuity composition
+continuity associativity
 unknown versus disappearance
 split / merge witnesses
 continuity independence from value equality
+mutation evidence
 current transformation-layer bounded evidence
 ```
+
+### Active continuity-composition design
+
+```text
+docs/research/semantic-core/continuity_composition.md
+```
+
+Contains the candidate continuity-composition algebra and unresolved semantic
+questions.
 
 ### Alloy API reference
 
@@ -74,25 +86,6 @@ docs/research/semantic-core/project_diary.md
 ```
 
 Append-only chronological research record.
-
-Use it for:
-
-```text
-experiments
-failed approaches
-counterexamples
-interpretations
-decisions
-corrections
-```
-
-### Research handoff
-
-```text
-handoff.md
-```
-
-Compact authoritative continuation state.
 
 ### Experiment charter
 
@@ -130,10 +123,13 @@ Candidate transformation/continuity model:
 formal/transformation_model.als
 ```
 
-Transformation verification entrypoint:
+Transformation verification entrypoints currently include:
 
 ```text
 formal/transformation.als
+formal/transformation_composition.als
+formal/transformation_associativity.als
+formal/transformation_composition_mutation.als
 ```
 
 Shared instrumented runner:
@@ -142,17 +138,19 @@ Shared instrumented runner:
 .github/scripts/AlloyRunner.java
 ```
 
-Core workflow:
+Consolidated Alloy workflow:
 
 ```text
-.github/workflows/semantic-core.yml
+.github/workflows/alloy-verification.yml
 ```
 
-Transformation workflow:
+The Python executable semantic-model tests remain separate:
 
 ```text
-.github/workflows/transformation.yml
+.github/workflows/semantic-model.yml
 ```
+
+They verify a different implementation layer.
 
 ## Separation of semantics and verification
 
@@ -205,21 +203,9 @@ no result
 not established
 ```
 
-Avoid presenting:
+Avoid presenting bounded UNSAT as an unbounded theorem.
 
-```text
-UNSAT
-```
-
-as an unbounded theorem.
-
-Avoid presenting:
-
-```text
-SAT
-```
-
-as evidence outside the selected bounds.
+Avoid presenting SAT as evidence outside the selected bounds.
 
 ## Evidence categories
 
@@ -275,7 +261,7 @@ where practical.
 
 ## Expected results
 
-Research CI commands should encode hypotheses explicitly.
+Research CI commands encode their expected result explicitly.
 
 Current Alloy syntax uses:
 
@@ -291,7 +277,7 @@ expect 1
 
 for expected SAT.
 
-Desired verification behaviour is:
+Verification behaviour is:
 
 ```text
 expect 0 + UNSAT
@@ -307,35 +293,37 @@ expect 1 + UNSAT
     fail
 
 unspecified expectation
-    fail in verification CI
+    fail before solver execution
 ```
 
-The current runner enforces declared expectations but still permits an
-unspecified expectation.
+The shared runner enforces this contract.
 
-Rejecting unspecified expectations is an accepted verification-hardening task.
-
-Exploratory execution may later support an explicit mode that allows
-unspecified outcomes.
+Exploratory execution with unspecified expectations would require a separate
+explicit mode if later needed.
 
 ## Command isolation
 
-Verification commands should run independently where practical.
+Verification commands run independently where practical.
 
 A pathological command must not hide the result of unrelated properties.
 
-The current workflows therefore:
+The consolidated workflow:
 
 ```text
-discover Alloy commands
-run commands in separate matrix jobs
-preserve command scopes and expectations
+discovers Alloy commands
+constructs a model + command matrix
+runs commands in separate matrix jobs
+preserves command scopes and expectations
 ```
 
-Core and transformation verification also use separate workflows.
+It runs on every push to:
 
-This prevents transformation-only research from repeatedly launching the
-expensive core composition experiment.
+```text
+research/semantic-core
+```
+
+This intentionally favors regression coverage over path-filtered execution
+while the research branch is active.
 
 ## Solver policy
 
@@ -360,16 +348,53 @@ no result
 
 unless an actual SAT or UNSAT result was produced first.
 
-It is not a semantic counterexample.
+It is neither a semantic counterexample nor verification success.
 
-It is not verification success.
+### Routine solver
+
+The current routine Alloy verification solver is:
+
+```text
+lingeling.parallel
+```
+
+This is an engineering choice based on the expensive
+`CompositionIsBisimulation` workload.
+
+It is not:
+
+```text
+a semantic commitment
+a claim that the solver is universally fastest
+```
+
+Detailed solver-performance evidence belongs in:
+
+```text
+docs/research/semantic-core/core_verification.md
+```
 
 ## Runtime policy
 
-The unrestricted research workflows should not impose short solver timeouts
-merely to keep CI fast or green.
+Routine verification should remain practical enough to execute on every
+research-branch commit without weakening semantic scopes.
 
-Long runtime may itself reveal:
+For the historically dominant bounded command, the current engineering target
+is:
+
+```text
+preferred:
+    <= 5 minutes
+
+operational solver-selection cutoff:
+    10 minutes
+```
+
+These are CI practicality criteria, not semantic limits.
+
+Semantic scopes must not be reduced merely to meet them.
+
+Long runtime may reveal:
 
 ```text
 poor formal encoding
@@ -380,17 +405,12 @@ unexpected model growth
 practicality problems
 ```
 
-GitHub Actions still imposes external platform limits.
-
-If a run reaches such a limit, record:
+If a run reaches an external execution limit without producing SAT or UNSAT,
+record:
 
 ```text
-no result within platform execution limit
+no result within execution limit
 ```
-
-A future routine regression lane may intentionally use operational time limits.
-
-If so, keep that distinct from unrestricted research verification.
 
 ## Experimental-change classification
 
@@ -480,6 +500,12 @@ final result
 expected result
 ```
 
+It can enumerate the solver factories exposed by the Alloy distribution with:
+
+```text
+AlloyRunner --list-solvers
+```
+
 Long-running commands additionally emit heartbeat information.
 
 A heartbeat means only:
@@ -489,6 +515,9 @@ the runner process is alive
 ```
 
 It does not establish SAT-search progress.
+
+For external native solvers, JVM heap observations do not measure the solver
+process's native memory use.
 
 ## Performance interpretation
 
@@ -519,29 +548,33 @@ scope staircases
 
 when making performance claims.
 
-## Machine-readable evidence
+## Reproducibility and retained evidence
 
-The runner already emits structured metric lines.
+GitHub Actions logs are temporary.
 
-Important research results should eventually survive ordinary GitHub Actions log
-retention.
+For reproducible experiments, retain the experiment definition and material
+observations rather than automatically committing raw CI artifacts.
 
-Accepted direction:
-
-```text
-complete CI artifacts where useful
-+
-small versioned machine-readable records for significant results
-```
-
-Possible formats:
+Record significant observations with enough context to reproduce them,
+including where relevant:
 
 ```text
-JSON
-JSONL
+Alloy version
+commit
+workflow/run provenance
+model and command
+semantic scope
+solver
+effective options
+CNF dimensions
+result
+solver time
+wall time
 ```
 
-The exact persistent-result layout has not yet been chosen.
+Raw machine-readable result files should be committed only when they provide
+clear research value beyond a reproducible workflow and documented
+observations.
 
 ## Oracle independence
 
@@ -584,19 +617,10 @@ sharing topology not necessarily determining value equality
 non-vacuous reversal and composition scenarios
 ```
 
-Transformation evidence currently includes bounded support for representing:
+Transformation evidence has expanded beyond representation into bounded
+continuity-composition and associativity experiments.
 
-```text
-unknown continuity
-explicit disappearance
-unique continuation
-split
-merge
-multiple independent continuity claims
-equal values without inferred continuity
-```
-
-Detailed commands, scopes, runs and interpretation belong in their respective
+Detailed commands, scopes, runs, and interpretation belong in their respective
 evidence documents.
 
 ## Major open verification targets
@@ -604,15 +628,10 @@ evidence documents.
 Current important open work includes:
 
 ```text
-continuity composition
-continuity associativity
 information semantics of Unknown
 negative equality witnesses
 cyclic equality experiments
 structured-value continuity witnesses
-explicit-expect CI hardening
-persistent machine-readable results
-formal mutation experiments
 first CurrentModel -> CandidateCore projection
 differential commuting-diagram experiments
 entry/view identity experiments
@@ -636,12 +655,6 @@ Add chronological events and failed experiments to:
 
 ```text
 project_diary.md
-```
-
-Add current continuation state to:
-
-```text
-handoff.md
 ```
 
 This file should remain the compact shared verification policy and navigation

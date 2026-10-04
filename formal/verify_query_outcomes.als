@@ -1,1 +1,0 @@
-module formal/verify_query_outcomes

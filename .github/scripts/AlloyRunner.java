@@ -20,6 +20,8 @@ import kodkod.engine.satlab.SATFactory;
  *
  * Usage:
  *
+ *   AlloyRunner --list-solvers
+ *
  *   AlloyRunner <model> <command-index> <solver> <decompose-mode> <threads>
  *
  * decompose-mode:
@@ -43,6 +45,11 @@ public final class AlloyRunner {
 
     public static void main(String[] args) throws Exception {
         long processStartNanos = System.nanoTime();
+
+        if (args.length == 1 && args[0].equals("--list-solvers")) {
+            listSolvers();
+            return;
+        }
 
         if (args.length != 5) {
             usage();
@@ -204,6 +211,14 @@ public final class AlloyRunner {
         if (command.expects == 0 && satisfiable) {
             fail("expected UNSAT but solver returned SAT");
         }
+    }
+
+    private static void listSolvers() {
+        System.out.println("Available Alloy solvers:");
+
+        SATFactory.getAllSolvers().forEach(
+            AlloyRunner::printSolverMetadata
+        );
     }
 
     private static void printRuntimeEnvironment() {
@@ -440,7 +455,9 @@ public final class AlloyRunner {
 
     private static void usage() {
         System.err.println(
-            "Usage: AlloyRunner "
+            "Usage:\n"
+                + "  AlloyRunner --list-solvers\n"
+                + "  AlloyRunner "
                 + "<model> <command-index> <solver> "
                 + "<decompose-mode> <threads>"
         );

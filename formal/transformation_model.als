@@ -15,6 +15,9 @@ open formal/core_model
  *
  * together with explicitly asserted continuity information.
  *
+ * It also defines candidate composition of continuity information across two
+ * compatible concrete transitions.
+ *
  * It does NOT yet model:
  *
  *     reusable transformation definitions
@@ -332,5 +335,196 @@ pred hasDeclaredPredecessor[
     some declaredPredecessors[
         tx,
         destinationOccurrence
+    ]
+}
+
+
+/* -------------------------------------------------------------------------
+ * Candidate continuity composition
+ * ---------------------------------------------------------------------- */
+
+/*
+ * Two concrete transitions are directly composable when the destination state
+ * of the first is exactly the source state of the second.
+ *
+ * No structural rebinding or state-equivalence inference is performed here.
+ */
+pred transformationsCompatible[
+    first: Transformation,
+    second: Transformation
+] {
+    first.destination = second.source
+}
+
+
+/*
+ * Candidate semantics for whether composed continuity is completely known.
+ *
+ * For a source occurrence:
+ *
+ *     first step unknown
+ *         -> composed continuity unknown
+ *
+ *     first step known empty
+ *         -> composed continuity known empty
+ *
+ *     first step known nonempty
+ *         -> composed continuity is known only if every intermediate
+ *            occurrence has known second-step continuity
+ *
+ * The universal condition is intentionally vacuous for a known-empty first
+ * step, preserving explicit disappearance.
+ */
+pred composedContinuityKnown[
+    first: Transformation,
+    second: Transformation,
+    src: Rel
+] {
+    transformationsCompatible[
+        first,
+        second
+    ]
+
+    src in first.source.rels
+
+    continuityKnown[
+        first,
+        src
+    ]
+
+    all mid: continuityTargets[
+        first,
+        src
+    ] |
+        continuityKnown[
+            second,
+            mid
+        ]
+}
+
+
+/*
+ * Candidate complete destination set after two compatible transitions.
+ *
+ * This is the union of explicitly known second-step destinations of all
+ * first-step destinations.
+ *
+ * IMPORTANT:
+ *
+ * This function may return some destinations even when composed continuity is
+ * unknown, for example when one split branch is known and another is unknown.
+ *
+ * Therefore callers must inspect composedContinuityKnown before interpreting
+ * this set as complete.
+ */
+fun composedContinuityTargets[
+    first: Transformation,
+    second: Transformation,
+    src: Rel
+]: set Rel {
+    {
+        dst: second.destination.rels |
+            some mid: continuityTargets[
+                first,
+                src
+            ] |
+                continuesTo[
+                    second,
+                    mid,
+                    dst
+                ]
+    }
+}
+
+
+/*
+ * Composed continuity is unknown whenever compatible composition exists for
+ * the source occurrence but the complete result cannot be established.
+ *
+ * This includes:
+ *
+ *     unknown first-step continuity
+ *
+ * and:
+ *
+ *     any known first-step destination whose second-step continuity is unknown
+ */
+pred composedContinuityUnknown[
+    first: Transformation,
+    second: Transformation,
+    src: Rel
+] {
+    transformationsCompatible[
+        first,
+        second
+    ]
+
+    src in first.source.rels
+
+    not composedContinuityKnown[
+        first,
+        second,
+        src
+    ]
+}
+
+
+/*
+ * Explicit disappearance after composition.
+ *
+ * Examples:
+ *
+ *     A -> {}
+ *
+ * or:
+ *
+ *     A -> {B, C}
+ *     B -> {}
+ *     C -> {}
+ *
+ * both produce a known empty composed destination set.
+ */
+pred composedExplicitlyDisappears[
+    first: Transformation,
+    second: Transformation,
+    src: Rel
+] {
+    composedContinuityKnown[
+        first,
+        second,
+        src
+    ]
+
+    no composedContinuityTargets[
+        first,
+        second,
+        src
+    ]
+}
+
+
+/*
+ * Pairwise composed continuity.
+ *
+ * This predicate is true only when the complete composed continuity result is
+ * known. A destination discovered through one known branch of an otherwise
+ * partially unknown split is therefore not exposed as a composed continuation.
+ */
+pred composedContinuesTo[
+    first: Transformation,
+    second: Transformation,
+    src: Rel,
+    dst: Rel
+] {
+    composedContinuityKnown[
+        first,
+        second,
+        src
+    ]
+
+    dst in composedContinuityTargets[
+        first,
+        second,
+        src
     ]
 }

@@ -446,7 +446,7 @@ pred UnequalLeafComparisonExists {
  *
  *     first -> second -> first
  *
- * The finite comparison should close within three distinct examined pairs.
+ * The finite comparison closes with two distinct examined pairs.
  */
 pred CyclicEqualityClosesWithinBudget {
     some
@@ -623,15 +623,28 @@ pred EqualValueDistinctIdentityExists {
  * Assertions
  * ---------------------------------------------------------------------- */
 
-assert ClosedBoundedComparisonImpliesValueEqual {
+/*
+ * A completed Yes comparison provides an explicit bisimulation witness:
+ *
+ *   - `examined` lies inside leftState.rels -> rightState.rels by fact;
+ *   - the root pair is in `examined` by fact;
+ *   - EqualityYes requires every examined pair to be locally compatible;
+ *   - an empty exact frontier means every required corresponding child pair
+ *     is already in `examined`.
+ *
+ * Together this is the concrete witness required by valueEqual. Checking the
+ * existential valueEqual formulation directly here requires higher-order
+ * quantification that Alloy cannot always skolemize, so this assertion checks
+ * the witness property itself.
+ */
+assert ClosedBoundedComparisonIsBisimulation {
     all c: Comparison |
         EqualityYes[c]
         implies
-        valueEqual[
+        bisimulation[
             c.leftState,
-            c.leftRoot,
             c.rightState,
-            c.rightRoot
+            c.examined
         ]
 }
 
@@ -735,7 +748,7 @@ run EqualValueDistinctIdentityExists
         0 Comparison
     expect 1
 
-check ClosedBoundedComparisonImpliesValueEqual
+check ClosedBoundedComparisonIsBisimulation
     for 4
     but 2 State,
         4 Rel,

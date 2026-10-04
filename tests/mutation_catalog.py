@@ -50,6 +50,7 @@ TARGETS = (
     "shear/lang.py",
     "shear/machine.py",
     "shear/matching.py",
+    "shear/operations.py",
     "shear/ownership.py",
     "shear/reconcile.py",
     "shear/references.py",

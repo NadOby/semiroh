@@ -21,6 +21,7 @@ from .canonical import CanonicalNode
 from .cells import CellDeclaration, cell_declaration
 from .constraints import IntRange, IsKind
 from .identity import EntityID
+from .operations import ARITY
 from .lang import (
     _ARITY,
     FUNCTION_ROLE,
@@ -889,8 +890,7 @@ class _Parser:
             return ("lit", {"true": True, "false": False, "none": None}[name])
 
         if name in ("len", "item", "slice", "concat"):
-            arity = {"len": 1, "item": 2, "slice": 3, "concat": 2}[name]
-            return (name, *self.fixed_args(token, arity))
+            return (name, *self.fixed_args(token, ARITY[name]))
 
         if name == "apply":
             return ("applyv", *self.fixed_args(token, 2))

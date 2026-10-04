@@ -342,6 +342,61 @@ pred PresentEmptyRoleVsAbsentScenarioExists {
 
 
 /* -------------------------------------------------------------------------
+ * Cyclic equality experiment
+ * ---------------------------------------------------------------------- */
+
+pred SelfCycleEqualsTwoNodeCycle {
+    some
+        s: State,
+        disj self, first, second: s.rels,
+        role: Role,
+        selfUse, firstUse, secondUse: RoleUse,
+        selfSlot, firstSlot, secondSlot: Slot
+    {
+        no self.atom
+        no first.atom
+        no second.atom
+
+        selfUse.owner = self
+        selfUse.name = role
+
+        firstUse.owner = first
+        firstUse.name = role
+
+        secondUse.owner = second
+        secondUse.name = role
+
+        roleNames[self] = role
+        roleNames[first] = role
+        roleNames[second] = role
+
+        selfSlot.use = selfUse
+        selfSlot.index = 0
+        selfSlot.target = self
+
+        firstSlot.use = firstUse
+        firstSlot.index = 0
+        firstSlot.target = second
+
+        secondSlot.use = secondUse
+        secondSlot.index = 0
+        secondSlot.target = first
+
+        slotsOf[self, role] = selfSlot
+        slotsOf[first, role] = firstSlot
+        slotsOf[second, role] = secondSlot
+
+        valueEqual[
+            s,
+            self,
+            s,
+            first
+        ]
+    }
+}
+
+
+/* -------------------------------------------------------------------------
  * Non-vacuity witnesses
  * ---------------------------------------------------------------------- */
 
@@ -622,6 +677,25 @@ run PresentEmptyRoleVsAbsentScenarioExists
         exactly 1 Role,
         exactly 1 RoleUse,
         0 Slot,
+        0 Atom,
+        0 EntityID,
+        0 View,
+        0 BisimWitness,
+        0 CompositionCase
+    expect 1
+
+
+/* -------------------------------------------------------------------------
+ * Cyclic equality witness
+ * ---------------------------------------------------------------------- */
+
+run SelfCycleEqualsTwoNodeCycle
+    for 4
+    but exactly 1 State,
+        exactly 3 Rel,
+        exactly 1 Role,
+        exactly 3 RoleUse,
+        exactly 3 Slot,
         0 Atom,
         0 EntityID,
         0 View,

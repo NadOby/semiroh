@@ -28,6 +28,13 @@ from shear.bytecode import chunk_of
 GOLDEN = Path(__file__).with_name("language_golden.json")
 API_MODULES = ("shear", "shear.lang", "shear.syntax", "shear.bytecode", "shear.machine")
 
+# Public names removed on purpose, each with its reason.
+REMOVED = {
+    ("shear.bytecode", "run"):
+        "task 19: bytecode no longer imports the machine; lang.run, the "
+        "language's entry point, calls shear.machine.run directly",
+}
+
 
 def _digest(value: object) -> str:
     return hashlib.sha1(json.dumps(value, sort_keys=True).encode()).hexdigest()
@@ -112,6 +119,7 @@ class LanguageGoldenTests(unittest.TestCase):
         for module, names in self.golden["api"].items():
             with self.subTest(module=module):
                 missing = set(names) - set(self.observed["api"][module])
+                missing -= {name for owner, name in REMOVED if owner == module}
                 self.assertEqual(missing, set())
 
 

@@ -1514,7 +1514,7 @@ def run(
 
     The runtime's program must be in graph form (:func:`load`). Nodes lower
     to bytecode that a virtual machine runs (bytecode.md); see
-    :func:`shear.bytecode.run`, which this calls, for the details of a
+    :func:`shear.machine.run`, which this calls, for the details of a
     run.
 
     Arguments are canonicalized before being bound to the entry function's
@@ -1526,9 +1526,11 @@ def run(
     capability described in metaprogramming.md section 4.
     """
 
-    from .bytecode import run as run_bytecode
+    # The one lazy edge from graph form to execution: the machine is built on
+    # graph form (bytecode.md section 4), so it cannot be imported at load.
+    from .machine import run as run_machine
 
-    return run_bytecode(
+    return run_machine(
         runtime,
         entry,
         *args,

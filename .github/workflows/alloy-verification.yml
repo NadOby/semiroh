@@ -62,22 +62,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          mapfile -t models < <(
-            find formal \
-              -maxdepth 1 \
-              -type f \
-              -name 'verify_*.als' \
-              -print \
-              | sort
+          models=(
+            formal/core.als
+            formal/query_outcomes.als
+            formal/transformation.als
+            formal/transformation_composition.als
+            formal/transformation_associativity.als
+            formal/transformation_composition_mutation.als
           )
-
-          if (( ${#models[@]} == 0 )); then
-            echo "No Alloy verification entrypoints matching formal/verify_*.als." >&2
-            exit 1
-          fi
-
-          echo "Discovered verification entrypoints:"
-          printf '  %s\n' "${models[@]}"
 
           commands='[]'
 

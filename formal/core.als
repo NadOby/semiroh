@@ -259,7 +259,12 @@ pred DifferentTargetOrderScenario[
             right0 = left1
             right1 = left0
 
-            not valueEqual[s, left0, s, left1]
+            some left0.atom
+            some left1.atom
+            left0.atom != left1.atom
+
+            no roleNames[left0]
+            no roleNames[left1]
         }
     }
 }

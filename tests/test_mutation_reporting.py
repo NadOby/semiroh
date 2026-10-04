@@ -6,6 +6,7 @@ import io
 import json
 import subprocess
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -252,6 +253,148 @@ class MutationReportingTests(unittest.TestCase):
                 progress_index
             ]["current_target"],
             "first.py",
+        )
+
+    def test_worker_failure_is_reported_before_other_workers_finish(
+        self,
+    ) -> None:
+        sites = self.mutants()
+
+        self.assertGreaterEqual(
+            len(sites),
+            2,
+        )
+
+        failing = sites[0]
+        slow = sites[1]
+        slow_started = threading.Event()
+        order: list[str] = []
+
+        def execute(
+            root: Path,
+            selected: mutation.Mutant,
+            command: list[str],
+        ) -> tuple[
+            mutation.Mutant,
+            bool,
+            float,
+        ]:
+            if selected.key == failing.key:
+                if not slow_started.wait(
+                    timeout=1.0
+                ):
+                    raise RuntimeError(
+                        "slow fixture worker did not start"
+                    )
+
+                raise RuntimeError(
+                    "fixture worker failure"
+                )
+
+            self.assertEqual(
+                selected.key,
+                slow.key,
+            )
+            slow_started.set()
+            time.sleep(0.10)
+            order.append(
+                "slow-finished"
+            )
+
+            return (
+                selected,
+                True,
+                0.10,
+            )
+
+        original_emit = (
+            mutation_reporting.EventReporter.emit
+        )
+
+        def emit(
+            reporter: mutation_reporting.EventReporter,
+            event: dict[str, object],
+        ) -> None:
+            if (
+                event["event"]
+                == "campaign_error"
+            ):
+                order.append(
+                    "campaign-error"
+                )
+
+            original_emit(
+                reporter,
+                event,
+            )
+
+        report = (
+            self.root
+            / "worker-failure.jsonl"
+        )
+
+        with (
+            patch(
+                "tests.mutation_reporting._execute_one",
+                side_effect=execute,
+            ),
+            patch.object(
+                mutation_reporting.EventReporter,
+                "emit",
+                new=emit,
+            ),
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "fixture worker failure",
+            ):
+                mutation_reporting.run_campaign(
+                    self.root,
+                    (
+                        failing,
+                        slow,
+                    ),
+                    ["fixture-oracle"],
+                    {},
+                    report,
+                    {
+                        "count": 2,
+                        "seed": 1,
+                        "batch": 0,
+                        "shards": 1,
+                        "shard": 0,
+                    },
+                    workers=2,
+                    progress_every=100,
+                    stream=io.StringIO(),
+                )
+
+        self.assertEqual(
+            order,
+            [
+                "campaign-error",
+                "slow-finished",
+            ],
+        )
+
+        events = [
+            json.loads(line)
+            for line
+            in report.read_text().splitlines()
+        ]
+        errors = [
+            event
+            for event in events
+            if event["event"] == "campaign_error"
+        ]
+
+        self.assertEqual(
+            len(errors),
+            1,
+        )
+        self.assertIn(
+            "fixture worker failure",
+            errors[0]["error"],
         )
 
     def test_replay_failures_uses_only_unclassified_survivors(

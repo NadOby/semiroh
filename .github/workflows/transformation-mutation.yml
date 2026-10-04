@@ -3,6 +3,13 @@ name: Transformation mutation verification
 on:
   workflow_dispatch:
 
+  push:
+    branches:
+      - research/semantic-core
+    paths:
+      - "formal/transformation_composition_mutation.als"
+      - ".github/workflows/transformation-mutation.yml"
+
 jobs:
   discover:
     name: Discover mutation commands
@@ -84,8 +91,6 @@ jobs:
           fi
 
           echo "commands=$commands" >> "$GITHUB_OUTPUT"
-          echo "Discovered mutation commands:"
-          printf '%s\n' "$commands" | jq .
 
   alloy:
     name: Mutation command ${{ matrix.command }} (Glucose instrumented)

@@ -394,11 +394,14 @@ the seed and the batch selects one consecutive slice of that ordering.
 Successive batch numbers are therefore disjoint and running batches until they
 become empty covers every mutation site exactly once.
 
-The heavy CI campaign also partitions mutation targets into four deterministic
-target shards. Sharding changes only which job owns a target; it does not
-change that target's mutation ordering or selected sites. Every individual
-mutant still runs the complete semantic test suite, so target sharding does not
-weaken the kill criterion.
+The heavy CI campaign builds the complete selected mutation work set first.
+That work set is deterministically shuffled from the campaign seed and
+individual mutants are distributed round-robin across the configured shards.
+Changing the shard count therefore changes only which job owns each selected
+mutant, not which mutants were selected. Shards are disjoint and exhaustive
+and differ in selected mutant count by at most one. Every individual mutant
+still runs the complete semantic test suite, so sharding does not weaken the
+kill criterion.
 
 ### Survivor identity
 
@@ -535,9 +538,10 @@ so one semantic failure does not hide results from unrelated lanes.
 The ordinary `mutation` lane runs mutation-engine and catalog integrity tests.
 It does not launch the expensive planted-mutant campaign by default.
 
-Heavy mutation verification is a separate four-shard job. Targets are
-partitioned deterministically across those shards while each individual mutant
-still runs the complete semantic suite.
+Heavy mutation verification is a separate multi-shard job. The complete
+selected work set is built before sharding, deterministically shuffled from the
+campaign seed, and individual mutants are distributed round-robin across the
+configured shards. Each mutant still runs the complete semantic suite.
 
 Manual workflow dispatch exposes:
 

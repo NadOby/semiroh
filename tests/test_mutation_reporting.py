@@ -1,9 +1,10 @@
-"""Regression tests for mutation campaign live progress reporting."""
+"""Regression tests for mutation campaign reporting and report-driven replay."""
 
 from __future__ import annotations
 
 import io
 import json
+import subprocess
 import tempfile
 import time
 import unittest
@@ -11,6 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tests import mutation
+from tests import mutation_campaign
 from tests import mutation_reporting
 
 
@@ -25,7 +27,8 @@ class MutationReportingTests(unittest.TestCase):
         )
 
         (self.root / "first.py").write_text(
-            "value = 1 + 2\n"
+            "first = 1 + 2\n"
+            "second = 3 + 4\n"
         )
 
         engine = (
@@ -37,21 +40,138 @@ class MutationReportingTests(unittest.TestCase):
         engine.write_text(
             "fixture mutation engine\n"
         )
+        self.engine_blob = mutation.git_blob_id(
+            engine.read_bytes()
+        )
+
+    def source_blob(self) -> str:
+        return mutation.git_blob_id(
+            (self.root / "first.py").read_bytes()
+        )
+
+    def mutants(
+        self,
+    ) -> tuple[mutation.Mutant, ...]:
+        return tuple(
+            mutation.site_descriptions(
+                (
+                    self.root
+                    / "first.py"
+                ).read_text(),
+                "first.py",
+            )
+        )
+
+    def write_report(
+        self,
+        path: Path,
+        outcomes: tuple[
+            tuple[
+                mutation.Mutant,
+                str,
+            ],
+            ...,
+        ],
+    ) -> None:
+        source_blob = self.source_blob()
+
+        events: list[
+            dict[str, object]
+        ] = [
+            {
+                "event": "campaign_start",
+                "engine_blob": self.engine_blob,
+                "target_source_blobs": {
+                    "first.py": source_blob,
+                },
+                "inputs": {
+                    "count": len(outcomes),
+                    "seed": 1,
+                    "batch": 0,
+                    "shards": 2,
+                    "shard": 0,
+                },
+                "selected_count": len(outcomes),
+                "selected_keys": [
+                    list(mutant.key)
+                    for mutant, _ in outcomes
+                ],
+                "oracle_command": [
+                    "fixture-oracle",
+                ],
+            }
+        ]
+
+        killed = 0
+        classified = 0
+        unclassified = 0
+
+        for mutant, outcome in outcomes:
+            event: dict[str, object] = {
+                "event": "mutant_outcome",
+                "key": list(mutant.key),
+                "target": mutant.target,
+                "index": mutant.index,
+                "line": mutant.line,
+                "mutation_kind": mutant.kind,
+                "source": mutant.text,
+                "occurrence": mutant.occurrence,
+                "outcome": outcome,
+                "elapsed_seconds": 0.1,
+                "source_blob": source_blob,
+                "engine_blob": self.engine_blob,
+            }
+
+            if outcome == "killed":
+                killed += 1
+            elif outcome == "classified_survivor":
+                classified += 1
+                event["classification"] = (
+                    "equivalent"
+                )
+                event["reason"] = (
+                    "fixture classification"
+                )
+            elif outcome == "unclassified_survivor":
+                unclassified += 1
+            else:
+                raise AssertionError(
+                    f"unknown fixture outcome {outcome!r}"
+                )
+
+            events.append(event)
+
+        events.append({
+            "event": "campaign_complete",
+            "completed": len(outcomes),
+            "total": len(outcomes),
+            "killed": killed,
+            "classified_survivors": classified,
+            "unclassified_survivors": unclassified,
+            "elapsed_seconds": 0.2,
+            "groups": [],
+            "target_timings": [],
+        })
+
+        path.write_text(
+            "".join(
+                json.dumps(
+                    event,
+                    sort_keys=True,
+                )
+                + "\n"
+                for event in events
+            ),
+            encoding="utf-8",
+        )
 
     def test_slow_mutant_emits_progress_before_outcome(
         self,
     ) -> None:
-        source = (
-            self.root
-            / "first.py"
-        ).read_text()
         mutant = next(
             candidate
             for candidate
-            in mutation.site_descriptions(
-                source,
-                "first.py",
-            )
+            in self.mutants()
             if candidate.kind == "arithmetic"
         )
 
@@ -133,6 +253,264 @@ class MutationReportingTests(unittest.TestCase):
             ]["current_target"],
             "first.py",
         )
+
+    def test_replay_failures_uses_only_unclassified_survivors(
+        self,
+    ) -> None:
+        sites = self.mutants()
+
+        self.assertGreaterEqual(
+            len(sites),
+            4,
+        )
+
+        killed = sites[0]
+        failed_first = sites[1]
+        classified = sites[2]
+        failed_second = sites[3]
+
+        first_report = (
+            self.root
+            / "shard-0.jsonl"
+        )
+        second_report = (
+            self.root
+            / "shard-1.jsonl"
+        )
+
+        self.write_report(
+            first_report,
+            (
+                (
+                    killed,
+                    "killed",
+                ),
+                (
+                    failed_first,
+                    "unclassified_survivor",
+                ),
+            ),
+        )
+        self.write_report(
+            second_report,
+            (
+                (
+                    classified,
+                    "classified_survivor",
+                ),
+                (
+                    failed_second,
+                    "unclassified_survivor",
+                ),
+            ),
+        )
+
+        command = [
+            "fixture-oracle",
+        ]
+        baseline_result = subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=b"",
+            stderr=b"",
+        )
+        by_key = {
+            mutant.key: mutant
+            for mutant in sites
+        }
+
+        def replay(
+            root: Path,
+            key: mutation.MutationKey,
+            source_blob: str,
+            engine_blob: str,
+            oracle: list[str],
+        ) -> tuple[
+            mutation.Mutant,
+            bool,
+        ]:
+            self.assertEqual(
+                root,
+                self.root,
+            )
+            self.assertEqual(
+                source_blob,
+                self.source_blob(),
+            )
+            self.assertEqual(
+                engine_blob,
+                self.engine_blob,
+            )
+            self.assertEqual(
+                oracle,
+                command,
+            )
+
+            return (
+                by_key[key],
+                True,
+            )
+
+        with patch(
+            "tests.mutation_campaign.mutation.baseline",
+            return_value=baseline_result,
+        ) as baseline, patch(
+            "tests.mutation_campaign.replay_exact",
+            side_effect=replay,
+        ) as replay_exact:
+            results = (
+                mutation_campaign.replay_failures(
+                    self.root,
+                    (
+                        first_report,
+                        second_report,
+                    ),
+                    command,
+                )
+            )
+
+        baseline.assert_called_once_with(
+            self.root,
+            command,
+        )
+
+        replayed_keys = [
+            call.args[1]
+            for call
+            in replay_exact.call_args_list
+        ]
+
+        self.assertEqual(
+            replayed_keys,
+            [
+                failed_first.key,
+                failed_second.key,
+            ],
+        )
+        self.assertNotIn(
+            killed.key,
+            replayed_keys,
+        )
+        self.assertNotIn(
+            classified.key,
+            replayed_keys,
+        )
+        self.assertEqual(
+            results,
+            (
+                (
+                    failed_first,
+                    True,
+                ),
+                (
+                    failed_second,
+                    True,
+                ),
+            ),
+        )
+
+    def test_replay_failures_stops_when_baseline_fails(
+        self,
+    ) -> None:
+        mutant = self.mutants()[0]
+        report = (
+            self.root
+            / "failed-baseline.jsonl"
+        )
+
+        self.write_report(
+            report,
+            (
+                (
+                    mutant,
+                    "unclassified_survivor",
+                ),
+            ),
+        )
+
+        command = [
+            "fixture-oracle",
+        ]
+        failed_baseline = subprocess.CompletedProcess(
+            command,
+            1,
+            stdout=b"baseline stdout",
+            stderr=b"baseline stderr",
+        )
+
+        with patch(
+            "tests.mutation_campaign.mutation.baseline",
+            return_value=failed_baseline,
+        ) as baseline, patch(
+            "tests.mutation_campaign.replay_exact",
+        ) as replay_exact:
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "mutation replay baseline failed",
+            ):
+                mutation_campaign.replay_failures(
+                    self.root,
+                    (report,),
+                    command,
+                )
+
+        baseline.assert_called_once_with(
+            self.root,
+            command,
+        )
+        replay_exact.assert_not_called()
+
+    def test_failure_report_requires_completed_campaign(
+        self,
+    ) -> None:
+        mutant = self.mutants()[0]
+        report = (
+            self.root
+            / "incomplete.jsonl"
+        )
+
+        report.write_text(
+            json.dumps({
+                "event": "campaign_start",
+                "engine_blob": self.engine_blob,
+                "target_source_blobs": {
+                    "first.py": self.source_blob(),
+                },
+                "inputs": {},
+                "selected_count": 1,
+                "selected_keys": [
+                    list(mutant.key),
+                ],
+                "oracle_command": [
+                    "fixture-oracle",
+                ],
+            })
+            + "\n"
+            + json.dumps({
+                "event": "mutant_outcome",
+                "key": list(mutant.key),
+                "target": mutant.target,
+                "index": mutant.index,
+                "line": mutant.line,
+                "mutation_kind": mutant.kind,
+                "source": mutant.text,
+                "occurrence": mutant.occurrence,
+                "outcome": "unclassified_survivor",
+                "elapsed_seconds": 0.1,
+                "source_blob": self.source_blob(),
+                "engine_blob": self.engine_blob,
+            })
+            + "\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "expected exactly one campaign_complete",
+        ):
+            mutation_campaign.failure_cases(
+                (report,)
+            )
 
 
 if __name__ == "__main__":

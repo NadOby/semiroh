@@ -1,0 +1,126 @@
+source_blob = "65369a68f2ad53c94a7c6a9e8cea6d9142f2cc15"
+
+[[survivor]]
+kind = "constant"
+source = "def __init__(self, message: str, line: int = 1, column: int = 1) -> None:"
+occurrence = 0
+classification = "unspecified"
+reason = """
+The documented SourceError contract is that parser errors expose 1-based line
+and column coordinates. Internal syntax code supplies those coordinates
+explicitly. The default line used when a caller directly constructs
+SourceError without coordinates is not part of the syntax contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "def __init__(self, message: str, line: int = 1, column: int = 1) -> None:"
+occurrence = 1
+classification = "unspecified"
+reason = """
+The documented SourceError contract is that parser errors expose 1-based line
+and column coordinates. Internal syntax code supplies those coordinates
+explicitly. The default column used when a caller directly constructs
+SourceError without coordinates is not part of the syntax contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "@dataclass(frozen=True)"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Token is an implementation record used by the tokenizer and parser. The syntax
+contract specifies tokenization and parsing behaviour, not mutability of Token
+objects returned by the implementation.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "tokens.append(Token(\"dedent\", None, last, 1))"
+occurrence = 0
+classification = "unspecified"
+reason = """
+This column belongs to a synthetic DEDENT emitted only to close indentation at
+end of input. SourceError coordinates are specified as 1-based, but no
+canonical source column is defined for this zero-width generated token.
+Changing its column from 1 to 2 therefore changes only unspecified diagnostic
+position detail.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "tokens.append(Token(\"eof\", None, last, 1))"
+occurrence = 0
+classification = "unspecified"
+reason = """
+EOF is a synthetic zero-width token. The syntax contract requires 1-based
+SourceError coordinates but does not define which column EOF occupies.
+Changing this generated token's column from 1 to 2 affects only unspecified
+diagnostic position detail.
+"""
+
+[[survivor]]
+kind = "arithmetic"
+source = "tokens.append(Token(\"newline\", None, number, len(line) + 1))"
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the column attached to the synthetic NEWLINE token. The
+syntax API specifies 1-based SourceError coordinates but does not specify the
+exact source column assigned to a zero-width generated newline token.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "tokens.append(Token(\"newline\", None, number, len(line) + 1))"
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the synthetic NEWLINE token's column from len(line)+1 to
+len(line)+2. Exact coordinates for generated structural tokens are not part of
+the documented syntax contract.
+"""
+
+[[survivor]]
+kind = "arithmetic"
+source = "tokens.append(Token(\"indent\", None, number, indent + 1))"
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the column stored on a synthetic INDENT token. INDENT has no
+source character of its own, and the documented syntax contract does not
+define a canonical column for generated indentation tokens.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "tokens.append(Token(\"indent\", None, number, indent + 1))"
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the column metadata of the generated INDENT token. Exact
+synthetic-token positions are not specified syntax behaviour.
+"""
+
+[[survivor]]
+kind = "arithmetic"
+source = "tokens.append(Token(\"dedent\", None, number, indent + 1))"
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only the column stored on a generated DEDENT token. DEDENT is a
+zero-width structural token and its exact column is not specified by the text
+syntax contract.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "tokens.append(Token(\"dedent\", None, number, indent + 1))"
+occurrence = 0
+classification = "unspecified"
+reason = """
+This changes only generated DEDENT position metadata. Parsing structure is
+unchanged, and the syntax specification does not define the exact column of a
+synthetic DEDENT token.
+"""

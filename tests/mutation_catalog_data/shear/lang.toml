@@ -1,4 +1,4 @@
-source_blob = "566bb887c21bf64572df9ee9e7cc66745f204ef3"
+source_blob = "91089f53e7c2f98ad4b77fcecd38e5650dd1210b"
 
 [[survivor]]
 kind = "compare"
@@ -9,15 +9,6 @@ reason = """
 _links_of is a private helper and every internal caller supplies a relation
 index; behavior of its optional omitted-index convenience is not part of the
 language semantic contract.
-"""
-
-[[survivor]]
-kind = "constant"
-source = 'f"let name must be a non-empty string, got {rest[0]!r}",'
-occurrence = 0
-classification = "unspecified"
-reason = """
-The selected value appears only in diagnostic text.
 """
 
 [[survivor]]

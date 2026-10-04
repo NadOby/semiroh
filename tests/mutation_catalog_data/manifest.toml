@@ -2,7 +2,6 @@ schema_version = 1
 engine_blob = "cf45fbbadb5ea8ab97e6055f3cf7192764b09d70"
 
 catalog_targets = [
-    "shear/bytecode.py",
     "shear/canonical.py",
     "shear/cells.py",
     "shear/closures.py",
@@ -20,7 +19,9 @@ catalog_targets = [
     "shear/relations.py",
     "shear/runtime.py",
     "shear/state.py",
-    "shear/syntax.py",
+    "shear/syntax/lexer.py",
+    "shear/syntax/parser.py",
+    "shear/syntax/printer.py",
     "shear/transforms.py",
     "shear/values.py",
 ]

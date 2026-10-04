@@ -1,0 +1,70 @@
+source_blob = "35f855321acea598a2e5bf1348803377ccaaa193"
+
+[[survivor]]
+kind = "constant"
+source = "_ORDINARY, _HOLES = 0, 1"
+occurrence = 1
+classification = "equivalent"
+reason = """
+_HOLES is an internal mode tag. Code enters hole mode using _HOLES and tests
+for that same symbolic value; its numeric value is neither serialized nor
+otherwise interpreted. Changing the tag from 1 to 2 therefore preserves all
+behaviour.
+"""
+
+[[survivor]]
+kind = "if"
+source = "if token.kind == \"eof\":"
+occurrence = 0
+classification = "unspecified"
+reason = """
+This branch only chooses the human-readable description inserted into an
+already-detected SourceError. The syntax API specifies SourceError and its
+1-based line/column coordinates, not exact diagnostic prose.
+"""
+
+[[survivor]]
+kind = "if"
+source = "if token.kind in (\"newline\", \"indent\", \"dedent\"):"
+occurrence = 0
+classification = "unspecified"
+reason = """
+This branch only chooses the human-readable token description used in an
+already-detected SourceError. Exact diagnostic wording is not part of the
+documented syntax contract.
+"""
+
+[[survivor]]
+kind = "compare"
+source = "if token.kind == \"eof\":"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Flipping this comparison changes only which textual description _describe
+returns for an already-rejected token. It does not alter parsing, rejection,
+or SourceError position information.
+"""
+
+[[survivor]]
+kind = "compare"
+source = "if token.kind in (\"newline\", \"indent\", \"dedent\"):"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Flipping this membership test changes only diagnostic wording for an
+already-rejected token. The exact wording is intentionally outside the
+documented syntax API.
+"""
+
+[[survivor]]
+kind = "return"
+source = "return \"end of text\""
+occurrence = 0
+classification = "unspecified"
+reason = """
+Public parse paths do not call _describe on EOF: tokenization inserts a
+synthetic NEWLINE before EOF for every source line, and parser paths either
+handle EOF explicitly or reject that structural token first. Calling the
+private helper directly with an EOF Token is outside the syntax API, including
+its exact descriptive return value.
+"""

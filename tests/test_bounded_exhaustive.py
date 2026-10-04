@@ -5,7 +5,7 @@ from __future__ import annotations
 from itertools import product
 import unittest
 
-from semiroh import EntityID, TransformationDefinition, compose
+from shear import EntityID, TransformationDefinition, compose
 
 
 A = EntityID("a")

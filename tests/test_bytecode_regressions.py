@@ -7,7 +7,7 @@ import subprocess
 import sys
 import unittest
 
-from semiroh import bytecode
+from shear import bytecode
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,7 +20,7 @@ class BytecodeRegressionTests(unittest.TestCase):
                 sys.executable,
                 "-c",
                 (
-                    "from semiroh.bytecode import lowered_count; "
+                    "from shear.bytecode import lowered_count; "
                     "print(lowered_count())"
                 ),
             ],

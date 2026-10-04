@@ -3,7 +3,7 @@
 
 import unittest
 
-from semiroh import (
+from shear import (
     CellDeclaration,
     EntityID,
     IsKind,
@@ -13,8 +13,8 @@ from semiroh import (
     canonical_serialize,
     canonicalize,
 )
-from semiroh.examples import EXAMPLES, MISSING, TAGS
-from semiroh.lang import Function, LanguageError, links, load, run
+from shear.examples import EXAMPLES, MISSING, TAGS
+from shear.lang import Function, LanguageError, links, load, run
 
 F = EntityID("f")
 DOUBLE = EntityID("double")

@@ -1,6 +1,6 @@
 """Acceptance tests for the first program (docs/first_program.md).
 
-These tests define the behaviour of `semiroh.lang`. The implementation is
+These tests define the behaviour of `shear.lang`. The implementation is
 done when they pass unchanged.
 
 Programs are written in the input format and loaded into graph form
@@ -9,7 +9,7 @@ Programs are written in the input format and loaded into graph form
 
 import unittest
 
-from semiroh import (
+from shear import (
     ActivationRejected,
     CellContentRejected,
     CellDeclaration,
@@ -21,7 +21,7 @@ from semiroh import (
     relation_of,
     transform_with_mapping,
 )
-from semiroh.lang import Function, LanguageError, define, links, load, run
+from shear.lang import Function, LanguageError, define, links, load, run
 
 SQUARE = EntityID("square")
 DOUBLE = EntityID("double")

@@ -1,11 +1,12 @@
-# SEMIROH
+# SHEAR
 
-**Semantics Exist Mostly in Relations of Hypergraphs**
+**Semantic Hypergraphs Evolving Algebraic Relations**
+(recursively, SHEAR Hypergraphs Evolve Algebraic Relations)
 
-SEMIROH is a minimalist systems programming language built around a semantic
+SHEAR is a minimalist systems programming language built around a semantic
 graph as the canonical representation of a program.
 
-Every SEMIROH program carries its own compiler. A running program retains its
+Every SHEAR program carries its own compiler. A running program retains its
 semantic graph and the transformation machinery that produced its executable
 representation, so it keeps the ability to modify itself: it can produce a new
 version of its own program state, validate it, and activate it.
@@ -29,7 +30,7 @@ Much of the design follows from this goal:
 
 ## Status of the reference model
 
-The executable reference model in `semiroh/` (section 24) now demonstrates
+The executable reference model in `shear/` (section 24) now demonstrates
 three of the claims above. Design and history: [`docs/`](docs/),
 [`CHANGES.md`](CHANGES.md), [`docs/roadmap.md`](docs/roadmap.md).
 
@@ -52,14 +53,14 @@ frames finish in the version they started in
 
 **Programs carry their compiler.** Graph form is lowered to bytecode, cached
 per node version, and run on a VM with an explicit stack. The lowering pass
-and a bytecode interpreter are also written in SEMIROH, and the compiler
+and a bytecode interpreter are also written in SHEAR, and the compiler
 reaches a bootstrap fixpoint on its own source
 ([`bytecode.md`](docs/bytecode.md), [`self_hosting.md`](docs/self_hosting.md),
-[`vm_in_semiroh.md`](docs/vm_in_semiroh.md)). Constant folding is a graph
+[`vm_in_shear.md`](docs/vm_in_shear.md)). Constant folding is a graph
 transformation that declares its merges
 ([`constant_folding.md`](docs/constant_folding.md)).
 
-A canary corpus of small programs (`semiroh/examples/`,
+A canary corpus of small programs (`shear/examples/`,
 [`corpus.md`](docs/corpus.md)) and seeded mutation tests check all of this.
 
 **How the vision changed on contact with code.**
@@ -81,7 +82,7 @@ at every call; the per-run activation grant and trials without it; a
 function's `definition` relation, node identities and flat node ownership;
 function references as `EntityID`s that do not follow renames when held in
 cells; the bytecode and VM shapes; the operations of constant folding; the
-output of the SEMIROH lowering pass and the pure-code limits of the SEMIROH
+output of the SHEAR lowering pass and the pure-code limits of the SHEAR
 VM.
 
 **Text editing now exists.** `parse` and `render` provide the text
@@ -188,7 +189,7 @@ programming.
 
 ## 3. Identity
 
-SEMIROH distinguishes conceptual entity identity, semantic value version
+SHEAR distinguishes conceptual entity identity, semantic value version
 identity, semantic state identity, and runtime identity.
 
 In particular:
@@ -283,7 +284,7 @@ modify.
 
 ## 9. Explicitness
 
-SEMIROH does not require every operation to be syntactically explicit.
+SHEAR does not require every operation to be syntactically explicit.
 
 Implicit behaviour is acceptable where it has clear, predictable semantics
 and provides substantial practical value.
@@ -425,7 +426,7 @@ See [`docs/contract_model.md`](docs/contract_model.md).
 
 ## 15. Collections and representations
 
-SEMIROH aims for a small primitive semantic core.
+SHEAR aims for a small primitive semantic core.
 
 Higher-level abstractions should normally be derived from general primitives
 when doing so remains simple and natural.
@@ -448,7 +449,7 @@ semantics remain open.
 
 ## 17. Errors and control flow
 
-SEMIROH does not use exceptions as its fundamental error mechanism.
+SHEAR does not use exceptions as its fundamental error mechanism.
 
 Errors are explicit values.
 
@@ -500,7 +501,7 @@ reproducible.
 ## 21. Foreign integration
 
 Foreign integration is treated as semantic derivation rather than requiring
-SEMIROH to parse every foreign language.
+SHEAR to parse every foreign language.
 
 A foreign artifact may be used to derive declarations, types, ABI information,
 effects, capabilities, contracts, ownership information, and representation
@@ -574,8 +575,8 @@ It is an executable model of the semantic rules.
 
 Besides the core, it contains a small language layer: `lang.py` (code as
 graph form), `bytecode.py` (lowering and the virtual machine), `fold.py`
-(constant folding), and `semiroh/examples/` (the canary corpus, and the
-compiler and VM written in SEMIROH).
+(constant folding), and `shear/examples/` (the canary corpus, and the
+compiler and VM written in SHEAR).
 
 Where the architecture is unresolved, the reference model should expose that
 uncertainty rather than silently selecting an arbitrary interpretation.
@@ -743,7 +744,7 @@ mutable environments.
 
 ## 35. Design philosophy
 
-SEMIROH is not minimal merely for the sake of having few primitives.
+SHEAR is not minimal merely for the sake of having few primitives.
 
 The objective is to identify a small set of general semantic mechanisms from
 which useful language features can be composed.
@@ -759,7 +760,7 @@ The intended balance is pragmatic.
 
 ## 36. Non-goals
 
-SEMIROH does not aim to:
+SHEAR does not aim to:
 
 - make every feature a primitive;
 - require formal proofs for every program;
@@ -825,3 +826,8 @@ These are not assumed to be solved merely because a plausible syntax exists.
 They should be resolved through consistency with the core semantic model,
 implementation evidence, test-corpus behaviour, and practical systems
 requirements.
+
+---
+
+<sub>SHEAR was called SEMIROH until October 2026; git history, closed
+pull requests and old links use that name.</sub>

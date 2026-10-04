@@ -1,4 +1,4 @@
-source_blob = "6d49948b7d554869b4b65574079814a53b45541b"
+source_blob = "566bb887c21bf64572df9ee9e7cc66745f204ef3"
 
 [[survivor]]
 kind = "compare"
@@ -41,7 +41,7 @@ reason = """
 Function equality is specified by canonical semantic content when comparing
 Functions. Returning NotImplemented for an unrelated Python object participates
 in Python's reflected equality protocol; that cross-type host-language
-interoperability is not part of the SEMIROH language contract.
+interoperability is not part of the SHEAR language contract.
 """
 
 [[survivor]]

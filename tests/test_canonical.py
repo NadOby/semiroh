@@ -3,7 +3,7 @@
 import dataclasses
 import unittest
 
-from semiroh import (
+from shear import (
     semantic_equal,
     canonicalize,
     EntityID,

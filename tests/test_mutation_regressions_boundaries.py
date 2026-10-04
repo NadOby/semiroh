@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError
 import unittest
 
-from semiroh import (
+from shear import (
     CellDeclaration,
     EntityID,
     IsKind,
@@ -14,9 +14,9 @@ from semiroh import (
     Value,
     canonical_serialize,
 )
-from semiroh.examples._support import program
-from semiroh.fold import fold_constants, sources_of
-from semiroh.lang import (
+from shear.examples._support import program
+from shear.fold import fold_constants, sources_of
+from shear.lang import (
     Function,
     LanguageError,
     _definition_of,
@@ -25,8 +25,8 @@ from semiroh.lang import (
     load,
     run,
 )
-from semiroh.relations import relation_of
-from semiroh.syntax import SourceError, parse, render
+from shear.relations import relation_of
+from shear.syntax import SourceError, parse, render
 
 
 F = EntityID("f")

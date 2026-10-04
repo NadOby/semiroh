@@ -83,13 +83,13 @@ def shard_work(
 
     if shards < 1:
         raise ValueError(
-            "SEMIROH_MUTATE_SHARDS must be a positive integer"
+            "SHEAR_MUTATE_SHARDS must be a positive integer"
         )
 
     if shard < 0 or shard >= shards:
         raise ValueError(
-            "SEMIROH_MUTATE_SHARD must be between 0 and "
-            "SEMIROH_MUTATE_SHARDS - 1"
+            "SHEAR_MUTATE_SHARD must be between 0 and "
+            "SHEAR_MUTATE_SHARDS - 1"
         )
 
     return tuple(

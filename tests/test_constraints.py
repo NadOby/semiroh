@@ -4,7 +4,7 @@ import random
 import unittest
 from typing import Any
 
-from semiroh import (
+from shear import (
     AllOf,
     AnyOf,
     CellDeclaration,
@@ -28,8 +28,8 @@ from semiroh import (
     canonicalize,
     kind_of,
 )
-from semiroh.closures import Closure
-from semiroh.constraints import KINDS
+from shear.closures import Closure
+from shear.constraints import KINDS
 
 SAT = ConstraintResult.SATISFIED
 VIO = ConstraintResult.VIOLATED

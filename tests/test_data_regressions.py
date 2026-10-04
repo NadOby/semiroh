@@ -8,7 +8,7 @@ when executed.
 
 import unittest
 
-from semiroh import (
+from shear import (
     CellDeclaration,
     EntityID,
     IntRange,
@@ -17,8 +17,8 @@ from semiroh import (
     canonical_serialize,
     canonicalize,
 )
-from semiroh.examples._support import program
-from semiroh.lang import Function, LanguageError, links, load, run
+from shear.examples._support import program
+from shear.lang import Function, LanguageError, links, load, run
 
 F = EntityID("f")
 ONE = EntityID("one")

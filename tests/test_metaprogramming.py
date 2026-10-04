@@ -9,7 +9,7 @@ Programs are written in the input format and loaded into graph form
 
 import unittest
 
-from semiroh import (
+from shear import (
     ActivationRejected,
     CellDeclaration,
     ConstraintResult,
@@ -27,7 +27,7 @@ from semiroh import (
     canonicalize,
     kind_of,
 )
-from semiroh.lang import Function, LanguageError, function_at, links, load, run
+from shear.lang import Function, LanguageError, function_at, links, load, run
 
 COUNTER = EntityID("counter")
 STASH = EntityID("stash")

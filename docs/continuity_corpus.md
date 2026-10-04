@@ -1,6 +1,6 @@
 # Continuity Corpus
 
-**Status: implemented** (roadmap.md task 12). `semiroh/continuity.py` holds
+**Status: implemented** (roadmap.md task 12). `shear/continuity.py` holds
 the format, the 21 cases and `check`; `tests/test_continuity_corpus.py` is
 the acceptance suite and `tests/test_continuity_units.py` pins designator
 resolution and what `check` reports. Section 5 lists which cases hold.
@@ -15,7 +15,7 @@ normative. Its status says whether the model meets it today.
 
 **Decided.**
 
-Module `semiroh/continuity.py`:
+Module `shear/continuity.py`:
 
     Expect(kept=(), changed=(), gone=(), new=(), at={}, merged={},
            split={}, rejected=None, cells={})

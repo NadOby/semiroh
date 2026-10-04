@@ -53,7 +53,7 @@ class MutationCatalogTests(unittest.TestCase):
     def test_every_top_level_semantic_module_is_accounted_for(self) -> None:
         modules = {
             path.relative_to(ROOT).as_posix()
-            for path in (ROOT / "semiroh").glob("*.py")
+            for path in (ROOT / "shear").glob("*.py")
         }
 
         accounted = {
@@ -72,18 +72,18 @@ class MutationCatalogTests(unittest.TestCase):
         modules = {
             path.relative_to(ROOT).as_posix()
             for path in (
-                ROOT / "semiroh" / "examples"
+                ROOT / "shear" / "examples"
             ).glob("*.py")
         }
 
         accounted = {
             target
             for target in TARGETS
-            if target.startswith("semiroh/examples/")
+            if target.startswith("shear/examples/")
         } | {
             path
             for path in OMITTED
-            if path.startswith("semiroh/examples/")
+            if path.startswith("shear/examples/")
         }
 
         self.assertEqual(modules, accounted)

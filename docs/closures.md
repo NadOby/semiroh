@@ -17,7 +17,7 @@ In scope:
 - passing, returning and applying closures;
 - storing closures as ordinary values;
 - ordinary arity and tail-call behaviour;
-- graph form, bytecode, and the compiler and VM written in SEMIROH;
+- graph form, bytecode, and the compiler and VM written in SHEAR;
 - `make_adder` and `compose` in the corpus.
 
 Out of scope:
@@ -46,7 +46,7 @@ The input form is:
 `c1 ... cM` are names explicitly captured from the environment in which the
 closure expression is evaluated.
 
-`body` is ordinary SEMIROH code. It is part of the semantic graph like every
+`body` is ordinary SHEAR code. It is part of the semantic graph like every
 other expression tree; creating a closure does not turn its body into an
 opaque `Function` value.
 
@@ -223,24 +223,24 @@ machine's call-depth limit.
 Adding closures extends the language carried by a program's compiler; the
 self-hosted path must not silently lose the operation.
 
-The lowering pass written in SEMIROH emits the same closure bytecode as the
+The lowering pass written in SHEAR emits the same closure bytecode as the
 host lowering pass. The acceptance test compares its output directly with the
 independently expanded host chunk.
 
-The bytecode interpreter written in SEMIROH executes closure construction and
+The bytecode interpreter written in SHEAR executes closure construction and
 closure application for the pure-code subset it already supports.
 
 The compiler bootstrap fixpoint and the existing self-hosting acceptance tests
 continue to hold.
 
-The SEMIROH-written VM does not reuse the host Python `Closure` record. Its
+The SHEAR-written VM does not reuse the host Python `Closure` record. Its
 internal callable values are capability-tagged semantic tuples. Each invocation
 of the VM creates a private token as a real closure and includes that token in
 every internal reference or closure representation produced by `REF` or
 `CLOSURE`. `REFCHECK` and `vm_apply` require that token as well as the expected
 shape and tag.
 
-An ordinary tuple constructed by interpreted SEMIROH code therefore cannot
+An ordinary tuple constructed by interpreted SHEAR code therefore cannot
 forge a VM reference or closure merely by using the strings `"ref"` or
 `"closure"`.
 
@@ -262,7 +262,7 @@ The corpus contains:
 
 These programs use no activation capability.
 
-`semiroh.examples.MISSING` is empty.
+`shear.examples.MISSING` is empty.
 
 ## 10. Acceptance
 
@@ -292,9 +292,9 @@ Coverage includes:
 - a deep chain of tail closure applications not growing the call stack;
 - graph-form round-trip;
 - continuity-preserved closure bodies following the active program version;
-- host and SEMIROH lowering agreeing for closure code;
-- the SEMIROH VM constructing and applying compiled closures;
-- rejection of forged tagged callable tuples by the SEMIROH VM;
+- host and SHEAR lowering agreeing for closure code;
+- the SHEAR VM constructing and applying compiled closures;
+- rejection of forged tagged callable tuples by the SHEAR VM;
 - differential host/embedded rejection of malformed closure metadata;
 - corpus and text-syntax round trips;
 - `MISSING` being empty.

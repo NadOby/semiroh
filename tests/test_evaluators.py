@@ -2,7 +2,7 @@
 
 import unittest
 
-from semiroh import ConstraintResult, Evaluator, canonicalize
+from shear import ConstraintResult, Evaluator, canonicalize
 
 
 class EvaluatorTests(unittest.TestCase):

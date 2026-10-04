@@ -1,8 +1,8 @@
 # Bytecode and the Virtual Machine
 
 **Status: implemented** (roadmap.md task 7, decision D2; extended by task 17).
-`semiroh/bytecode.py` lowers, caches and disassembles chunks;
-`semiroh/machine.py` executes them. `tests/test_bytecode.py` is the main
+`shear/bytecode.py` lowers, caches and disassembles chunks;
+`shear/machine.py` executes them. `tests/test_bytecode.py` is the main
 acceptance suite, with closure behaviour additionally covered by
 `tests/test_closures.py`.
 
@@ -125,7 +125,7 @@ The stack is the operand stack of one run.
     CODE f name         push the code of function f as (params, body)
                         (self_hosting.md)
     LINKS f name        push the link table of function f as (name, entity)
-                        pairs (vm_in_semiroh.md)
+                        pairs (vm_in_shear.md)
 
     LETCHECK name       the name must not already be in lexical scope
     LETBIND name n      pop a value, bind name to it, continue as node n
@@ -282,7 +282,7 @@ recursion limit; with that limit raised it agreed. The harness was not kept
 because there is no longer a second host interpreter to compare against.
 
 Roadmap task 18 added broader differential, metamorphic and stateful testing,
-including the independent self-hosted compiler and SEMIROH VM paths.
+including the independent self-hosted compiler and SHEAR VM paths.
 
 ## 7. Is per-node identity paying for itself?
 
@@ -333,8 +333,8 @@ Bytecode remains derived from semantic graph nodes. A program cannot install
 a chunk as the executable definition of a host function.
 
 Roadmap task 8 resolved the original self-hosting question by having the
-compiler written in SEMIROH emit bytecode as ordinary tuple data. Roadmap
-task 10 then added an interpreter written in SEMIROH that executes those
+compiler written in SHEAR emit bytecode as ordinary tuple data. Roadmap
+task 10 then added an interpreter written in SHEAR that executes those
 tuples. Task 17 extends both paths with closure bytecode.
 
 Thus a program can produce and execute bytecode without making bytecode part
@@ -361,7 +361,7 @@ machine.
 - **Chunk lifetime is the value's.** Nothing bounds the number of chunks
   alive at once except the values themselves.
 
-- **Host execution of program-produced chunks.** The SEMIROH-written VM
+- **Host execution of program-produced chunks.** The SHEAR-written VM
   demonstrates that such chunks can be run as data. Whether the host machine
   should ever accept one directly remains separate from the derived-bytecode
   model.

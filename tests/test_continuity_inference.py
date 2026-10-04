@@ -2,12 +2,12 @@
 
 import unittest
 
-from semiroh import EntityID
-from semiroh.continuity import CASES, Case, Expect, check
-from semiroh.lang import define, function_at, function_of, load
-from semiroh.runtime import ActivationRejected, Runtime
-from semiroh.syntax import parse
-from semiroh.transforms import transform_with_mapping
+from shear import EntityID
+from shear.continuity import CASES, Case, Expect, check
+from shear.lang import define, function_at, function_of, load
+from shear.runtime import ActivationRejected, Runtime
+from shear.syntax import parse
+from shear.transforms import transform_with_mapping
 
 F = EntityID("f")
 G = EntityID("g")
@@ -146,7 +146,7 @@ class RebaseTests(unittest.TestCase):
         )
 
     def test_disjoint_edits_rebase_and_commute(self) -> None:
-        from semiroh.transforms import rebase
+        from shear.transforms import rebase
 
         onto_left = rebase(self.right, self.left)
         onto_right = rebase(self.left, self.right)
@@ -163,7 +163,7 @@ class RebaseTests(unittest.TestCase):
         self.assertEqual(runtime.active.state.id, self.both.destination.id)
 
     def test_overlapping_edits_conflict(self) -> None:
-        from semiroh.transforms import TransformationConflict, rebase
+        from shear.transforms import TransformationConflict, rebase
 
         other = define(self.state, {(F, "left"): ("lit", 30)})
 
@@ -179,7 +179,7 @@ class RebaseTests(unittest.TestCase):
         self.assertIsInstance(raised.exception, ActivationRejected)
 
     def test_an_edit_inside_a_removed_function_conflicts(self) -> None:
-        from semiroh.transforms import TransformationConflict, rebase
+        from shear.transforms import TransformationConflict, rebase
 
         state = load(parse("fn g(x):\n    label(k, 1) + x\n\nfn f(x):\n    x\n"))
         owned = state.owned_subtree(G) | {G}
@@ -192,7 +192,7 @@ class RebaseTests(unittest.TestCase):
             rebase(inside, removal)
 
     def test_a_result_from_an_unknown_state_is_stale_not_a_conflict(self) -> None:
-        from semiroh.transforms import TransformationConflict
+        from shear.transforms import TransformationConflict
 
         later = define(self.left.destination, {(F, "right"): ("lit", 20)})
         runtime = Runtime(self.state)
@@ -203,7 +203,7 @@ class RebaseTests(unittest.TestCase):
         self.assertNotIsInstance(raised.exception, TransformationConflict)
 
     def test_rebase_needs_a_common_source(self) -> None:
-        from semiroh.transforms import TransformationConflict, rebase
+        from shear.transforms import TransformationConflict, rebase
 
         later = define(self.left.destination, {(F, "right"): ("lit", 20)})
 

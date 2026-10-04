@@ -4,7 +4,7 @@
 
 This ledger asks where graph form provides leverage over a conventional compiler representation rather than merely expressing the same information differently.
 
-Measurements come from `semiroh/examples/ledger.py`, which runs the existing model. `tests/test_ledger.py` checks that the script runs and that the visible measurements quoted here match its output.
+Measurements come from `shear/examples/ledger.py`, which runs the existing model. `tests/test_ledger.py` checks that the script runs and that the visible measurements quoted here match its output.
 
 ## 1. Verdicts
 

@@ -2,9 +2,9 @@
 
 import unittest
 
-from semiroh import EntityID
-from semiroh.continuity import CASES, GROUPS, Case, Expect, check
-from semiroh.lang import define
+from shear import EntityID
+from shear.continuity import CASES, GROUPS, Case, Expect, check
+from shear.lang import define
 
 REQUIRED = {
     # The operations the review named: rename, move, insert, delete,

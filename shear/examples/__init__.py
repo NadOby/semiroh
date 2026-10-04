@@ -7,7 +7,7 @@ corpus unchanged; a broken interpreter must fail it
 programs from the per-tag submodules and the wanted programs from
 ``missing.py``.
 
-Programs are data: they are built with ``semiroh.lang`` (``Function``,
+Programs are data: they are built with ``shear.lang`` (``Function``,
 ``links``) and core constructors. Host code appears only as evaluators in an
 example's ``context``, never inside a program body.
 """
@@ -115,7 +115,7 @@ def _semantically_equal(left: Any, right: Any) -> bool:
 def play(example: Example, run: Callable[..., Any]) -> None:
     """Run every scenario of ``example`` with ``run``.
 
-    The program is loaded into graph form (``semiroh.lang.load``) once, and
+    The program is loaded into graph form (``shear.lang.load``) once, and
     each scenario starts a fresh runtime from it.
 
     Raises ``ExampleFailed``, naming the example, scenario and step, at the

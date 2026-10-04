@@ -5,11 +5,11 @@ from __future__ import annotations
 import random
 import unittest
 
-from semiroh import EntityID, Runtime, State, Value, transform
-from semiroh.lang import Function, define, function_at, load, run
-from semiroh.reconcile import reconcile
-from semiroh.syntax import parse, render_program
-from semiroh.transforms import rebase
+from shear import EntityID, Runtime, State, Value, transform
+from shear.lang import Function, define, function_at, load, run
+from shear.reconcile import reconcile
+from shear.syntax import parse, render_program
+from shear.transforms import rebase
 from tests.generation import seeds
 
 

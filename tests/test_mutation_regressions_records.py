@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError
 import unittest
 
-from semiroh import (
+from shear import (
     CompositionResult,
     EntityID,
     Relation,
@@ -18,8 +18,8 @@ from semiroh import (
     canonical_serialize,
     canonicalize,
 )
-from semiroh.closures import Closure, closure_value
-from semiroh.lang import (
+from shear.closures import Closure, closure_value
+from shear.lang import (
     Function,
     LanguageError,
     define,

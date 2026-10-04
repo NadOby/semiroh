@@ -16,7 +16,7 @@ class Value:
 
     Equality and hashing are defined by entity identity plus canonical
     serialization of the content, not by Python equality of the content.
-    Python considers ``True == 1``; SEMIROH does not, because their canonical
+    Python considers ``True == 1``; SHEAR does not, because their canonical
     serializations differ.
     """
 

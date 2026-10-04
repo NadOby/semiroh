@@ -2,29 +2,29 @@
 
 This document tracks conceptually related programming-language and semantic-model projects.
 
-The purpose is not to copy their designs or treat prior art as authoritative. It is to identify independently explored design space, validate that particular abstractions are workable, and expose failure modes that SEMIROH may otherwise encounter.
+The purpose is not to copy their designs or treat prior art as authoritative. It is to identify independently explored design space, validate that particular abstractions are workable, and expose failure modes that SHEAR may otherwise encounter.
 
-A design appearing here does not imply that SEMIROH should adopt it. Likewise, a problem encountered by another language does not necessarily invalidate the corresponding SEMIROH design: different constraints can produce different outcomes.
+A design appearing here does not imply that SHEAR should adopt it. Likewise, a problem encountered by another language does not necessarily invalidate the corresponding SHEAR design: different constraints can produce different outcomes.
 
 ## Design-space map
 
-| SEMIROH area | Prior art | What it gives us | Risk / question to watch |
+| SHEAR area | Prior art | What it gives us | Risk / question to watch |
 |---|---|---|---|
 | Hypergraph as semantic substrate | LMNtal | Hierarchical graph rewriting demonstrates that graph-native computation can form the basis of a practical language. | Graph rewriting can become the entire computational model. Avoid making every ordinary operation a rewrite-system problem. |
 | Program as hypergraph | Clef / Program Hypergraph | PHG explicitly generalizes program semantic graphs from binary edges to arbitrary-arity directed hyperedges. | A general semantic graph can absorb increasingly large amounts of compiler machinery. Keep the semantic substrate smaller than the entire compiler unless there is a concrete reason not to. |
-| Identity distinct from state and value | Clojure | Clojure provides strong prior art for treating identity as a logical entity associated with successive immutable states. | SEMIROH has immutable `State` objects and explicit transformations rather than mutable identities. Avoid accidentally reconstructing mutable identity through another mechanism. |
-| Explicit immutable versions | Clojure and persistent-data systems | Persistent immutable values demonstrate that previous semantic states can remain valid and addressable. | Persistence alone does not establish conceptual identity continuity. SEMIROH's explicit entity mappings solve a different problem. |
+| Identity distinct from state and value | Clojure | Clojure provides strong prior art for treating identity as a logical entity associated with successive immutable states. | SHEAR has immutable `State` objects and explicit transformations rather than mutable identities. Avoid accidentally reconstructing mutable identity through another mechanism. |
+| Explicit immutable versions | Clojure and persistent-data systems | Persistent immutable values demonstrate that previous semantic states can remain valid and addressable. | Persistence alone does not establish conceptual identity continuity. SHEAR's explicit entity mappings solve a different problem. |
 | Ownership separate from identity | Sec | Sec explicitly separates value, object, storage, ownership responsibility, borrowing authority, reference validity and provenance. | Each additional semantic distinction increases bookkeeping and implementation complexity. Every distinction should earn its place. |
 | Persistent identity independent of ownership | CobaltC | Provides prior art for persistent object identity that is not itself equivalent to ownership. | Stable identity can easily turn into a second implicit reference or ownership system. Keep identity and access deliberately separate. |
 | Explicit lifetime / no GC | Sec, CobaltC, Cation | Demonstrates that value-oriented and immutable semantics can coexist with explicit resource and lifetime models. | Lifetime machinery can dominate a language. Do not expose implementation lifetime as semantic identity unless required. |
-| Transformation as computation | LMNtal and graph-rewriting languages | Graph transformation provides an established computational model for directly transforming graph structures. | Rewrite systems introduce matching, evaluation-order, confluence and termination problems. SEMIROH may benefit from keeping transformations ordinary functions over immutable states. |
+| Transformation as computation | LMNtal and graph-rewriting languages | Graph transformation provides an established computational model for directly transforming graph structures. | Rewrite systems introduce matching, evaluation-order, confluence and termination problems. SHEAR may benefit from keeping transformations ordinary functions over immutable states. |
 | Compiler-internal evaluation | Cation | Cation treats compilation as evaluation and attempts to make the distinction between compile-time and runtime smaller. | Compile-time execution creates difficult termination, resource-bound and bootstrapping problems. |
 | First-class metaprogramming | Logos | Logos uses ordinary language mechanisms for compile-time computation rather than introducing a completely separate macro language. | Once compile-time computation becomes ordinary computation, phase separation, termination and resource limits become unavoidable design questions. |
 | Everything represented in one graph | Logos | Demonstrates how programs, types, proofs and compiler-related machinery can be represented within a common semantic structure. | "Everything is graph data" is elegant but can make the compiler/toolchain itself part of the language's semantic surface and dramatically increase scope. |
 | Hypergraph plus proofs | Clef | Shows that semantic hypergraphs can carry proof-related information as first-class structure. | Powerful semantic representations tend to accumulate optimization, proof, verification and domain-specific concerns. |
 | Minimal language primitives | Cation | Demonstrates an explicit attempt to keep the core language small. | A small syntax or primitive set does not guarantee small semantics. Complexity can migrate into types, compilation and metaprogramming. |
 | Compiler in every program | Forth, Smalltalk and Lisp images (SBCL), Terra, Synthesis kernel | Programs that carry their compiler and generate native code at runtime exist, including in firmware and OS-kernel contexts. | Image size, reproducibility, and platforms that forbid runtime code generation. |
-| Live state transfer at activation | Erlang/OTP hot code loading | Two coexisting module versions; `code_change` converts process state on upgrade. SEMIROH's adopted direction, in spirit. | The version bound terminates processes still running purged code; SEMIROH needs an equivalent policy without GC. |
+| Live state transfer at activation | Erlang/OTP hot code loading | Two coexisting module versions; `code_change` converts process state on upgrade. SHEAR's adopted direction, in spirit. | The version bound terminates processes still running purged code; SHEAR needs an equivalent policy without GC. |
 | Updating running native programs | DSU for C (Ginseng, Kitsune) | Explicit update points and state transformers make live updates of C programs workable. | Writing state transformers is a real tooling burden; update timing is the main safety question. |
 | Per-thread switching | Linux kernel livepatch (https://docs.kernel.org/livepatch/livepatch.html) | Each task switches to patched code once no affected function is on its stack. | Tasks that never reach a safe point block the transition. |
 | Live data migration after redefinition | Common Lisp (CLOS) | `update-instance-for-redefined-class` converts existing instances after a class changes. | Lazy conversion spreads work and failure points across later execution. |
@@ -34,7 +34,7 @@ A design appearing here does not imply that SEMIROH should adopt it. Likewise, a
 
 ### LMNtal
 
-LMNtal is a programming language based on hierarchical graph rewriting. It is particularly relevant to SEMIROH's graph-first direction.
+LMNtal is a programming language based on hierarchical graph rewriting. It is particularly relevant to SHEAR's graph-first direction.
 
 Relevant questions:
 
@@ -86,7 +86,7 @@ https://clojure.org/about/state
 
 Sec explores a fairly explicit separation between values, objects, storage, ownership, borrowing, references and provenance.
 
-This is particularly relevant to SEMIROH because several of these concepts are intentionally kept separate rather than collapsed into one pointer/object abstraction.
+This is particularly relevant to SHEAR because several of these concepts are intentionally kept separate rather than collapsed into one pointer/object abstraction.
 
 Relevant questions:
 
@@ -116,7 +116,7 @@ https://strawberry9.github.io/the-wrong-memory/Appendix_06.html
 
 ### Cation
 
-Cation is relevant to SEMIROH's interest in a small language core, compile-time evaluation and reducing the distinction between compile-time and runtime computation.
+Cation is relevant to SHEAR's interest in a small language core, compile-time evaluation and reducing the distinction between compile-time and runtime computation.
 
 Relevant questions:
 
@@ -155,7 +155,7 @@ running old code continue in it. Loading a third version purges the old one
 and terminates processes still running it. `code_change` callbacks convert
 process state during an upgrade.
 
-This is the closest precedent for SEMIROH's activation direction: live state
+This is the closest precedent for SHEAR's activation direction: live state
 crosses a code change through explicit conversion. See
 [`docs/activation_model.md`](docs/activation_model.md).
 
@@ -203,7 +203,7 @@ Possible destinations include:
 - graph rewriting;
 - implicit compiler transformations.
 
-SEMIROH should therefore evaluate minimality by total semantic complexity, not merely by the number of surface constructs.
+SHEAR should therefore evaluate minimality by total semantic complexity, not merely by the number of surface constructs.
 
 ### 3. Identity is unusually easy to conflate
 
@@ -222,7 +222,7 @@ access authority
 
 Collapsing them may make simple programs easier to describe, but tends to make transformations, persistence, aliasing and lifecycle semantics harder to specify.
 
-SEMIROH should preserve distinctions when they represent genuinely different semantic facts, while resisting distinctions that exist only because of implementation details.
+SHEAR should preserve distinctions when they represent genuinely different semantic facts, while resisting distinctions that exist only because of implementation details.
 
 ### 4. Reflection creates phase problems
 
@@ -258,7 +258,7 @@ However, once everything is represented as graph structure, questions appear abo
 
 The semantic graph should remain the source of truth without automatically becoming the mechanism responsible for every compiler operation.
 
-## Working principle for SEMIROH
+## Working principle for SHEAR
 
 Prior art should be treated as evidence about explored design space.
 
@@ -273,7 +273,7 @@ Pressure:
     the abstraction.
 
 Failure mode:
-    Another system demonstrates a concrete problem that SEMIROH
+    Another system demonstrates a concrete problem that SHEAR
     should explicitly test against.
 
 Uncertain:
@@ -306,7 +306,7 @@ A rough map of the relevant design space is:
                            LMNtal
                               |
                               |
-hypergraph semantics ---- SEMIROH ---- persistent identity/state
+hypergraph semantics ---- SHEAR ---- persistent identity/state
        |                      |                    |
     Clef/PHG                  |                 Clojure
                               |
@@ -319,7 +319,7 @@ hypergraph semantics ---- SEMIROH ---- persistent identity/state
                       Logos        Cation
 ```
 
-SEMIROH does not currently appear to be a direct derivative of any one of these systems. Its closest conceptual relationship is instead the intersection of several independently explored ideas:
+SHEAR does not currently appear to be a direct derivative of any one of these systems. Its closest conceptual relationship is instead the intersection of several independently explored ideas:
 
 ```text
 hypergraph semantics

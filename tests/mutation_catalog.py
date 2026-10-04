@@ -6,8 +6,8 @@ fail-closed from TOML.
 
 Catalog paths mirror mutation targets:
 
-    mutation_catalog_data/semiroh/lang.toml
-        -> semiroh/lang.py
+    mutation_catalog_data/shear/lang.toml
+        -> shear/lang.py
 
 A target receives a TOML file only while it has reviewed survivors. The
 manifest inventories those files so deleting a complete target catalog cannot
@@ -38,29 +38,29 @@ CLASSIFICATIONS = frozenset({
 # embedded compiler and VM are independent implementations and therefore are
 # deliberate mutation targets.
 TARGETS = (
-    "semiroh/bytecode.py",
-    "semiroh/canonical.py",
-    "semiroh/cells.py",
-    "semiroh/closures.py",
-    "semiroh/constraints.py",
-    "semiroh/continuity.py",
-    "semiroh/equality.py",
-    "semiroh/fold.py",
-    "semiroh/identity.py",
-    "semiroh/lang.py",
-    "semiroh/machine.py",
-    "semiroh/matching.py",
-    "semiroh/ownership.py",
-    "semiroh/reconcile.py",
-    "semiroh/references.py",
-    "semiroh/relations.py",
-    "semiroh/runtime.py",
-    "semiroh/state.py",
-    "semiroh/syntax.py",
-    "semiroh/transforms.py",
-    "semiroh/values.py",
-    "semiroh/examples/self_hosting.py",
-    "semiroh/examples/vm.py",
+    "shear/bytecode.py",
+    "shear/canonical.py",
+    "shear/cells.py",
+    "shear/closures.py",
+    "shear/constraints.py",
+    "shear/continuity.py",
+    "shear/equality.py",
+    "shear/fold.py",
+    "shear/identity.py",
+    "shear/lang.py",
+    "shear/machine.py",
+    "shear/matching.py",
+    "shear/ownership.py",
+    "shear/reconcile.py",
+    "shear/references.py",
+    "shear/relations.py",
+    "shear/runtime.py",
+    "shear/state.py",
+    "shear/syntax.py",
+    "shear/transforms.py",
+    "shear/values.py",
+    "shear/examples/self_hosting.py",
+    "shear/examples/vm.py",
 )
 
 
@@ -68,29 +68,29 @@ TARGETS = (
 # explicit rather than allowing new semantic modules to fall out of mutation
 # coverage silently.
 OMITTED = {
-    "semiroh/__init__.py":
+    "shear/__init__.py":
         "public re-export surface; semantic behaviour lives in its modules",
-    "semiroh/examples/__init__.py":
+    "shear/examples/__init__.py":
         "example/corpus harness rather than a semantic implementation",
-    "semiroh/examples/_support.py":
+    "shear/examples/_support.py":
         "example construction helper rather than semantic implementation",
-    "semiroh/examples/closures.py":
+    "shear/examples/closures.py":
         "example program exercised through the corpus",
-    "semiroh/examples/control.py":
+    "shear/examples/control.py":
         "example program exercised through the corpus",
-    "semiroh/examples/data.py":
+    "shear/examples/data.py":
         "example program exercised through the corpus",
-    "semiroh/examples/higher_order.py":
+    "shear/examples/higher_order.py":
         "example program exercised through the corpus",
-    "semiroh/examples/ledger.py":
+    "shear/examples/ledger.py":
         "example program exercised through the corpus",
-    "semiroh/examples/missing.py":
+    "shear/examples/missing.py":
         "wanted-feature corpus data rather than implementation",
-    "semiroh/examples/recursion.py":
+    "shear/examples/recursion.py":
         "example program exercised through the corpus",
-    "semiroh/examples/self_modification.py":
+    "shear/examples/self_modification.py":
         "example program exercised through the corpus",
-    "semiroh/examples/side_effects.py":
+    "shear/examples/side_effects.py":
         "example program exercised through the corpus",
 }
 
@@ -256,11 +256,11 @@ def _target_for(
 
     if (
         len(relative.parts) < 2
-        or relative.parts[0] != "semiroh"
+        or relative.parts[0] != "shear"
     ):
         raise CatalogError(
             f"{relative.as_posix()}: catalog data must mirror "
-            "a target path below semiroh/"
+            "a target path below shear/"
         )
 
     target = relative.with_suffix(".py").as_posix()

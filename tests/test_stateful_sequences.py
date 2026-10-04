@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import random
 import unittest
 
-from semiroh import (
+from shear import (
     ActivationRejected,
     CellContentRejected,
     CellDeclaration,

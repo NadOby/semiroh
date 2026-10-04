@@ -1,4 +1,4 @@
-"""SEMIROH executable semantic reference model."""
+"""SHEAR executable semantic reference model."""
 
 from .canonical import canonical_serialize, canonicalize
 from .cells import CellDeclaration, cell_declaration, cells_of

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from semiroh import (
+from shear import (
     ActivationRejected,
     EntityID,
     Relation,
@@ -12,7 +12,7 @@ from semiroh import (
     Value,
     transform_with_mapping,
 )
-from semiroh.continuity import (
+from shear.continuity import (
     Case,
     DesignatorError,
     Expect,
@@ -20,7 +20,7 @@ from semiroh.continuity import (
     check,
     resolve,
 )
-from semiroh.lang import (
+from shear.lang import (
     Function,
     LanguageError,
     define,
@@ -28,9 +28,9 @@ from semiroh.lang import (
     links,
     load,
 )
-from semiroh.relations import relation_of
-from semiroh.syntax import parse
-from semiroh.transforms import rebase
+from shear.relations import relation_of
+from shear.syntax import parse
+from shear.transforms import rebase
 
 
 ENTITY = EntityID("entity")

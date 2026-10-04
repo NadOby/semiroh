@@ -19,5 +19,5 @@ reason = """
 CellDeclaration equality is specified between semantic cell declarations.
 Returning NotImplemented for an unrelated Python object participates in
 Python's reflected equality protocol; that cross-type host-language behaviour
-is outside the SEMIROH cell semantic contract.
+is outside the SHEAR cell semantic contract.
 """

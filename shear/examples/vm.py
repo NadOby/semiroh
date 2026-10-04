@@ -1,4 +1,4 @@
-"""A bytecode interpreter written in SEMIROH (docs/vm_in_semiroh.md,
+"""A bytecode interpreter written in SHEAR (docs/vm_in_shear.md,
 roadmap task 10).
 
 ``vm(chunk, params, args, links)`` runs a chunk as ``lower`` in
@@ -11,7 +11,7 @@ closures.
 The interpreter represents callable values internally as capability-tagged
 tuples. References are ``(token, "ref", entity)``. Closures are
 ``(token, "closure", body, params, captures, links)`` where ``captures`` is
-the captured environment. ``token`` is a real SEMIROH closure created by
+the captured environment. ``token`` is a real SHEAR closure created by
 ``vm`` and never exposed to interpreted code, so an ordinary tuple built by
 that code cannot forge an internal callable. This representation need not be
 the host Python Closure record.
@@ -198,7 +198,7 @@ def _cases() -> list[tuple[str, tuple]]:
         function: tuple,
         arguments: tuple,
     ) -> tuple:
-        """Call a real linked SEMIROH function.
+        """Call a real linked SHEAR function.
 
         CALL is the final operation of its chunk, so this remains a tail
         call of the interpreted program.
@@ -1211,8 +1211,8 @@ def _bootstrap() -> Example:
         description=(
             "The compiler of self_hosting.py swaps each of its functions "
             "for one that hands its own chunk to the interpreter written in "
-            "SEMIROH, then compiles again, on that bytecode, with the same "
-            "results (vm_in_semiroh.md section 5)."
+            "SHEAR, then compiles again, on that bytecode, with the same "
+            "results (vm_in_shear.md section 5)."
         ),
     )
 

@@ -5,16 +5,16 @@ package and always run.
 
 ``SuiteMutationTests`` plant deterministic single-site bugs in the production
 model and run the semantic oracle against each. They run only when
-``SEMIROH_MUTATE`` is set to a positive number of mutants per target and may
+``SHEAR_MUTATE`` is set to a positive number of mutants per target and may
 be divided into disjoint mutation batches and mutant-level shards:
 
-    SEMIROH_MUTATE=3 python -m tests.test_mutation
+    SHEAR_MUTATE=3 python -m tests.test_mutation
 
-    SEMIROH_MUTATE=3 \
-    SEMIROH_MUTATE_SEED=1 \
-    SEMIROH_MUTATE_BATCH=4 \
-    SEMIROH_MUTATE_SHARDS=4 \
-    SEMIROH_MUTATE_SHARD=2 \
+    SHEAR_MUTATE=3 \
+    SHEAR_MUTATE_SEED=1 \
+    SHEAR_MUTATE_BATCH=4 \
+    SHEAR_MUTATE_SHARDS=4 \
+    SHEAR_MUTATE_SHARD=2 \
         python -m tests.test_mutation
 
 For a fixed source tree, count and seed, batches are disjoint and together
@@ -70,7 +70,7 @@ class AddTests(unittest.TestCase):
 
 
 @unittest.skipIf(
-    os.environ.get("SEMIROH_MUTATION_SUBPROCESS") == "1",
+    os.environ.get("SHEAR_MUTATION_SUBPROCESS") == "1",
     "source integrity is harness metadata, not a mutation kill oracle",
 )
 class SourceIntegrityTests(unittest.TestCase):
@@ -724,53 +724,53 @@ value = 1 + 2
 
 
 @unittest.skipUnless(
-    os.environ.get("SEMIROH_MUTATE"),
-    "set SEMIROH_MUTATE to plant bugs in the model",
+    os.environ.get("SHEAR_MUTATE"),
+    "set SHEAR_MUTATE to plant bugs in the model",
 )
 class SuiteMutationTests(unittest.TestCase):
     def test_the_suite_fails_on_planted_bugs(self) -> None:
-        setting = os.environ["SEMIROH_MUTATE"]
+        setting = os.environ["SHEAR_MUTATE"]
 
         try:
             count = int(setting)
         except ValueError as exc:
             raise ValueError(
-                "SEMIROH_MUTATE must be a positive integer"
+                "SHEAR_MUTATE must be a positive integer"
             ) from exc
 
         if count < 1:
             raise ValueError(
-                "SEMIROH_MUTATE must be a positive integer"
+                "SHEAR_MUTATE must be a positive integer"
             )
 
         seed = int(
             os.environ.get(
-                "SEMIROH_MUTATE_SEED",
+                "SHEAR_MUTATE_SEED",
                 "1",
             )
         )
         batch = int(
             os.environ.get(
-                "SEMIROH_MUTATE_BATCH",
+                "SHEAR_MUTATE_BATCH",
                 "0",
             )
         )
         shards = int(
             os.environ.get(
-                "SEMIROH_MUTATE_SHARDS",
+                "SHEAR_MUTATE_SHARDS",
                 "1",
             )
         )
         shard = int(
             os.environ.get(
-                "SEMIROH_MUTATE_SHARD",
+                "SHEAR_MUTATE_SHARD",
                 "0",
             )
         )
 
         if batch < 0:
             raise ValueError(
-                "SEMIROH_MUTATE_BATCH must be a non-negative integer"
+                "SHEAR_MUTATE_BATCH must be a non-negative integer"
             )
 
         pin_errors = _survivor_pin_errors(
@@ -825,7 +825,7 @@ class SuiteMutationTests(unittest.TestCase):
         )
 
         report_setting = os.environ.get(
-            "SEMIROH_MUTATION_REPORT"
+            "SHEAR_MUTATION_REPORT"
         )
 
         if report_setting:

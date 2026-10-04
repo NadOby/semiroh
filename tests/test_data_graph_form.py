@@ -4,10 +4,10 @@ the acceptance tests in test_data_ops.py."""
 
 import unittest
 
-from semiroh import EntityID, Runtime
-from semiroh.examples._support import program
-from semiroh.lang import Function, LanguageError, function_at, links, load, run
-from semiroh.relations import relation_of
+from shear import EntityID, Runtime
+from shear.examples._support import program
+from shear.lang import Function, LanguageError, function_at, links, load, run
+from shear.relations import relation_of
 
 F = EntityID("f")
 G = EntityID("g")

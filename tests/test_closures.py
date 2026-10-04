@@ -3,7 +3,7 @@
 import unittest
 from unittest import mock
 
-from semiroh import (
+from shear import (
     AnyOf,
     CellDeclaration,
     EntityID,
@@ -11,10 +11,10 @@ from semiroh import (
     IsKind,
     Runtime,
 )
-from semiroh import bytecode
-from semiroh.examples import EXAMPLES, MISSING
-from semiroh.examples._support import program
-from semiroh.lang import (
+from shear import bytecode
+from shear.examples import EXAMPLES, MISSING
+from shear.examples._support import program
+from shear.lang import (
     Function,
     LanguageError,
     define,
@@ -23,7 +23,7 @@ from semiroh.lang import (
     load,
     run,
 )
-from semiroh.relations import relation_of
+from shear.relations import relation_of
 
 
 MAKE = EntityID("make")

@@ -57,7 +57,7 @@ semantic decisions and milestones rather than individual commits.
 ## Future
 
 Architectural decisions will be added here when they become sufficiently
-stable to form part of the SEMIROH semantic model.
+stable to form part of the SHEAR semantic model.
 
 ## 2026-09-20
 
@@ -178,7 +178,7 @@ Composition APIs are specified in terms of these three result classes.
 
 ### Self-modification direction
 
-- Stated the motivating goal in the README: every SEMIROH program carries its
+- Stated the motivating goal in the README: every SHEAR program carries its
   own compiler and retains the ability to modify itself by producing,
   validating, and activating a new version of its program state.
 - Made the embedded compiler part of every program image and added it to the
@@ -363,7 +363,7 @@ Composition APIs are specified in terms of these three result classes.
 
 ### First program
 
-- Added `semiroh/lang.py`: a tiny expression language interpreted directly
+- Added `shear/lang.py`: a tiny expression language interpreted directly
   over semantic state (docs/first_program.md), as a layer on top of the core
   model rather than part of it. `Function(params, body)` is a semantic
   record whose body is a plain tuple expression tree; functions name the
@@ -459,7 +459,7 @@ Composition APIs are specified in terms of these three result classes.
 
 ### Canary corpus
 
-- Added `semiroh/examples/`, implementing the canary corpus (docs/corpus.md):
+- Added `shear/examples/`, implementing the canary corpus (docs/corpus.md):
   `Raises`, `Step`, `Example`, `Wanted`, `ExampleFailed`, and `play`, plus
   thirteen tier-1 programs across recursion, control, side effects, and
   self-modification, one module per tag.
@@ -507,7 +507,7 @@ Composition APIs are specified in terms of these three result classes.
 
 ### Graph form
 
-- `semiroh/lang.py` stores and runs code as graph form (roadmap.md D1, task
+- `shear/lang.py` stores and runs code as graph form (roadmap.md D1, task
   4; docs/graph_form.md). A function keeps its `EntityID` and holds a
   `definition` relation: its body root (`body`), its link table (one
   `link:<name>` role per link) and `{"params", "generation"}`. Each
@@ -566,7 +566,7 @@ Composition APIs are specified in terms of these three result classes.
 
 ### Node edits
 
-- `semiroh/lang.py` implements node-level edits (roadmap.md task 5;
+- `shear/lang.py` implements node-level edits (roadmap.md task 5;
   docs/graph_form.md §9). `("label", name, e)` marks `e`'s node with a
   unique, transparent name, kept in a function's definition (a `label:`
   role per name, alongside its `link:` roles) and restored by
@@ -580,7 +580,7 @@ Composition APIs are specified in terms of these three result classes.
 
 ### Data, let, references and tail calls
 
-- `semiroh/lang.py` implements docs/language_data.md (roadmap.md task 6):
+- `shear/lang.py` implements docs/language_data.md (roadmap.md task 6):
   `tuple`, `len`, `item`, `slice` and `concat` (int indices, no negative
   indexing and no clamping; anything out of bounds is a `LanguageError`);
   `("let", name, e, body)`, which `("arg", name)` reads like a parameter, a
@@ -625,7 +625,7 @@ Composition APIs are specified in terms of these three result classes.
 
 ### Bytecode and the VM
 
-- `semiroh/bytecode.py` replaces the tree interpreter (roadmap.md task 7,
+- `shear/bytecode.py` replaces the tree interpreter (roadmap.md task 7,
   D2; docs/bytecode.md). Each graph-form node lowers to a chunk, a tuple of
   plain-tuple instructions (`("ARG", "x")`, `("MUL",)`, `("CALL", f, 2)`)
   that names the nodes below it by `EntityID`, so it depends on its node's
@@ -718,7 +718,7 @@ Composition APIs are specified in terms of these three result classes.
   the normal run on a tiny package (planted change killed, a change with no
   effect surviving, a hang counted as killed, the sample repeating); running
   it on the model takes about a minute and only happens with
-  `SEMIROH_MUTATE` set, so `unittest discover` and CI are unchanged. It
+  `SHEAR_MUTATE` set, so `unittest discover` and CI are unchanged. It
   replaces the differential harness of #26, which could not outlive the
   tree interpreter.
 - It found two gaps, now tested: nothing checked that a `GOTO`, `BRANCH` or
@@ -729,14 +729,14 @@ Composition APIs are specified in terms of these three result classes.
   with their reason; one is an open gap (equality of `Function` by content
   against by fields).
 
-### Self-hosting: `code` and a compiler in SEMIROH
+### Self-hosting: `code` and a compiler in SHEAR
 
 - Added `("code", link)`, which returns `(params, body)` of a function in
   input form, read from the active version (self_hosting.md section 1). In
   graph form it is a node with a `target` role like `ref`; it lowers to
   `CODE`. Reading needs no capability.
-- Wrote the lowering pass of bytecode.md in SEMIROH
-  (`semiroh/examples/self_hosting.py`): `lower(e)` gives the chunk of an
+- Wrote the lowering pass of bytecode.md in SHEAR
+  (`shear/examples/self_hosting.py`): `lower(e)` gives the chunk of an
   expression with each child's chunk in place of its reference and link names
   in place of entities. It covers every operation but `quote`, `unquote`,
   `function`, `activate` and `trial`, and is written in what it covers.
@@ -747,14 +747,14 @@ Composition APIs are specified in terms of these three result classes.
   own function, swaps in a version that counts its calls and compiles what
   it installed. Provisional, at the owner's choice of scope: the compiler's
   output is checked against the host's and not run; a bytecode interpreter
-  in SEMIROH is roadmap task 10, "probably".
+  in SHEAR is roadmap task 10, "probably".
 - Extended the mutation targets to `self_hosting.py` (two listed survivors)
   and pinned the message of an unknown `code` link, which a mutant found
   loose. No existing test was edited.
 
 ### Constant folding with declared continuity
 
-- Added `semiroh/fold.py`: `fold_constants(state)` returns a
+- Added `shear/fold.py`: `fold_constants(state)` returns a
   `TransformResult` that folds constant `add`, `sub`, `mul`, `lt`, `eq` and
   `if` on a constant bool, in every function of a graph-form state. A
   constant subtree becomes one literal at its root's `EntityID`, with every
@@ -770,15 +770,15 @@ Composition APIs are specified in terms of these three result classes.
   at one that disappears.
 - Added `fold.py` to the mutation targets (two listed survivors).
 
-### A bytecode interpreter in SEMIROH
+### A bytecode interpreter in SHEAR
 
 - Added `("applyv", f, args)`, which calls a function reference with the
   items of a tuple, and `("linksof", link)`, which returns a function's link
   table as `(name, entity)` pairs. Both are nodes in graph form and lower to
-  `APPLYV` and `LINKS` (vm_in_semiroh.md section 1). The compiler in SEMIROH
+  `APPLYV` and `LINKS` (vm_in_shear.md section 1). The compiler in SHEAR
   covers them.
-- Wrote an interpreter for the chunks `lower` emits in SEMIROH
-  (`semiroh/examples/vm.py`): `vm(chunk, params, args, links)`, an operand
+- Wrote an interpreter for the chunks `lower` emits in SHEAR
+  (`shear/examples/vm.py`): `vm(chunk, params, args, links)`, an operand
   stack and an environment as tuples, tail calls kept tail. It runs every
   operation that does not touch a cell or code as data; `READ`, `WRITE`,
   `CODE`, `LINKS` and `RAISE` raise, `REFCHECK` does nothing, and its errors
@@ -806,7 +806,7 @@ Composition APIs are specified in terms of these three result classes.
 
 ### Text syntax, version 0
 
-- Added `semiroh/syntax.py`: `parse(text, base=None)` reads program text
+- Added `shear/syntax.py`: `parse(text, base=None)` reads program text
   (cells, functions, blocks with `let` and `if`, expressions, `quote`,
   `unquote`, `literal`, `fn`, `activate`, `trial`, `label`, `raw`) into the
   input format, with a links relation made from the global names each body
@@ -828,7 +828,7 @@ Composition APIs are specified in terms of these three result classes.
 
 ### Continuity corpus
 
-- Added `semiroh/continuity.py`: 21 cases of expected continuity (groups
+- Added `shear/continuity.py`: 21 cases of expected continuity (groups
   declared, inferred, competing, moved), each a program in text syntax, an
   operation and an `Expect` over designators (`fn:`, `cell:`,
   `node:NAME@PATH`, `after:NAME@PATH`, a path being the input-form position
@@ -850,7 +850,7 @@ Composition APIs are specified in terms of these three result classes.
 
 ### Continuity inference
 
-- Added `semiroh/matching.py`: `match` and `shapes`, the rules of
+- Added `shear/matching.py`: `match` and `shapes`, the rules of
   docs/continuity_inference.md §2. From the largest size down, a new
   subtree whose shape is unique among the unmatched old and new subtrees
   keeps the old identity whole; then each entry's new root keeps the node
@@ -916,7 +916,7 @@ node identity, hot swap, incremental compilation, fold provenance,
 continuity inference, moves, rebasing, relation/ownership updates and
 constraints over code, with explicit Strong / Even / Weak verdicts.
 
-Added `semiroh/examples/ledger.py`, which measures the existing model rather
+Added `shear/examples/ledger.py`, which measures the existing model rather
 than estimating results: incremental bytecode lowering counts, continuity
 corpus identity claims and constant-fold provenance. Added
 `tests/test_ledger.py` to run the measurement script and require every quoted
@@ -927,7 +927,7 @@ ledger measurement to match live model output.
 - Added `docs/name_resolution.md`: lexical names resolve through active
   `let` bindings, parameters and then the program-global namespace; version
   0 has one implicit root module and deliberately adds no module syntax.
-- Added `semiroh/reconcile.py`: complete edited source is parsed and compared
+- Added `shear/reconcile.py`: complete edited source is parsed and compared
   with the authoritative graph, and changed functions are applied through
   `lang.define` so task 13's continuity inference preserves unambiguous
   unchanged code nodes.
@@ -980,9 +980,9 @@ ledger measurement to match live model output.
   continuity preserves them.
 - Added `CLOSURE` bytecode and host-machine support, including tail closure
   calls and the same early callable check used by indirect function calls.
-- Extended the compiler written in SEMIROH to emit closure bytecode and added
+- Extended the compiler written in SHEAR to emit closure bytecode and added
   an independent structural comparison with host lowering.
-- Extended the bytecode VM written in SEMIROH with tagged callable values:
+- Extended the bytecode VM written in SHEAR with tagged callable values:
   `("ref", entity)` and
   `("closure", body, params, captures, links)`. Its `REFCHECK` now validates
   callables before later operands run.
@@ -993,7 +993,7 @@ ledger measurement to match live model output.
 - Added closure acceptance coverage for capture by value, returned closures,
   caller-scope isolation, passing/storing/comparing/capturing closures,
   continuity across activation, error ordering, graph-form round trips,
-  tail-call depth, self-hosted lowering and execution on the SEMIROH VM.
+  tail-call depth, self-hosted lowering and execution on the SHEAR VM.
 - Added `docs/verification_hardening.md` for roadmap task 18 and recorded
   language-architecture hardening as task 19.
   
@@ -1008,11 +1008,11 @@ ledger measurement to match live model output.
   `syntax-reconcile`, `compiler-self-hosting`, `vm-bootstrap`,
   `cross-boundary`, and `mutation`. `tests/lanes.py` requires every ordinary
   `test_*.py` module to belong to exactly one lane.
-- Added shared deterministic generation infrastructure with `SEMIROH_SEED`
-  replay, `SEMIROH_CASES` budget control, and deterministic sequence
+- Added shared deterministic generation infrastructure with `SHEAR_SEED`
+  replay, `SHEAR_CASES` budget control, and deterministic sequence
   reduction.
 - Added generated closure-heavy differential tests across host execution and
-  the embedded compiler/SEMIROH VM path; malformed-language rejection
+  the embedded compiler/SHEAR VM path; malformed-language rejection
   generation; stateful runtime sequences with independently tracked semantic
   effects and invariants after every operation; bounded-exhaustive continuity
   composition; and metamorphic tests across both low-level transformations and
@@ -1053,7 +1053,7 @@ Measured Task 18 evidence that remains valid:
   `vm-bootstrap` 12.623 s, putting the deterministic critical path below the
   old 21.464 s serial test time despite the stronger suite.
 - Generated-case run `36683989602` exercised a 200-case budget successfully.
-- Generated stress run `36874845445` exercised `SEMIROH_CASES=2000`
+- Generated stress run `36874845445` exercised `SHEAR_CASES=2000`
   successfully across the split ordinary CI lanes.
 
 Historical mutation executions that are not valid mutation-kill evidence:
@@ -1062,8 +1062,8 @@ Historical mutation executions that are not valid mutation-kill evidence:
   This run is invalid as mutation-kill evidence because the mutation repository
   copy omitted `docs/`, causing the complete child suite to fail independently
   of the planted mutant.
-- Run `36708852109` used `SEMIROH_MUTATE=25` and
-  `SEMIROH_MUTATE_SEED=1` across the then-22 targets. It is invalid for the
+- Run `36708852109` used `SHEAR_MUTATE=25` and
+  `SHEAR_MUTATE_SEED=1` across the then-22 targets. It is invalid for the
   same omitted-`docs/` reason and does not validate the survivor catalog.
 - Subsequent corrected mutation discovery and deterministic batches 0–6 are
   also not final mutation-kill evidence. A later review found that mutation
@@ -1094,7 +1094,7 @@ valid evidence after the relevant oracle was shown to be unsound.
   therefore failed independently of planted mutants. The harness now copies
   the complete relevant repository and performs a baseline preflight using the
   same command, copy rules, and environment as mutant execution.
-- Review found historical `semiroh/lang.py` generation mutations incorrectly
+- Review found historical `shear/lang.py` generation mutations incorrectly
   classified as equivalent. Graph-form generation numbers are specified parts
   of node identity: new functions start at generation 0, replacement starts at
   the next generation, and collisions advance to the first free generation.
@@ -1105,7 +1105,7 @@ valid evidence after the relevant oracle was shown to be unsound.
   changed rather than because semantic behaviour changed. Known equivalent
   mutants could therefore be falsely reported as killed.
 - Mutation baseline and mutant child suites now run with
-  `SEMIROH_MUTATION_SUBPROCESS=1`. Mutation-catalog/source-integrity meta-tests
+  `SHEAR_MUTATION_SUBPROCESS=1`. Mutation-catalog/source-integrity meta-tests
   are excluded identically from both child-suite kinds while remaining
   mandatory in ordinary CI. A regression explicitly verifies that a
   source-sensitive meta-test cannot falsely kill an otherwise surviving
@@ -1166,7 +1166,7 @@ valid evidence after the relevant oracle was shown to be unsound.
     corrected rather than adding another classification.
 - Final exhaustive mutation campaign `37140471232` ran on exact head
   `39a20617a32bcb35059d7e99fae2b8f72e6423b7` with
-  `SEMIROH_MUTATE=10000`, seed `1`, batch `0`, and four deterministic target
+  `SHEAR_MUTATE=10000`, seed `1`, batch `0`, and four deterministic target
   shards.
 - The final shard census was:
   - shard 0: 481 / 481 sites;
@@ -1183,7 +1183,7 @@ valid evidence after the relevant oracle was shown to be unsound.
 ### Verification infrastructure follow-up
 
 - Completed roadmap task 18a as verification infrastructure and CI work only.
-  The branch comparison against `main` contains no `semiroh/` production-file
+  The branch comparison against `main` contains no `shear/` production-file
   changes and no task 19 implementation.
 - Replaced target-level mutation sharding with deterministic mutant-level
   sharding. Mutation selection is completed first using the existing target,
@@ -1220,7 +1220,7 @@ valid evidence after the relevant oracle was shown to be unsound.
   pins that behaviour.
 - Exhaustive validation run `37165355654` ran on head
   `7a2798db465c59de6edcf589e7b4577d29f7a582` with
-  `SEMIROH_MUTATE=10000`, seed `1`, batch `0`, and four mutant-level shards.
+  `SHEAR_MUTATE=10000`, seed `1`, batch `0`, and four mutant-level shards.
   Its four JSONL reports contain exactly 3449 unique selected mutation keys and
   exactly 3449 unique outcomes, with no omissions or duplicates.
 - The exhaustive shard census was:
@@ -1244,3 +1244,16 @@ valid evidence after the relevant oracle was shown to be unsound.
   53–58-minute campaigns, including periods with no completed mutants, so the
   live-progress behaviour is supported by both regression tests and a
   full-scale execution.
+
+### Rename to SHEAR
+
+- The project, the Python package (`semiroh` → `shear`), docs, tests, CI and
+  environment variables (`SEMIROH_*` → `SHEAR_*`) are renamed. No semantics
+  changed: every corpus program keeps its StateID, rendered text and
+  bytecode, and every continuity case its result.
+- Mutation survivor pins were moved to the new paths only after checking
+  that each pinned file is byte for byte the old one with the name
+  substituted, so no classification was re-reviewed.
+- A stale `SEMIROH_*` variable now fails the test package instead of being
+  ignored. The old name stays only in that guard, its test, this entry and
+  the README's closing note.

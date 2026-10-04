@@ -1,7 +1,7 @@
 # Transformation Composition
 
 This document defines the current semantics of composing transformation
-continuity relations in SEMIROH.
+continuity relations in SHEAR.
 
 The current composition operation composes explicit continuity information
 only. It does not yet define full semantic composition of transformation

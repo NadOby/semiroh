@@ -2,7 +2,7 @@
 
 **Status: implemented** (roadmap task 18, PR #42).
 
-Task 18 strengthens the evidence that SEMIROH's semantics are correct before
+Task 18 strengthens the evidence that SHEAR's semantics are correct before
 task 19 changes the architecture. It remains verification hardening rather
 than an architectural refactor. During mutation review it exposed two
 production-semantic defects, which were fixed: closure capture values are
@@ -37,7 +37,7 @@ mixing verification work into the refactor itself.
 
 **Decided:**
 
-SEMIROH uses several independent kinds of evidence rather than one universal
+SHEAR uses several independent kinds of evidence rather than one universal
 test framework:
 
 - focused unit tests for local contracts;
@@ -75,7 +75,7 @@ Important paths include:
 and the independent paths:
 
     semantic graph → embedded compiler → bytecode
-    bytecode       → SEMIROH VM
+    bytecode       → SHEAR VM
 
 as well as:
 
@@ -107,7 +107,7 @@ and:
     graph
     → embedded compiler
     → bytecode
-    → SEMIROH VM
+    → SHEAR VM
     ↕
     host execution
 
@@ -131,7 +131,7 @@ project.
 Where their domains overlap, the suite checks relationships including:
 
     host lowering == embedded compiler lowering
-    host machine behaviour == SEMIROH VM behaviour
+    host machine behaviour == SHEAR VM behaviour
     graph execution before transform == graph execution after
         semantics-preserving transform
     trial behaviour == activation behaviour where specified
@@ -151,7 +151,7 @@ The generator stays within the common host/embedded-VM subset.
 
 Generated cases identify their seed and can be replayed with:
 
-    SEMIROH_SEED=<seed> \
+    SHEAR_SEED=<seed> \
         python -m unittest tests.test_closure_differential
 
 Larger generated budgets belong to the manual/heavy verification tier.
@@ -170,7 +170,7 @@ Task 18 checks low-level transformation relationships including:
 - repeating the same semantic change is idempotent.
 
 It also checks language-level relationships that exercise substantially more of
-SEMIROH:
+SHEAR:
 
 - rendering an authoritative graph-form program and reconciling that rendered
   source back into the same program is a no-op;
@@ -226,7 +226,7 @@ activations.
 
 Replay is:
 
-    SEMIROH_SEED=<seed> \
+    SHEAR_SEED=<seed> \
         python -m unittest tests.test_malformed_generation
 
 Existing targeted tests continue to cover malformed semantic records,
@@ -271,7 +271,7 @@ Failures report the operation step and seed.
 
 Replay is:
 
-    SEMIROH_SEED=<seed> \
+    SHEAR_SEED=<seed> \
         python -m unittest tests.test_stateful_sequences
 
 A failing sequence is passed through deterministic delta-debugging reduction
@@ -324,19 +324,19 @@ permanent regressions.
 
 `tests/generation.py` provides shared infrastructure.
 
-`SEMIROH_SEED` accepts one integer or a comma-separated list:
+`SHEAR_SEED` accepts one integer or a comma-separated list:
 
-    SEMIROH_SEED=37 \
+    SHEAR_SEED=37 \
         python -m unittest tests.test_stateful_sequences
 
 or:
 
-    SEMIROH_SEED=7,11,19 \
+    SHEAR_SEED=7,11,19 \
         python -m unittest tests.test_metamorphic
 
-`SEMIROH_CASES` changes the deterministic generated-case budget:
+`SHEAR_CASES` changes the deterministic generated-case budget:
 
-    SEMIROH_CASES=1000 \
+    SHEAR_CASES=1000 \
         python -m tests.lanes cross-boundary
 
 Unset, empty, or `0` means that each test uses its ordinary default budget.
@@ -360,7 +360,7 @@ model modules cannot silently disappear from the campaign.
 
 Before Task 18 the mutation campaign targeted eight implementation files.
 Task 18 expands this to 23 targets, including identity records, the independent
-embedded compiler and the SEMIROH VM.
+embedded compiler and the SHEAR VM.
 
 `tests/mutation_catalog.py` is the explicit inventory.
 
@@ -373,7 +373,7 @@ Ordinary tests enforce this accounting.
 
 The mutation engine uses Python's standard `ast` module to mutate the Python
 reference implementation. That AST is test-tool implementation machinery only;
-it is not a SEMIROH program representation or compiler IR.
+it is not a SHEAR program representation or compiler IR.
 
 Before planting mutants, a campaign runs the exact mutation test command
 against an unmodified repository copy made with the same copy and environment
@@ -381,7 +381,7 @@ rules used for mutant execution. A failing baseline aborts the campaign rather
 than allowing unrelated infrastructure failures to count as killed mutants.
 
 Baseline and mutant child suites run with
-`SEMIROH_MUTATION_SUBPROCESS=1`. Source-tree and mutation-catalog integrity
+`SHEAR_MUTATION_SUBPROCESS=1`. Source-tree and mutation-catalog integrity
 tests are harness meta-tests rather than semantic kill oracles, so they are
 excluded identically from both child-suite kinds while remaining mandatory in
 ordinary CI. This prevents a mutant, or the whole-file `ast.unparse()` rewrite
@@ -510,7 +510,7 @@ Relevant influences include:
 - deterministic simulation used in complex stateful systems – long,
   reproducible operation sequences with invariant checking.
 
-SEMIROH's own graph identity and continuity rules take precedence over
+SHEAR's own graph identity and continuity rules take precedence over
 assumptions from conventional languages.
 
 ## 12. CI structure

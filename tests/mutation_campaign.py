@@ -185,26 +185,34 @@ def resolve_exact_key(
     return matches[0]
 
 
-def replay_exact(
+def _require_replay_baseline(
     root: Path,
-    key: mutation.MutationKey,
-    source_blob: str,
-    engine_blob: str,
-    command: list[str] | None = None,
-) -> tuple[mutation.Mutant, bool]:
-    """Run one exact pinned mutation and return its killed/survived outcome."""
+    oracle: list[str],
+) -> None:
+    """Require a clean semantic baseline before interpreting replay results."""
 
-    selected = resolve_exact_key(
+    baseline = mutation.baseline(
         root,
-        key,
-        source_blob,
-        engine_blob,
+        oracle,
     )
-    oracle = (
-        mutation_oracle.command()
-        if command is None
-        else command
-    )
+
+    if baseline.returncode != 0:
+        raise RuntimeError(
+            "mutation replay baseline failed; "
+            "replay results would be invalid\n\n"
+            "stdout:\n"
+            f"{baseline.stdout.decode(errors='replace')}\n"
+            "stderr:\n"
+            f"{baseline.stderr.decode(errors='replace')}"
+        )
+
+
+def _execute_exact(
+    root: Path,
+    selected: mutation.Mutant,
+    oracle: list[str],
+) -> tuple[mutation.Mutant, bool]:
+    """Execute one already-resolved exact mutant."""
 
     executed, dead = mutation.killed(
         root,
@@ -219,6 +227,39 @@ def replay_exact(
         )
 
     return executed, dead
+
+
+def replay_exact(
+    root: Path,
+    key: mutation.MutationKey,
+    source_blob: str,
+    engine_blob: str,
+    command: list[str] | None = None,
+) -> tuple[mutation.Mutant, bool]:
+    """Run one exact pinned mutation after a clean semantic baseline."""
+
+    selected = resolve_exact_key(
+        root,
+        key,
+        source_blob,
+        engine_blob,
+    )
+    oracle = (
+        mutation_oracle.command()
+        if command is None
+        else command
+    )
+
+    _require_replay_baseline(
+        root,
+        oracle,
+    )
+
+    return _execute_exact(
+        root,
+        selected,
+        oracle,
+    )
 
 
 def _key_from_value(
@@ -502,30 +543,24 @@ def replay_failures(
         else command
     )
 
-    baseline = mutation.baseline(
+    _require_replay_baseline(
         root,
         oracle,
     )
 
-    if baseline.returncode != 0:
-        raise RuntimeError(
-            "mutation replay baseline failed; "
-            "replay results would be invalid\n\n"
-            "stdout:\n"
-            f"{baseline.stdout.decode(errors='replace')}\n"
-            "stderr:\n"
-            f"{baseline.stderr.decode(errors='replace')}"
-        )
-
     results = []
 
     for case in cases:
+        selected = resolve_exact_key(
+            root,
+            case.key,
+            case.source_blob,
+            case.engine_blob,
+        )
         results.append(
-            replay_exact(
+            _execute_exact(
                 root,
-                case.key,
-                case.source_blob,
-                case.engine_blob,
+                selected,
                 oracle,
             )
         )

@@ -9,25 +9,25 @@ on:
 
 jobs:
   composition:
-    name: Composition symmetry ${{ matrix.symmetry }}
+    name: Composition solver ${{ matrix.solver }}
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        symmetry:
-          - 0
-          - 10
-          - 20
-          - 40
-          - 80
+        solver:
+          - glucose
+          - minisat
+          - minisatprover
+          - lingeling
+          - plingeling
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -76,6 +76,6 @@ jobs:
             AlloyRunner \
             formal/core.als \
             2 \
-            glucose \
-            "${{ matrix.symmetry }}" \
+            "${{ matrix.solver }}" \
+            0 \
             4

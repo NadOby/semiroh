@@ -6,7 +6,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from tests import mutation
 from tests.mutation_catalog import (
     CatalogError,
     load_catalog,
@@ -57,10 +56,6 @@ def manifest(
     )
 
 
-@unittest.skipIf(
-    mutation.in_mutation_subprocess(),
-    "mutation catalog loading is harness metadata, not a semantic kill oracle",
-)
 class MutationCatalogLoaderTests(unittest.TestCase):
     def setUp(self) -> None:
         temporary = TemporaryDirectory()

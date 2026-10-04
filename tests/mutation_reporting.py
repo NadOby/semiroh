@@ -8,7 +8,11 @@ import shlex
 import sys
 import time
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import (
+    FIRST_COMPLETED,
+    ThreadPoolExecutor,
+    wait,
+)
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
@@ -412,7 +416,7 @@ def run_campaign(
         with ThreadPoolExecutor(
             max_workers=workers
         ) as pool:
-            futures = {
+            pending = {
                 pool.submit(
                     _execute_one,
                     root,
@@ -422,100 +426,175 @@ def run_campaign(
                 for mutant in work
             }
 
-            for future in as_completed(futures):
-                mutant, dead, elapsed = future.result()
+            def current_target() -> str:
+                for future, selected in pending.items():
+                    if future.running():
+                        return selected.target
 
-                timings[mutant.target].append(
-                    elapsed
+                return next(
+                    iter(pending.values())
+                ).target
+
+            def emit_progress(
+                target: str,
+                now: float,
+            ) -> None:
+                nonlocal last_progress
+
+                reporter.emit({
+                    "event": "progress",
+                    "completed": completed,
+                    "total": len(work),
+                    "killed": killed,
+                    "classified_survivors": len(
+                        classified
+                    ),
+                    "unclassified_survivors": len(
+                        unclassified
+                    ),
+                    "elapsed_seconds": (
+                        now - started
+                    ),
+                    "current_target": target,
+                })
+                last_progress = now
+
+            while pending:
+                now = time.perf_counter()
+                timeout = max(
+                    0.0,
+                    progress_interval_seconds
+                    - (now - last_progress),
                 )
-                group = groups[
-                    (
-                        mutant.target,
-                        mutant.kind,
+
+                done, _ = wait(
+                    pending,
+                    timeout=timeout,
+                    return_when=FIRST_COMPLETED,
+                )
+                now = time.perf_counter()
+
+                if not done:
+                    emit_progress(
+                        current_target(),
+                        now,
                     )
-                ]
+                    continue
 
-                classification = None
+                last_selected = None
 
-                if dead:
-                    outcome = "killed"
-                    killed += 1
-                    group["killed"] += 1
-                else:
-                    classification = classifications.get(
-                        mutant.key
+                for future in done:
+                    selected = pending.pop(
+                        future
+                    )
+                    last_selected = selected
+                    mutant, dead, elapsed = (
+                        future.result()
                     )
 
-                    if classification is None:
-                        outcome = "unclassified_survivor"
-                        unclassified.append(mutant)
-                        group[
-                            "unclassified_survivors"
-                        ] += 1
-                    else:
-                        outcome = "classified_survivor"
-                        classified.append(mutant)
-                        group[
-                            "classified_survivors"
-                        ] += 1
-
-                completed += 1
-                event: dict[str, object] = {
-                    "event": "mutant_outcome",
-                    "key": list(mutant.key),
-                    "target": mutant.target,
-                    "index": mutant.index,
-                    "line": mutant.line,
-                    "mutation_kind": mutant.kind,
-                    "source": mutant.text,
-                    "occurrence": mutant.occurrence,
-                    "outcome": outcome,
-                    "elapsed_seconds": elapsed,
-                    "source_blob": source_blobs[
+                    timings[
                         mutant.target
-                    ],
-                    "engine_blob": engine_blob,
-                }
-
-                if classification is not None:
-                    event["classification"] = (
-                        classification[0]
+                    ].append(
+                        elapsed
                     )
-                    event["reason"] = (
-                        classification[1]
-                    )
+                    group = groups[
+                        (
+                            mutant.target,
+                            mutant.kind,
+                        )
+                    ]
 
-                reporter.emit(event)
+                    classification = None
+
+                    if dead:
+                        outcome = "killed"
+                        killed += 1
+                        group["killed"] += 1
+                    else:
+                        classification = (
+                            classifications.get(
+                                mutant.key
+                            )
+                        )
+
+                        if classification is None:
+                            outcome = (
+                                "unclassified_survivor"
+                            )
+                            unclassified.append(
+                                mutant
+                            )
+                            group[
+                                "unclassified_survivors"
+                            ] += 1
+                        else:
+                            outcome = (
+                                "classified_survivor"
+                            )
+                            classified.append(
+                                mutant
+                            )
+                            group[
+                                "classified_survivors"
+                            ] += 1
+
+                    completed += 1
+                    event: dict[str, object] = {
+                        "event": "mutant_outcome",
+                        "key": list(mutant.key),
+                        "target": mutant.target,
+                        "index": mutant.index,
+                        "line": mutant.line,
+                        "mutation_kind": mutant.kind,
+                        "source": mutant.text,
+                        "occurrence": mutant.occurrence,
+                        "outcome": outcome,
+                        "elapsed_seconds": elapsed,
+                        "source_blob": source_blobs[
+                            mutant.target
+                        ],
+                        "engine_blob": engine_blob,
+                    }
+
+                    if classification is not None:
+                        event["classification"] = (
+                            classification[0]
+                        )
+                        event["reason"] = (
+                            classification[1]
+                        )
+
+                    reporter.emit(event)
+
+                    if (
+                        completed
+                        % progress_every
+                        == 0
+                        or completed == len(work)
+                    ):
+                        target = (
+                            current_target()
+                            if pending
+                            else selected.target
+                        )
+                        emit_progress(
+                            target,
+                            time.perf_counter(),
+                        )
 
                 now = time.perf_counter()
 
                 if (
-                    completed % progress_every == 0
-                    or completed == len(work)
-                    or (
+                    pending
+                    and (
                         now - last_progress
                         >= progress_interval_seconds
                     )
                 ):
-                    reporter.emit({
-                        "event": "progress",
-                        "completed": completed,
-                        "total": len(work),
-                        "killed": killed,
-                        "classified_survivors": len(
-                            classified
-                        ),
-                        "unclassified_survivors": len(
-                            unclassified
-                        ),
-                        "elapsed_seconds": (
-                            now - started
-                        ),
-                        "current_target": (
-                            mutant.target
-                        ),
-                    })
-                    last_progress = now
+                    emit_progress(
+                        current_target(),
+                        now,
+                    )
 
         elapsed_total = (
             time.perf_counter()

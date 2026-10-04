@@ -374,7 +374,7 @@ changes.
 
 ### 19. Language architecture hardening (handoff)
 
-**Implemented** (#PR pending).
+**Implemented** (PR #45).
 
 Refactor the language implementation against the stronger verification
 baseline from task 18, without intentionally changing semantics.

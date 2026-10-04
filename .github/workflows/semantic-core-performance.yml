@@ -8,9 +8,21 @@ on:
       - ".github/workflows/semantic-core-performance.yml"
 
 jobs:
-  solvers:
-    name: Discover Alloy solvers
+  composition:
+    name: Composition – ${{ matrix.solver }}
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    strategy:
+      fail-fast: false
+      matrix:
+        solver:
+          - glucose
+          - minisat
+          - minisat.prover
+          - sat4j
+          - sat4j.light
+          - lingeling.parallel
 
     steps:
       - name: Check out repository
@@ -56,7 +68,7 @@ jobs:
             -d .build/alloy-runner \
             .github/scripts/AlloyRunner.java
 
-      - name: List available solvers
+      - name: Run composition check
         shell: bash
         run: |
           set -euo pipefail
@@ -64,4 +76,8 @@ jobs:
           java \
             -cp ".build/alloy-runner:$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
             AlloyRunner \
-            --list-solvers
+            formal/core.als \
+            2 \
+            "${{ matrix.solver }}" \
+            0 \
+            4

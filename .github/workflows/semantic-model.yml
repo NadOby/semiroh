@@ -94,6 +94,7 @@ jobs:
       SEMIROH_MUTATE_BATCH: ${{ inputs.mutation_batch }}
       SEMIROH_MUTATE_SHARDS: "4"
       SEMIROH_MUTATE_SHARD: ${{ matrix.shard }}
+      SEMIROH_MUTATION_REPORT: mutation-report-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}.jsonl
 
     steps:
       - uses: actions/checkout@v7
@@ -104,3 +105,11 @@ jobs:
 
       - name: Run mutation batch shard
         run: python -m tests.lanes mutation
+
+      - name: Upload mutation evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-evidence-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}
+          path: mutation-report-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}.jsonl
+          if-no-files-found: warn

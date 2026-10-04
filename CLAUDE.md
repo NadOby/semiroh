@@ -114,8 +114,42 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   be catalogued only when it is reviewed as semantically equivalent or
   intentionally unspecified, with a reason. A semantic test gap receives a
   regression test and must not be whitelisted as a survivor.
+- Mutation work is selected before sharding. The complete selected set is
+  deterministically shuffled from `SEMIROH_MUTATE_SEED`, then individual
+  mutants are distributed round-robin across `SEMIROH_MUTATE_SHARDS`.
+  Changing the shard count must not change the selected mutation set, and shard
+  sizes differ by at most one mutant.
+- The mutation subprocess semantic oracle is centralized in
+  `tests/mutation_oracle.py`. The ordinary `mutation` lane contains harness,
+  catalog and infrastructure checks and remains mandatory CI, but it is
+  excluded from mutation-kill decisions. Baseline and mutant subprocesses must
+  use the same semantic oracle command.
+- Mutation campaigns emit flushed human progress plus JSONL evidence. Set
+  `SEMIROH_MUTATION_REPORT=<path>` to choose the report path. Each report pins
+  the mutation engine and target sources, records campaign inputs and exact
+  selected keys, records every mutant outcome, and ends with reconciled counts
+  and diagnostic timing summaries.
+- Replay one reported mutation directly from its key and pins:
+
+      python3 -m tests.mutation_campaign replay \
+          --key-json '["semiroh/example.py","constant","value = False",0]' \
+          --source-blob <source-blob> \
+          --engine-blob <engine-blob>
+
+- After a large failed campaign, replay only the previously unclassified
+  survivors from one or more downloaded shard reports:
+
+      python3 -m tests.mutation_campaign replay-failures \
+          mutation-report-*.jsonl
+
+  Report-driven replay validates completed reports and their recorded pins,
+  runs the semantic baseline once, and then executes only the recorded
+  unclassified survivors. It does not reconstruct their original seed, batch,
+  or shard.
 - Larger generated and mutation campaigns are available through manual
   workflow dispatch; ordinary PR CI keeps the deterministic default budgets.
+  Mutation campaign shards publish their JSONL evidence as workflow artifacts,
+  including when a shard fails after finding unclassified survivors.
 
 ## Model map
 
@@ -139,8 +173,8 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   `Evaluator` behind `External(name)`, step budgets.
 - `lang.py`, `bytecode.py`: the language layer. `lang.py` keeps code as
   graph form (`load`, `define`, `function_at`; `define` infers what an
-  edit keeps and can create, remove and relink functions); `bytecode.py` lowers each
-  node to a chunk, kept with the node's `Value`, and runs chunks on a
+  edit keeps and can create, remove and relink functions); `bytecode.py` lowers
+  each node to a chunk, kept with the node's `Value`, and runs chunks on a
   virtual machine with explicit stacks. `lang.run` calls it.
 - `fold.py`: constant folding as a graph transformation that declares its
   merges (`fold_constants`, `sources_of`).

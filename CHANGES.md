@@ -1179,3 +1179,68 @@ valid evidence after the relevant oracle was shown to be unsound.
 - This completes Task 18 verification hardening on that exact tree. The result
   is strong mutation evidence for the reviewed implementation and test suite;
   it is not a formal proof of semantic correctness.
+
+### Verification infrastructure follow-up
+
+- Completed roadmap task 18a as verification infrastructure and CI work only.
+  The branch comparison against `main` contains no `semiroh/` production-file
+  changes and no task 19 implementation.
+- Replaced target-level mutation sharding with deterministic mutant-level
+  sharding. Mutation selection is completed first using the existing target,
+  budget, seed and batch semantics; the selected mutants are then shuffled
+  deterministically from the seed and distributed round-robin. Changing the
+  shard count therefore does not change the selected work set, shards are
+  disjoint and exhaustive, and their selected counts differ by at most one.
+- Centralized the semantic mutation subprocess oracle in
+  `tests/mutation_oracle.py`. Harness-integrity and survivor-catalog tests
+  remain mandatory in the ordinary mutation CI lane but are excluded from
+  mutation-kill decisions. Regression coverage verifies that baseline and
+  mutant subprocesses use the same semantic oracle command.
+- Added flushed campaign observability: pinned engine and target-source
+  versions, exact campaign inputs and selected keys, periodic progress,
+  immediate survivor reports, reconciled completion counts, grouped outcomes,
+  and per-target diagnostic timings. A time-based heartbeat continues to emit
+  progress while long-running mutants produce no completions.
+- Added JSONL evidence from the same campaign event stream and made manual CI
+  shards upload that evidence even when unclassified survivors make the shard
+  fail.
+- Added exact mutation replay under target-source and mutation-engine pins.
+  Added `replay-failures` to consume one or more completed shard reports, run
+  one semantic baseline, and replay only the recorded unclassified survivors.
+  Synthetic regression coverage verifies the filtering, single-baseline
+  preflight and fail-closed handling of incomplete reports.
+- A 23-mutant smoke campaign, run `37163862758`, exercised the new four-shard
+  path as `6 / 6 / 6 / 5`, with 18 killed mutants, 5 classified survivors and
+  0 unclassified survivors. All four evidence artifacts uploaded.
+- That smoke campaign exposed a real observability defect: progress intervals
+  were checked only when a mutant future completed, so a sufficiently slow
+  mutant could leave a shard silent beyond the requested heartbeat interval.
+  The campaign runner now waits with a timeout for the next completion and
+  emits progress even when zero additional mutants finish. Regression coverage
+  pins that behaviour.
+- Exhaustive validation run `37165355654` ran on head
+  `7a2798db465c59de6edcf589e7b4577d29f7a582` with
+  `SEMIROH_MUTATE=10000`, seed `1`, batch `0`, and four mutant-level shards.
+  Its four JSONL reports contain exactly 3449 unique selected mutation keys and
+  exactly 3449 unique outcomes, with no omissions or duplicates.
+- The exhaustive shard census was:
+  - shard 0: 863 mutants;
+  - shard 1: 862 mutants;
+  - shard 2: 862 mutants;
+  - shard 3: 862 mutants.
+- Aggregate exhaustive outcomes were 3301 killed mutants, 148 classified
+  survivors and 0 unclassified survivors. All four mutation jobs, all four
+  evidence uploads and all eight ordinary semantic CI lanes passed.
+- Campaign elapsed times were approximately 58.2, 53.0, 52.6 and 58.4 minutes,
+  a slowest-to-fastest ratio of about 1.11. For comparison, Task 18's
+  target-level exhaustive shards took approximately 40.3, 104.8, 273.4 and
+  38.6 minutes, a ratio of about 7.1. On this exhaustive seed-1 workload,
+  deterministic mutant shuffling therefore reduced the mutation critical path
+  from about 273 minutes to about 58 minutes, roughly a 4.7x reduction.
+  Timing remains diagnostic only: this run demonstrates good balancing for
+  this workload and does not establish a timing guarantee for every future
+  source tree or seed.
+- The exhaustive run also exercised the heartbeat throughout roughly
+  53–58-minute campaigns, including periods with no completed mutants, so the
+  live-progress behaviour is supported by both regression tests and a
+  full-scale execution.

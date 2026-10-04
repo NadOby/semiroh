@@ -10,6 +10,8 @@ on:
       - "formal/core_model.als"
       - "formal/transformation_model.als"
       - "formal/transformation.als"
+      - "formal/transformation_composition.als"
+      - "formal/transformation_associativity.als"
       - ".github/scripts/**"
       - ".github/workflows/transformation.yml"
 
@@ -68,20 +70,62 @@ jobs:
         run: |
           set -euo pipefail
 
-          output="$(
-            java \
-              -jar "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
-              commands \
-              formal/transformation.als
-          )"
+          models=(
+            "formal/transformation.als"
+            "formal/transformation_composition.als"
+            "formal/transformation_associativity.als"
+          )
 
-          printf '%s\n' "$output"
+          commands='[]'
 
-          commands="$(
-            printf '%s\n' "$output" \
-              | sed -n 's/^[[:space:]]*\([0-9][0-9]*\)[[:space:]]*\..*/\1/p' \
-              | jq -Rsc 'split("\n") | map(select(length > 0) | tonumber)'
-          )"
+          for model in "${models[@]}"; do
+            if [[ ! -f "$model" ]]; then
+              echo "Skipping absent verification model: $model"
+              continue
+            fi
+
+            echo "Discovering commands in $model"
+
+            output="$(
+              java \
+                -jar "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
+                commands \
+                "$model"
+            )"
+
+            printf '%s\n' "$output"
+
+            indices="$(
+              printf '%s\n' "$output" \
+                | sed -n 's/^[[:space:]]*\([0-9][0-9]*\)[[:space:]]*\..*/\1/p' \
+                | jq -Rsc '
+                    split("\n")
+                    | map(select(length > 0) | tonumber)
+                  '
+            )"
+
+            if [[ "$indices" == "[]" ]]; then
+              echo "No Alloy commands discovered in $model." >&2
+              exit 1
+            fi
+
+            entries="$(
+              jq -cn \
+                --arg model "$model" \
+                --argjson indices "$indices" \
+                '$indices | map({
+                    model: $model,
+                    command: .
+                })'
+            )"
+
+            commands="$(
+              jq -cn \
+                --argjson existing "$commands" \
+                --argjson added "$entries" \
+                '$existing + $added'
+            )"
+          done
 
           if [[ "$commands" == "[]" ]]; then
             echo "No Alloy commands discovered." >&2
@@ -89,17 +133,18 @@ jobs:
           fi
 
           echo "commands=$commands" >> "$GITHUB_OUTPUT"
-          echo "Discovered command indices: $commands"
+          echo "Discovered verification commands:"
+          printf '%s\n' "$commands" | jq .
 
   alloy:
-    name: Transformation command ${{ matrix.command }} (Glucose instrumented)
+    name: ${{ matrix.case.model }} command ${{ matrix.case.command }} (Glucose instrumented)
     needs: discover
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        command: ${{ fromJSON(needs.discover.outputs.commands) }}
+        case: ${{ fromJSON(needs.discover.outputs.commands) }}
 
     steps:
       - name: Check out repository
@@ -154,16 +199,19 @@ jobs:
             -d .build/alloy-runner \
             .github/scripts/AlloyRunner.java
 
-      - name: Run transformation command ${{ matrix.command }} with Glucose
+      - name: Run Alloy verification
         shell: bash
         run: |
           set -euo pipefail
 
+          echo "Model: ${{ matrix.case.model }}"
+          echo "Command: ${{ matrix.case.command }}"
+
           java \
             -cp ".build/alloy-runner:$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
             AlloyRunner \
-            formal/transformation.als \
-            "${{ matrix.command }}" \
+            "${{ matrix.case.model }}" \
+            "${{ matrix.case.command }}" \
             glucose \
             0 \
             4

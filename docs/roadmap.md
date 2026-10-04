@@ -323,55 +323,53 @@ before/after wall time recorded.
 
 ### 18a. Verification infrastructure follow-up (one session)
 
-**Planned.**
+**Implemented.**
 
 Improve the verification harness itself before task 19 changes the language
 architecture. This task changes test infrastructure and CI only, not production
 semantics or the verification policy established by task 18.
 
-Replace target-level mutation sharding with deterministic mutant-level
-sharding. Build the selected mutation work set first, shuffle it
-deterministically from the existing seed, then divide individual mutants
-across shards as evenly as possible. Sharding must not change which mutants
-the seed, batch and budget selected; the union of all shards must equal the
-unsharded work set exactly, with no duplicates. Do not add historical
-timing-weighted scheduling – equal mutant counts are the intended simple
-balancing rule.
+Mutation work is now sharded at the individual-mutant level. The complete work
+set selected by the existing per-target budget, seed and batch semantics is
+built first and deterministically shuffled from the seed. Individual mutants
+are then distributed round-robin across shards, so shard count does not change
+selection, the shard union is exactly the unsharded work set with no
+duplicates, and shard sizes differ by at most one mutant. Timing measurements
+remain diagnostic only and do not affect assignment.
 
-Make mutation campaigns observable while they run. At campaign start, log the
-mutation-engine version, target-source versions, campaign inputs and exact
-selected-mutant count. Emit flushed periodic progress with completed/total
-mutants, killed mutants, classified and unclassified survivors, elapsed time
-and current target. Report every survivor immediately when it is discovered
-rather than waiting for the final assertion. Do not log every ordinary killed
-mutant by default.
+Mutation campaigns are observable while they run. The start event records the
+mutation-engine version, target-source versions, campaign inputs and selected
+mutation keys. Flushed progress reports completed and total mutants, killed
+mutants, classified and unclassified survivors, elapsed time and a current
+target; a time-based heartbeat continues even when no mutant finishes.
+Survivors are reported immediately, while ordinary killed mutants remain
+suppressed from the human log.
 
-At completion, print a compact summary grouped by target and mutation kind,
-including elapsed time and per-target timing statistics. Timing data is
-diagnostic only and must not affect deterministic shard assignment.
+Completion reports are grouped by target and mutation kind and include elapsed
+time and per-target timing statistics. The same event source is written as
+JSONL machine-readable evidence containing exact selected keys and every
+outcome. Manual mutation shards publish these reports as CI artifacts even when
+the shard fails because an unclassified survivor was found.
 
-Make mutation campaigns produce machine-readable evidence from the same event
-stream as the human-readable log. Each shard should record the mutation-engine
-version, target-source versions, campaign inputs, selected mutation keys and
-their outcomes, with explicit counts for killed, classified surviving and
-unclassified surviving mutants. Publish the report even when the shard fails
-because survivors were found.
+An exact reported mutation can be replayed directly under its recorded
+target-source and mutation-engine pins without reconstructing its seed, batch or
+shard. Completed shard reports can also be supplied to `replay-failures`, which
+runs one semantic baseline and then replays only their recorded unclassified
+survivors.
 
-Add direct replay of one exact mutation key under its pinned target-source and
-mutation-engine versions, so a survivor found by a campaign can be reproduced
-locally without reconstructing its batch and shard.
-
-Make the mutation subprocess oracle explicit in one place. Harness-integrity
-and survivor-catalog checks must remain mandatory in ordinary CI but must not
-be able to become mutation-kill oracles. Add a regression proving that baseline
-and mutant subprocesses execute the same semantic oracle set.
+The mutation subprocess semantic oracle is centralized in
+`tests/mutation_oracle.py`. Harness-integrity and survivor-catalog checks remain
+mandatory in the ordinary mutation CI lane but cannot become mutation-kill
+oracles. Regression tests pin that baseline and mutant subprocesses use the same
+semantic oracle.
 
 Done when: for a fixed source tree, budget, seed and batch, mutant-level shards
 are deterministic, disjoint and exhaustive and differ in selected mutant count
 by at most one; campaigns provide useful live progress and immediate survivor
 reporting; machine-readable results are emitted even on failure; any reported
-mutation key can be replayed directly; mutation-oracle selection is centralized
-and regression-tested; and no production file or intended semantic behaviour
+mutation key can be replayed directly and failed reports can replay only their
+unclassified survivors; mutation-oracle selection is centralized and
+regression-tested; and no production file or intended semantic behaviour
 changes.
 
 ### 19. Language architecture hardening (handoff)

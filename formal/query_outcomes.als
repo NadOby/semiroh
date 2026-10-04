@@ -82,6 +82,12 @@ pred GraphUnknown[result: Rel] {
  * `frontier` contains corresponding child pairs that still require
  * examination.
  *
+ * `rank` is Alloy-only traversal scaffolding. Each examined pair receives one
+ * integer rank. The root pair has rank 0, and every other examined pair must
+ * be a required child of a compatible examined pair with a lower rank.
+ *
+ * Thus every examined pair is justified by a finite path from the root.
+ *
  * The experiment bounds:
  *
  *     #examined <= 4
@@ -97,7 +103,9 @@ sig Comparison {
     rightRoot: one Rel,
 
     examined: Rel -> Rel,
-    frontier: Rel -> Rel
+    frontier: Rel -> Rel,
+
+    rank: Rel -> Rel -> lone Int
 }
 
 fact ComparisonEndpointsStayInStates {
@@ -159,6 +167,43 @@ fun RequiredChildren[a: Rel, b: Rel]: Rel -> Rel {
 
 
 /*
+ * Every examined pair has exactly one traversal rank, and no unexamined pair
+ * has one.
+ *
+ * The root is rank 0. Every non-root examined pair has positive rank and must
+ * be a required child of a compatible examined pair with a lower rank.
+ *
+ * Because ranks strictly decrease toward the root, disconnected examined
+ * cycles cannot justify themselves.
+ */
+fact ExaminedPairsAreRootReachable {
+    all c: Comparison {
+        c.rank.Int = c.examined
+
+        c.rank[c.leftRoot][c.rightRoot] = 0
+
+        all a: c.leftState.rels, b: c.rightState.rels |
+            (a -> b) in
+                c.examined - (c.leftRoot -> c.rightRoot)
+            implies
+            {
+                c.rank[a][b] > 0
+
+                some parentA: c.leftState.rels,
+                     parentB: c.rightState.rels |
+                    (parentA -> parentB) in c.examined
+                    and PairLocallyCompatible[parentA, parentB]
+                    and
+                    (a -> b) in
+                        RequiredChildren[parentA, parentB]
+                    and
+                    c.rank[parentA][parentB] < c.rank[a][b]
+            }
+    }
+}
+
+
+/*
  * Child pairs demanded by all examined locally compatible pairs.
  */
 fun RequiredByExamined[c: Comparison]: Rel -> Rel {
@@ -169,7 +214,8 @@ fun RequiredByExamined[c: Comparison]: Rel -> Rel {
                  b: c.rightState.rels |
                 (a -> b) in c.examined
                 and PairLocallyCompatible[a, b]
-                and (childA -> childB) in RequiredChildren[a, b]
+                and
+                (childA -> childB) in RequiredChildren[a, b]
     }
 }
 
@@ -211,7 +257,7 @@ pred EqualityYes[c: Comparison] {
 /*
  * No:
  *
- * A structural contradiction has actually been examined.
+ * A structural contradiction has actually been reached and examined.
  */
 pred EqualityNo[c: Comparison] {
     some a: c.leftState.rels, b: c.rightState.rels |

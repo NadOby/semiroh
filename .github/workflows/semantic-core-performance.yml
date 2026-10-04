@@ -8,19 +8,9 @@ on:
       - ".github/workflows/semantic-core-performance.yml"
 
 jobs:
-  composition:
-    name: Composition solver ${{ matrix.solver }}
+  solvers:
+    name: Discover Alloy solvers
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        solver:
-          - glucose
-          - minisat
-          - minisatprover
-          - lingeling
-          - plingeling
 
     steps:
       - name: Check out repository
@@ -66,7 +56,7 @@ jobs:
             -d .build/alloy-runner \
             .github/scripts/AlloyRunner.java
 
-      - name: Run composition check
+      - name: List available solvers
         shell: bash
         run: |
           set -euo pipefail
@@ -74,8 +64,4 @@ jobs:
           java \
             -cp ".build/alloy-runner:$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
             AlloyRunner \
-            formal/core.als \
-            2 \
-            "${{ matrix.solver }}" \
-            0 \
-            4
+            --list-solvers

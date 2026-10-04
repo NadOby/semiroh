@@ -430,11 +430,23 @@ class MutationCampaignTests(unittest.TestCase):
             "-m",
             "fixture-oracle",
         ]
+        baseline_result = subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=b"",
+            stderr=b"",
+        )
 
-        with patch(
-            "tests.mutation_campaign.mutation.killed",
-            return_value=(mutant, False),
-        ) as killed:
+        with (
+            patch(
+                "tests.mutation_campaign.mutation.baseline",
+                return_value=baseline_result,
+            ) as baseline,
+            patch(
+                "tests.mutation_campaign.mutation.killed",
+                return_value=(mutant, False),
+            ) as killed,
+        ):
             replayed, dead = mutation_campaign.replay_exact(
                 self.root,
                 mutant.key,
@@ -448,12 +460,53 @@ class MutationCampaignTests(unittest.TestCase):
             mutant,
         )
         self.assertFalse(dead)
+        baseline.assert_called_once_with(
+            self.root,
+            command,
+        )
         killed.assert_called_once_with(
             self.root,
             mutant.target,
             mutant.index,
             command,
         )
+
+    def test_exact_replay_stops_when_baseline_fails(self) -> None:
+        mutant = self.first_arithmetic_mutant()
+        command = [
+            "python",
+            "-m",
+            "fixture-oracle",
+        ]
+        baseline_result = subprocess.CompletedProcess(
+            command,
+            1,
+            stdout=b"broken baseline",
+            stderr=b"fixture failure",
+        )
+
+        with (
+            patch(
+                "tests.mutation_campaign.mutation.baseline",
+                return_value=baseline_result,
+            ),
+            patch(
+                "tests.mutation_campaign.mutation.killed",
+            ) as killed,
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "baseline failed",
+            ):
+                mutation_campaign.replay_exact(
+                    self.root,
+                    mutant.key,
+                    self.source_blob("first.py"),
+                    self.engine_blob,
+                    command,
+                )
+
+        killed.assert_not_called()
 
     def test_replay_key_json_round_trips(self) -> None:
         mutant = self.first_arithmetic_mutant()

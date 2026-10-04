@@ -314,16 +314,10 @@ class MutationReportingTests(unittest.TestCase):
             stdout=b"",
             stderr=b"",
         )
-        by_key = {
-            mutant.key: mutant
-            for mutant in sites
-        }
 
-        def replay(
+        def execute(
             root: Path,
-            key: mutation.MutationKey,
-            source_blob: str,
-            engine_blob: str,
+            selected: mutation.Mutant,
             oracle: list[str],
         ) -> tuple[
             mutation.Mutant,
@@ -334,20 +328,12 @@ class MutationReportingTests(unittest.TestCase):
                 self.root,
             )
             self.assertEqual(
-                source_blob,
-                self.source_blob(),
-            )
-            self.assertEqual(
-                engine_blob,
-                self.engine_blob,
-            )
-            self.assertEqual(
                 oracle,
                 command,
             )
 
             return (
-                by_key[key],
+                selected,
                 True,
             )
 
@@ -355,9 +341,9 @@ class MutationReportingTests(unittest.TestCase):
             "tests.mutation_campaign.mutation.baseline",
             return_value=baseline_result,
         ) as baseline, patch(
-            "tests.mutation_campaign.replay_exact",
-            side_effect=replay,
-        ) as replay_exact:
+            "tests.mutation_campaign._execute_exact",
+            side_effect=execute,
+        ) as execute_exact:
             results = (
                 mutation_campaign.replay_failures(
                     self.root,
@@ -375,9 +361,9 @@ class MutationReportingTests(unittest.TestCase):
         )
 
         replayed_keys = [
-            call.args[1]
+            call.args[1].key
             for call
-            in replay_exact.call_args_list
+            in execute_exact.call_args_list
         ]
 
         self.assertEqual(
@@ -442,8 +428,8 @@ class MutationReportingTests(unittest.TestCase):
             "tests.mutation_campaign.mutation.baseline",
             return_value=failed_baseline,
         ) as baseline, patch(
-            "tests.mutation_campaign.replay_exact",
-        ) as replay_exact:
+            "tests.mutation_campaign._execute_exact",
+        ) as execute_exact:
             with self.assertRaisesRegex(
                 RuntimeError,
                 "mutation replay baseline failed",
@@ -458,7 +444,7 @@ class MutationReportingTests(unittest.TestCase):
             self.root,
             command,
         )
-        replay_exact.assert_not_called()
+        execute_exact.assert_not_called()
 
     def test_failure_report_requires_completed_campaign(
         self,

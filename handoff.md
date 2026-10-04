@@ -6,28 +6,7 @@ Status: active architectural experiment
 This is the compact authoritative continuation checkpoint for the semantic-core
 research.
 
-It is not a historical log.
-
-Durable experiment charter:
-
-```text
-docs/semantic_core_experiment.md
-```
-
-Current Alloy evidence:
-
-```text
-docs/research/semantic-core/alloy_verification.md
-```
-
-Latest external review and project assessment:
-
-```text
-docs/research/semantic-core/peer_reviews/2026-10-04-semantic-core-recommendations.md
-```
-
-Update this file when a significant semantic decision, counterexample, bounded
-result or immediate research target changes.
+It is not a historical log or verification archive.
 
 ## Working procedure
 
@@ -37,16 +16,23 @@ Normal workflow:
 
 1. inspect the live branch before judging current state;
 2. work one file/change at a time;
-3. provide a commit message, direct GitHub link and complete file contents;
+3. provide commit message, direct GitHub link and complete file contents;
 4. user commits manually;
-5. re-read the committed file from the live branch;
-6. continue only from the live state.
+5. re-read the committed file;
+6. continue from live state only.
 
-Prefer complete files over patches because editing is often done on mobile.
+Exception:
+
+```text
+docs/research/semantic-core/project_diary.md
+```
+
+is append-only, so diary updates should normally be supplied as small append
+blocks rather than complete-file replacements.
 
 Alloy execution happens in GitHub Actions.
 
-Do not claim local Alloy execution or download Alloy locally for experiments.
+Do not download Alloy locally or claim local Alloy execution.
 
 ## Research objective
 
@@ -69,32 +55,26 @@ Do not change production semantics merely to make the candidate model succeed.
 
 ## Independent hypotheses
 
-### H1 – Representation
+```text
+H1 – Representation
 
 Can intended current SHEAR semantics be represented in the candidate core
-without losing semantic distinctions?
+without losing intended semantic distinctions?
 
-### H2 – Construction
+
+H2 – Construction
 
 Can current and planned higher semantics be constructed from the smaller basis
-using a sufficiently small generic extension mechanism?
+using a sufficiently small generic mechanism?
 
-### H3 – Practicality
 
-Can those representations and constructions support acceptable:
+H3 – Practicality
 
-```text
-runtime complexity
-memory complexity
-incremental operation
-static analysis
-verification
-implementation complexity
+Can those representations and constructions be implemented and verified with
+acceptable computational and implementation complexity?
 ```
 
-H1, H2 and H3 are independent.
-
-Success at one does not imply success at the others.
+Success at one level does not imply success at another.
 
 ## Current candidate core
 
@@ -107,20 +87,25 @@ Relation = {
 }
 ```
 
-`RelationRef` is a state-local occurrence handle used to express:
-
-```text
-finite structure
-sharing
-cycles
-local references
-```
+`RelationRef` is a state-local occurrence handle.
 
 It is not persistent semantic identity.
 
-### Relation ontology
+Current candidate ontology includes:
 
-There is currently no fundamental graph-semantic distinction between:
+```text
+Atom
+Role
+Relation
+State
+View
+EntityID
+```
+
+`RoleUse`, `Slot`, `BisimWitness`, `CompositionCase` and `ContinuityClaim` are
+currently Alloy/modeling scaffolding rather than accepted SHEAR primitives.
+
+There is no fundamental graph-semantic distinction between:
 
 ```text
 node
@@ -131,78 +116,43 @@ ordinary graph value
 
 The candidate graph-semantic object is `Relation`.
 
-Relations may be nullary.
+## State, view and identity
 
-### Atom
-
-Atoms terminate relational structure.
-
-The concrete atom domain remains unresolved.
-
-Current candidates include:
-
-```text
-Bool
-Int
-Text
-Bytes
-Symbol
-```
-
-### Role
-
-`Role` is currently a primitive candidate category.
-
-Whether role identity can or should itself be derived relationally is an open
-research question.
-
-Do not eliminate it merely to minimize primitive count.
-
-### State
-
-A `State` is currently modeled as a finite collection of relation occurrences.
-
-A relation occurrence belongs to exactly one state in the Alloy model.
+A state is currently modeled as a finite relational structure.
 
 There is no universal semantic root.
 
-### View and EntityID
-
-Current Alloy scaffolding:
+A view contains:
 
 ```text
-View {
-    state
-    entry
-    entities : EntityID -> lone RelationOccurrence
-}
+state
+entry
+entities : EntityID -> RelationOccurrence
 ```
 
 `EntityID` is not intrinsic to relation value.
 
-Different entity IDs may designate structurally equal values.
+Different IDs may designate structurally equal values.
 
 Important limitation:
 
 ```text
-view-scoped mapping
+view-scoped EntityID mapping
 ```
 
-is currently modeled, but:
+is modeled, but:
 
 ```text
-entry-derived identity namespace
+entry-derived EntityID namespace
 ```
 
-has NOT been established.
-
-The `entities` mapping is not currently derived from `entry`.
+has not been established.
 
 ## Structural/value equality
 
 Current candidate equality is bisimulation over relational structure.
 
-It is independent from:
+It is intended to be independent from:
 
 ```text
 EntityID
@@ -215,47 +165,42 @@ continuity
 Current bounded evidence supports:
 
 ```text
-identity relation is a bisimulation
+bisimulation identity
 bisimulation reversal
 bisimulation composition
 distinct EntityIDs naming equal values
 equal values with different sharing topology
+non-vacuous reversal and composition scenarios
 ```
-
-Explicit non-vacuity witnesses exist for reversal and composition scenarios.
 
 These are bounded Alloy results, not unbounded proofs.
 
-An important unresolved question is cyclic equality:
+Important unresolved equality work:
 
 ```text
-one-node cycle
-vs
-two-node bisimilar cycle
+negative equality witnesses
+explicit cyclic equality experiments
 ```
 
-The experiment must determine whether finite graph topology itself is semantic
-or whether equality is fundamentally coinductive/unfolding-based.
+In particular, it remains unresolved whether value equality should preserve
+finite cycle topology or only coinductive relational unfolding.
 
 ## Transformation and continuity
 
-Current candidate concrete transformation:
+Current candidate transformation contains:
 
 ```text
-Transformation {
-    source
-    destination
-}
+source State
+destination State
+explicit continuity information
 ```
 
-with explicit continuity claims.
-
-Conceptually, continuity for one source occurrence is:
+Conceptually:
 
 ```text
-Unknown
-|
-Known(Set<DestinationOccurrence>)
+Continuity<T> =
+    Unknown
+    | Known(Set<T>)
 ```
 
 where:
@@ -274,57 +219,44 @@ Known({x, y, ...})
     split
 ```
 
-Many source occurrences may designate the same destination, so merge remains
-representable.
+Many source occurrences may continue into one destination.
 
-Destination ordering is NOT currently semantic continuity information.
-
-The Alloy model therefore uses a set of destinations, not an ordered sequence.
+Destination ordering is not currently semantic continuity information.
 
 Continuity is not inferred from:
 
 ```text
 structural equality
-EntityID spelling
-preservation
+EntityID
 position
+preservation
 host identity
 ```
 
-## Established bounded transformation evidence
-
-Separate transformation verification exists.
-
-Current bounded checks/witnesses support representability of:
+Current bounded evidence supports representability of:
 
 ```text
-unknown continuity
-explicit disappearance
+unknown
+disappearance
 1 -> 1 continuation
-1 -> many split
-many -> 1 merge
+split
+merge
 multiple independent claims
-one claim per source occurrence
-source/destination state containment
 equal values without continuity
 ```
 
-The first complete successful transformation verification run was:
+First complete successful transformation verification:
 
 ```text
-37161864993
+run 37161864993
 ```
-
-All transformation commands `0` through `9` met their declared expectations.
-
-This establishes representation behaviour only within the selected bounds.
 
 ## Semantic distinctions to preserve
 
 Keep separate:
 
 ```text
-structural equality
+structural/value equality
 semantic/domain equivalence
 continuity
 transformation
@@ -334,67 +266,81 @@ None automatically implies another.
 
 ## Formal structure
 
-Candidate semantic model:
-
 ```text
 formal/core_model.als
-```
+    candidate core semantic model
 
-Core verification entrypoint:
-
-```text
 formal/core.als
-```
+    core verification entrypoint
 
-Transformation semantic layer:
-
-```text
 formal/transformation_model.als
-```
+    candidate transformation/continuity model
 
-Transformation verification entrypoint:
-
-```text
 formal/transformation.als
-```
+    transformation verification entrypoint
 
-Shared instrumented runner:
-
-```text
 .github/scripts/AlloyRunner.java
-```
+    shared instrumented runner
 
-Core CI:
-
-```text
 .github/workflows/semantic-core.yml
+    core verification workflow
+
+.github/workflows/transformation.yml
+    transformation verification workflow
 ```
 
-Transformation CI:
+Core and transformation verification are intentionally separate.
+
+## Documentation structure
 
 ```text
-.github/workflows/transformation.yml
+docs/semantic_core_experiment.md
+    experiment charter
+
+docs/research/semantic-core/alloy_verification.md
+    shared Alloy verification policy and index
+
+docs/research/semantic-core/core_verification.md
+    core bounded evidence and solver observations
+
+docs/research/semantic-core/transformation_verification.md
+    established transformation/continuity bounded evidence
+
+docs/research/semantic-core/continuity_composition.md
+    active continuity-composition hypothesis
+
+docs/research/semantic-core/alloy_api_reference.md
+    Alloy 6.2 API and runner reference
+
+docs/research/semantic-core/project_diary.md
+    append-only chronological research log
+
+docs/research/semantic-core/peer_reviews/
+    external reviews and project assessments
 ```
 
-The two verification lanes are intentionally separated so transformation-only
-changes do not repeatedly run the expensive core composition experiment.
+The documentation split is complete.
+
+Do not allow evidence, active design hypotheses, chronology and handoff state to
+collapse back into one document.
 
 ## Verification discipline
 
-Use precise evidence language:
+Use precise language:
 
 ```text
 bounded check passed
 bounded counterexample found
 bounded witness exists
 experimentally observed
+no result
 not established
 ```
 
-Do not treat a bounded UNSAT result as an unbounded theorem.
+Do not describe bounded UNSAT as an unbounded theorem.
 
-For important implication-shaped checks, pair the assertion with a SAT witness
-showing that the interesting antecedent is realizable.
+For important implication-shaped properties, pair checks with explicit
+non-vacuity witnesses where practical.
 
 Distinguish:
 
@@ -406,54 +352,42 @@ negative witnesses
 non-vacuity witnesses
 ```
 
-The Alloy runner currently checks declared `expect` values but still permits
-commands with unspecified expectations.
+The Alloy runner currently enforces declared `expect` values but still accepts
+unspecified expectations.
 
-Requiring explicit expectations in verification CI is an accepted hardening
-task.
+Rejecting unspecified `expect` in verification CI is an accepted hardening task.
 
-## Solver evidence
+## Current solver evidence
 
-Current important observation:
-
-```text
-core CompositionIsBisimulation
-```
-
-is the dominant observed Alloy cost.
-
-Instrumentation established that the long runtime occurs primarily during SAT
-search rather than:
+The expensive core property is:
 
 ```text
-parsing
-model loading
-CNF translation
-JVM heap pressure
+CompositionIsBisimulation
 ```
 
-Glucose completed the bounded composition check.
+Instrumentation showed that observed runtime is dominated by SAT search rather
+than parsing, CNF construction or JVM heap pressure.
 
-After reducing verification-only search freedom, the observed composition solve
-was approximately:
-
-```text
-17 min 54 s
-```
-
-versus historical completed observations of approximately:
+Completed Glucose observations include approximately:
 
 ```text
 48 min 56 s
 95 min 36 s
+17 min 54 s after verification search-surface reduction
 ```
 
 Runtime variance is substantial.
 
-Do not treat those ratios as stable benchmark factors.
+Do not interpret these as stable benchmark ratios.
 
 Hybrid decomposition showed no demonstrated advantage and was removed from the
-routine core workflow.
+routine workflow.
+
+Detailed evidence belongs in:
+
+```text
+docs/research/semantic-core/core_verification.md
+```
 
 ## Projection strategy
 
@@ -463,13 +397,13 @@ Primary H1 experiment:
 π : CurrentModel -> CandidateCore
 ```
 
-For a current operation:
+For:
 
 ```text
 current_op(S) = S'
 ```
 
-test whether relevant observables satisfy:
+test:
 
 ```text
 π(current_op(S))
@@ -477,15 +411,15 @@ test whether relevant observables satisfy:
 core_op(π(S))
 ```
 
-A mismatch does not automatically make either side authoritative.
+over relevant semantic observables.
 
-Classify mismatches as appropriate:
+Mismatch classifications may include:
 
 ```text
 candidate-core defect
 current-model defect
 projection defect
-representation difference
+representational difference
 documented semantic commitment
 implicit semantic assumption
 implementation artifact
@@ -495,70 +429,32 @@ unresolved design decision
 
 No substantial current-model projection has yet been implemented.
 
-## Not established
+## Active semantic target – continuity composition
 
-The following remain open:
-
-```text
-full or substantial H1 projection
-entry-derived identity namespace
-continuity composition
-continuity associativity
-information refinement semantics of Unknown
-transformation composition
-ownership derivation
-reference semantics
-constraints
-function/closure construction
-execution semantics
-effects
-capabilities
-provenance
-generation semantics
-StateID / VersionID semantics
-canonical representation
-H2 in general
-H3 beyond initial formal measurements
-```
-
-## Proposed but unaccepted mechanisms
-
-Possible higher construction mechanisms include:
+The current active design document is:
 
 ```text
-Match / Binding
-Predicate / Guard
-Rewrite / Rule
-Observation
+docs/research/semantic-core/continuity_composition.md
 ```
 
-These are not accepted kernel primitives.
-
-Do not introduce universal graph rewriting merely because it makes derivations
-convenient.
-
-Failure to derive a feature is evidence and should be classified before adding
-a primitive.
-
-## Immediate research target
-
-The next semantic target is continuity composition.
-
-For compatible transitions:
+Leading candidate composition semantics:
 
 ```text
-A --first--> B --second--> C
+Unknown ; anything
+    => Unknown
+
+Known({}) ; anything
+    => Known({})
+
+Known({b1, ..., bn}) ; second
+    => Unknown
+       if any relevant bi has unknown second-step continuity
+
+    => Known(union of all known second-step destination sets)
+       otherwise
 ```
 
-the composition must preserve the distinction between:
-
-```text
-known continuation
-explicit disappearance
-unknown
-```
-
-Required initial cases include:
+Examples:
 
 ```text
 A -> B
@@ -579,104 +475,104 @@ B -> Unknown
 ```
 
 ```text
-A -> {}
-=> A -> {}
-```
-
-and split composition:
-
-```text
 A -> {B, C}
 B -> D
 C -> E
 => A -> {D, E}
 ```
 
-Critical unresolved partial-information case:
-
 ```text
 A -> {B, C}
 B -> D
 C -> Unknown
-```
-
-Leading hypothesis:
-
-```text
 => A -> Unknown
 ```
 
-because the complete destination set is not known.
+This is still a hypothesis.
 
-This must be explicitly accepted or falsified rather than emerging accidentally
-from the encoding.
+It has not yet been encoded or verified.
 
-After binary composition is defined, check associativity:
+## Immediate next formal work
 
-```text
-(T1 ; T2) ; T3
-==
-T1 ; (T2 ; T3)
-```
+Encode continuity composition independently of full transformation composition.
 
-A counterexample is valuable evidence.
-
-## Near-term sequence
-
-Current provisional order:
-
-1. finish documentation refactoring and establish the append-only project diary;
-2. define continuity composition;
-3. add basic composition witnesses/checks;
-4. test associativity;
-5. investigate information refinement and monotonicity;
-6. add negative equality witnesses;
-7. add explicit cyclic-equality experiments;
-8. require explicit `expect` in verification CI;
-9. preserve significant machine-readable Alloy results;
-10. add structured-value continuity witnesses;
-11. build the first narrow projection from current SHEAR semantics;
-12. begin commuting-diagram differential experiments;
-13. investigate entry-scoped identity construction;
-14. investigate whether `Role` is primitive or derived;
-15. only then move toward full transformation composition and
-    ownership/reference propagation.
-
-This sequence is provisional.
-
-Counterexamples or newly discovered dependencies may change it.
-
-## Documentation direction
-
-`alloy_verification.md` has grown beyond a comfortable single-document scope.
-
-Planned split:
+Initial experiment should cover:
 
 ```text
-alloy_verification.md
-    compact verification policy / index / current status
-
-core_verification.md
-    core Alloy evidence and solver history
-
-transformation_verification.md
-    transformation and continuity evidence
+known -> known
+known -> disappearance
+known -> unknown
+first-step disappearance
+first-step unknown
+complete split composition
+split with disappearing branch
+split with unknown branch
+merge after split
+state containment
+no continuity inferred from value equality
 ```
 
-Also establish:
+Then test:
 
 ```text
-project_diary.md
+associativity
 ```
 
-as an append-only chronological research record.
+with explicit non-vacuity witnesses.
 
-Diary entries should use ISO-8601 timestamps in Europe/Berlin, for example:
+Only after the basic composition algebra is coherent investigate:
 
 ```text
-2026-10-04T05:42+02:00
+information refinement / monotonicity
+full transformation composition
+ownership propagation
+reference transfer
 ```
 
-Historical entries are never rewritten.
+## Other accepted peer-review work
 
-Corrections are appended as new timestamped entries.
+Still pending:
+
+```text
+negative equality witnesses
+cyclic equality experiments
+explicit-expect CI hardening
+persistent machine-readable Alloy results
+structured continuity witnesses
+formal mutation experiments
+first narrow CurrentModel projection
+entry-scoped EntityID investigation
+Role bootstrap-boundary investigation
+```
+
+The peer-review assessment is recorded at:
+
+```text
+docs/research/semantic-core/peer_reviews/
+2026-10-04-semantic-core-recommendations.md
+```
+
+## Not established
+
+Current research has not established:
+
+```text
+H1 in general
+H2 in general
+H3 in general
+
+entry-derived identity
+continuity composition
+continuity associativity
+information-refinement semantics of Unknown
+transformation composition
+ownership derivation
+reference semantics
+higher semantic construction
+unbounded equality theorems
+```
+
+The next milestone is therefore not additional ontology.
+
+It is demonstrating or falsifying a nontrivial compositional operation using the
+existing candidate basis.

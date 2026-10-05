@@ -1,10 +1,11 @@
 # Graph Form
 
 **Status: implemented.** `shear/lang.py` stores code in graph form and
-`shear/bytecode.py` runs it (roadmap.md D1, tasks 4, 7 and 17).
+`shear/bytecode.py` runs it (roadmap.md D1, tasks 4, 7, 17 and 20).
 `tests/test_graph_form.py` is the acceptance suite; the unit tests are at the
 end of `tests/test_lang.py`, with closure graph-form behaviour additionally
-covered by `tests/test_closures.py`.
+covered by `tests/test_closures.py` and error nodes by
+`tests/test_error_handling.py`.
 
 Code is stored as graph form: every expression node is a relation entity
 owned by its function. Tuple bodies with links relations (first_program.md)
@@ -97,6 +98,9 @@ so `function_at` gives back the link names as written.
     trial               target, args, targets, values      {"call": (name,
                                                            problem), "links":
                                                            ...}
+    catch               body                               None or tuple of
+                                                           accepted kinds
+    raise               kind, detail                       -
     invalid             -                                  (problem, original
                                                            expression)
 
@@ -111,15 +115,37 @@ relation entity".
 
 **Checked when it runs.** Loading never fails on a body: an expression the
 interpreter would reject (unknown operation, wrong arity, unknown link, a
-malformed `unquote`, a `trial` whose first operand is not a call form)
-becomes an `invalid` node that raises the same `LanguageError` when it is
-evaluated, at the point the tuple interpreter raised it. Generated code
-stays "checked when it runs" (metaprogramming.md §3), and `function_at`
-returns the original expression.
+malformed `unquote`, a `trial` whose first operand is not a call form, or a
+malformed `catch`) becomes an `invalid` node that raises the corresponding
+`LanguageError` when it is evaluated, at the point the tuple interpreter
+raised it. Generated code stays "checked when it runs" (metaprogramming.md
+§3), and `function_at` returns the original expression.
 
 For `activate` and `trial`, a link that does not resolve is recorded as a
 `(name, problem)` entry and raised only when the pairs are checked, after
 their values are evaluated (metaprogramming.md §4, language_trials.md §2).
+
+**Catch and raise.** A `catch` has exactly one code child, `body`. An
+unfiltered catch has no kind filter; a filtered catch stores its accepted
+kind names as payload. Provisionally a filter is a non-empty tuple of
+distinct non-empty strings. A malformed filter becomes `invalid` rather than
+being widened or normalized.
+
+`function_at` reconstructs either:
+
+    ("catch", body)
+
+or:
+
+    ("catch", body, kinds)
+
+The kind filter is metadata and therefore has no child nodes and no evaluation
+order of its own.
+
+A `raise` has two ordinary code children, `kind` and `detail`, evaluated in
+that order. It has no payload. Runtime validation of the kind is separate
+from graph construction: the evaluated kind must be a non-empty string
+(error_handling.md).
 
 **Data, let, references and closures.** `ref` and `code`
 (self_hosting.md) name their function by the `target` role, like `call`, so
@@ -144,7 +170,9 @@ current lexical environment.
 
 Tail position (language_data.md section 4) is a property of where a node sits,
 not a node kind: the machine finds it while running (bytecode.md section 4).
-Closure calls through `apply` or `applyv` follow the same rule.
+Closure calls through `apply` or `applyv` follow the same rule. A `catch`
+body is deliberately not in tail position because the catch must still wrap
+either its successful value or a caught failure after the body finishes.
 
 **Quote.** The template stays data: only tuples headed `"unquote"` are
 holes, lists, maps and records inside it are copied as they are, and holes
@@ -230,9 +258,10 @@ The `define` entries that create, remove and relink functions
         collapses f back to the input format; None when f is absent or not
         a function. function_at(load(s), f) equals the Function s held.
 
-`function_at` traverses closure bodies like any other code child. The closure
-payload retains its parameter and explicit capture-name tuples unchanged
-through load/collapse round trips.
+`function_at` traverses closure and catch bodies like any other code child.
+Closure payload retains its parameter and explicit capture-name tuples
+unchanged through load/collapse round trips; catch payload likewise retains
+its accepted kind tuple unchanged.
 
 Renaming a function stays a plain core transformation. Creating,
 removing and relinking functions are `define` entries since task 13, so
@@ -260,6 +289,11 @@ and body identities, an already-created closure resolves those identities in
 the active version when it is next applied; its captured values are not
 recomputed.
 
+Catch does not change transformation semantics either. It can observe a
+failure from `activate` or `trial` when that failure is one of the
+SHEAR-reported errors in error_handling.md, but it neither rewinds earlier
+effects nor commits a trial's isolated state.
+
 ## 7. Constraints over code
 
 **Decided:**
@@ -271,17 +305,17 @@ the function contributes `{"value": <definition>, "owned": {node: ...}}`.
 Program constraints over code (metaprogramming.md §4, language_trials.md
 §4) keep working on graph form this way.
 
-A closure body remains part of that owned subtree exactly like any other
-expression child, so constraints over a function's code see closure code
-without any closure-specific mechanism.
+Closure and catch bodies remain part of that owned subtree exactly like any
+other expression child, so constraints over a function's code see them
+without any operation-specific mechanism.
 
 ## 8. Open
 
 - Whether a function should own its nodes as a tree shaped like the
   expression, which would let a subexpression be removed with its operands
   by one disappearance.
-- Whether invalid code should be rejected at `load`/`define` instead, once
-  the language has error handling.
+- Whether invalid code should be rejected at `load`/`define` instead of
+  remaining a catchable `invalid_code` failure when executed.
 - Whether the link table should be editable from the language.
 
 ## 9. Node edits

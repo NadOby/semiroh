@@ -198,6 +198,22 @@ def lower(node: Relation) -> Chunk:
             ),
         ]
 
+    elif kind == "catch":
+        code = [
+            (
+                "CATCH",
+                roles["body"],
+                _decode(node.payload),
+            )
+        ]
+
+    elif kind == "raise":
+        code = [
+            ("EVAL", roles["kind"]),
+            ("EVAL", roles["detail"]),
+            ("FAIL",),
+        ]
+
     elif kind == "ref":
         code = [
             (

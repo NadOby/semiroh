@@ -390,7 +390,7 @@ def _execute(
                 )
 
                 if child is None:
-                    child = bytecode._lower_value(
+                    child = bytecode.lower_value(
                         value,
                         instr[1],
                         activation.entity,
@@ -481,7 +481,7 @@ def _execute(
                 )
 
                 if child is None:
-                    child = bytecode._lower_value(
+                    child = bytecode.lower_value(
                         value,
                         entity,
                         activation.entity,
@@ -499,7 +499,7 @@ def _execute(
                 )
 
                 if child is None:
-                    child = bytecode._lower_value(
+                    child = bytecode.lower_value(
                         value,
                         instr[1],
                         activation.entity,
@@ -631,7 +631,7 @@ def _execute(
                 )
 
                 if child is None:
-                    child = bytecode._lower_value(
+                    child = bytecode.lower_value(
                         value,
                         instr[2],
                         activation.entity,

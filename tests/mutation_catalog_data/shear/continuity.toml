@@ -1,8 +1,8 @@
-source_blob = "09dbc50c6f382b3158a5602e6c7658ef2a79dc83"
+source_blob = "a2918a0eecb39ac74174b1b2ea0bba205d8c0c48"
 
 [[survivor]]
 kind = "constant"
-source = 'operation=_edit(("bump", "k", ("lit", 2))),'
+source = "operation=_edit((\"bump\", \"k\", (\"lit\", 2))),"
 occurrence = 0
 classification = "unspecified"
 reason = """

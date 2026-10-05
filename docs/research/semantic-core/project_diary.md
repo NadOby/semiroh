@@ -17,7 +17,7 @@ a replacement for verification evidence documents
 Current continuation state belongs in:
 
 ```text
-handoff.md
+docs/research/semantic-core/handoff.md
 ```
 
 Detailed formal evidence belongs in the relevant verification documents.

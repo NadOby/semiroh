@@ -315,7 +315,7 @@ None should automatically imply another.
 ### 3.11 Experimental state identity
 
 Status: experimental projection hypothesis, recorded for plan step 4 of
-`handoff.md`. It is not accepted SHEAR semantics.
+`docs/research/semantic-core/handoff.md`. It is not accepted SHEAR semantics.
 
 Two candidate states have the same experimental `StateID` iff there is a
 bijection between their occurrence handles that preserves:

@@ -76,21 +76,25 @@
    "chunk_of",
    "disassemble",
    "lower",
-   "lowered_count",
-   "run"
+   "lower_value",
+   "lowered_count"
   ],
   "shear.lang": [
+   "ARITY",
+   "BINARY",
    "BODY_ROLE",
    "CallDepthExceeded",
    "DEFINITION_KIND",
    "FUNCTION_ROLE",
    "Function",
+   "INVALID",
    "INVALID_KIND",
    "LABEL_ROLE_PREFIX",
    "LINKS_KIND",
    "LINK_ROLE_PREFIX",
    "LanguageError",
    "NODE_KINDS",
+   "OPERATIONS",
    "define",
    "function_at",
    "function_of",
@@ -207,6 +211,12 @@
    "program": "30479612096821123539b3bf21f091d18a4dd915a5d5559b7c522e2e817eabb2",
    "text": "f6412ca2c3a48bc34164d2504ca8b8b39af96ec6"
   },
+  "account_report": {
+   "chunks": "b950c1a355434b25821625f4ecf52c153309428d",
+   "graph": "9f727f35a4a4a14a9dc0564d1e60f02e13398ee44b539d2cc9798c67009f46b6",
+   "program": "e520b6be0f2b99783707cd1c7e01cbe6a9c56896f7a12b4228f1c94713180079",
+   "text": "1829df1213b1ca93375d55206c958ada982315f8"
+  },
   "bootstrap": {
    "chunks": "0e4d22de6c224b29a86111e64a06edaf2fb3befb",
    "graph": "2185117ae04858355c9380d378f75394eee959ebcd0c93151baab94b3675c5a9",
@@ -303,6 +313,12 @@
    "program": "fdf81c21308ee7b9a1b5fff54e9a60c0811368db028df088ba91fb14ff29125a",
    "text": "0eb03ed65e3e481a273effa6712b0c9ff894465b"
   },
+  "lookup": {
+   "chunks": "b9ff4cf3a590d9c15c7715833af92c2fbac6635a",
+   "graph": "2039b3285d3c9c451914bf8a29cd5f4575b088ebb169d5d78ee8f5b3f5063054",
+   "program": "b2aaecff50179ac31521c4b9b1cc732c5e332cb532dd2ee791477ec0807c98c2",
+   "text": "9e9216c35dbcb69e45f8c37e5ba23d75ffed7533"
+  },
   "make_adder": {
    "chunks": "aefc970011b4fbdcec0916493a1bf0f970eb915f",
    "graph": "0954ac9ae424055760f4655f321d0bed181337c84405230d270d13575d5f130c",
@@ -338,6 +354,12 @@
    "graph": "f2103b08ef764e12166e22b2224aab06d712d7cf6a0ff339dbb58dd23ebccdb5",
    "program": "512804a83d76c44c36db7bb591ef21af3b773d470d06f5f6ce24e547a05f41c6",
    "text": "ece7d64788a1ca68bca68802c06885b595640531"
+  },
+  "safe_install": {
+   "chunks": "af30b1eaf84b3b17329e6751acca8c483b929c34",
+   "graph": "5802f53dfdb383d4ffada7dcf8f11f28355682f7b515b63a8c9d20086bad17ff",
+   "program": "dab0275480f5065a2fa6bb57a18a4d6cde7b43c8ee6cca552f5442ce0349a551",
+   "text": "9ce7b89297613b0765e176b5c90b766a07f6bb1a"
   },
   "sort_swap": {
    "chunks": "070bb1c5cee8af58e118870164d499e1e76e5ac8",

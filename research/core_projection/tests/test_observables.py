@@ -472,14 +472,69 @@ class ChurnRowTests(unittest.TestCase):
 
         self.assertEqual(len(changed), 1)
 
-    def test_rows_for_both_scenarios_and_modes(self):
+    def test_first_literal_is_edited_in_pre_order_and_only_it(self):
+        edit = churn._first_literal_edited
+
+        self.assertEqual(edit(("add", ("lit", 1), ("lit", 2))), (("add", ("lit", 2), ("lit", 2)), True))
+        self.assertEqual(edit(("if", ("arg", "n"), ("lit", "a"))), (("if", ("arg", "n"), ("lit", "a'")), True))
+        self.assertEqual(edit(("lit", True)), (("lit", True), False))
+        self.assertEqual(edit(("arg", "n")), (("arg", "n"), False))
+        self.assertEqual(
+            edit(("let", "lit", ("lit", None), ("lit", 7))),
+            (("let", "lit", ("lit", None), ("lit", 8)), True),
+        )
+
+    def test_cross_function_edit_stays_inside_the_callee_in_main(self):
+        before, after, callee = churn.cross_function_states()
+        inside = before.owned_subtree(callee) | after.owned_subtree(callee) | {callee}
+        changed = {
+            e for e in set(before.values) & set(after.values)
+            if before.values[e].version_id != after.values[e].version_id
+        }
+
+        self.assertTrue(changed)
+        self.assertLessEqual(changed, inside)
+        self.assertTrue(any(
+            callee.value != name and callee in observables.link_targets(before.values[name].content).values()
+            for name in before.values
+        ))
+
+    def test_cross_function_edit_without_a_literal_leaf_is_rejected(self):
+        with self.assertRaises(ValueError):
+            churn.cross_function_states("map", "double")
+
+    def test_class_rules(self):
+        rule = churn.churn_class
+        struct, ref = Mode.STRUCT, Mode.REF
+
+        self.assertEqual(rule(struct, 1, 1)[0], AGREE)
+        self.assertEqual(rule(ref, 1, 1)[0], AGREE)
+        self.assertEqual(rule(struct, 22, 1)[0], PREDICTED)
+        self.assertIn("direction review section 3.3", rule(struct, 22, 1)[1])
+        self.assertEqual(rule(ref, 22, 1)[0], UNEXPECTED)
+        self.assertEqual(rule(struct, 0, 1)[0], UNEXPECTED)
+
+    def test_rows_report_main_counts_as_recomputed_from_the_states(self):
+        for chain, case in ((20, "leaf_edit_41"), (200, "leaf_edit_401")):
+            before, after, _ = churn.leaf_edit_states(chain)
+            shared = set(before.values) & set(after.values)
+            changed = sum(before.values[e].version_id != after.values[e].version_id for e in shared)
+            rows = [r for r in churn.churn_rows() if r.case == case]
+
+            self.assertTrue(rows)
+            self.assertTrue(all(
+                r.main_result.startswith(f"{changed} of {len(shared)} entities change VersionID")
+                for r in rows
+            ))
+
+    def test_rows_for_every_scenario_and_mode(self):
         rows = churn.churn_rows()
 
         self.assertEqual(
             sorted((row.case, row.observable) for row in rows),
             sorted(
                 (case, f"O5/{mode.name}")
-                for case in ("leaf_edit_41", "leaf_edit_401")
+                for case in ("leaf_edit_41", "leaf_edit_401", "cross-function: compiler, edit in upper")
                 for mode in MODES
             ),
         )

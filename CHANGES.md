@@ -1292,3 +1292,24 @@ valid evidence after the relevant oracle was shown to be unsound.
   `handoff.md` and asking the owner to switch model.
 - Added `handoff.md` at the repository root: the compact current state a
   new chat starts from, as on the research branch.
+
+## 2026-10-05
+
+### Semantic-core experiment closed
+
+- The `research/semantic-core` experiment tested a smaller semantic basis:
+  relations only, with `EntityID` outside values. A projection of the
+  corpus, the continuity corpus and adversarial cases into the candidate
+  falsified it: equality conflated distinct referents and one leaf edit
+  changed every ancestor and caller. The one allowed revision agreed with
+  `main` only by restoring named identity.
+- Recorded the outcome in `docs/identity_model.md` §10 as Decided: four
+  independent semantic relationships (containment, named reference,
+  ownership; continuity between states), and `EntityID` as the stable
+  vocabulary in which continuity is stated. README §3 points to it.
+- Added roadmap section H, tasks 21 to 26 after task 20 (error handling):
+  two audits, a measurement, a constraints falsification experiment, a
+  field-identity spike as research input to records, and the
+  content-consolidation decision.
+- The branch is archived at tag `semantic-core-experiment-2026-10`.
+

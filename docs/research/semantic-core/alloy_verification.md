@@ -314,7 +314,11 @@ discovers Alloy commands
 constructs a model + command matrix
 runs commands in separate matrix jobs
 preserves command scopes and expectations
+fails if a top-level formal/*.als with commands is not a listed entrypoint
 ```
+
+Top-level `formal/*.als` files without commands are libraries and need not be
+listed.
 
 It runs on every push to:
 

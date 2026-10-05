@@ -80,14 +80,12 @@ Adopted from the direction review and its assessment:
 `docs/research/semantic-core/peer_reviews/2026-10-04-semantic-core-direction-review.md`
 §12.
 
-1. Finish the `query_outcomes.als` soundness cleanup and CI. Remaining:
-   an independent soundness assertion for `EqualityNo` (no bisimulation
-   containing the root pair exists when it holds), using a witness
-   signature so the check stays first-order.
-2. Resolve `formal/core_equality_negative.als`: superseded by `core.als`
-   and not in the workflow. Remove it, or classify it as a library. Then
-   make the workflow fail when a top-level `formal/*.als` with commands is
-   not listed.
+1. Done: `EqualityNo` is checked against an independent bisimulation
+   witness (`7f66c36`); that command passed in run `37281614361`. Confirm
+   the rest of that run's matrix before citing the whole file as passing.
+2. Done: `formal/core_equality_negative.als` deleted (`d07a4dd`); the
+   workflow fails when a top-level `formal/*.als` with commands is not a
+   listed entrypoint.
 3. Freeze candidate semantics and the mechanism inventory (below).
 4. Record the candidate state-identity hypothesis: `StateID` equality is
    equality up to renaming of occurrence handles. This is a hypothesis
@@ -202,7 +200,6 @@ formal/core.als                       core checks and witnesses
 formal/query_outcomes.als             bounded equality outcomes
 formal/transformation_model.als       continuity and composition
 formal/transformation*.als            transformation entrypoints
-formal/core_equality_negative.als     orphan, see plan step 2
 .github/scripts/AlloyRunner.java      instrumented runner
 .github/workflows/alloy-verification.yml   all Alloy commands, lingeling.parallel
 .github/workflows/semantic-model.yml  Python model tests

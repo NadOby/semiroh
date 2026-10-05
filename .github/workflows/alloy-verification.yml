@@ -71,6 +71,43 @@ jobs:
             formal/transformation_composition_mutation.als
           )
 
+          # Every top-level formal/*.als that contains commands must be a
+          # listed entrypoint; files without commands are libraries. This
+          # prevents a verification file from silently going unrun.
+          missing=0
+
+          for model in "${models[@]}"; do
+            if [[ ! -f "$model" ]]; then
+              echo "Listed verification entrypoint does not exist: $model" >&2
+              missing=1
+            fi
+          done
+
+          for file in formal/*.als; do
+            count="$(
+              java \
+                -jar "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
+                commands \
+                "$file" \
+                | sed -n 's/^[[:space:]]*\([0-9][0-9]*\)[[:space:]]*\..*/\1/p' \
+                | wc -l
+            )"
+
+            listed=0
+            for model in "${models[@]}"; do
+              [[ "$model" == "$file" ]] && listed=1
+            done
+
+            if [[ "$count" -gt 0 && "$listed" -eq 0 ]]; then
+              echo "Alloy file with $count command(s) is not a listed verification entrypoint: $file" >&2
+              missing=1
+            fi
+          done
+
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
           commands='[]'
 
           for model in "${models[@]}"; do

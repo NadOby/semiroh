@@ -1,10 +1,11 @@
 # Bytecode and the Virtual Machine
 
-**Status: implemented** (roadmap.md task 7, decision D2; extended by task 17).
-`shear/bytecode.py` lowers, caches and disassembles chunks;
+**Status: implemented** (roadmap.md task 7, decision D2; extended by tasks 17
+and 20). `shear/bytecode.py` lowers, caches and disassembles chunks;
 `shear/machine.py` executes them. `tests/test_bytecode.py` is the main
 acceptance suite, with closure behaviour additionally covered by
-`tests/test_closures.py`.
+`tests/test_closures.py` and catchable failures by
+`tests/test_error_handling.py`.
 
 Graph form (graph_form.md) is the only semantic form that runs. Each
 expression node lowers to a **chunk** of bytecode, and a virtual machine with
@@ -35,6 +36,10 @@ Roadmap task 17 extends the language itself with closures; the bytecode layer
 represents their construction with `CLOSURE` and uses the existing
 `APPLY`/`APPLYV` call machinery for invocation.
 
+Roadmap task 20 adds catchable failures. `catch` installs a machine handler
+around one child expression, while `raise` evaluates its kind and detail and
+then fails. Existing invalid graph-form nodes continue to use `RAISE`.
+
 ## 2. Chunks
 
 **Decided:**
@@ -53,6 +58,7 @@ strings, ints, `EntityID`s or tuples of them:
     ("MUL",)
     ("CALL", f, 2)
     ("CLOSURE", body, ("x",), ("n",))
+    ("CATCH", body, ("out_of_range",))
 
 `disassemble(chunk)` prints one instruction per line.
 
@@ -139,7 +145,11 @@ The stack is the operand stack of one run.
     ACTIVATE ..         pop the values, check the pairs, activate
     TRIAL ..            pop values and arguments, check, run in a trial
 
-    RAISE message       raise LanguageError for this node
+    CATCH body kinds    run body under a handler; kinds is None for an
+                        unfiltered catch, otherwise the accepted kind tuple
+    FAIL                pop detail and kind and raise the program error
+
+    RAISE message       raise LanguageError for invalid code at this node
     END                 this chunk is done
     RETURN              (machine only) this call is done
 
@@ -147,26 +157,36 @@ The stack is the operand stack of one run.
 explicit capture names and stores the semantic owner/body identities in a
 `Closure` value. Missing captures fail at construction.
 
-`EVAL` is the only ordinary expression instruction that suspends the current
-cursor. `GOTO`, `BRANCH` and `LETBIND` hand over without suspending the chunk,
-and they are the last instruction of theirs: they are how tail position is
-preserved (section 4).
+`CATCH` records enough machine state to resume after its body. A successful
+body result is wrapped as `("ok", value)`. A failure accepted by the handler
+unwinds to it and becomes `("failed", error)`. The body is therefore not in
+tail position.
+
+`FAIL` is reached only after the `raise` node's kind and detail operands have
+been evaluated in that order. The kind must be a non-empty string; otherwise
+the machine reports the corresponding language error instead of a program
+error.
+
+`EVAL` and `CATCH` suspend the current cursor. `GOTO`, `BRANCH` and `LETBIND`
+hand over without suspending the chunk, and they are the last instruction of
+theirs: they are how tail position is preserved (section 4).
 
 ## 4. The machine
 
 **Decided:**
 
-A run keeps an operand stack, a control stack of suspended cursors and the
-live calls. A cursor is:
+A run keeps an operand stack, a control stack of suspended cursors, the live
+calls and the active catch handlers. A cursor is:
 
-    (chunk, pc, tail, env, activation)
+    (chunk, pc, tail, env, activation, function, node)
 
 It records the chunk being run and where it is, whether its node is in tail
-position, the lexical environment and the live activation whose held program
-version supplies its nodes.
+position, the lexical environment, the live activation whose held program
+version supplies its nodes, and the semantic function and node identities
+used for error locations.
 
-Nothing recurses in the host for ordinary calls: `EVAL` and non-tail calls
-push control state; `END` and `RETURN` restore it.
+Nothing recurses in the host for ordinary calls: `EVAL`, `CATCH` and non-tail
+calls push control state; `END` and `RETURN` restore it.
 
 - **Direct calls.** `CALL` enters the statically resolved function with
   `Runtime.enter`, reads its definition from the held state, checks arity and
@@ -198,7 +218,9 @@ push control state; `END` and `RETURN` restore it.
   it, while `EVAL` clears it. A `CALL`, `APPLY` or `APPLYV` reached in tail
   position reuses the live call: the machine enters the callee's frame and
   releases the caller's. This applies equally to closure calls. A chain of
-  tail calls therefore keeps one live call, one frame and one hold.
+  tail calls therefore keeps one live call, one frame and one hold. `CATCH`
+  enters its body with tail position cleared because it must still wrap the
+  outcome.
 
 - **Names.** `env` is copied at a `let`, as the interpreter copied its
   bindings. `LETCHECK` looks in `env` when the `let` runs, because a chunk
@@ -209,17 +231,31 @@ push control state; `END` and `RETURN` restore it.
   raises `CallDepthExceeded` when `CALL_DEPTH_LIMIT` calls (100,000, the
   entry among them) are already waiting. A tail call replaces its caller and
   adds no depth. The rule is independent of whether the target is a direct
-  function, function reference or closure.
+  function, function reference or closure. Task 20 exposes this as the
+  catchable `("limit", "depth_limit", ...)` error value.
 
 - **Trial.** `TRIAL` runs the linked function on a fresh machine over the
   isolated runtime, without the activation capability
   (language_trials.md). That is the only nested run, one per trial level.
+  If the nested run fails with a SHEAR error, its existing error value is
+  preserved when the failure propagates into the enclosing run.
 
-- **Errors and cleanup.** A `LanguageError` names the function whose
-  activation owns the executing node. Runtime and cell errors propagate as
-  before (`CellError` becomes `LanguageError`, constraint rejections remain
-  what they are). On any exception, outstanding holds are released in
-  reverse activation order.
+- **Catch handlers.** A handler records the control-stack depth, operand-stack
+  height, number of live calls and accepted kinds when `CATCH` starts. A
+  failure searches outward for the nearest accepting handler. Calls above it
+  release their holds, the operand and control stacks are restored to the
+  recorded depths, and `("failed", error)` becomes the catch result.
+  A successful body produces `("ok", value)`. A filtered handler that does
+  not accept the error is skipped in favour of an enclosing handler.
+
+- **Errors and cleanup.** Every failure the SHEAR language reports carries
+  the plain error value specified by error_handling.md. The machine tracks
+  the semantic function and node separately from the activation so a
+  callee-entry or depth-limit failure can still name the caller's call node.
+  An uncaught failure escapes with the same exception class used by the host
+  interface and its error value in `.error`. Python/model exceptions that are
+  not SHEAR errors are not caught. With no accepting handler, outstanding
+  holds are released in reverse activation order.
 
 ## 5. The cache
 
@@ -266,10 +302,15 @@ Thus:
 - the active-state existence of the referenced function or closure
   owner/body is checked after those arguments have run;
 - closure arity is checked when the closure call is opened;
-- `trial` evaluates its call arguments before checking its edit pairs.
+- `trial` evaluates its call arguments before checking its edit pairs;
+- `catch` installs its handler before evaluating its body and evaluates
+  nothing else first;
+- `raise` evaluates its kind before its detail, and a failure of either
+  operand propagates instead of constructing the requested program error.
 
-`tests/test_bytecode.py` and `tests/test_closures.py` pin these orderings,
-including failures next to observable effects.
+`tests/test_bytecode.py`, `tests/test_closures.py` and
+`tests/test_error_handling.py` pin these orderings, including failures next
+to observable effects.
 
 Differential checking before the tree interpreter was removed used 4000
 seeded random programs (about 20,000 steps, a third succeeding, with
@@ -336,6 +377,11 @@ Roadmap task 8 resolved the original self-hosting question by having the
 compiler written in SHEAR emit bytecode as ordinary tuple data. Roadmap
 task 10 then added an interpreter written in SHEAR that executes those
 tuples. Task 17 extends both paths with closure bytecode.
+
+Task 20 deliberately does not extend those self-hosted paths with `CATCH` or
+`FAIL`: the embedded compiler remains limited to `self_hosting.LOWERED`, and
+the SHEAR-written VM keeps its existing `vm_trap`. Supporting program-visible
+errors in those paths is a follow-up (error_handling.md section 13).
 
 Thus a program can produce and execute bytecode without making bytecode part
 of semantic state or granting arbitrary emitted chunks directly to the host

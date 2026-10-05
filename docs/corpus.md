@@ -51,7 +51,8 @@ files):
     EXAMPLES: tuple[Example, ...]
     MISSING: tuple[Wanted, ...]
     TAGS = frozenset({"recursion", "side effects", "control",
-                      "self-modification", "data", "higher order"})
+                      "self-modification", "data", "higher order",
+                      "errors"})
 
     ExampleFailed(AssertionError)
     play(example, run)
@@ -108,7 +109,28 @@ Tier 2 (roadmap.md task 6, language_data.md section 5) adds:
   runs, and sorts again with the data still in its cell;
 - closures (roadmap.md task 17): `make_adder`, which returns a closure
   capturing its argument by value, and `compose`, which returns a closure
-  capturing callable values and applying them in composition.
+  capturing callable values and applying them in composition;
+- errors (roadmap.md task 20): `safe_install`, `account_report` and
+  `lookup`, covering catchable failures, selective filters, program-raised
+  errors and failure values.
+
+The task-20 error examples exercise distinct boundaries:
+
+- `safe_install` trials candidate implementations of `power` under `catch`.
+  A candidate that indexes an empty tuple reports `out_of_range`, and a
+  runaway recursive candidate reports `depth_limit`; neither is installed.
+  A candidate that merely returns the wrong value is rejected normally, and
+  only the correct candidate is activated.
+- `account_report` increments an attempt counter before writing a constrained
+  balance. It catches only `cell_rejected`, so an overdraft becomes
+  `("refused", "violated")` while the earlier attempt write remains visible:
+  `catch` does not roll back effects. Passing a string instead of an integer
+  produces a language error that is not accepted by the filter and therefore
+  still escapes.
+- `lookup` uses `raise("missing", ...)` for an absent key. `find_or` catches
+  only that program error and returns a default, while malformed table data
+  still produces the language's `wrong_kind`. `why` catches both and exposes
+  their origin, kind and detail as ordinary values.
 
 ## 4. Wanted programs
 
@@ -164,6 +186,11 @@ recorded, now tier 2 examples. What each needed, as first written:
 must fail under deliberately broken interpreters (wrong integer results,
 lost cell writes, an ignored activation grant, swallowed errors). The
 implementation is done when it passes without changes.
+
+Task 20 additionally uses the three `errors` examples as cross-boundary
+canaries. They must run under the ordinary language path, round-trip through
+text syntax, and be recorded in `tests/language_golden.json` without changing
+the golden records of any pre-existing program.
 
 ## 6. Implementation notes
 

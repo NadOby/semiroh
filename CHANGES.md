@@ -1313,3 +1313,27 @@ valid evidence after the relevant oracle was shown to be unsound.
   content-consolidation decision.
 - The branch is archived at tag `semantic-core-experiment-2026-10`.
 
+### Catchable error handling
+
+- Added `catch` and `raise` as language operations. `catch(e)` returns
+  `("ok", value)` or `("failed", error)`; filtered catches accept only
+  selected error kinds and otherwise propagate the original failure unchanged.
+- Errors are ordinary values shaped as
+  `(origin, kind, detail, (function, node))`, with origins `program`,
+  `language`, `runtime` and `limit`. Existing escaping exception classes and
+  messages are preserved, with the error value attached as `.error`.
+- Added machine handler unwinding across calls, including release of holds and
+  preservation of failure locations. Catching does not roll back effects that
+  happened before the failure.
+- Added program-raised errors through `raise(kind, detail)`, plus the
+  `shear.errors` catalogue and human-readable `describe(error)` helper.
+- Extended graph form, bytecode and text syntax with `catch` and `raise`.
+  A catch body is not in tail position because its result must still be
+  wrapped after the body finishes.
+- Added the `errors` corpus tag and the `safe_install`, `account_report` and
+  `lookup` canaries, covering trial failures, selective catching, no rollback,
+  program errors and inspection of error values.
+- The embedded compiler and SHEAR-written bytecode VM are intentionally not
+  extended with `CATCH`/`FAIL` in this task; that remains a follow-up.
+
+  

@@ -395,6 +395,72 @@ does not block the H1 experiment.
 This hypothesis stays unchanged through the first projection attempt. It may
 change only as part of the single candidate revision allowed at plan step 7.
 
+Revision 1 (§3.12) replaces this identity with an isomorphism that fixes names.
+
+### 3.12 Revision 1: named roots
+
+Status: experimental revision, recorded for plan step 7 of
+`docs/research/semantic-core/handoff.md`; it is the single candidate revision
+the timebox allows. It is not accepted SHEAR semantics. §3.1 to §3.11 describe
+the frozen candidate that the first run tested and are not edited.
+
+Evidence it answers (`docs/research/semantic-core/projection_results.md`, re-run
+`cb74cea`): the frozen candidate has one kind of role target, a contained
+occurrence, so it loses `main`'s distinction between content, compared
+structurally, and references to named entities, compared by name. Its
+charter-faithful projection makes distinct referents with equal content equal
+and turns a leaf edit into a change of value class for the entity's referrers;
+its control, which puts `EntityID` strings into atoms, matches `main` on both.
+
+One idea, applied consistently: entities are named roots inside the state;
+everything below a root is anonymous relational content.
+
+1. **Target kinds.** A role target is either `Contained(handle)` or
+   `Named(name)`.
+2. **Bindings in the state.** A state is `(relations, bindings)`, with
+   `bindings : Name ⇀ handle`. Bindings move from the view into the state.
+   Every `Named` target must resolve to a binding of the same state.
+3. **Acyclic containment.** `Contained` targets form an acyclic graph. Cycles
+   pass through `Named` targets only. (`main`'s canonical content is a tree, so
+   projected states satisfy this; the projection must check it.)
+4. **Value equality.** Bisimulation over `Contained` targets; `Named` targets
+   are equal iff their names are equal. On acyclic containment this is plain
+   structural equality.
+5. **State identity (revises §3.11).** Two states have the same experimental
+   `StateID` iff there is a bijection between their handles that preserves
+   atoms, role names, sequences, `Contained` targets, `Named` targets (names
+   are not renamed) and bindings (each name maps to corresponding handles).
+6. **Continuity over names.** `Continuity` maps source names to
+   `Known(set of destination names)`; an absent name is `Unknown`. The
+   composition rule is unchanged, `(K, K <: M1.M2)`, over names instead of
+   handles.
+
+What it keeps from the frozen candidate: one relational structure for all
+content (no separate value, record and payload layers); typed atoms; ordered
+role sequences; the composition algebra.
+
+What it gives up: "`EntityID` is not intrinsic to relation value" (§3.8).
+Names become part of values that refer to them and part of state identity; the
+exclusion of `EntityID` bindings in §3.11 no longer holds.
+
+#### Alternatives considered and rejected
+
+- **Equality that stops at entity roots, without names.** Compare occurrences
+  reached through a role target by occurrence identity when they are view
+  roots. It works inside one state but has no meaning across states, because
+  occurrences have no identity across states. It reduces to named roots as soon
+  as two states are compared.
+- **Keep occurrence-level continuity alongside named targets.** Leaves the
+  symmetric-middle-state dependence in place for no gain: every corpus
+  continuity claim is between entities.
+- **Encode arity.** Out of scope: whether `main`'s single-endpoint and
+  one-element-tuple distinction is semantic is a step-8 judgement.
+
+#### Stability
+
+After this revision there is no second redesign cycle. If the revised
+candidate also fails, that is the step-8 result.
+
 ## 4. Deliberate limits of the core
 
 The project does not currently seek a complete relational algebra.

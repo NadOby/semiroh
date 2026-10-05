@@ -86,10 +86,12 @@ Adopted from the direction review and its assessment:
 2. Done: `formal/core_equality_negative.als` deleted (`d07a4dd`); the
    workflow fails when a top-level `formal/*.als` with commands is not a
    listed entrypoint.
-3. Freeze candidate semantics and the mechanism inventory (below).
-4. Record the candidate state-identity hypothesis: `StateID` equality is
-   equality up to renaming of occurrence handles. This is a hypothesis
-   needed to run the experiment, not settled semantics.
+3. Done: candidate semantics frozen until step 7; mechanism inventory
+   fixed (below).
+4. Done: experimental candidate `StateID` hypothesis recorded in
+   `docs/semantic_core_experiment.md` §3.11 – isomorphism under bijective
+   handle renaming, view `EntityID` bindings excluded, equivalence only, no
+   hash specified, unchanged until step 7.
 5. Implement one narrow `main → candidate → observable` projection.
 6. Run the existing corpus plus the adversarial corpus (below).
 7. Allow at most one candidate revision in response to failures.
@@ -110,7 +112,8 @@ eliminates existing mechanisms, H1 stops.
 
 - `semantic_equal` on projected values;
 - call and link targets;
-- `StateID` stability for unchanged content;
+- `StateID` equality in both directions (charter §3.11 predicts which
+  direction fails and where);
 - continuity results of `transforms.compose`;
 - the ledger's relowering count after a leaf edit (`graph_ledger.md`).
 
@@ -145,8 +148,10 @@ eliminates existing mechanisms, H1 stops.
    - asymmetric control: `M` has no automorphism.
 
    Question: does the candidate determine a unique composition without an
-   externally chosen isomorphism `M1 ↔ M2`? A failure only in the symmetric
-   case is an observed H1 failure caused by symmetry.
+   externally chosen isomorphism `M1 ↔ M2`? Composition is well defined iff
+   its result is the same for every isomorphism `M1 → M2` (charter §3.11).
+   A failure only in the symmetric case is an observed H1 failure caused by
+   symmetry.
 4. **Continuity composition** with split, merge, disappearance and Unknown,
    compared case by case with `transforms.compose`.
 

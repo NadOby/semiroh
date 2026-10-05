@@ -312,6 +312,89 @@ A transformation describes a change between states.
 
 None should automatically imply another.
 
+### 3.11 Experimental state identity
+
+Status: experimental projection hypothesis, recorded for plan step 4 of
+`handoff.md`. It is not accepted SHEAR semantics.
+
+Two candidate states have the same experimental `StateID` iff there is a
+bijection between their occurrence handles that preserves:
+
+- atoms (atoms themselves are not renamed);
+- role names (role names themselves are not renamed);
+- each role's target sequence, including order and multiplicity;
+- every relation target.
+
+That is, the states are isomorphic as finite relational structures.
+
+The definition fixes equality only. It specifies no hash algorithm or
+canonical form.
+
+#### What is excluded
+
+`EntityID` bindings of views are not part of state equivalence. Including them
+would import `main`'s identity machinery into the candidate and evade H1.
+
+Anything a projection represents as relations inside the state is included. If
+a projection encodes `EntityID`s or ownership as relational structure, those
+become part of state identity through the isomorphism, not through a separate
+rule.
+
+The candidate currently has no ownership. `main`'s `StateID` covers ownership,
+so how ownership is represented is part of what the projection must show.
+
+#### Isomorphism, not bisimulation
+
+State identity is finer than value equality. Two states whose occurrences are
+pairwise bisimilar but whose sharing differs are not isomorphic and have
+different experimental `StateID`s.
+
+#### Equivalence, not correspondence
+
+Equal experimental `StateID`s establish that an isomorphism exists. They do
+not choose one.
+
+For independently constructed states `M1` and `M2` with equal `StateID`, the
+isomorphisms `M1 → M2` form a coset of the automorphism group of `M1`. A
+continuity composition through `M1` and `M2` is well defined iff its result is
+the same for every isomorphism in that coset.
+
+- When `M1` has no non-trivial automorphism, the isomorphism is unique and
+  composition is well defined.
+- When `M1` has symmetric occurrences, composition may depend on the choice.
+  Such a dependence observed in the experiment is an H1 failure, not a
+  projection defect.
+
+#### Expected relation to `main`
+
+`main`'s `StateID` hashes `(EntityID, VersionID)` pairs and ownership. Two
+`main` states with the same content under different `EntityID` naming have
+different `StateID`s.
+
+For projected states, the expected relationship is therefore:
+
+```text
+main StateIDs equal       =>  candidate StateIDs equal       expected to hold
+candidate StateIDs equal  =>  main StateIDs equal            expected to fail
+```
+
+The second direction is expected to fail exactly where `main` states differ
+only in `EntityID` naming, or in ownership the projection does not represent.
+Such failures are predicted, and are classified rather than patched. Any other
+failure in either direction is unexpected evidence.
+
+#### Complexity
+
+The cost of deciding or canonicalizing this equivalence for SHEAR-sized
+states is not established. Ordered, labelled role targets restrict the
+possible isomorphisms, but no bound is claimed here. It is an H3 question and
+does not block the H1 experiment.
+
+#### Stability
+
+This hypothesis stays unchanged through the first projection attempt. It may
+change only as part of the single candidate revision allowed at plan step 7.
+
 ## 4. Deliberate limits of the core
 
 The project does not currently seek a complete relational algebra.

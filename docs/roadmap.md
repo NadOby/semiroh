@@ -6,30 +6,28 @@ order unless marked independent; each one is a PR and follows CLAUDE.md.
 
 ## Workflow
 
-**Decided.** A semi-automatic loop, driven from one planning chat:
+**Decided.** A loop of phases, each in its own chat, with no background
+agents. `handoff.md` at the repository root carries the state between chats.
 
-1. **Plan.** The planning chat writes the task's plan and acceptance tests
-   on a branch `task/<n>-<name>`. For handoff tasks it checks them against
-   a throwaway prototype and a few planted bugs.
-2. **Write.** A writer agent (a smaller model, started fresh in its own
-   worktree) implements the plan and commits. For one-session tasks a
-   larger model designs and implements together.
-3. **Review.** A reviewer agent, fresh and not the writer, checks the work
-   against the plan and CLAUDE.md, fixes small issues as separate commits,
-   and reports anything larger.
-4. **Check and publish.** The planning chat checks that the acceptance
-   tests are unchanged, runs the suite, pushes, and opens a ready PR with
-   anything that needs the owner.
-5. **Merge.** The owner merges, or pushes back, and says so. The loop
-   continues with the next task.
+1. **Plan** (Opus). Write the task's plan and acceptance tests on a branch
+   `task/<n>-<name>`, settle with the owner any decision like D1, and update
+   `handoff.md` with what execution needs. Then stop and ask the owner to
+   switch to Sonnet.
+2. **Execute** (Sonnet). Implement the plan from `handoff.md`, committing
+   after every coherent step, without changing the acceptance tests. Update
+   `handoff.md` with what was done and what is open, then stop and ask the
+   owner to switch to Opus.
+3. **Review and publish** (Opus). Check the work against the plan and
+   CLAUDE.md, fix small issues as separate commits, check that the
+   acceptance tests are unchanged, run the suite, push, and open a ready PR
+   naming anything that needs the owner.
+4. **Merge.** The owner merges, or pushes back, and says so.
 
-Tasks are marked **handoff** (the plan and tests are settled before any
-code) or **one session** (the design comes out of writing the code). The
-planning chat asks the owner only about decisions like D1; any other choice
-is made, marked Provisional and named in the PR. Independent tasks may run
-in parallel; the planning chat resolves `CHANGES.md` conflicts when
-publishing. When the planning chat grows heavy, a new one starts from
-CLAUDE.md and this roadmap.
+A chat whose context grows heavy ends by updating `handoff.md`; the next
+chat starts from CLAUDE.md, this roadmap and `handoff.md`. The planning
+phase asks the owner only about decisions like D1; any other choice is
+made, marked Provisional and named in the PR. Mutation campaigns run in CI,
+not in a chat.
 
 ## Decision D1: graph form is canonical
 

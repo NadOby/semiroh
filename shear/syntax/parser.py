@@ -626,6 +626,37 @@ class _Parser:
         if name == "function":
             return ("function", *self.fixed_args(token, 2))
 
+        if name == "raise":
+            return ("raise", *self.fixed_args(token, 2))
+
+        if name == "catch":
+            self.expect_op("(")
+            body = self.expr()
+
+            if self.accept_op(")"):
+                return ("catch", body)
+
+            self.expect_op(",")
+            kinds: list[str] = []
+
+            while True:
+                kind = self.next()
+
+                if kind.kind != "string":
+                    raise self.error(
+                        "catch kinds must be string literals",
+                        kind,
+                    )
+
+                kinds.append(kind.value)
+
+                if self.accept_op(")"):
+                    break
+
+                self.expect_op(",")
+
+            return ("catch", body, tuple(kinds))
+
         if name in ("ref", "code", "linksof"):
             self.expect_op("(")
             target = self.global_function(self.next())

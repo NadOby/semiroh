@@ -7,6 +7,7 @@ to one place only fails here.
 """
 
 import ast
+import dataclasses
 import inspect
 import textwrap
 import unittest
@@ -75,6 +76,14 @@ class OperationTableTests(unittest.TestCase):
                     else:
                         self.assertEqual(shape.arity, len(shape.code))
 
+
+    def test_the_shared_shapes_cannot_be_changed_in_place(self) -> None:
+        # Every language module reads the same Shape objects; one changed in
+        # place would silently change them all.
+        shape = operations.OPERATIONS["add"]
+
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            shape.arity = 3
 
 if __name__ == "__main__":
     unittest.main()

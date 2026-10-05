@@ -92,7 +92,8 @@ Adopted from the direction review and its assessment:
    `docs/semantic_core_experiment.md` §3.11 – isomorphism under bijective
    handle renaming, view `EntityID` bindings excluded, equivalence only, no
    hash specified, unchanged until step 7.
-5. Implement one narrow `main → candidate → observable` projection.
+5. Implement one narrow `main → candidate → observable` projection,
+   following `docs/research/semantic-core/projection_plan.md`.
 6. Run the existing corpus plus the adversarial corpus (below).
 7. Allow at most one candidate revision in response to failures.
 8. Evaluate H1 from the mechanism table and the round-trip failures.

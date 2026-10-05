@@ -45,6 +45,7 @@ TARGETS = (
     "shear/constraints.py",
     "shear/continuity.py",
     "shear/equality.py",
+    "shear/errors.py",
     "shear/fold.py",
     "shear/identity.py",
     "shear/lang.py",

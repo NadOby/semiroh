@@ -1,6 +1,6 @@
 # Error Handling
 
-**Status: planned** (roadmap.md task 20). The acceptance tests are
+**Status: implemented** (roadmap.md task 20). The acceptance tests are
 `tests/test_error_handling.py` and the `errors` examples in
 `shear/examples/errors.py`.
 
@@ -228,6 +228,9 @@ decision.
   such as `inner: add operands`. Kind and detail are attached to the
   exception, not expressed as subclasses.
 - An uncaught `raise` escapes as `Raised`, a subclass of `LanguageError`.
+  The implementation keeps that subclass private to `machine.py` while
+  setting its class name and qualified name to `Raised`; no new Python
+  constructor or public import is added.
 
 ## 8. Graph form, bytecode and machine
 

@@ -37,3 +37,23 @@ classification = "equivalent"
 reason = """
 Changing the right fast-path guard only changes which equivalent path runs.
 """
+
+[[survivor]]
+kind = "constant"
+source = "(_RETURN, 0, False, None, activation)"
+occurrence = 1
+classification = "equivalent"
+reason = """
+The tail flag of the RETURN sentinel is never read.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "False,"
+occurrence = 0
+classification = "equivalent"
+reason = """
+This is the tail flag of the multiline RETURN sentinel installed for a
+non-tail call; RETURN executes before that flag can be read and restores the
+caller continuation directly.
+"""

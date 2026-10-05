@@ -68,3 +68,54 @@ handle EOF explicitly or reject that structural token first. Calling the
 private helper directly with an EOF Token is outside the syntax API, including
 its exact descriptive return value.
 """
+
+[[survivor]]
+kind = "constant"
+source = "first: bool = True,"
+occurrence = 0
+classification = "unspecified"
+reason = """
+The default is used by activate's TARGET = VALUE parser. Changing it to False
+only changes how activate() is rejected: instead of the explicit empty-list
+diagnostic, target_pair consumes the closing parenthesis and global_function
+raises SourceError on that same token. Acceptance and source position are
+unchanged; exact diagnostic prose is not specified.
+"""
+
+[[survivor]]
+kind = "arithmetic"
+source = "return self.tokens[min(self.pos + ahead, len(self.tokens) - 1)]"
+occurrence = 1
+classification = "equivalent"
+reason = """
+This mutation changes the upper clamp from len(tokens)-1 to len(tokens)+1.
+Every internal peek uses ahead=0 except the guarded one-token lookaheads for
+'=' while the current token is a name. Those lookaheads necessarily occur
+before the synthetic NEWLINE/EOF tail, so self.pos+ahead never exceeds the
+last token index and the changed clamp is never selected.
+"""
+
+[[survivor]]
+kind = "return"
+source = "return False"
+occurrence = 0
+classification = "equivalent"
+reason = """
+This is the false result of private _Parser.accept_op. Every internal caller
+uses the result only for truth testing, for which False and None are
+indistinguishable. No syntax result or diagnostic exposes the returned value.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "at_start = False"
+occurrence = 0
+classification = "unspecified"
+reason = """
+Changing False to True lets the prescan treat later bare 'cell' or 'fn' token
+sequences on the same top-level line as declarations. No valid grammar form
+contains such a sequence after the declaration start. It can therefore change
+which SourceError is reached for malformed input, but cannot change acceptance
+or semantics of a valid program. Exact malformed-input diagnostic ordering is
+not specified.
+"""

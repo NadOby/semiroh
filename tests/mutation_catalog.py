@@ -50,13 +50,17 @@ TARGETS = (
     "shear/lang.py",
     "shear/machine.py",
     "shear/matching.py",
+    "shear/operations.py",
     "shear/ownership.py",
     "shear/reconcile.py",
     "shear/references.py",
     "shear/relations.py",
     "shear/runtime.py",
     "shear/state.py",
-    "shear/syntax.py",
+    "shear/syntax/forms.py",
+    "shear/syntax/lexer.py",
+    "shear/syntax/parser.py",
+    "shear/syntax/printer.py",
     "shear/transforms.py",
     "shear/values.py",
     "shear/examples/self_hosting.py",
@@ -68,6 +72,8 @@ TARGETS = (
 # explicit rather than allowing new semantic modules to fall out of mutation
 # coverage silently.
 OMITTED = {
+    "shear/syntax/__init__.py":
+        "re-export surface of the syntax package; behaviour lives in its modules",
     "shear/__init__.py":
         "public re-export surface; semantic behaviour lives in its modules",
     "shear/examples/__init__.py":

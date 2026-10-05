@@ -21,8 +21,17 @@ Code as data stays in the input format: ``quote`` builds tuples,
 change program state only through ``activate``, and only when the run was
 granted the activation capability.
 
-:func:`run` lowers each node to bytecode and runs it on a virtual machine
-(``shear/bytecode.py``, docs/bytecode.md).
+:func:`run` lowers each node to bytecode (``shear/bytecode.py``) and runs it
+on the virtual machine (``shear/machine.py``, docs/bytecode.md).
+
+Structure. The module has four parts, in this order: the input format
+(:class:`Function`, links); graph form (the definition record, the builder,
+:func:`load`); editing (:func:`define` with continuity inference,
+docs/continuity_inference.md); and collapsing (:func:`function_at`). Editing
+and collapsing both read graph form's private records, which is why they
+stay in one module rather than becoming cross-module private API. Operation
+shapes come from ``shear/operations.py``. :func:`run` is the one lazy edge,
+to the machine, which is itself built on graph form.
 
 This module is a layer on top of the core model, not part of it: it is not
 re-exported from ``shear/__init__.py``.
@@ -42,6 +51,7 @@ from .canonical import (
 )
 from .identity import EntityID
 from .matching import match
+from .operations import ARITY, BINARY, INVALID, OPERATIONS
 from .relations import Endpoint, Relation, relation_index, relation_of
 from .runtime import Runtime
 from .state import State
@@ -60,60 +70,11 @@ DEFINITION_KIND = "definition"
 BODY_ROLE = "body"
 LINK_ROLE_PREFIX = "link:"
 LABEL_ROLE_PREFIX = "label:"
-INVALID_KIND = "invalid"
+INVALID_KIND = INVALID
 
-_BINARY = ("add", "sub", "mul", "lt", "eq")
-
-# Operations with a fixed number of operands.
-_ARITY = {
-    "lit": 1,
-    "arg": 1,
-    **dict.fromkeys(_BINARY, 2),
-    "if": 3,
-    "read": 1,
-    "write": 2,
-    "quote": 1,
-    "function": 2,
-    "closure": 3,
-    "len": 1,
-    "item": 2,
-    "slice": 3,
-    "concat": 2,
-    "let": 3,
-    "ref": 1,
-    "code": 1,
-    "linksof": 1,
-    "applyv": 2,
-}
-
-NODE_KINDS = frozenset({
-    "lit",
-    "arg",
-    *_BINARY,
-    "if",
-    "seq",
-    "call",
-    "read",
-    "write",
-    "quote",
-    "unquote",
-    "function",
-    "closure",
-    "activate",
-    "trial",
-    "tuple",
-    "len",
-    "item",
-    "slice",
-    "concat",
-    "let",
-    "ref",
-    "code",
-    "linksof",
-    "apply",
-    "applyv",
-    INVALID_KIND,
-})
+_BINARY = BINARY
+_ARITY = ARITY
+NODE_KINDS = frozenset(OPERATIONS)
 
 # What a quote node's template holds in place of each hole; every hole of
 # the source template is a tuple headed "unquote", so nothing else is.
@@ -544,30 +505,24 @@ class _Builder:
         if op in ("lit", "arg"):
             return Relation(op, {}, rest[0])
 
-        if op in _BINARY:
-            return Relation(
-                op,
-                {
-                    "left": self.expr(rest[0]),
-                    "right": self.expr(rest[1]),
-                },
-            )
+        shape = OPERATIONS.get(op)
 
-        if op == "if":
-            return Relation(
-                "if",
-                {
-                    "cond": self.expr(rest[0]),
-                    "then": self.expr(rest[1]),
-                    "else": self.expr(rest[2]),
-                },
-            )
+        if shape is not None and shape.positional:
+            if len(rest) < shape.minimum:
+                return _invalid(shape.too_few, expr)
 
-        if op == "seq":
-            if not rest:
-                return _invalid("seq needs at least one expression", expr)
+            roles: dict[str, Any] = {}
 
-            return Relation("seq", {"items": self.exprs(rest)})
+            for index, role in enumerate(shape.code):
+                if role in shape.ordered:
+                    roles[role] = self.exprs(rest[index:])
+                else:
+                    roles[role] = self.expr(rest[index])
+
+            return Relation(op, roles)
+
+
+
 
         if op in ("call", "read", "write"):
             if not rest:
@@ -605,14 +560,6 @@ class _Builder:
             template = self.template(rest[0], holes)
             return Relation("quote", {"holes": tuple(holes)}, template)
 
-        if op == "function":
-            return Relation(
-                "function",
-                {
-                    "params": self.expr(rest[0]),
-                    "body": self.expr(rest[1]),
-                },
-            )
 
         if op == "closure":
             return Relation(
@@ -624,39 +571,10 @@ class _Builder:
                 },
             )
 
-        if op == "tuple":
-            return Relation("tuple", {"items": self.exprs(rest)})
 
-        if op == "len":
-            return Relation("len", {"tuple": self.expr(rest[0])})
 
-        if op == "item":
-            return Relation(
-                "item",
-                {
-                    "tuple": self.expr(rest[0]),
-                    "index": self.expr(rest[1]),
-                },
-            )
 
-        if op == "slice":
-            return Relation(
-                "slice",
-                {
-                    "tuple": self.expr(rest[0]),
-                    "start": self.expr(rest[1]),
-                    "stop": self.expr(rest[2]),
-                },
-            )
 
-        if op == "concat":
-            return Relation(
-                "concat",
-                {
-                    "left": self.expr(rest[0]),
-                    "right": self.expr(rest[1]),
-                },
-            )
 
         if op == "let":
             if not isinstance(rest[0], str) or not rest[0]:
@@ -690,26 +608,7 @@ class _Builder:
 
             return Relation(op, {"target": target}, rest[0])
 
-        if op == "applyv":
-            return Relation(
-                "applyv",
-                {
-                    "function": self.expr(rest[0]),
-                    "args": self.expr(rest[1]),
-                },
-            )
 
-        if op == "apply":
-            if not rest:
-                return _invalid("apply needs a function", expr)
-
-            return Relation(
-                "apply",
-                {
-                    "function": self.expr(rest[0]),
-                    "args": self.exprs(rest[1:]),
-                },
-            )
 
         if op == "activate":
             if not rest or len(rest) % 2:
@@ -1473,24 +1372,17 @@ def _collapse(
         expr = _decode(node.payload)[1]
     elif kind in ("lit", "arg"):
         expr = (kind, _decode(node.payload))
-    elif kind in _BINARY:
-        expr = (
-            kind,
-            collapse(roles["left"]),
-            collapse(roles["right"]),
-        )
-    elif kind == "if":
-        expr = (
-            "if",
-            collapse(roles["cond"]),
-            collapse(roles["then"]),
-            collapse(roles["else"]),
-        )
-    elif kind == "seq":
-        expr = (
-            "seq",
-            *collapse_all(roles["items"]),
-        )
+    elif kind in OPERATIONS and OPERATIONS[kind].positional:
+        shape = OPERATIONS[kind]
+        operands: list[Any] = []
+
+        for role in shape.code:
+            if role in shape.ordered:
+                operands.extend(collapse_all(roles[role]))
+            else:
+                operands.append(collapse(roles[role]))
+
+        expr = (kind, *operands)
     elif kind == "call":
         expr = (
             "call",
@@ -1504,35 +1396,6 @@ def _collapse(
             payload["params"],
             payload["captures"],
             collapse(roles["body"]),
-        )
-    elif kind == "tuple":
-        expr = (
-            "tuple",
-            *collapse_all(roles["items"]),
-        )
-    elif kind == "len":
-        expr = (
-            "len",
-            collapse(roles["tuple"]),
-        )
-    elif kind == "item":
-        expr = (
-            "item",
-            collapse(roles["tuple"]),
-            collapse(roles["index"]),
-        )
-    elif kind == "slice":
-        expr = (
-            "slice",
-            collapse(roles["tuple"]),
-            collapse(roles["start"]),
-            collapse(roles["stop"]),
-        )
-    elif kind == "concat":
-        expr = (
-            "concat",
-            collapse(roles["left"]),
-            collapse(roles["right"]),
         )
     elif kind == "let":
         expr = (
@@ -1550,18 +1413,6 @@ def _collapse(
         expr = (
             kind,
             _decode(node.payload),
-        )
-    elif kind == "applyv":
-        expr = (
-            "applyv",
-            collapse(roles["function"]),
-            collapse(roles["args"]),
-        )
-    elif kind == "apply":
-        expr = (
-            "apply",
-            collapse(roles["function"]),
-            *collapse_all(roles["args"]),
         )
     elif kind == "read":
         expr = (
@@ -1589,12 +1440,6 @@ def _collapse(
         expr = (
             "unquote",
             collapse(roles["expr"]),
-        )
-    elif kind == "function":
-        expr = (
-            "function",
-            collapse(roles["params"]),
-            collapse(roles["body"]),
         )
     else:
         payload = _decode(node.payload)
@@ -1678,7 +1523,7 @@ def run(
 
     The runtime's program must be in graph form (:func:`load`). Nodes lower
     to bytecode that a virtual machine runs (bytecode.md); see
-    :func:`shear.bytecode.run`, which this calls, for the details of a
+    :func:`shear.machine.run`, which this calls, for the details of a
     run.
 
     Arguments are canonicalized before being bound to the entry function's
@@ -1690,9 +1535,11 @@ def run(
     capability described in metaprogramming.md section 4.
     """
 
-    from .bytecode import run as run_bytecode
+    # The one lazy edge from graph form to execution: the machine is built on
+    # graph form (bytecode.md section 4), so it cannot be imported at load.
+    from .machine import run as run_machine
 
-    return run_bytecode(
+    return run_machine(
         runtime,
         entry,
         *args,

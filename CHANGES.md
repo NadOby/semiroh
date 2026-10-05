@@ -1257,3 +1257,38 @@ valid evidence after the relevant oracle was shown to be unsound.
 - A stale `SEMIROH_*` variable now fails the test package instead of being
   ignored. The old name stays only in that guard, its test, this entry and
   the README's closing note.
+
+### Language architecture hardening
+
+- Added `shear/operations.py`, one table of operation shapes: input arity,
+  the roles that hold code in input order, which hold ordered tuples, and
+  whether an operation is purely positional. `lang` takes its kinds and
+  arity from it and builds and collapses positional operations generically;
+  `continuity` takes its operand roles and `syntax` its builtin arity from
+  it. `tests/test_operations.py` reads which kinds lowering, building,
+  collapsing and the self-hosted compiler dispatch on, so an operation added
+  in one place only fails.
+- `syntax.py` became the `shear.syntax` package (`lexer`, `parser`,
+  `printer`, `forms`), every definition moved unchanged behind the same
+  public names.
+- `bytecode.run` is removed: bytecode no longer imports the machine, and
+  `lang.run` calls `machine.run`. The machine uses a public `lower_value`.
+- `lang.py` stays one module: editing and collapsing both read graph form's
+  private records, so splitting them would turn those into cross-module
+  private API. Its docstring now names its four parts.
+- `tests/test_language_golden.py`, recorded on main first, pins every
+  corpus program's StateID, rendered text and bytecode, every continuity
+  case's result, and the language modules' public names. Nothing changed
+  except the intended removal of `bytecode.run`.
+- Mutation survivors were carried only where their enclosing top-level
+  definition is AST-identical after the change (79); the 8 in changed
+  definitions were dropped for the CI campaign to rediscover and review.
+
+### Phased chats with a handoff file
+
+- The roadmap's workflow no longer uses background writer and reviewer
+  agents. Each task runs as Plan (Opus), Execute (Sonnet) and Review and
+  publish (Opus), one chat per phase; each phase ends by updating
+  `handoff.md` and asking the owner to switch model.
+- Added `handoff.md` at the repository root: the compact current state a
+  new chat starts from, as on the research branch.

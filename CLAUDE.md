@@ -30,8 +30,12 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 
 ## Workflow
 
-- Work follows `docs/roadmap.md`: its task order and its plan, write,
-  review, publish loop.
+- Work follows `docs/roadmap.md`: its task order and its plan, execute,
+  review loop. Planning and review run on Opus, execution on Sonnet; each
+  phase ends by updating `handoff.md` and asking the owner to switch model.
+  No background agents.
+- Start from `handoff.md`: it is the compact current state (task, phase,
+  decisions, next steps), not a log. Keep it short and current.
 - Docs, tests, and code are three representations of one spec: change them
   together. Mark doc sections Decided / Provisional / Open where a design
   decision actually has that status.
@@ -171,11 +175,15 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   core meaning.
 - `constraints.py`: three-valued semantic constraints (strong Kleene),
   `Evaluator` behind `External(name)`, step budgets.
-- `lang.py`, `bytecode.py`: the language layer. `lang.py` keeps code as
-  graph form (`load`, `define`, `function_at`; `define` infers what an
+- `operations.py`: the one table of operation shapes (arity, code roles,
+  ordered roles, positional build); `lang`, `continuity` and `syntax` derive
+  from it, and `tests/test_operations.py` checks every implementation agrees.
+- `lang.py`, `bytecode.py`, `machine.py`: the language layer. `lang.py` keeps
+  code as graph form (`load`, `define`, `function_at`; `define` infers what an
   edit keeps and can create, remove and relink functions); `bytecode.py` lowers
-  each node to a chunk, kept with the node's `Value`, and runs chunks on a
-  virtual machine with explicit stacks. `lang.run` calls it.
+  each node to a chunk, kept with the node's `Value`; `machine.py` runs chunks
+  with explicit stacks. Dependencies point one way: machine → bytecode →
+  lang, with `lang.run` the one lazy call into the machine.
 - `fold.py`: constant folding as a graph transformation that declares its
   merges (`fold_constants`, `sources_of`).
 - `continuity.py`: the continuity corpus: cases with expected continuity
@@ -184,7 +192,8 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 - `examples/ledger.py`: executable measurements for the graph ledger:
   incremental lowering counts, continuity-corpus identity claims and fold
   provenance (`docs/graph_ledger.md`).
-- `syntax.py`: text syntax version 0 over `lang.py`: `parse` (text to the
+- `syntax/`: text syntax version 0 over `lang.py`, split into `lexer`,
+  `parser`, `printer` and shared `forms`: `parse` (text to the
   input format, over an optional base), `render` and `render_program` (graph
   form to text, `raw(...)` for what the syntax cannot write). Import-only.
 - `reconcile.py`: edited complete source to a graph transformation

@@ -29,6 +29,7 @@ from .cells import CellDeclaration, cell_declaration
 from .constraints import EvaluationContext
 from .identity import EntityID
 from .fold import fold_constants
+from .operations import CODE_ROLES
 from .lang import LINKS_KIND, define, function_at, function_of, links, load
 from .relations import DanglingRelation, relation_of
 from .runtime import ActivationRejected, Converter, Runtime
@@ -95,26 +96,7 @@ class Case:
 # roles that hold code, in the order ``function_at`` writes them. Leaves,
 # reads, references and every other role (a call's target, a cell) are not
 # operands.
-_OPERANDS: dict[str, tuple[str, ...]] = {
-    **dict.fromkeys(("add", "sub", "mul", "lt", "eq", "concat"), ("left", "right")),
-    "if": ("cond", "then", "else"),
-    "seq": ("items",),
-    "tuple": ("items",),
-    "call": ("args",),
-    "write": ("value",),
-    "len": ("tuple",),
-    "item": ("tuple", "index"),
-    "slice": ("tuple", "start", "stop"),
-    "let": ("value", "body"),
-    "apply": ("function", "args"),
-    "applyv": ("function", "args"),
-    "quote": ("holes",),
-    "unquote": ("expr",),
-    "function": ("params", "body"),
-    "closure": ("body",),
-    "activate": ("values",),
-    "trial": ("args", "values"),
-}
+_OPERANDS = CODE_ROLES
 
 
 class DesignatorError(ValueError):

@@ -22,7 +22,6 @@ from .lang import (
     _decode,
 )
 from .relations import Relation, relation_of
-from .runtime import Runtime
 from .values import Value
 
 Instruction = tuple
@@ -377,14 +376,14 @@ def chunk_of(
         if chunk is not None:
             return chunk
 
-    return _lower_value(
+    return lower_value(
         value,
         entity,
         owner,
     )
 
 
-def _lower_value(
+def lower_value(
     value: Value | None,
     entity: EntityID,
     owner: EntityID | None,
@@ -463,24 +462,4 @@ def disassemble(
             ]
         )
         for instruction in chunk
-    )
-
-
-def run(
-    runtime: Runtime,
-    entry: EntityID,
-    *args: Any,
-    may_activate: bool = False,
-) -> Any:
-    """Execute bytecode through :mod:`shear.machine`."""
-
-    # Lazy import keeps machine -> bytecode access to chunks and the mutable
-    # CALL_DEPTH_LIMIT possible without an import cycle during module setup.
-    from .machine import run as run_machine
-
-    return run_machine(
-        runtime,
-        entry,
-        *args,
-        may_activate=may_activate,
     )

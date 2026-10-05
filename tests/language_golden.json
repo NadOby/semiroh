@@ -1,0 +1,355 @@
+{
+ "api": {
+  "shear": [
+   "ActivationRejected",
+   "AllOf",
+   "AmbiguousEntityMapping",
+   "AnyOf",
+   "CellContentRejected",
+   "CellDeclaration",
+   "CellError",
+   "CompositionResult",
+   "Constraint",
+   "ConstraintResult",
+   "Converter",
+   "CrossStateReference",
+   "DanglingRelation",
+   "Entity",
+   "EntityChange",
+   "EntityID",
+   "EntityMapping",
+   "EvaluationContext",
+   "Evaluator",
+   "External",
+   "Frame",
+   "Hold",
+   "IntRange",
+   "IsKind",
+   "KeptReference",
+   "Length",
+   "MissingEntityMapping",
+   "Not",
+   "OneOf",
+   "OwnershipError",
+   "Reference",
+   "Relation",
+   "RelationConstraintRejected",
+   "RelationRewrite",
+   "Role",
+   "Runtime",
+   "StaleReference",
+   "State",
+   "StateID",
+   "TransformResult",
+   "TransformationDefinition",
+   "TransformationMapping",
+   "Value",
+   "Version",
+   "VersionID",
+   "canonical_serialize",
+   "canonicalize",
+   "cell_declaration",
+   "cells_of",
+   "compose",
+   "constraint_relations",
+   "kind_of",
+   "owned_children",
+   "owned_subtree",
+   "owner_of",
+   "project_entity",
+   "rebind_reference",
+   "relation_index",
+   "relation_of",
+   "relations_of",
+   "same_entity",
+   "same_version",
+   "semantic_equal",
+   "transfer_reference",
+   "transform",
+   "transform_with_mapping",
+   "version_id_for"
+  ],
+  "shear.bytecode": [
+   "CALL_DEPTH_LIMIT",
+   "INVALID_KIND",
+   "NODE_KINDS",
+   "chunk_of",
+   "disassemble",
+   "lower",
+   "lowered_count",
+   "run"
+  ],
+  "shear.lang": [
+   "BODY_ROLE",
+   "CallDepthExceeded",
+   "DEFINITION_KIND",
+   "FUNCTION_ROLE",
+   "Function",
+   "INVALID_KIND",
+   "LABEL_ROLE_PREFIX",
+   "LINKS_KIND",
+   "LINK_ROLE_PREFIX",
+   "LanguageError",
+   "NODE_KINDS",
+   "define",
+   "function_at",
+   "function_of",
+   "links",
+   "load",
+   "run"
+  ],
+  "shear.machine": [
+   "run"
+  ],
+  "shear.syntax": [
+   "SourceError",
+   "parse",
+   "render",
+   "render_program"
+  ]
+ },
+ "continuity": {
+  "activate_define": {
+   "check": [],
+   "source": "c282d177ef4872004fdb94c5541ea7486dd732e21e2ef311943091747044a2d2"
+  },
+  "ambiguous_duplicate": {
+   "check": [],
+   "source": "aff5c14f5f50591d2f6512f29405b3e141425e513d9fae34b68eabf4212f0c10"
+  },
+  "conflicting_edits": {
+   "check": [],
+   "source": "11e67b89c7d5be5799f6dad46eed15514b83238e02c5bdf4d758b39a0c2ed8e7"
+  },
+  "delete_called": {
+   "check": [],
+   "source": "035e973df64aa9d6e16757b6c7964360deb84b2c5e1d744fd1338b236f9dfa86"
+  },
+  "delete_function": {
+   "check": [],
+   "source": "240368edf21d5e98b69bcca513d9469a9dc46b23413562d64f6dea5b4917c28a"
+  },
+  "extract_function": {
+   "check": [],
+   "source": "3aa97dc4a05a1db6686e2c77cb010e93291dccb7c91100f3b5b72bef9b2841ce"
+  },
+  "fold": {
+   "check": [],
+   "source": "dfdd66ea3c681630ab0080d637a3f4b2192917dac01d699e47d278610c4f7a63"
+  },
+  "inline_function": {
+   "check": [],
+   "source": "e3d4ab20aefe4e6f83cfd59b0ffecb73966539b6308d33755d6dcaa66bd788d7"
+  },
+  "insert": {
+   "check": [],
+   "source": "ecb032e27c6779e52064243a8c8bbb5fcab791811aa24b56ad35150d1fea6c72"
+  },
+  "leaf_replace": {
+   "check": [],
+   "source": "9d47d9b07812c6fe4392092047abb46d2cc1c6f39abac390aaa50bb8a86c1259"
+  },
+  "merge_cells": {
+   "check": [],
+   "source": "b0a187f4860891d6d1768534197f4dd5e6a0f945ba4aa111a179fb3c29f36a7c"
+  },
+  "rebase_disjoint": {
+   "check": [],
+   "source": "a9c971fee6405b392dc6f69f28bcf8d30b5055817f3d180afcf880c85811565d"
+  },
+  "redefine_same": {
+   "check": [],
+   "source": "bea45bfc74aaca9e3888e21cea73f2ff90e828a779550a20e71329555acb7d5c"
+  },
+  "remove": {
+   "check": [],
+   "source": "c56220322b518b8009d174ec9160db1ac93fba4b19fc243eb97cbad890c4fa2a"
+  },
+  "rename": {
+   "check": [],
+   "source": "732b4d3219ad8cabeff1f7f8ab9570bbb9c88ce8012632fcc8b2650cf0948c69"
+  },
+  "shared_subtree": {
+   "check": [],
+   "source": "af85e849b89b2ed20d3cb9cdb9528d51ea925ba27097201fc20671e711d62a5e"
+  },
+  "split_cell": {
+   "check": [],
+   "source": "fbd692140cfdbf91530d9e576ee8a47c3eca3f63d006703380f052493b9ffc9e"
+  },
+  "swap": {
+   "check": [],
+   "source": "c8e7daac22e291371ef2d6c3f3f440a373e399d2edf6848a7f8279ff505c6a76"
+  },
+  "unwrap": {
+   "check": [],
+   "source": "155c33aae161d09a84c7c4e3b07d8b46afc5f064a4389b5a04210ac1d930f774"
+  },
+  "upgrade_cell": {
+   "check": [],
+   "source": "c5e92abab94dc99cb058d53e991c887024f0d38335c8607ec03c5f04057a3339"
+  },
+  "wrap": {
+   "check": [],
+   "source": "9f2d13c470a1d89cf3dee8825538d5737643efdaf96fe74f1dfff2030c85a85d"
+  }
+ },
+ "programs": {
+  "abs_value": {
+   "chunks": "1644c3fad6eb3e0a77d55c5d14e2bc80471de704",
+   "graph": "4626405ef48d97f22feb2a6b471d862d38580d2e21d035be98f8d0624d0669c8",
+   "program": "301ee66015a5fd6c4966b15267951bb52d6eba83d854f184b37d37413234525d",
+   "text": "017656ee9aa02765050526170c259685ed7c022e"
+  },
+  "account": {
+   "chunks": "c6216e020b560fd1029dc74eca4ba7a661fb50b9",
+   "graph": "d5816e7810e8d5bf78dfe61d6d187373bbc3bc2abb4aea79b449e4a042dce057",
+   "program": "30479612096821123539b3bf21f091d18a4dd915a5d5559b7c522e2e817eabb2",
+   "text": "f6412ca2c3a48bc34164d2504ca8b8b39af96ec6"
+  },
+  "bootstrap": {
+   "chunks": "0e4d22de6c224b29a86111e64a06edaf2fb3befb",
+   "graph": "2185117ae04858355c9380d378f75394eee959ebcd0c93151baab94b3675c5a9",
+   "program": "d85688e87af2dfa7454d1263d0804385383b8e370ea464d47d6cdfc826191bf7",
+   "text": "528ed53077d151119d29d021a4ec444a1134edd0"
+  },
+  "checked_compile": {
+   "chunks": "43185d693cc41747544a9105285b0138fd6a9b71",
+   "graph": "79061c9da6efddd8cda2e575602180fbf07f60916b3ec1edbc204865f8ee1b3f",
+   "program": "343dc7e8738742ac59edcc310b21fbbf1ea27eda1057d20ceaa4fc9996493556",
+   "text": "8a39101a056da189ee225ec8475d1657024ae41a"
+  },
+  "clamp": {
+   "chunks": "50096c49109f2a22eb48a01c5d9345fe956d61ed",
+   "graph": "d8fd6a360c65c17d87b310da20e513ecb27abc2517be2607af78ce6835c60d32",
+   "program": "4f36f722c67bb304f66166ad202e2bd7451253a38b43eed2878b5f7b4ee276c3",
+   "text": "0c5093b48442e98113d813d7eb92f17673fa2e67"
+  },
+  "collatz_step_count": {
+   "chunks": "4307739f3a67cdc8a2c71b4e76863095d7171c23",
+   "graph": "04bda11605b4512a92a4eb142467186bb5d60e72687de11899eb4dc177814822",
+   "program": "e958707f4bfb15b61ca3dfa05dae6eb7f57fd4ce21dce850e85bfe88f5c0b9d7",
+   "text": "472db9890e49b8de180a500598603369289eb33a"
+  },
+  "compiler": {
+   "chunks": "2eaf5f1d3b65e48b9368be147657baeaa15a005f",
+   "graph": "596de50843150a33b049f9e2325b0c049fb50bef063aa289b98d9ae43da648cd",
+   "program": "29d0157ee19b550e32ba2ada2616ffb35986aaa1d57de7f57841bd691a104452",
+   "text": "d26c389556a409b6419870343415eaa49c5341cb"
+  },
+  "compose": {
+   "chunks": "8b4cb2e845a7fda80149c45e822849771e268d7a",
+   "graph": "eef43737338155cdf00cb5c4a5ec416dec0bb970ef17488deb20e68919cdc1f5",
+   "program": "111e9712a27fb387347b9543e420d07f1f15750365df9c193358d39f4ee837bd",
+   "text": "66937820678e1bfda2423aa305cf62099766373b"
+  },
+  "counter": {
+   "chunks": "41b518674336411b4982ec632c2e7066b9cf6cb5",
+   "graph": "e8b49a81bab5f2c8897f69ab9fbbb7570b7adc49e2ca116cf6c4f49d93cc91ea",
+   "program": "be6f44e227a69612a6a320bd2ab43f5bac8b4942bdc40b62980903782e4dcbf0",
+   "text": "c370801c4219cc509e5f88d67492887a84d0ea1f"
+  },
+  "deep_loop": {
+   "chunks": "2af298bed06fd195b74f9591e1297614fb73844e",
+   "graph": "6c76bb4f589a739fdc36beac2012c6a60297854233ea8d9b84baf2f41a6eaf11",
+   "program": "e5a526d200e2d7bff21dc3343dadf624eca06d8f48188c7dc020a47c5e20f2d1",
+   "text": "277064f6a80420d18dc2e6df92cd70131883a219"
+  },
+  "deep_recursion": {
+   "chunks": "dacc83801f1d5762506bd3896eec142061207565",
+   "graph": "f9d016258bc89070b1e11158cc95e949259ec42cbea753ac500c86f8558aad46",
+   "program": "23f70eed98853ad7d5b27fc4f1761b04ffeb320ba1471848dae11b2a07a5dd60",
+   "text": "c3746ea1eb6deccb590068ab9fd9a90fb0d9f006"
+  },
+  "factorial": {
+   "chunks": "96f14345b8f818ecadcc5129163e5cd9e0f18ac1",
+   "graph": "33e6aa87989e2761f19b4c4b458af04487f24cb9db7053dfc3ab705617f78c18",
+   "program": "f8df92cc345882d3ec1c23c5ce6abcc8fd7a6baae33cbe6a3468a6290927ac31",
+   "text": "f27bb2594b1e7c950b20dc80f197a0edf80204ca"
+  },
+  "fibonacci": {
+   "chunks": "364989df671e0bf62bf92f2e013bbec4dcbff080",
+   "graph": "42b20f7ad08ed8a7ee5b09974975d34d122ccf26779154fd21ed1d5bcdf0082f",
+   "program": "cd459aba6cfc71184bbb73e65d6468a25d9e4df0aacdf963f60600d4f39d2acf",
+   "text": "6ab5c70e3799c5f915a210622b5e5c7c608c9398"
+  },
+  "fold": {
+   "chunks": "98fe4068a2359a8f802c423f3a476cbf61140f60",
+   "graph": "97c67999470ea62ebbd485395cc914d885c34e16224e1727f165fbb0ce22c87f",
+   "program": "e20e9ddaf260504dbf5c8b184c4696edf00b8b5f7f8ddd430db50fed2d368a14",
+   "text": "1239d914c23c0850c2150e4418703f34696b1c46"
+  },
+  "gcd": {
+   "chunks": "da99476ec4da2bce089af4411b33fad84c7f4045",
+   "graph": "ff1fa3e23a1ab8e515bfdeb849cd759c1448b990a2ddad19b3c6d78508ac8a36",
+   "program": "562c903c97fafd06f1442f335ad242afd66d73e21d7da68d9d6847ecb38746db",
+   "text": "fe7e53893c5058275e765f8d1a124a851fdf019f"
+  },
+  "insertion_sort": {
+   "chunks": "1894dea906f96d7391594ea573c9f5cdb2a4cd05",
+   "graph": "a61be18f88d99087eaf09e317af0c31b3a72a531b8af8e4e4bdfcb29296efca1",
+   "program": "564813fa576208a30fdad3c90cfe9faf5c720e5b4bae0615f9c605f6f8b53b45",
+   "text": "f5cfacde6c935c606cda92cc0d4f0d55ece3f043"
+  },
+  "instrument": {
+   "chunks": "115694cba572b5611aca8550fb4358988a334f2a",
+   "graph": "ba9e5d89e379e2f9b54504a6e733a595d182c2eb98a330553beb1aec5cba1d71",
+   "program": "e93eb2471a0375526221143cbe629b2b88b2e599eb2c87d3fbc93d0d841489de",
+   "text": "cab66ccf05bebb7848b0b915b661d3630c1be51a"
+  },
+  "let_bindings": {
+   "chunks": "a1918164af8f8072c806b7a0296b6deca1232db0",
+   "graph": "0f35f8078499b132b8c248fc3d4b269b99de19c6c3b726bca78c57811af501ba",
+   "program": "fdf81c21308ee7b9a1b5fff54e9a60c0811368db028df088ba91fb14ff29125a",
+   "text": "0eb03ed65e3e481a273effa6712b0c9ff894465b"
+  },
+  "make_adder": {
+   "chunks": "aefc970011b4fbdcec0916493a1bf0f970eb915f",
+   "graph": "0954ac9ae424055760f4655f321d0bed181337c84405230d270d13575d5f130c",
+   "program": "ae4383a95310e854d89ed0c2f64ea2e025dd9a1e82bb1be18af4df598d22c638",
+   "text": "7eca77d84a0f9bae84214d3f880bdc3cc848d102"
+  },
+  "map": {
+   "chunks": "3ae85966a6208ddf2e63bba01e3fb7a65a105b51",
+   "graph": "ea5ff3c159ce4a43e6ab9d49c925c4d579569b4c1fa08173f3b95536e5defa05",
+   "program": "4f12c3a72ca79d4c43b3a210c1cea7544e2ba1e6b77107f915acf679cf7bffa8",
+   "text": "ad07f7c50ade5335a77e37ce74d81ab34b3158b4"
+  },
+  "map_long_tuple": {
+   "chunks": "6b042aa555107ba8edb2e8f9b1bc59cbc3e3e268",
+   "graph": "745c5da89325f5566c29030a881f756810ec6fdb8e7738bc82a1a67b5e8d9e51",
+   "program": "41039c06686881139ca2c96a06fd6efec85e6c19c56e134112e6f75f73a7a2ff",
+   "text": "4afbc2da55222cabf545042655b692c1482dc83c"
+  },
+  "max_of_two": {
+   "chunks": "202cb75006855d4578d22d857ba5ab4a8e52e3e6",
+   "graph": "12f7b900243ce9d4bbd16aa9436785392a5b13d7e1157ac8289478bf5e94baa1",
+   "program": "9f13dbd920ff5a8124e9a766e851d972abf07044d4651fabfbf9fd3b70a81b4b",
+   "text": "c0fee5f5179fd1e1d57c7eadb4dde3e400b4f385"
+  },
+  "power_compiler": {
+   "chunks": "db0d228f0cc2b78cb2a60bc4708acbffbdf70f8c",
+   "graph": "26f88a7540457c8ba31248454355d8fc3e3e2cc8789e8eae086cf3409a1276a9",
+   "program": "00ea31d36c6aeae46e4dc413f53fb0353ce2a4778b13edea8232a9690ae4b9db",
+   "text": "92962a8eed3a0744f80f5d38be741702feb4a8f0"
+  },
+  "replace_self": {
+   "chunks": "592f1987816fa83fc6507d288f796bc508297477",
+   "graph": "f2103b08ef764e12166e22b2224aab06d712d7cf6a0ff339dbb58dd23ebccdb5",
+   "program": "512804a83d76c44c36db7bb591ef21af3b773d470d06f5f6ce24e547a05f41c6",
+   "text": "ece7d64788a1ca68bca68802c06885b595640531"
+  },
+  "sort_swap": {
+   "chunks": "070bb1c5cee8af58e118870164d499e1e76e5ac8",
+   "graph": "f5d2b6e44c8bb6137ac8d1f779effd488f236ccb47e735083dc9bea82ac5abe7",
+   "program": "95f6748608b9add4bcad9eb1d79b144f782de23b10c1904d473a81e57a2d15b4",
+   "text": "9e67f61e1792cab66b3b6f213a721174bf52baf0"
+  },
+  "sum_to_n": {
+   "chunks": "121ee80753fac838813232cea045572abb186829",
+   "graph": "c90d1faf46150e62594c914ab09bb56c0c869a882574161237c117e14c584bd2",
+   "program": "87639adcfc776054e6907fc00ba897b4eba8d16a108409dd102656c9d38e8e64",
+   "text": "8f5db7741827877d77aed2c714f922697cdc031b"
+  }
+ }
+}

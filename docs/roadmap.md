@@ -395,12 +395,41 @@ bytecode/machine dependency direction is clean, remaining `lang.py` boundaries
 are made explicit where justified, and the task changes no intended language
 behaviour.
 
+## G. Errors
+
+### 20. Error handling (handoff)
+
+**Planned.** The design is in error_handling.md.
+
+Today every failure ends the whole run. A candidate that crashes under
+`trial` stops the program deciding about it, `account` cannot report a
+refused withdrawal, and the interpreter written in SHEAR fakes its own errors
+by indexing an empty tuple. Add `catch`, which turns a failure into
+`("ok", value)` or `("failed", error)` and can accept only listed kinds, and
+`raise`, which fails with a program's own error. An error is
+`(origin, kind, detail, where)`; the scope is every failure the language
+reports, including the call-depth limit; nothing is rolled back.
+
+Done when: `tests/test_error_handling.py` passes unchanged; the `errors`
+examples run in the corpus and round-trip through text; every program of
+main keeps its StateID, text and bytecode, so `tests/language_golden.json`
+is re-recorded only to add entries; existing failures keep their classes and
+messages; the language docs name the new operations; and survivors of edited
+mutation targets are carried or dropped by the task 19 rule.
+
 ## Later
 
 - Systems data: structs, arrays and references between cells, with layout
-  changes handled by converters.
-- Error handling inside the language, when a corpus program needs it.
-- Function references held in cells follow renames (language_data.md §3).
+  changes handled by converters. Postponed by the owner; records would come
+  first.
+- References held as data follow continuity (language_data.md §3).
+  Owner's direction from task 20 planning: `ref` makes a distinct reference
+  value, so only references follow declared continuity at activation and
+  plain entity ids stay data; a reference whose target disappears pins the
+  old version, which needs the two-version bound to become a setting rather
+  than a rule.
+- Declared error kinds: program entities, like cells, naming a kind and
+  constraining its detail (error_handling.md section 13).
 - Syntax and tooling notes (syntax_notes.md): graph and IR views next to
   the source view of task 11.
 - The program root and modules (ownership_model.md §13), when explicit

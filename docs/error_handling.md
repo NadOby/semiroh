@@ -222,6 +222,11 @@ decision.
   carries the error value as `.error`, equal to what `catch` would have
   produced. It is set where the failure happened and is not replaced by
   outer frames or by an enclosing run of a trial.
+- A language failure stays an instance of exactly `LanguageError` with
+  today's message: existing tests compare class names between the host
+  machine and the interpreter written in SHEAR, and match message prefixes
+  such as `inner: add operands`. Kind and detail are attached to the
+  exception, not expressed as subclasses.
 - An uncaught `raise` escapes as `Raised`, a subclass of `LanguageError`.
 
 ## 8. Graph form, bytecode and machine

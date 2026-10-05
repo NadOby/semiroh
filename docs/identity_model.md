@@ -189,7 +189,8 @@ The following remain intentionally open:
 - the final identity model for transformations themselves;
 - identity of representations;
 - identity of capabilities and resources;
-- interaction with the eventual generalized graph model;
+- interaction with the eventual generalized graph model (partly answered
+  by §10);
 - the precise relationship between semantic identity and persistent storage.
 
 These must not be inferred merely from the current Python representation.
@@ -206,3 +207,49 @@ Conceptually:
     runtime ID -> runtime incarnation
 
 No identity kind should silently substitute for another.
+
+## 10. Identity is primitive
+
+**Decided:**
+
+From the semantic-core experiment, closed 2026-10-05. The research branch `research/semantic-core` tested whether SHEAR could be
+rebuilt from a smaller basis of generalized relations, with `EntityID` kept
+out of values. It projected every corpus program, the continuity corpus and
+adversarial cases into that candidate and compared observables with `main`.
+The branch is archived at tag `semantic-core-experiment-2026-10`
+(`docs/research/semantic-core/h1_evaluation.md` there holds the full
+evaluation).
+
+Results:
+
+- With references reduced to structure, equality conflated 4,379 entity
+  pairs in real programs that `main` keeps apart, and one leaf edit changed
+  the value of every ancestor and transitive caller (129 of 549 entities in
+  the `compiler` corpus program, against 2 `VersionID` changes in `main`).
+- The single allowed revision restored agreement on every tested observable
+  only by putting names back into values, state identity and continuity –
+  the architecture `main` already has.
+
+Four independent semantic relationships must therefore remain
+distinguishable. They are relationships, not primitive edge types:
+
+    within a state:
+        structural / value containment
+        named reference to a stable entity identity
+        ownership (an edge set with forest constraints)
+
+    between states:
+        continuity, declared by transformations over names
+
+**`EntityID` is not continuity; it is the stable vocabulary in which
+continuity can be stated.** It cannot be derived from the current state
+alone: an identity derived from position, path, content or topology can say
+"same position" or "same content", never "same thing, moved". That rejects
+paths as identity, not selectors used inside a reference anchored at a
+stable identity, such as `(EntityID(A), field y)`.
+
+Simplifications of the model should therefore remove duplicate mechanisms
+within these relationships, not reduce identity, time or lifetime to graph
+topology. Follow-up audits and experiments are in `docs/roadmap.md`, tasks 20
+to 25.
+

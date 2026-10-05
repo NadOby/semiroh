@@ -395,10 +395,110 @@ bytecode/machine dependency direction is clean, remaining `lang.py` boundaries
 are made explicit where justified, and the task changes no intended language
 behaviour.
 
+## G. After the semantic-core experiment
+
+The experiment (identity_model.md §10) killed one simplification strategy
+and left narrower ones. Two rules apply to this section: a simplification
+names the concrete mechanism it intends to delete, and a research task names
+the concrete requirement that could falsify the current architecture.
+Predictions are recorded before a run; an experiment gets one revision.
+
+### 20. Endpoint arity audit (one session)
+
+**Planned.**
+
+`Relation` distinguishes a single endpoint from a one-element tuple. For
+code relations `shear/operations.py` already determines which roles hold
+ordered tuples. Check every relation kind, code and non-code, for anything
+that observes the distinction.
+
+Done when: the distinction is classified as redundant, semantically
+required, or retained deliberately for engineering reasons, with the
+evidence. No refactor in this task.
+
+### 21. Reference version audit (one session)
+
+**Planned.**
+
+`Reference(StateID, EntityID, VersionID)`: `State.resolve` and reference
+transfer check `StateID` first, so `StaleReference` is reachable only for a
+malformed or forged reference. Determine whether a valid reference can
+distinguish anything with `VersionID` that `(StateID, EntityID)` cannot.
+
+Done when: `VersionID` in `Reference` is classified as redundant,
+semantically required, or retained deliberately (integrity witness, cache
+key, offline validation), and the reason is documented in
+reference_model.md. No refactor in this task.
+
+### 22. Content duplication baseline (one session)
+
+**Planned.**
+
+Measure the machinery that handles semantic content in several forms:
+conversion sites between host values and canonical content, `Value` content
+versus `Relation` records and payloads, mutation survivors in
+`canonical.py`, `values.py` and `relations.py`, and content handling in the
+self-hosted compiler and VM. Taken now, as a baseline of what the experiment
+exposed, before tasks 23 and 24 change the code.
+
+Done when: the measurements are recorded. No refactor.
+
+### 23. Constraints as functions (handoff)
+
+**Planned.**
+
+Falsification experiment: can the constraint algebra (`constraints.py`, its
+own evaluator, budget and three-valued result) be expressed through the
+existing computation model with fewer total mechanisms?
+
+Kill criterion: it succeeds only if the mechanism count drops. Cost side:
+new VM operations, runtime-only semantic cases, special Unknown or budget
+machinery, constraint-only environment interfaces. Removed side: the
+constraint evaluator, constraint node semantics, constraint-specific
+recursion and control, the duplicate `External` path. Success allows at most
+one generic boundary for external authority and one generic execution
+budget; strong-Kleene behaviour comes from functions and data.
+
+Done when: the experiment is run against recorded predictions and the
+result – adopt or kill – is recorded.
+
+### 24. Layout-changing hot swap (handoff)
+
+**Planned.** Replaces the former "Later" systems-data item.
+
+Research spike on systems data: structs and references between cells, with
+layout changes handled by converters. First scenario: object A `{x, y}`, a
+reference R to `A.y`, and a running old-version frame holding R; activation
+continues A to A' with layout `{x, z, y}` and a converter; new code reads
+`A'.y`, the old frame continues under the old state, and R has an explicitly
+defined fate. Then vary one dimension at a time: moved field, deleted field,
+split object, ownership change, old-version retirement.
+
+The central question is the status of `A.y`, to be discriminated rather than
+presupposed: its own semantic identity; no identity (A plus a selector); or
+a logical property with layout and access path separate. The activation and
+lifetime protocol is modelled in Alloy (the runner from the archived
+experiment returns here); representation and layout are tested in Python.
+
+Done when: the scenario and its variations are run against recorded
+predictions and the result names which `A.y` outcome holds and what it
+requires.
+
+### 25. Content consolidation decision (one session)
+
+**Planned.**
+
+Decide from task 22's baseline and what tasks 23 and 24 taught whether
+unifying `Value` content, relation records and payloads into one relational
+content form is still justified. It must preserve `EntityID`, reference and
+ownership semantics and show a concrete reduction in production mechanisms
+or conversion paths.
+
+Done when: the decision is recorded; if positive, the refactor becomes its
+own task.
+
 ## Later
 
-- Systems data: structs, arrays and references between cells, with layout
-  changes handled by converters.
 - Error handling inside the language, when a corpus program needs it.
 - Function references held in cells follow renames (language_data.md §3).
 - Syntax and tooling notes (syntax_notes.md): graph and IR views next to

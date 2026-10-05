@@ -198,6 +198,11 @@ In particular:
     State identity != provenance
     Runtime identity != semantic identity
 
+Entity identity is primitive: it cannot be derived from structure, position
+or content, because continuity across transformations is stated in its
+terms. The semantic-core experiment tested the alternative and falsified it
+([`identity_model.md`](docs/identity_model.md) §10).
+
 See [`docs/identity_model.md`](docs/identity_model.md).
 
 ## 4. Immutable states

@@ -100,7 +100,9 @@ Adopted from the direction review and its assessment:
    scenario added). Results and deviations from the plan:
    `docs/research/semantic-core/projection_results.md` (re-run: 0 unexpected
    mismatches, 5,172 predicted, 0 gaps).
-7. Allow at most one candidate revision in response to failures.
+7. Allow at most one candidate revision in response to failures. Planned:
+   revision 1, named roots (`revision_plan.md`), with predictions recorded
+   before the run.
 8. Evaluate H1 from the mechanism table and the round-trip failures.
 9. If H1 fails, use the failures to define the smallest
    compatibility-boundary refactor into `main` – likely consolidating
@@ -114,8 +116,7 @@ redesign cycle.
 Stop rule: if the candidate needs new special cases faster than it
 eliminates existing mechanisms, H1 stops.
 
-Next: step 7 (plan, then review, on Opus) from the results; the candidate has
-not been revised yet. CI: `.github/workflows/core-projection.yml` runs the
+Next: execute step 7 on Sonnet from `revision_plan.md`; then step 8 on Opus. CI: `.github/workflows/core-projection.yml` runs the
 research tests and the experiment on every push to `research/semantic-core`.
 
 ## Projection observables

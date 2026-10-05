@@ -621,6 +621,11 @@ pred CyclicEqualityClosesWithinBudget {
 /*
  * Five corresponding pairs are required, but only four may be examined.
  *
+ * One five-node chain is compared with itself. The model has no shortcut for
+ * comparing a root with itself, so this demonstrates the same reachable
+ * exhaustion as two separate chains with half the relations. It does not
+ * claim anything about comparisons of two distinct structures.
+ *
  * No contradiction has been discovered. The fifth pair remains on the
  * frontier, so evaluation ends with BudgetExhausted rather than Unknown.
  *
@@ -629,52 +634,38 @@ pred CyclicEqualityClosesWithinBudget {
 pred EqualityBudgetExhaustionExists {
     some
         c: Comparison,
-        disj l0, l1, l2, l3, l4: c.leftState.rels,
-        disj r0, r1, r2, r3, r4: c.rightState.rels,
+        disj n0, n1, n2, n3, n4: c.leftState.rels,
         role: Role
     {
-        c.leftRoot = l0
-        c.rightRoot = r0
+        c.leftState = c.rightState
 
-        no (l0 + l1 + l2 + l3 + l4).atom
-        no (r0 + r1 + r2 + r3 + r4).atom
+        c.leftRoot = n0
+        c.rightRoot = n0
 
-        all l: l0 + l1 + l2 + l3 |
-            roleNames[l] = role
+        no (n0 + n1 + n2 + n3 + n4).atom
 
-        all r: r0 + r1 + r2 + r3 |
-            roleNames[r] = role
+        all n: n0 + n1 + n2 + n3 |
+            roleNames[n] = role
 
-        no roleNames[l4]
-        no roleNames[r4]
+        no roleNames[n4]
 
-        targetAt[l0, role, 0] = l1
-        targetAt[l1, role, 0] = l2
-        targetAt[l2, role, 0] = l3
-        targetAt[l3, role, 0] = l4
+        targetAt[n0, role, 0] = n1
+        targetAt[n1, role, 0] = n2
+        targetAt[n2, role, 0] = n3
+        targetAt[n3, role, 0] = n4
 
-        targetAt[r0, role, 0] = r1
-        targetAt[r1, role, 0] = r2
-        targetAt[r2, role, 0] = r3
-        targetAt[r3, role, 0] = r4
-
-        indicesOf[l0, role] = 0
-        indicesOf[l1, role] = 0
-        indicesOf[l2, role] = 0
-        indicesOf[l3, role] = 0
-
-        indicesOf[r0, role] = 0
-        indicesOf[r1, role] = 0
-        indicesOf[r2, role] = 0
-        indicesOf[r3, role] = 0
+        indicesOf[n0, role] = 0
+        indicesOf[n1, role] = 0
+        indicesOf[n2, role] = 0
+        indicesOf[n3, role] = 0
 
         c.examined =
-            (l0 -> r0)
-            + (l1 -> r1)
-            + (l2 -> r2)
-            + (l3 -> r3)
+            (n0 -> n0)
+            + (n1 -> n1)
+            + (n2 -> n2)
+            + (n3 -> n3)
 
-        c.frontier = l4 -> r4
+        c.frontier = n4 -> n4
 
         EqualityBudgetExhausted[c]
 
@@ -869,12 +860,12 @@ run CyclicEqualityClosesWithinBudget
     expect 1
 
 run EqualityBudgetExhaustionExists
-    for 10
-    but exactly 2 State,
-        exactly 10 Rel,
+    for 5
+    but exactly 1 State,
+        exactly 5 Rel,
         exactly 1 Role,
-        exactly 8 RoleUse,
-        exactly 8 Slot,
+        exactly 4 RoleUse,
+        exactly 4 Slot,
         exactly 3 Atom,
         0 EntityID,
         0 View,

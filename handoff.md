@@ -2,7 +2,7 @@
 
 Branch: `research/semantic-core`  
 Status: active architectural experiment  
-Refreshed: `2026-10-05T09:41+02:00`
+Refreshed: `2026-10-05T13:00+02:00`
 
 Compact continuation checkpoint. History belongs in
 `docs/research/semantic-core/project_diary.md`; evidence belongs in the
@@ -92,9 +92,12 @@ Adopted from the direction review and its assessment:
    `docs/semantic_core_experiment.md` §3.11 – isomorphism under bijective
    handle renaming, view `EntityID` bindings excluded, equivalence only, no
    hash specified, unchanged until step 7.
-5. Implement one narrow `main → candidate → observable` projection,
-   following `docs/research/semantic-core/projection_plan.md`.
-6. Run the existing corpus plus the adversarial corpus (below).
+5. Done: one narrow `main → candidate → observable` projection
+   (`research/core_projection/`, plan `projection_plan.md`).
+6. Done: run on the existing corpus plus the adversarial corpus, once, at
+   `0950761`. Results and deviations from the plan:
+   `docs/research/semantic-core/projection_results.md` (62 unexpected
+   mismatches, 2 groups; 5,109 predicted; 0 gaps).
 7. Allow at most one candidate revision in response to failures.
 8. Evaluate H1 from the mechanism table and the round-trip failures.
 9. If H1 fails, use the failures to define the smallest
@@ -108,6 +111,10 @@ redesign cycle.
 
 Stop rule: if the candidate needs new special cases faster than it
 eliminates existing mechanisms, H1 stops.
+
+Next: step 7 (plan, then review, on Opus) from the results; the candidate has
+not been revised yet. CI: `.github/workflows/core-projection.yml` runs the
+research tests and the experiment on every push to `research/semantic-core`.
 
 ## Projection observables
 
@@ -217,6 +224,9 @@ docs/research/semantic-core/transformation_verification.md
 docs/research/semantic-core/continuity_composition.md
 docs/research/semantic-core/alloy_api_reference.md
 docs/research/semantic-core/project_diary.md        append-only log
+docs/research/semantic-core/projection_plan.md      step 5 plan
+docs/research/semantic-core/projection_results.md   steps 5 and 6 results
+research/core_projection/                           projection, observables, tests
 docs/research/semantic-core/peer_reviews/
 ```
 

@@ -660,3 +660,45 @@ Its first complete run passed all discovered verification commands.
 The Python semantic-model workflow remains separate because it verifies a
 different implementation layer.
 
+
+## 2026-10-05T12:57+02:00 – First projection run (plan steps 5 and 6)
+
+### FACT
+
+The `main → candidate → observable` projection was implemented in
+`research/core_projection/` and run once at `0950761` over the 26 corpus
+programs, the continuity corpus and the adversarial cases, in a charter-faithful
+mode (`STRUCT`) and a control mode (`REF`). The candidate was not changed.
+
+Of the compared items, 3,963,165 agreed, 5,109 were predicted mismatches, 62
+were unexpected and 0 were gaps. Full results and the deviations from the plan
+are in `docs/research/semantic-core/projection_results.md`.
+
+The unexpected mismatches are two groups:
+
+```text
+O3 STRUCT, order-reversing renaming: 60 of 67 states not isomorphic
+O5 STRUCT, leaf edit: value class changes for 22 of 42 and 202 of 402
+    entities, against 1 changed VersionID in main
+```
+
+Everything else was explained by a cited prediction: arity collapse (O0),
+adversarial case 1 (4,379 O1 pairs), charter §3.11 (renamed states) and
+adversarial case 3 (symmetric and differently named middle states). Eight
+real two-step chains built with `main`'s own operations agreed with
+`main`'s `compose` in every row.
+
+### INTERPRETATION
+
+The first group follows from the plan's ownership rule, which lists an owner's
+children in `EntityID` order and so lets spelling into the projected
+structure. It is a defect of the projection rule, not of the candidate.
+
+The second group is a consequence of projecting references as role targets:
+the value of an entity includes everything it reaches. Whether that counts
+against H1 is a step-8 question.
+
+### DECISION
+
+Steps 5 and 6 are done. Step 7 (at most one candidate revision) and step 8 (H1
+evaluation against the mechanism inventory) are separate tasks.

@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Mapping
 
-from shear.canonical import CanonicalNode
+from shear.canonical import CanonicalNode, canonical_serialize
 from shear.identity import EntityID
 from shear.relations import Relation
 from shear.state import State
@@ -69,12 +69,12 @@ class Lost:
 
 @dataclass(frozen=True)
 class Projection:
-    """``cstate`` plus the view and the ownership relations' handles."""
+    """``cstate`` plus the view and the handle of each ownership edge's relation."""
 
     mode: Mode
     cstate: CState
     view: Mapping[EntityID, int]
-    ownership_handles: Mapping[EntityID, int]
+    ownership_handles: Mapping[tuple[EntityID, EntityID], int]
     gaps: tuple[Gap, ...]
 
     def entity_of(self, handle: int) -> EntityID | None:
@@ -245,8 +245,14 @@ def project(state: State, mode: Mode) -> Projection:
 
     Each entity's content becomes a fresh subtree (no sharing between entities,
     no hash-consing) rooted at ``view[entity]``. Ownership becomes one ``owns``
-    relation per owner, inside the state. Handle allocation follows sorted
-    ``EntityID`` order and nothing else depends on the spelling.
+    relation per ownership edge (role ``owner`` to the owner's root, role
+    ``owned`` to the child's root), inside the state. Handle allocation follows
+    sorted ``EntityID`` order and nothing else depends on the spelling.
+
+    One relation per edge corrects the plan, which had one per owner listing
+    its children "in main order": ``normalize_ownership`` stores children as
+    ``sorted(set(...))``, so the order is not semantic and a sequence would
+    let ``EntityID`` spelling into the projected structure.
     """
 
     builder = _Builder(state, mode)
@@ -255,21 +261,17 @@ def project(state: State, mode: Mode) -> Projection:
         builder.entity = entity
         builder.build(state.values[entity].content, builder.view[entity])
 
-    ownership_handles: dict[EntityID, int] = {}
+    ownership_handles: dict[tuple[EntityID, EntityID], int] = {}
 
     for owner in sorted(state.ownership):
-        handle = builder.fresh()
-        ownership_handles[owner] = handle
-        builder.add(
-            handle,
-            Atom("symbol", "owns"),
-            {
-                "owner": (builder.view[owner],),
-                "owned": tuple(
-                    builder.view[child] for child in state.ownership[owner]
-                ),
-            },
-        )
+        for child in state.ownership[owner]:
+            handle = builder.fresh()
+            ownership_handles[(owner, child)] = handle
+            builder.add(
+                handle,
+                Atom("symbol", "owns"),
+                {"owner": (builder.view[owner],), "owned": (builder.view[child],)},
+            )
 
     return Projection(
         mode=mode,
@@ -424,8 +426,9 @@ def rename_entities(
 
     Entity keys, every ``entity_id`` node in content and the ownership relation
     are renamed; role names, kinds and other strings are not ``EntityID``s and
-    stay. ``State`` re-sorts ownership children by the new names, so a renaming
-    that changes the sort order changes the ownership order.
+    stay. ``State`` re-sorts ownership children by the new names, and map entries
+    are re-sorted by key as ``canonicalize`` would, so a renaming that changes
+    the sort order changes the order ``main`` itself would have built.
     """
 
     def rewrite(content: Any) -> Any:
@@ -437,6 +440,14 @@ def rename_entities(
 
             if kind in ("version_id", "state_id", "bytes"):
                 return content
+
+            if kind == "map":
+                # main sorts entries by the canonical bytes of the key, so a
+                # renamed key can change the order main would have built.
+                pairs = [(rewrite(key), rewrite(value)) for key, value in payload]
+                pairs.sort(key=lambda pair: canonical_serialize(pair[0]))
+
+                return _node(kind, tuple(pairs))
 
             return _node(kind, rewrite(payload))
 

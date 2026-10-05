@@ -237,7 +237,7 @@ class GapAndCollisionTests(unittest.TestCase):
 
 
 class OwnershipTests(unittest.TestCase):
-    def test_one_owns_relation_per_owner_with_ordered_children(self):
+    def test_one_owns_relation_per_ownership_edge(self):
         a, b, c, d = (EntityID(n) for n in "abcd")
         state = State.create(
             {e: Value(e, 0) for e in (a, b, c, d)},
@@ -245,13 +245,12 @@ class OwnershipTests(unittest.TestCase):
         )
         projection = project(state, Mode.STRUCT)
         cstate, view = projection.cstate, projection.view
-        handle = projection.ownership_handles[a]
 
-        self.assertEqual(set(projection.ownership_handles), {a, b})
-        self.assertEqual(cstate.atom(handle).value, "owns")
-        self.assertEqual(cstate.roles(handle)["owner"], (view[a],))
-        # main normalizes children to EntityID order: b before c.
-        self.assertEqual(cstate.roles(handle)["owned"], (view[b], view[c]))
+        self.assertEqual(set(projection.ownership_handles), {(a, b), (a, c), (b, d)})
+
+        for (owner, child), handle in projection.ownership_handles.items():
+            self.assertEqual(cstate.atom(handle).value, "owns")
+            self.assertEqual(cstate.roles(handle), {"owner": (view[owner],), "owned": (view[child],)})
 
     def test_states_differing_only_in_ownership_are_not_isomorphic(self):
         a, b = EntityID("a"), EntityID("b")
@@ -265,22 +264,20 @@ class OwnershipTests(unittest.TestCase):
                     isomorphic(project(flat, mode).cstate, project(owned, mode).cstate)
                 )
 
-    def test_ownership_order_follows_entity_spelling(self):
-        # Instrument fact, not an outcome: main stores children sorted by
-        # EntityID, so the projection's `owned` sequence reads that order.
+    def test_ownership_projection_ignores_the_order_main_lists_children_in(self):
+        # main stores children sorted by EntityID, so a renaming that reverses
+        # their order must not change the projected structure.
         a, b, c = (EntityID(n) for n in "abc")
         state = State.create({e: Value(e, 0) for e in (a, b, c)}, {a: [b, c]})
         flipped = rename_entities(state, lambda e: EntityID({"b": "z", "c": "y"}.get(e.value, e.value)))
-        owned = []
 
-        for item in (state, flipped):
-            projection = project(item, Mode.STRUCT)
-            owner = projection.ownership_handles[a]
-            owned.append(
-                [projection.entity_of(t).value for t in projection.cstate.roles(owner)["owned"]]
-            )
+        self.assertEqual(flipped.ownership[a], (EntityID("y"), EntityID("z")))
 
-        self.assertEqual(owned, [["b", "c"], ["y", "z"]])
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                self.assertTrue(
+                    isomorphic(project(state, mode).cstate, project(flipped, mode).cstate)
+                )
 
 
 class DecodeTests(unittest.TestCase):
@@ -358,6 +355,15 @@ class RenameTests(unittest.TestCase):
                 self.assertEqual(back, state)
                 self.assertNotEqual(renamed.id, state.id)
                 self.assertTrue(all(e.value.startswith("x/") for e in renamed.values))
+
+    def test_rename_builds_the_state_main_would_build_from_the_renamed_names(self):
+        a, b, m = (EntityID(n) for n in "abm")
+        state = State.create({a: Value(a, 1), b: Value(b, 2), m: Value(m, {a: 10, b: 20})})
+        swap = lambda e: EntityID({"a": "q", "b": "p"}.get(e.value, e.value))
+        p, q = EntityID("p"), EntityID("q")
+        built = State.create({q: Value(q, 1), p: Value(p, 2), m: Value(m, {q: 10, p: 20})})
+
+        self.assertEqual(rename_entities(state, swap), built)
 
     def test_rename_changes_references_inside_content(self):
         x, r = EntityID("x"), EntityID("r")

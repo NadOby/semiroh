@@ -3,14 +3,14 @@
 ``StateID`` equality in ``main`` against isomorphism of the projected states,
 for the same program built twice, with every ``EntityID`` consistently
 renamed (order-preserving and order-reversing) and with one literal changed.
-The order-reversing renaming is an addition to the plan: ownership children
-are listed in ``EntityID`` order, so it shows whether the projection is
-spelling-free.
+The order-reversing renaming is an addition to the plan: ``main`` sorts
+ownership children and map entries by ``EntityID`` spelling, so it shows
+whether the projection is spelling-free.
 """
 
 from __future__ import annotations
 
-from typing import Iterator
+from typing import Any, Iterator
 
 from shear.canonical import CanonicalNode
 from shear.identity import EntityID
@@ -100,13 +100,56 @@ def identity_rows(case: str, state: State, twin: State | None = None) -> list[Ro
 
             iso = isomorphic(projections[0].cstate, projections[1].cstate)
             word = "isomorphic" if iso else "not isomorphic"
-            classification, note = _identity_class(label, mode, main_equal, iso)
+            classification, note = _identity_class(
+                label, mode, main_equal, iso, spelling_cause(left)
+            )
             rows.append(Row(case, observable, main_word, word, classification, note))
 
     return rows
 
 
-def _identity_class(label: str, mode: Mode, main_equal: bool, iso: bool) -> tuple[str, str]:
+def spelling_cause(state: State) -> str | None:
+    """A structure in ``state`` whose projection depends on ``EntityID`` spelling.
+
+    ``main`` sorts a map's entries by key, so a map keyed by ``entity_id``
+    nodes lists its entries in key-spelling order, and the projection keeps
+    that order (role ``entries`` is a sequence). Ownership used to be the
+    other such structure; it is now one relation per edge.
+    """
+
+    def keyed_by_entity(content: Any) -> bool:
+        if isinstance(content, CanonicalNode):
+            kind, payload = content[1], content[2]
+
+            if kind == "map":
+                return any(
+                    isinstance(key, CanonicalNode) and key[1] == "entity_id"
+                    for key, _ in payload
+                ) or any(keyed_by_entity(value) for _, value in payload)
+
+            if kind in ("entity_id", "version_id", "state_id", "bytes"):
+                return False
+
+            return keyed_by_entity(payload)
+
+        if type(content) in (tuple, list):
+            return any(keyed_by_entity(item) for item in content)
+
+        return False
+
+    if any(keyed_by_entity(value.content) for value in state.values.values()):
+        return "map keyed by entity_id (entries are listed in key-spelling order)"
+
+    return None
+
+
+def _identity_class(
+    label: str,
+    mode: Mode,
+    main_equal: bool,
+    iso: bool,
+    cause: str | None = None,
+) -> tuple[str, str]:
     renamed = label.startswith("renamed")
 
     if main_equal:
@@ -121,12 +164,10 @@ def _identity_class(label: str, mode: Mode, main_equal: bool, iso: bool) -> tupl
     if not iso:
         if renamed and mode is Mode.STRUCT:
             # STRUCT holds no spelling; section 3.11 predicts isomorphism.
-            note = "renaming changed the projected structure"
-
-            if label.endswith("(order-reversing)"):
-                note += "; ownership order follows EntityID spelling (plan gap)"
-
-            return UNEXPECTED, note
+            return UNEXPECTED, (
+                "renaming changed the projected structure; cause: "
+                + (cause or "not identified")
+            )
 
         return AGREE, ""
 

@@ -408,6 +408,42 @@ class IdentityRowTests(unittest.TestCase):
         self.assertEqual(rule("one literal changed", struct, False, False)[0], AGREE)
         self.assertEqual(rule("one literal changed", struct, False, True)[0], UNEXPECTED)
 
+    def test_unexpected_rename_names_its_cause(self):
+        rule = identity._identity_class
+        label = "renamed (order-reversing)"
+
+        self.assertIn("not identified", rule(label, Mode.STRUCT, False, False)[1])
+        self.assertIn("map keyed by entity_id", rule(label, Mode.STRUCT, False, False, "map keyed by entity_id")[1])
+
+    def test_spelling_cause_finds_maps_keyed_by_entity_id_only(self):
+        a, b = EntityID("a"), EntityID("b")
+        keyed = state_of(a=1, b=2, m={a: 1, b: 2})
+        nested = state_of(a=1, b=2, m=({"k": {a: 1, b: 2}},))
+        plain = state_of(a=1, b=2, m={"k": a})
+
+        self.assertIn("map keyed by entity_id", identity.spelling_cause(keyed))
+        self.assertIn("map keyed by entity_id", identity.spelling_cause(nested))
+        self.assertIsNone(identity.spelling_cause(plain))
+
+    def test_a_map_keyed_by_entity_id_shows_up_as_an_attributed_unexpected_row(self):
+        # Entries are listed in key order, so reversing the names reverses the
+        # entries; the instrument must report it, with the cause.
+        a, b = EntityID("a"), EntityID("b")
+        rows = identity.identity_rows("c", state_of(a=1, b=2, m={a: 10, b: 20}))
+        struct = [r for r in rows if r.observable == "O3/STRUCT/renamed (order-reversing)"]
+
+        self.assertEqual([r.classification for r in struct], [UNEXPECTED])
+        self.assertIn("map keyed by entity_id", struct[0].note)
+
+    def test_ownership_alone_does_not_make_a_renaming_visible(self):
+        a, b, c = (EntityID(n) for n in "abc")
+        state = State.create({e: Value(e, 0) for e in (a, b, c)}, {a: [b, c]})
+        rows = identity.identity_rows("c", state)
+
+        for row in rows:
+            if row.observable.startswith("O3/STRUCT/renamed"):
+                self.assertEqual(row.candidate_result, "isomorphic")
+
     def test_rows_compare_state_ids_with_isomorphism(self):
         state = load(parse("fn f(x):\n    x + 1\n"))
         rows = identity.identity_rows("c", state, load(parse("fn f(x):\n    x + 1\n")))

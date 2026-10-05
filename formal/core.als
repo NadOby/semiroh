@@ -13,8 +13,12 @@ open formal/core_model
  * Neither this module nor core_model.als is a normative language
  * specification.
  *
- * BisimWitness and CompositionCase are Alloy verification scaffolding,
- * not proposed SHEAR semantic primitives.
+ * BisimWitness is Alloy verification scaffolding, not a proposed SHEAR
+ * semantic primitive.
+ *
+ * The expensive bisimulation-composition check lives in the deep lane:
+ *
+ *     formal/core_deep.als
  */
 
 
@@ -40,34 +44,6 @@ fact BisimWitnessesAreValid {
     }
 }
 
-sig CompositionCase {
-    left: one State,
-    middle: one State,
-    right: one State,
-    firstPairs: Rel -> Rel,
-    secondPairs: Rel -> Rel
-}
-
-fact CompositionCasesAreValid {
-    all c: CompositionCase {
-        some c.firstPairs
-        some c.secondPairs
-
-        bisimulation[
-            c.left,
-            c.middle,
-            c.firstPairs
-        ]
-
-        bisimulation[
-            c.middle,
-            c.right,
-            c.secondPairs
-        ]
-    }
-}
-
-
 /* -------------------------------------------------------------------------
  * Algebraic properties
  * ---------------------------------------------------------------------- */
@@ -89,16 +65,6 @@ assert ReverseIsBisimulation {
             ~(witness.pairs)
         ]
 }
-
-assert CompositionIsBisimulation {
-    all c: CompositionCase |
-        bisimulation[
-            c.left,
-            c.right,
-            (c.firstPairs).(c.secondPairs)
-        ]
-}
-
 
 /* -------------------------------------------------------------------------
  * Intended semantic witness scenarios
@@ -414,25 +380,6 @@ pred ReverseWitnessExists {
     }
 }
 
-pred CompositionWitnessesExist {
-    some c: CompositionCase {
-        c.left != c.middle
-        c.middle != c.right
-        c.left != c.right
-
-        some
-            source: c.left.rels,
-            destination: c.right.rels
-        {
-            (source -> destination)
-                in (c.firstPairs).(c.secondPairs)
-
-            some roleNames[source]
-        }
-    }
-}
-
-
 /* -------------------------------------------------------------------------
  * Bounded checks
  * ---------------------------------------------------------------------- */
@@ -447,8 +394,7 @@ check IdentityIsBisimulation
         2 Atom,
         0 EntityID,
         0 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 0
 
 check ReverseIsBisimulation
@@ -461,22 +407,7 @@ check ReverseIsBisimulation
         2 Atom,
         0 EntityID,
         0 View,
-        exactly 1 BisimWitness,
-        0 CompositionCase
-    expect 0
-
-check CompositionIsBisimulation
-    for 4
-    but 3 State,
-        6 Rel,
-        2 Role,
-        6 RoleUse,
-        6 Slot,
-        3 Atom,
-        0 EntityID,
-        0 View,
-        0 BisimWitness,
-        exactly 1 CompositionCase
+        exactly 1 BisimWitness
     expect 0
 
 run DistinctEntitiesCanNameEqualValues
@@ -489,8 +420,7 @@ run DistinctEntitiesCanNameEqualValues
         exactly 1 Atom,
         exactly 2 EntityID,
         exactly 1 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 1
 
 run SharingDoesNotForceInequality
@@ -503,8 +433,7 @@ run SharingDoesNotForceInequality
         exactly 1 Atom,
         0 EntityID,
         0 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 1
 
 run ReverseWitnessExists
@@ -517,22 +446,7 @@ run ReverseWitnessExists
         0 Atom,
         0 EntityID,
         0 View,
-        exactly 1 BisimWitness,
-        0 CompositionCase
-    expect 1
-
-run CompositionWitnessesExist
-    for 6
-    but exactly 3 State,
-        exactly 6 Rel,
-        exactly 1 Role,
-        exactly 3 RoleUse,
-        exactly 3 Slot,
-        0 Atom,
-        0 EntityID,
-        0 View,
-        0 BisimWitness,
-        exactly 1 CompositionCase
+        exactly 1 BisimWitness
     expect 1
 
 
@@ -550,8 +464,7 @@ check DifferentAtomsAreNotEqual
         exactly 2 Atom,
         0 EntityID,
         0 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 0
 
 run DifferentAtomsScenarioExists
@@ -564,8 +477,7 @@ run DifferentAtomsScenarioExists
         exactly 2 Atom,
         0 EntityID,
         0 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 1
 
 
@@ -579,8 +491,7 @@ check DifferentRoleSetsAreNotEqual
         0 Atom,
         0 EntityID,
         0 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 0
 
 run DifferentRoleSetsScenarioExists
@@ -593,8 +504,7 @@ run DifferentRoleSetsScenarioExists
         0 Atom,
         0 EntityID,
         0 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 1
 
 
@@ -608,8 +518,7 @@ check DifferentTargetOrderIsNotEqual
         exactly 2 Atom,
         0 EntityID,
         0 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 0
 
 run DifferentTargetOrderScenarioExists
@@ -622,8 +531,7 @@ run DifferentTargetOrderScenarioExists
         exactly 2 Atom,
         0 EntityID,
         0 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 1
 
 
@@ -637,8 +545,7 @@ check DifferentTargetMultiplicityIsNotEqual
         exactly 1 Atom,
         0 EntityID,
         0 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 0
 
 run DifferentTargetMultiplicityScenarioExists
@@ -651,8 +558,7 @@ run DifferentTargetMultiplicityScenarioExists
         exactly 1 Atom,
         0 EntityID,
         0 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 1
 
 
@@ -666,8 +572,7 @@ check PresentEmptyRoleDiffersFromAbsentRole
         0 Atom,
         0 EntityID,
         0 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 0
 
 run PresentEmptyRoleVsAbsentScenarioExists
@@ -680,8 +585,7 @@ run PresentEmptyRoleVsAbsentScenarioExists
         0 Atom,
         0 EntityID,
         0 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 1
 
 
@@ -699,6 +603,5 @@ run SelfCycleEqualsTwoNodeCycle
         0 Atom,
         0 EntityID,
         0 View,
-        0 BisimWitness,
-        0 CompositionCase
+        0 BisimWitness
     expect 1

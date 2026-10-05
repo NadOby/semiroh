@@ -90,7 +90,14 @@ explicit research target rather than a settled semantic decision.
 
 ## 3. Verification commands
 
-Current core commands:
+`CompositionIsBisimulation` and its non-vacuity witness
+`CompositionWitnessesExist` now live in `formal/core_deep.als` and run in the
+deep lane (`.github/workflows/alloy-deep-verification.yml`) with unchanged
+scopes. The index list below records the original command set; `core.als` has
+since gained negative-equality and cyclic commands, so its indices no longer
+match.
+
+Original core commands:
 
 ```text
 0  IdentityIsBisimulation
@@ -548,6 +555,11 @@ The first complete consolidated verification run succeeded across all
 discovered commands.
 
 This is verification-infrastructure evidence, not additional semantic evidence.
+
+Later observations in the routine lane were about 2 min 53 s and 4 min 41 s per
+run. Although inside the old target, the check was moved to the deep lane
+because it confirms a textbook lemma and dominated routine latency. Its scope
+is unchanged.
 
 ## 11. Hybrid decomposition experiment
 

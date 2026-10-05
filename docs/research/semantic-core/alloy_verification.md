@@ -117,6 +117,12 @@ Core verification entrypoint:
 formal/core.als
 ```
 
+Core deep verification entrypoint (expensive checks, separate lane):
+
+```text
+formal/core_deep.als
+```
+
 Candidate transformation/continuity model:
 
 ```text
@@ -138,10 +144,16 @@ Shared instrumented runner:
 .github/scripts/AlloyRunner.java
 ```
 
-Consolidated Alloy workflow:
+Routine Alloy workflow:
 
 ```text
 .github/workflows/alloy-verification.yml
+```
+
+Deep Alloy workflow:
+
+```text
+.github/workflows/alloy-deep-verification.yml
 ```
 
 The Python executable semantic-model tests remain separate:
@@ -314,13 +326,15 @@ discovers Alloy commands
 constructs a model + command matrix
 runs commands in separate matrix jobs
 preserves command scopes and expectations
-fails if a top-level formal/*.als with commands is not a listed entrypoint
+fails unless every top-level formal/*.als is classified exactly once
 ```
 
-Top-level `formal/*.als` files without commands are libraries and need not be
-listed.
+Every top-level `formal/*.als` file is classified explicitly as a routine
+entrypoint, a deep entrypoint or a library. Alloy's `commands` output cannot
+identify libraries, because the CLI gives a commandless module an implicit
+command.
 
-It runs on every push to:
+The routine workflow runs on every push to:
 
 ```text
 research/semantic-core
@@ -328,6 +342,10 @@ research/semantic-core
 
 This intentionally favors regression coverage over path-filtered execution
 while the research branch is active.
+
+The deep workflow runs the same way for deep entrypoints, but only when the
+candidate core model, a deep entrypoint, the runner or the deep workflow
+changes, and on manual dispatch.
 
 ## Solver policy
 
@@ -363,7 +381,8 @@ lingeling.parallel
 ```
 
 This is an engineering choice based on the expensive
-`CompositionIsBisimulation` workload.
+`CompositionIsBisimulation` workload, now in the deep lane. The same solver is
+used for both lanes.
 
 It is not:
 
@@ -383,16 +402,20 @@ docs/research/semantic-core/core_verification.md
 Routine verification should remain practical enough to execute on every
 research-branch commit without weakening semantic scopes.
 
-For the historically dominant bounded command, the current engineering target
-is:
+Every routine command should complete in seconds to about a minute.
 
-```text
-preferred:
-    <= 5 minutes
+A command that is consistently slower is moved to a deep entrypoint with its
+scope unchanged, rather than reduced to fit the routine lane. Its non-vacuity
+witness moves with it.
 
-operational solver-selection cutoff:
-    10 minutes
-```
+This replaces the earlier target of up to 5 minutes (10-minute cutoff) for the
+dominant command. `CompositionIsBisimulation` met that target at about 3–5
+minutes per run, but it checks a textbook lemma for the candidate predicate, so
+running it on every push added latency without matching evidence. It now runs
+in the deep lane.
+
+The 5-minute preferred / 10-minute cutoff targets still guide solver selection
+for deep commands.
 
 These are CI practicality criteria, not semantic limits.
 

@@ -1,15 +1,24 @@
-name: Alloy verification
+name: Alloy deep verification
 
+# Expensive bounded checks kept out of the routine per-push lane. Scopes are
+# not reduced. Runs when the candidate model or a deep entrypoint changes, and
+# on manual dispatch. Top-level file classification is enforced by
+# alloy-verification.yml.
 on:
   workflow_dispatch:
 
   push:
     branches:
       - research/semantic-core
+    paths:
+      - formal/core_model.als
+      - formal/core_deep.als
+      - .github/scripts/AlloyRunner.java
+      - .github/workflows/alloy-deep-verification.yml
 
 jobs:
   discover:
-    name: Discover Alloy commands
+    name: Discover deep Alloy commands
     runs-on: ubuntu-latest
 
     outputs:
@@ -63,71 +72,8 @@ jobs:
           set -euo pipefail
 
           entrypoints=(
-            formal/core.als
-            formal/query_outcomes.als
-            formal/transformation.als
-            formal/transformation_composition.als
-            formal/transformation_associativity.als
-            formal/transformation_composition_mutation.als
-          )
-
-          # Deep entrypoints run in alloy-deep-verification.yml, not here.
-          # They are listed so that classification stays complete.
-          deep_entrypoints=(
             formal/core_deep.als
           )
-
-          libraries=(
-            formal/core_model.als
-            formal/transformation_model.als
-          )
-
-          # Every top-level formal/*.als file must be explicitly classified as
-          # a verification entrypoint, a deep entrypoint or a library. This
-          # avoids relying on Alloy's `commands` output to identify libraries:
-          # commandless modules receive an implicit command from the CLI.
-          classification_failed=0
-
-          for file in "${entrypoints[@]}" "${deep_entrypoints[@]}" "${libraries[@]}"; do
-            if [[ ! -f "$file" ]]; then
-              echo "Classified Alloy file does not exist: $file" >&2
-              classification_failed=1
-            fi
-          done
-
-          for file in formal/*.als; do
-            classifications=0
-
-            for entrypoint in "${entrypoints[@]}"; do
-              if [[ "$entrypoint" == "$file" ]]; then
-                classifications=$((classifications + 1))
-              fi
-            done
-
-            for deep in "${deep_entrypoints[@]}"; do
-              if [[ "$deep" == "$file" ]]; then
-                classifications=$((classifications + 1))
-              fi
-            done
-
-            for library in "${libraries[@]}"; do
-              if [[ "$library" == "$file" ]]; then
-                classifications=$((classifications + 1))
-              fi
-            done
-
-            if [[ "$classifications" -eq 0 ]]; then
-              echo "Unclassified top-level Alloy file: $file" >&2
-              classification_failed=1
-            elif [[ "$classifications" -gt 1 ]]; then
-              echo "Alloy file classified more than once: $file" >&2
-              classification_failed=1
-            fi
-          done
-
-          if [[ "$classification_failed" -ne 0 ]]; then
-            exit 1
-          fi
 
           commands='[]'
 
@@ -189,6 +135,7 @@ jobs:
     name: ${{ matrix.case.model }} – command ${{ matrix.case.command }}
     needs: discover
     runs-on: ubuntu-latest
+    timeout-minutes: 120
 
     strategy:
       fail-fast: false

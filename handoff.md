@@ -2,7 +2,7 @@
 
 Branch: `research/semantic-core`  
 Status: active architectural experiment  
-Refreshed: `2026-10-05T13:00+02:00`
+Refreshed: `2026-10-05T14:33+02:00`
 
 Compact continuation checkpoint. History belongs in
 `docs/research/semantic-core/project_diary.md`; evidence belongs in the
@@ -94,10 +94,12 @@ Adopted from the direction review and its assessment:
    hash specified, unchanged until step 7.
 5. Done: one narrow `main → candidate → observable` projection
    (`research/core_projection/`, plan `projection_plan.md`).
-6. Done: run on the existing corpus plus the adversarial corpus, once, at
-   `0950761`. Results and deviations from the plan:
-   `docs/research/semantic-core/projection_results.md` (62 unexpected
-   mismatches, 2 groups; 5,109 predicted; 0 gaps).
+6. Done: run on the existing corpus plus the adversarial corpus. First run
+   `0950761`, re-run after review `cb74cea` (ownership projection fixed to
+   one relation per edge; O5 `STRUCT` predicted; cross-function churn
+   scenario added). Results and deviations from the plan:
+   `docs/research/semantic-core/projection_results.md` (re-run: 0 unexpected
+   mismatches, 5,172 predicted, 0 gaps).
 7. Allow at most one candidate revision in response to failures.
 8. Evaluate H1 from the mechanism table and the round-trip failures.
 9. If H1 fails, use the failures to define the smallest

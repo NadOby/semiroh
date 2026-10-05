@@ -702,3 +702,36 @@ against H1 is a step-8 question.
 
 Steps 5 and 6 are done. Step 7 (at most one candidate revision) and step 8 (H1
 evaluation against the mechanism inventory) are separate tasks.
+
+## 2026-10-05T14:33+02:00 – Projection re-run after review
+
+### FACT
+
+A review of the first projection run (entry 2026-10-05T12:57+02:00) asked for
+four changes, made at `f45183d` and `cb74cea`; the experiment was run again at
+`cb74cea`. The candidate was not changed.
+
+```text
+ownership projection: one owns relation per ownership edge
+O5 STRUCT: predicted mismatch, direction review section 3.3
+O5: a cross-function scenario (compiler, leaf edit inside upper)
+handoff.md: moved under docs/research/semantic-core/
+```
+
+Result: 3,963,166 agree, 5,172 predicted, 0 unexpected, 0 gaps. Details in
+`docs/research/semantic-core/projection_results.md`.
+
+### INTERPRETATION
+
+This corrects the first entry's reading of the two groups of unexpected
+mismatches. The O3 group was a defect of the ownership rule: `main` stores
+ownership children as `sorted(set(...))`, so their order is not semantic, and
+with one relation per edge the order-reversing renaming gives isomorphic states
+for all 67 states in `STRUCT`. The O5 group is the predicted consequence of
+deriving version identity from candidate equality; it now appears in three
+scenarios, the largest reaching all five functions of `compiler`.
+
+### OPEN
+
+Whether that churn counts against H1 is a step-8 question; step 7 has not
+started.

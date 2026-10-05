@@ -1,9 +1,10 @@
 # Text Syntax, Version 0
 
-**Status: implemented** (roadmap.md task 11; extended by task 17) in
+**Status: implemented** (roadmap.md task 11; extended by tasks 17 and 20) in
 the `shear/syntax` package. The acceptance tests are `tests/test_syntax.py`;
-`tests/test_syntax_units.py` pins each construct. Section 8 lists what the
-implementation had to decide.
+`tests/test_syntax_units.py` pins each construct, and
+`tests/test_error_handling.py` covers the error-handling forms. Section 8
+lists what the implementation had to decide.
 
 Programs have been written as nested tuples. This step adds a human source
 view (syntax_notes.md, Direction A): `parse` reads text into the input
@@ -65,9 +66,10 @@ Assigning to a parameter or let name, reading a function as a value
 without `ref`, and calling a cell are `SourceError`s. These names are
 reserved and cannot be declared bare: `fn cell let if else true false none
 quote unquote literal function activate trial label raw ref code linksof
-apply len item slice concat closure captures`. In backquotes (`` `len` ``)
-they are ordinary names, which a declaration, parameter, `let`, closure
-parameter or closure capture may use where it does not clash with a global.
+apply len item slice concat closure captures catch raise`. In backquotes
+(`` `catch` ``) they are ordinary names, which a declaration, parameter,
+`let`, closure parameter or closure capture may use where it does not clash
+with a global.
 
 ## 3. Expressions
 
@@ -87,10 +89,38 @@ parameter or closure capture may use where it does not clash with a global.
     label(NAME, EXPR)                  a labelled node (graph_form.md §9)
     activate(TARGET = VALUE, ...)      TARGET is f, or f.label for a node
     trial(f(args), TARGET = VALUE, ...)
+    catch(EXPR)                        catch every SHEAR failure
+    catch(EXPR, "kind", ...)           catch only the named failure kinds
+    raise(KIND, DETAIL)                fail with a program error
     raw(DATA)                          an input-form expression, verbatim
 
 Precedence, lowest first: inline if; `fn` and `closure`; `<` and `==`
 (not chained); `+` and `-`; `*`; calls and atoms. Parentheses group.
+
+**Catch and raise.** `catch(EXPR)` is the source form of
+
+    ("catch", EXPR)
+
+and a filtered catch
+
+    catch(EXPR, "wrong_kind", "out_of_range")
+
+is the source form of
+
+    ("catch", EXPR, ("wrong_kind", "out_of_range"))
+
+The filter names are syntax metadata rather than expressions. They must
+therefore be string literals; for example `catch(EXPR, kind)` is a
+`SourceError`, even if `kind` is a local whose value happens to be a string.
+
+The graph-form rule remains authoritative for validity: a filtered catch
+requires a non-empty tuple of distinct non-empty strings. A malformed form
+represented through `raw(...)` builds invalid code and fails as specified in
+error_handling.md rather than acquiring a separate syntax meaning.
+
+`raise(KIND, DETAIL)` takes ordinary expressions. They are evaluated in that
+order. The runtime requirement that `KIND` evaluate to a non-empty string is
+a language rule, not a parsing rule; see error_handling.md.
 
 **Closures.** `closure(PARAM, ...) captures(NAME, ...): EXPR` is the source
 form of the canonical input form
@@ -174,6 +204,10 @@ make a `seq`; a `let` wraps the rest of its block.
 A closure may capture a parameter or any `let` name already in scope at its
 creation point. A later `let` is not visible to an earlier closure.
 
+`catch` and `raise` are expressions and therefore need no statement-specific
+form. A caught expression may contain ordinary side effects; catching a
+failure does not roll them back (error_handling.md).
+
 ## 5. Rendering
 
 **Decided:**
@@ -202,6 +236,18 @@ block, the inline form elsewhere; `quote(...)` for a literal whose value is
 well-formed code; and the general `apply(value, tuple)` form where a
 variadic `apply` cannot be printed as a local call.
 
+A well-formed catch renders as either
+
+    catch(EXPR)
+
+or
+
+    catch(EXPR, "kind", ...)
+
+A filtered catch whose filter payload is not a non-empty tuple of distinct
+non-empty strings is not widened into source syntax; it falls back to
+`raw(...)`. `raise` renders as `raise(KIND, DETAIL)`.
+
 A well-formed closure renders as
 
     closure(PARAM, ...) captures(NAME, ...): EXPR
@@ -224,6 +270,8 @@ tuples that behave the same):
 - corpus examples not tagged `self-modification` render without `raw`;
 - the closure corpus examples `make_adder` and `compose` render and parse
   without losing their explicit captures;
+- the task-20 error examples render and parse with their `catch` filters and
+  `raise` expressions intact;
 - a general variadic `apply` may normalize to `applyv`, but its rendered text
   is then a fixpoint.
 
@@ -246,7 +294,8 @@ input-form helpers both sides use), built on `shear.lang`.
 
 **Decided:**
 
-Found while making the corpus round-trip and adding closures.
+Found while making the corpus round-trip, adding closures and adding
+program-visible errors.
 
 - One statement per line; there are no continuation lines. A tab anywhere
   outside a string or comment is a `SourceError`.
@@ -278,6 +327,11 @@ Found while making the corpus round-trip and adding closures.
   Any other callable head is normalized to `apply(value, tuple)`, which
   parses as `applyv`; this intentionally preserves semantic/textual
   round-trip rather than exact input-form identity.
+- `catch` filter names are string literals, not expressions. This keeps the
+  source form aligned with the graph form, where the filter is node metadata
+  rather than an evaluated child.
+- A malformed catch that exists through `raw` is rendered as `raw` rather
+  than normalized into valid catch syntax.
 - Corpus: every example renders without `raw` except `instrument`, whose
   template writes a cell (`("write", "hits", ...)`), which the syntax has no
   form for inside a quote.

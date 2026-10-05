@@ -772,3 +772,44 @@ of state identity.
 
 Whether revision 1 counts as the same candidate or as a new mechanism, and how
 it scores against the mechanism inventory, is step 8, an Opus task.
+
+## 2026-10-05T15:25+02:00 – H1 evaluation (step 8)
+
+### FACT
+
+The mechanism inventory was classified for the frozen candidate and for
+revision 1 in `docs/research/semantic-core/h1_evaluation.md`, from the runs at
+`0950761`, `cb74cea` and `6739252`.
+
+```text
+frozen candidate:  0 eliminated, 0 retained, 4 uniform, 0 new, 3 not representable without loss
+revision 1:        0 eliminated, 4 retained, 3 uniform, 1 new, 0 not representable
+```
+
+### INTERPRETATION
+
+The experiment falsifies H1 for the frozen candidate within the tested
+scope: contained-only role targets cannot carry `main`'s references to named
+entities without conflating referents, and version changes spread to
+ancestors and callers. Revision 1 survives every tested observable (10 of 10
+predictions) but fails the strict predeclared stop rule, and it restores
+`main`'s identity architecture, giving up charter §3.8. The strong hypothesis – a smaller basis with identity held separately –
+is falsified; the weak form – one relational structure for value content,
+relation records and payloads – is confirmed as representable.
+
+### DECISION
+
+The experiment is at its stopping point under the structural timebox. No
+further candidate revision. The draft was reviewed by the research session;
+its corrections (literal stop rule, narrower H1, H2 and H3 wording, ownership
+and `StateID` qualifications, relationships rather than edge types) are in
+the committed evaluation.
+
+EntityID stays as it is. Path-derived identifiers were considered and
+rejected: they break continuity under insertion, swap, rename and move.
+
+### OPEN
+
+Step 9: whether the consolidation is worth doing in `main`. Recommended as an
+ordinary `main` roadmap task, gated on measuring the costs it would remove.
+

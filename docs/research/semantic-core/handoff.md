@@ -112,7 +112,12 @@ Adopted from the direction review and its assessment:
    Cost: names enter values and state identity (charter §3.8 given up). The
    arity collapse is unchanged. Not interpreted for H1; see "Revision 1 run" in
    `projection_results.md`, which also lists the choices the plan left open.
-8. Evaluate H1 from the mechanism table and the round-trip failures.
+8. Done: H1 evaluation in `h1_evaluation.md`. H1 fails for the frozen
+   candidate (named references not representable without loss). Revision 1
+   survives every tested observable but fails the strict stop rule and
+   restores `main`'s identity architecture, giving up charter §3.8. What
+   survives is a possible consolidation of value content, relation records
+   and payloads, not a smaller basis.
 9. If H1 fails, use the failures to define the smallest
    compatibility-boundary refactor into `main` – likely consolidating
    `Value` content, relation records and payload representation, not
@@ -125,7 +130,64 @@ redesign cycle.
 Stop rule: if the candidate needs new special cases faster than it
 eliminates existing mechanisms, H1 stops.
 
-Next: step 8 on Opus (H1 evaluation against the mechanism inventory, for the frozen candidate and for revision 1). CI: `.github/workflows/core-projection.yml` runs the
+Next: the experiment is closed. Follow-ups are ordinary `main` roadmap tasks,
+agreed with the reviewing session, in this order:
+
+1. Audit endpoint arity: semantic or redundant outside code.
+2. Audit `Reference(StateID, EntityID, VersionID)`: can a valid reference
+   distinguish anything with `VersionID` that `(StateID, EntityID)` cannot?
+   Today `StaleReference` is reachable only after the `StateID` check.
+3. Measure duplicated content-handling machinery (conversion sites, mutation
+   survivors in `canonical.py`/`values.py`/`relations.py`, compiler content
+   handling). No refactor. This is the baseline of what the experiment
+   exposed, taken before later tasks change the code.
+4. Constraints as ordinary SHEAR functions: a falsification experiment.
+5. Layout-changing hot swap with live interior references: the next research
+   spike; Alloy returns for the activation and lifetime protocol.
+6. Decide whether the content consolidation is still justified, from the
+   measurement in 3 plus anything learned in 4 and 5.
+
+Guardrails:
+
+- Audits are audits, not pre-authorised refactors. Each ends as redundant,
+  semantically required, or retained deliberately for engineering reasons
+  (for `Reference.version`: integrity witness, cache key or offline
+  validation). The last outcome is documented as such, not presented as
+  minimal.
+- Constraints experiment kill criterion: it succeeds only if the total
+  mechanism count drops. Cost side: new VM operations, new runtime-only
+  semantic cases, special Unknown machinery, special budget machinery,
+  constraint-only environment interfaces. Removed side: the constraint
+  evaluator, constraint node semantics, constraint-specific recursion and
+  control logic, the duplicate External execution path. One generic-looking
+  opcode that hides special machinery counts as its machinery. Success means
+  most constraint behaviour through existing computation, with at most one
+  generic boundary for external authority and one generic execution budget;
+  strong-Kleene behaviour emerges from functions and data.
+- Layout spike, first scenario: S0 has object A `{x, y}`, reference R to
+  `A.y`, and a running old-version frame holding R; activation continues A to
+  A' with layout `{x, z, y}` and a converter for runtime content; in S1 new
+  code reads `A'.y`, the old frame continues under S0, and R has an
+  explicitly defined fate. Then vary one dimension at a time: moved field,
+  deleted field, split object, ownership change, old-version retirement.
+  Alloy models the activation and lifetime protocol and its interleavings;
+  Python handles representation, layout and differential behaviour.
+  The central question is the status of `A.y`, with three outcomes to
+  discriminate, not presuppose: `A.y` has its own semantic identity (a
+  reference names the field); `A.y` has none (a reference is A plus a
+  selector); or the reference is to a logical property, with physical layout
+  and semantic access path fully separate. `(EntityID(A), field y)` is a
+  selector anchored at a stable identity, categorically different from a
+  path used as identity.
+- Method: a simplification names the concrete mechanism it intends to delete;
+  a research spike names the concrete requirement that could falsify the
+  current architecture. Predictions are recorded before runs; one revision
+  per experiment.
+- `ContentID = H(content)` with version `(EntityID, ContentID)` is recorded as
+  a possible identity-model cleanup, not a task: large blast radius, no
+  demonstrated problem.
+
+CI: `.github/workflows/core-projection.yml` runs the
 research tests and the experiment on every push to `research/semantic-core`.
 
 ## Projection observables

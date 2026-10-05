@@ -62,7 +62,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          models=(
+          entrypoints=(
             formal/core.als
             formal/query_outcomes.als
             formal/transformation.als
@@ -71,46 +71,55 @@ jobs:
             formal/transformation_composition_mutation.als
           )
 
-          # Every top-level formal/*.als that contains commands must be a
-          # listed entrypoint; files without commands are libraries. This
-          # prevents a verification file from silently going unrun.
-          missing=0
+          libraries=(
+            formal/core_model.als
+            formal/transformation_model.als
+          )
 
-          for model in "${models[@]}"; do
-            if [[ ! -f "$model" ]]; then
-              echo "Listed verification entrypoint does not exist: $model" >&2
-              missing=1
+          # Every top-level formal/*.als file must be explicitly classified as
+          # either a verification entrypoint or a library. This avoids relying
+          # on Alloy's `commands` output to identify libraries: commandless
+          # modules receive an implicit command from the CLI.
+          classification_failed=0
+
+          for file in "${entrypoints[@]}" "${libraries[@]}"; do
+            if [[ ! -f "$file" ]]; then
+              echo "Classified Alloy file does not exist: $file" >&2
+              classification_failed=1
             fi
           done
 
           for file in formal/*.als; do
-            count="$(
-              java \
-                -jar "$HOME/.cache/shear/alloy-6.2.0/alloy.jar" \
-                commands \
-                "$file" \
-                | sed -n 's/^[[:space:]]*\([0-9][0-9]*\)[[:space:]]*\..*/\1/p' \
-                | wc -l
-            )"
+            classifications=0
 
-            listed=0
-            for model in "${models[@]}"; do
-              [[ "$model" == "$file" ]] && listed=1
+            for entrypoint in "${entrypoints[@]}"; do
+              if [[ "$entrypoint" == "$file" ]]; then
+                classifications=$((classifications + 1))
+              fi
             done
 
-            if [[ "$count" -gt 0 && "$listed" -eq 0 ]]; then
-              echo "Alloy file with $count command(s) is not a listed verification entrypoint: $file" >&2
-              missing=1
+            for library in "${libraries[@]}"; do
+              if [[ "$library" == "$file" ]]; then
+                classifications=$((classifications + 1))
+              fi
+            done
+
+            if [[ "$classifications" -eq 0 ]]; then
+              echo "Unclassified top-level Alloy file: $file" >&2
+              classification_failed=1
+            elif [[ "$classifications" -gt 1 ]]; then
+              echo "Alloy file classified more than once: $file" >&2
+              classification_failed=1
             fi
           done
 
-          if [[ "$missing" -ne 0 ]]; then
+          if [[ "$classification_failed" -ne 0 ]]; then
             exit 1
           fi
 
           commands='[]'
 
-          for model in "${models[@]}"; do
+          for model in "${entrypoints[@]}"; do
             echo "Discovering commands in $model"
 
             output="$(

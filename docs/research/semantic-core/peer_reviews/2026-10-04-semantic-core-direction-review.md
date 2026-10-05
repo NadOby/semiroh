@@ -367,3 +367,122 @@ negative result is a valid outcome.
 Taken this way, the branch either delivers a concrete simplification to
 `main` or shows cheaply that the current layering is already close to
 minimal.
+
+## 12. Project assessment
+
+Assessed: `2026-10-05T09:41+02:00`, in discussion between the project owner,
+the research session and the reviewer.
+
+The review is adopted as the working direction, with the corrections below.
+Its proposed architecture (sections 3 and 4) is not adopted. Those sections
+are treated as predictions to test, not as design conclusions.
+
+### Accepted
+
+- Continuity composition is not a new semantic question. `main` already
+  defines the same algebra in `transformation_composition.md` and implements
+  it in `transforms.compose`. The next step is a differential comparison
+  with `main`, not further invention.
+- `main` and the candidate differ in equality around references. `main`
+  compares endpoint `EntityID`s shallowly. The candidate bisimulates through
+  role targets. A naive projection can make relations that refer to
+  different, structurally equal entities equal. This is a real H1 mismatch
+  that needs a decision or a failed-projection witness.
+- H1 has barely been tested. Current evidence shows internal consistency of
+  the candidate, not preservation of existing SHEAR semantics.
+- Alloy solver cost is formalization cost, not H3 evidence about
+  implementation cost.
+- H2 needs more than `π : Current → Core`. Some constructive demonstration
+  is required. A literal inverse is stronger than necessary.
+- `formal/core_equality_negative.als` is outside CI and must be removed or
+  classified as a library. Whether Alloy rejects its higher-order `run`s
+  remains unverified.
+- `EqualityNo` needs an independent soundness assertion.
+- A kill criterion is required.
+
+### Corrected
+
+- **Occurrence handles (section 4).** Within one transformation, taken as a
+  whole structure up to isomorphism, "one of two equal occurrences continues,
+  the other disappears" is well defined. "Inexpressible" overstated it, and it
+  is not shown that `RelationRef` must become semantic identity. The open
+  question is what makes occurrence reference well defined outside Alloy, and
+  under which renamings semantics must be invariant.
+- **Where the handle problem appears.** It appears in composition.
+  `transformationsCompatible` requires the middle states to be the same Alloy
+  `State` atom, which presupposes a shared handle universe. `main` composes
+  over stable `EntityID` mappings and needs no such universe. The
+  falsification case is:
+
+  ```text
+  T1 : S0 -> M1
+  T2 : M2 -> S2
+
+  StateID(M1) == StateID(M2)
+  M1 and M2 independently constructed
+  M contains two structurally equal, otherwise symmetric occurrences
+  ```
+
+  Does the candidate determine a unique composition without an externally
+  chosen isomorphism `M1 ↔ M2`? A control case with no automorphism in `M`
+  isolates symmetry as the cause.
+- **State identity.** The test needs a candidate definition of `StateID`.
+  "Equal up to renaming of occurrence handles" is recorded as the explicit
+  candidate hypothesis needed to run the experiment, not as settled
+  semantics.
+- **Cyclic equality (section 3, point 2).** "Largely disappears" assumes the
+  containment/reference distinction survives. That is what the branch tests.
+  It is a projection prediction.
+- **Recursion.** `main`'s recursive corpus programs contain self-reference
+  through explicit `EntityID` links. A cycle appears in the candidate only if
+  the projection turns references into structural edges. Recursion is
+  therefore the case that forces the projection to reveal its choice: a
+  structural edge (a cycle, making cyclic equality urgent) or a
+  reference-bearing form (the target-kind distinction under another name; if
+  it carries `EntityID` as content, it conflicts with "EntityID is not
+  intrinsic"). The choice and its consequences for equality and identity are
+  recorded as an experimental result.
+- **Budget exhaustion (section 8).** This is a semantic boundary question,
+  not simply an H1 mismatch: constraint evaluation and structural equality
+  are different operations. README §11 defines equality results as
+  `Equal / NotEqual / Unknown` and ties equality to potentially expensive
+  reasoning, but does not specify `BudgetExhausted → Unknown`. That mapping
+  is an interpretation to test. `7b7dd31` makes exhausted equality return no
+  semantic result.
+- **Decidability (section 8).** True for the finite structural model. It
+  does not settle the project-wide meaning of semantic equality.
+
+### Adopted execution plan
+
+1. Finish the `query_outcomes.als` soundness cleanup and CI.
+2. Resolve the orphan `core_equality_negative.als`.
+3. Freeze candidate semantics and the mechanism inventory.
+4. Record the candidate `StateID`/equivalence hypothesis.
+5. Implement one narrow `main → candidate → observable` projection.
+6. Run the existing corpus plus a small adversarial corpus:
+   reference target identity versus structural equality; recursive
+   self-reference; symmetric and asymmetric independently constructed middle
+   states; continuity composition with split, merge, disappearance and
+   Unknown.
+7. Allow at most one candidate revision in response to failures.
+8. Evaluate H1 from the predeclared mechanism table and round-trip failures.
+9. If H1 fails, use those failures to define the smallest
+   compatibility-boundary refactor back into `main` – likely consolidating
+   `Value` content, relation records and payload representation rather than
+   replacing the identity and reference machinery.
+
+The timebox is structural, not calendar-based: one projection, the existing
+corpus plus the adversarial corpus, one candidate revision, then evaluation.
+No second redesign cycle.
+
+Each inventoried mechanism of `main` is classified after the experiment as:
+
+```text
+eliminated by the candidate
+retained unchanged
+represented uniformly by an existing candidate mechanism
+requiring a new special case or mechanism
+```
+
+If the candidate needs new special cases faster than it eliminates existing
+mechanisms, H1 stops.

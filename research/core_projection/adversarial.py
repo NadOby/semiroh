@@ -23,6 +23,7 @@ from shear.values import Value
 from core_projection import observables
 from core_projection.composition import Link, composition_rows, link_from_results
 from core_projection.core import Atom
+from core_projection.named import Name, Named
 from core_projection.project import Mode, project
 from core_projection.rows import AGREE, UNEXPECTED, Row
 
@@ -80,9 +81,10 @@ def recursion_rows() -> list[Row]:
     """What each mode makes of a function that links to itself (``factorial``).
 
     The prediction is a cycle under ``STRUCT`` (the function's root occurrence
-    is the target of its own ``link`` role) and an ``EntityID`` atom under
-    ``REF``. The O1 and O3 consequences are the ordinary rows for the same
-    program.
+    is the target of its own ``link`` role), an ``EntityID`` atom under
+    ``REF`` and, under ``NAMED``, a ``Named`` target to its own name with
+    acyclic containment (plan section 3, "contained cycles: none"). The O1
+    and O3 consequences are the ordinary rows for the same program.
     """
 
     from shear.examples import EXAMPLES
@@ -95,6 +97,22 @@ def recursion_rows() -> list[Row]:
     for mode in Mode:
         projection = project(program, mode)
         root = projection.view[function]
+
+        if mode is Mode.NAMED:
+            target = projection.nstate.roles(root)[f"link:{function.value}"][0]
+            acyclic = projection.nstate.containment_cycle() is None
+            predicted = acyclic and target == Named(Name(function.value))
+            rows.append(Row(
+                case, f"adv2/{mode.name}", "function links to itself by EntityID",
+                f"{'Named' if isinstance(target, Named) else 'contained'} target "
+                f"{target.name.value if isinstance(target, Named) else target.handle!r}; "
+                f"containment {'acyclic' if acyclic else 'cyclic'}",
+                AGREE if predicted else UNEXPECTED,
+                "self-reference is a Named target to the function's own name, not a contained cycle"
+                if predicted else "not a Named self-reference with acyclic containment",
+            ))
+            continue
+
         target = projection.cstate.roles(root)[f"link:{function.value}"][0]
 
         if mode is Mode.STRUCT:

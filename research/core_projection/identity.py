@@ -17,7 +17,7 @@ from shear.identity import EntityID
 from shear.state import State
 from shear.values import Value
 
-from core_projection.core import isomorphic
+from core_projection import core, named
 from core_projection.observables import gap_rows
 from core_projection.project import Mode, ProjectionGap, project, rename_entities
 from core_projection.rows import AGREE, PREDICTED, UNEXPECTED, Row
@@ -98,7 +98,7 @@ def identity_rows(case: str, state: State, twin: State | None = None) -> list[Ro
                 rows += gap_rows(case, observable, error)
                 continue
 
-            iso = isomorphic(projections[0].cstate, projections[1].cstate)
+            iso = _isomorphic(mode, *projections)
             word = "isomorphic" if iso else "not isomorphic"
             classification, note = _identity_class(
                 label, mode, main_equal, iso, spelling_cause(left)
@@ -106,6 +106,13 @@ def identity_rows(case: str, state: State, twin: State | None = None) -> list[Ro
             rows.append(Row(case, observable, main_word, word, classification, note))
 
     return rows
+
+
+def _isomorphic(mode: Mode, left, right) -> bool:
+    if mode is Mode.NAMED:
+        return named.isomorphic(left.nstate, right.nstate)
+
+    return core.isomorphic(left.cstate, right.cstate)
 
 
 def spelling_cause(state: State) -> str | None:
@@ -151,6 +158,10 @@ def _identity_class(
     cause: str | None = None,
 ) -> tuple[str, str]:
     renamed = label.startswith("renamed")
+
+    if mode is Mode.NAMED and renamed and iso:
+        # Revision 1 fixes names in state identity: nothing is predicted here.
+        return UNEXPECTED, "renamed states isomorphic although names are fixed (plan section 3)"
 
     if main_equal:
         if iso:

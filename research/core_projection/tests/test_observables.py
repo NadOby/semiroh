@@ -535,7 +535,7 @@ class ChurnRowTests(unittest.TestCase):
             sorted(
                 (case, f"O5/{mode.name}")
                 for case in ("leaf_edit_41", "leaf_edit_401", "cross-function: compiler, edit in upper")
-                for mode in MODES
+                for mode in Mode  # every mode, now including NAMED
             ),
         )
 

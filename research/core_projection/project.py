@@ -12,6 +12,9 @@ Two modes treat the ``EntityID`` inside content differently:
 * ``REF`` (control only): a reference becomes a nullary ``symbol`` atom holding
   the ``EntityID`` string, which puts ``EntityID`` into value.
 
+A third mode, ``NAMED`` (revision 1, charter section 3.12), lives in
+``project_named.py``; ``project`` and ``decode`` dispatch to it.
+
 Nothing here adds candidate semantics; where the plan's table is silent the
 choice is recorded in a docstring and reported as a deviation.
 """
@@ -20,7 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Mapping
 
 from shear.canonical import CanonicalNode, canonical_serialize
 from shear.identity import EntityID
@@ -29,6 +32,9 @@ from shear.state import State
 from shear.values import Value
 
 from core_projection.core import Atom, CState
+
+if TYPE_CHECKING:
+    from core_projection.project_named import NamedProjection
 
 __all__ = [
     "Gap",
@@ -50,6 +56,7 @@ class ProjectionGap(Exception):
 class Mode(Enum):
     STRUCT = "struct"
     REF = "ref"
+    NAMED = "named"  # revision 1; see project_named.py
 
 
 @dataclass(frozen=True)
@@ -240,7 +247,7 @@ class _Builder:
             self.add(h, Atom("symbol", kind), {"payload": (self.build(payload),)})
 
 
-def project(state: State, mode: Mode) -> Projection:
+def project(state: State, mode: Mode) -> "Projection | NamedProjection":
     """Project a graph-form ``main`` state into the candidate core.
 
     Each entity's content becomes a fresh subtree (no sharing between entities,
@@ -254,6 +261,11 @@ def project(state: State, mode: Mode) -> Projection:
     ``sorted(set(...))``, so the order is not semantic and a sequence would
     let ``EntityID`` spelling into the projected structure.
     """
+
+    if mode is Mode.NAMED:
+        from core_projection.project_named import project_named
+
+        return project_named(state)
 
     builder = _Builder(state, mode)
 
@@ -287,7 +299,7 @@ def project(state: State, mode: Mode) -> Projection:
 # ---------------------------------------------------------------------------
 
 
-def decode(projection: Projection) -> dict[EntityID, Any]:
+def decode(projection: "Projection | NamedProjection") -> dict[EntityID, Any]:
     """Recover each entity's canonical content from its root occurrence.
 
     The inverse on content. Two losses are inherent to the projection and are
@@ -296,6 +308,11 @@ def decode(projection: Projection) -> dict[EntityID, Any]:
     from the input exactly there; see ``normalize_arity``); and a flattened
     ``VersionID``/``StateID`` decodes to ``Lost``.
     """
+
+    if projection.mode is Mode.NAMED:
+        from core_projection.project_named import decode_named
+
+        return decode_named(projection)
 
     cstate = projection.cstate
     struct = projection.mode is Mode.STRUCT

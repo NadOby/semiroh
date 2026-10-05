@@ -19,6 +19,7 @@ from shear.identity import EntityID
 from shear.state import State
 
 from core_projection.core import CState, bisimilar
+from core_projection.named import Named
 from core_projection.project import (
     Mode,
     Projection,
@@ -27,6 +28,7 @@ from core_projection.project import (
     normalize_arity,
     project,
 )
+from core_projection.project_named import NamedProjection
 from core_projection.rows import AGREE, GAP, PREDICTED, UNEXPECTED, Row
 
 ARITY = "arity collapse (single endpoint and one-element tuple project alike)"
@@ -175,7 +177,7 @@ def _shape(cstate: CState, handle: int) -> tuple:
     )
 
 
-def bisimulation_classes(projection: Projection, entities: list[EntityID]) -> list[int]:
+def bisimulation_classes(projection: "Projection | NamedProjection", entities: list[EntityID]) -> list[int]:
     """Class id of each entity's root under bisimilarity.
 
     Bisimilarity is an equivalence, so each root is compared with one
@@ -183,7 +185,15 @@ def bisimulation_classes(projection: Projection, entities: list[EntityID]) -> li
     (``bisimilar`` would reject them at once).
     """
 
-    cstate = projection.cstate
+    if projection.mode is Mode.NAMED:
+        # Equality over contained targets with names compared by name is
+        # bisimilarity of the encoding, whose name leaves have no edge to
+        # the bound roots (named.py).
+        projection.nstate.require_acyclic()
+        cstate = projection.nstate.encoding()
+    else:
+        cstate = projection.cstate
+
     classes: dict[tuple, list[tuple[int, int]]] = {}
     result: list[int] = []
     next_class = 0
@@ -305,12 +315,18 @@ def link_targets(content: Any) -> dict[str, EntityID]:
     }
 
 
-def recovered_target(projection: Projection, entity: EntityID, role: str) -> EntityID | None:
+def recovered_target(projection: "Projection | NamedProjection", entity: EntityID, role: str) -> EntityID | None:
     """The entity a link role of ``entity`` points to, read from the candidate.
 
     ``STRUCT``: the entity whose root is the role's target handle (``None``
     when the target is not a root). ``REF``: the ``EntityID`` the target atom holds.
+    ``NAMED``: the name of the role's ``Named`` target (``None`` for a contained one).
     """
+
+    if projection.mode is Mode.NAMED:
+        target = projection.nstate.roles(projection.view[entity])[role][0]
+
+        return EntityID(target.name.value) if isinstance(target, Named) else None
 
     handle = projection.cstate.roles(projection.view[entity])[role][0]
 

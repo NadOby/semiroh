@@ -18,6 +18,7 @@ from shear.state import State
 from shear.values import Value
 
 from core_projection.core import bisimilar
+from core_projection.named import equal as named_equal
 from core_projection.project import Mode, project
 from core_projection.rows import AGREE, PREDICTED, UNEXPECTED, Row
 
@@ -125,13 +126,7 @@ def _churn_rows(case: str, before: State, after: State, main_extra: str = "") ->
 
     for mode in Mode:
         projections = project(before, mode), project(after, mode)
-        changed_class = [
-            e for e in shared
-            if not bisimilar(
-                projections[0].cstate, projections[0].view[e],
-                projections[1].cstate, projections[1].view[e],
-            )
-        ]
+        changed_class = [e for e in shared if not _same_class(mode, projections, e)]
         reached = sum(e in set(changed_class) for e in functions)
         word = (
             f"{len(changed_class)} of {len(shared)} entities change value class "
@@ -143,6 +138,15 @@ def _churn_rows(case: str, before: State, after: State, main_extra: str = "") ->
         rows.append(Row(case, observable, main_word, word, classification, note))
 
     return rows
+
+
+def _same_class(mode: Mode, projections, entity: EntityID) -> bool:
+    before, after = projections
+
+    if mode is Mode.NAMED:
+        return named_equal(before.nstate, before.view[entity], after.nstate, after.view[entity])
+
+    return bisimilar(before.cstate, before.view[entity], after.cstate, after.view[entity])
 
 
 def churn_class(mode: Mode, changed_class: int, changed_version: int) -> tuple[str, str]:

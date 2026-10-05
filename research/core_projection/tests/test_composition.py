@@ -215,7 +215,7 @@ class RecursionRowTests(unittest.TestCase):
     def test_one_row_per_mode(self):
         rows = adversarial.recursion_rows()
 
-        self.assertEqual([row.observable for row in rows], ["adv2/STRUCT", "adv2/REF"])
+        self.assertEqual([row.observable for row in rows], ["adv2/STRUCT", "adv2/REF", "adv2/NAMED"])
 
 
 if __name__ == "__main__":

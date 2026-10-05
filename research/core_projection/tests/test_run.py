@@ -40,7 +40,12 @@ class CollectTests(unittest.TestCase):
         families = {row.observable.split("/")[0].rstrip("ab") for row in rows}
 
         self.assertTrue({"O0", "O1", "O2", "O3", "O4", "O5", "adv2"} <= families)
-        self.assertIn("# Projection experiment report", run.render(rows))
+        report = run.render(rows)
+
+        self.assertIn("# Projection experiment report", report)
+        self.assertIn("## Predictions (revision plan section 3)", report)
+        self.assertIn("## Reproduction of the frozen candidate (`cb74cea`)", report)
+        self.assertTrue({"C0"} <= {row.observable.split("/")[0] for row in rows})
 
 
 if __name__ == "__main__":

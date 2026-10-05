@@ -4,8 +4,12 @@
 
 Every corpus program, every continuity-corpus case (its source and the
 destination of its operation) and the adversarial cases go through the
-observables in both modes. Mismatches are results: the exit status is zero
-unless the run crashes.
+observables in the three modes (``STRUCT``, ``REF`` and the revision's
+``NAMED``); C0 applies to ``NAMED`` only. The report ends with the revision
+plan's predictions and the check that ``STRUCT`` and ``REF`` reproduce the
+recorded counts of the frozen candidate. Mismatches are results: the exit
+status is zero unless the run crashes or the frozen modes no longer reproduce
+the record (status 2).
 """
 
 from __future__ import annotations
@@ -20,18 +24,19 @@ from shear.lang import load
 from shear.state import State
 from shear.syntax import parse
 
-from core_projection import adversarial, churn, identity, observables
+from core_projection import adversarial, baseline, churn, cycles, identity, observables, predictions
 from core_projection.rows import AGREE, CLASSIFICATIONS, Row, aggregate, counts
 
 
 def state_rows(case: str, state: State, twin: State | None = None) -> list[Row]:
-    """O0 to O3 for one state."""
+    """O0 to O3 and C0 for one state."""
 
     return aggregate(
         observables.roundtrip_rows(case, state)
         + observables.equality_rows(case, state)
         + observables.link_rows(case, state)
         + identity.identity_rows(case, state, twin)
+        + cycles.cycle_rows(case, state)
     )
 
 
@@ -142,15 +147,35 @@ def render(rows: list[Row]) -> str:
 
     lines += ["", "## Version churn (O5)", ""]
     lines += _table(ROW_HEADER, (_row_cells(r) for r in rows if r.observable.startswith("O5")))
+
+    lines += ["", "## Predictions (revision plan section 3)", ""]
+    judged = predictions.verdicts(rows)
+    lines += _table(
+        ("observable", "prediction", "result", "detail"),
+        ((v.observable, v.prediction, "hit" if v.hit else "MISS", v.detail) for v in judged),
+    )
+    lines += ["", f"Hits {sum(v.hit for v in judged)} of {len(judged)}.", ""]
+
+    lines += ["## Reproduction of the frozen candidate (`cb74cea`)", ""]
+    differing = baseline.differences(rows)
+
+    if differing:
+        lines += ["The STRUCT and REF results DIFFER from the record:", ""] + [f"- {d}" for d in differing]
+    else:
+        lines.append(
+            "STRUCT and REF reproduce the recorded per-observable counts and O5 rows exactly."
+        )
+
     lines.append("")
 
     return "\n".join(lines)
 
 
 def main() -> int:
-    print(render(collect()))
+    rows = collect()
+    print(render(rows))
 
-    return 0
+    return 2 if baseline.differences(rows) else 0
 
 
 if __name__ == "__main__":

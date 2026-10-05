@@ -34,6 +34,7 @@ TAGS = frozenset({
     "self-modification",
     "data",
     "higher order",
+    "errors",
 })
 
 
@@ -182,6 +183,7 @@ from . import (  # noqa: E402
     closures,
     control,
     data,
+    errors,
     higher_order,
     missing,
     recursion,
@@ -201,6 +203,7 @@ EXAMPLES: tuple[Example, ...] = (
     + closures.EXAMPLES
     + self_hosting.EXAMPLES
     + vm.EXAMPLES
+    + errors.EXAMPLES
 )
 
 MISSING: tuple[Wanted, ...] = missing.MISSING

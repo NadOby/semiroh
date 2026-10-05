@@ -86,6 +86,8 @@ OMITTED = {
         "example program exercised through the corpus",
     "shear/examples/data.py":
         "example program exercised through the corpus",
+    "shear/examples/errors.py":
+        "example program exercised through the corpus",
     "shear/examples/higher_order.py":
         "example program exercised through the corpus",
     "shear/examples/ledger.py":

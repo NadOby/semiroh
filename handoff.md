@@ -137,6 +137,11 @@ eliminates existing mechanisms, H1 stops.
    StateID(M1) == StateID(M2), built independently
    ```
 
+   In `main`, `StateID` hashes every `(EntityID, VersionID)` pair plus the
+   ownership relation, and `VersionID` derives from `EntityID` and semantic
+   content. Equal `StateID`s therefore already imply the same entity naming
+   and ownership structure, so `main` has nothing to choose.
+
    - symmetric: `M` has two structurally equal, otherwise symmetric
      occurrences;
    - asymmetric control: `M` has no automorphism.
@@ -147,20 +152,24 @@ eliminates existing mechanisms, H1 stops.
 4. **Continuity composition** with split, merge, disappearance and Unknown,
    compared case by case with `transforms.compose`.
 
-## Mechanism inventory (draft – freeze at step 3)
+## Mechanism inventory (freeze at step 3)
 
 Mechanisms of `main` the candidate claims to replace or represent:
 
 ```text
-Value(entity, content) and canonical content trees
-Relation records (kind, roles, payload)
-Relation payload trees
-EntityID endpoints in relation roles
-Ownership forest
+canonical semantic value representation (Value + canonical content)
+relation record representation (kind, roles, payload)
+EntityID-valued relation endpoints
+ownership forest
 VersionID derivation
 StateID derivation
-TransformationMapping / CompositionResult (mappings, unknown_sources)
+pinned Reference (StateID, EntityID, VersionID)
+continuity representation (TransformationMapping / CompositionResult)
 ```
+
+Relation payload is not counted separately: it is a position holding
+canonical semantic content, not an independent identity or continuity
+mechanism, and counting it twice would bias the tally.
 
 After the experiment, classify each as:
 

@@ -430,6 +430,15 @@ are treated as predictions to test, not as design conclusions.
   "Equal up to renaming of occurrence handles" is recorded as the explicit
   candidate hypothesis needed to run the experiment, not as settled
   semantics.
+- **`StateID` definition (section 4).** `main`'s `StateID` hashes each
+  `(EntityID, VersionID)` pair and the ownership relation, not
+  `(EntityID, content)` pairs. Because `VersionID` derives from `EntityID`
+  and semantic content, the argument is unchanged: equal `StateID`s already
+  imply the same entity naming and ownership structure.
+- **Mechanism inventory (section 11, step 4 and handoff).** The pinned
+  `Reference(StateID, EntityID, VersionID)` is counted as its own mechanism.
+  Relation payload is merged into the value-content and relation-record
+  entries rather than counted separately.
 - **Cyclic equality (section 3, point 2).** "Largely disappears" assumes the
   containment/reference distinction survives. That is what the branch tests.
   It is a projection prediction.

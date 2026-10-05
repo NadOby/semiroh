@@ -250,6 +250,6 @@ stable identity, such as `(EntityID(A), field y)`.
 
 Simplifications of the model should therefore remove duplicate mechanisms
 within these relationships, not reduce identity, time or lifetime to graph
-topology. Follow-up audits and experiments are in `docs/roadmap.md`, tasks 20
-to 25.
+topology. Follow-up audits and experiments are in `docs/roadmap.md`, tasks 21
+to 26.
 

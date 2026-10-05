@@ -1307,9 +1307,9 @@ valid evidence after the relevant oracle was shown to be unsound.
   independent semantic relationships (containment, named reference,
   ownership; continuity between states), and `EntityID` as the stable
   vocabulary in which continuity is stated. README §3 points to it.
-- Added roadmap tasks 20 to 25: two audits, a measurement, a constraints
-  falsification experiment, a layout-changing hot-swap spike and the
-  content-consolidation decision. The "Later" systems-data item moved into
-  task 24.
+- Added roadmap section H, tasks 21 to 26 after task 20 (error handling):
+  two audits, a measurement, a constraints falsification experiment, a
+  field-identity spike as research input to records, and the
+  content-consolidation decision.
 - The branch is archived at tag `semantic-core-experiment-2026-10`.
 

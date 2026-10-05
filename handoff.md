@@ -5,13 +5,12 @@ keep it short. Read CLAUDE.md and `docs/roadmap.md` first.
 
 ## State
 
-- Tasks up to 19 are merged.
-- The semantic-core experiment is closed and archived at tag
-  `semantic-core-experiment-2026-10`; its outcome is
-  `docs/identity_model.md` §10. Do not reopen it: follow-ups are ordinary
-  tasks.
-- Next: task 20 (endpoint arity audit), then 21 to 25 in order
-  (`docs/roadmap.md` section G).
+- Task 19 (language architecture hardening) is in PR #45, awaiting the
+  owner. This workflow change is stacked on it.
+- The roadmap has no numbered task after 19. The next task is the owner's
+  choice; candidates are under "Later" in `docs/roadmap.md`.
+- `research/semantic-core` is a separate experiment with its own
+  `handoff.md`. Do not change it from main-line work.
 
 ## Phase
 

@@ -2,7 +2,7 @@
 
 Branch: `research/semantic-core`  
 Status: active architectural experiment  
-Refreshed: `2026-10-05T14:33+02:00`
+Refreshed: `2026-10-05T15:27+02:00`
 
 Compact continuation checkpoint. History belongs in
 `docs/research/semantic-core/project_diary.md`; evidence belongs in the
@@ -52,7 +52,11 @@ Relation = { atom : Atom?, roles : Role -> Sequence<RelationRef> }
 `RoleUse`, `Slot`, `BisimWitness`, `CompositionCase`, `ContinuityClaim`,
 `Comparison` are Alloy scaffolding, not candidate ontology.
 
-No new candidate semantics are added before step 7 of the plan.
+Candidate semantics were frozen until step 7. Step 7 added revision 1, named
+roots (charter §3.12, `research/core_projection/named.py`), additively: `core.py`
+and the `STRUCT` and `REF` projection modes remain the record of the frozen
+candidate. There is no second revision; if revision 1 also fails, that is the
+step-8 result.
 
 ## Established (bounded Alloy evidence)
 
@@ -100,9 +104,14 @@ Adopted from the direction review and its assessment:
    scenario added). Results and deviations from the plan:
    `docs/research/semantic-core/projection_results.md` (re-run: 0 unexpected
    mismatches, 5,172 predicted, 0 gaps).
-7. Allow at most one candidate revision in response to failures. Planned:
-   revision 1, named roots (`revision_plan.md`), with predictions recorded
-   before the run.
+7. Done: the single candidate revision, revision 1 named roots
+   (`revision_plan.md`, charter §3.12, `named.py`, projection mode `NAMED`),
+   run once with the predictions recorded before the run (run at `6739252`).
+   Result: 10 of 10 predictions hit, 0 unexpected mismatches, 0 gaps; `STRUCT`
+   and `REF` reproduce the `cb74cea` counts exactly (checked by the runner).
+   Cost: names enter values and state identity (charter §3.8 given up). The
+   arity collapse is unchanged. Not interpreted for H1; see "Revision 1 run" in
+   `projection_results.md`, which also lists the choices the plan left open.
 8. Evaluate H1 from the mechanism table and the round-trip failures.
 9. If H1 fails, use the failures to define the smallest
    compatibility-boundary refactor into `main` – likely consolidating
@@ -116,7 +125,7 @@ redesign cycle.
 Stop rule: if the candidate needs new special cases faster than it
 eliminates existing mechanisms, H1 stops.
 
-Next: execute step 7 on Sonnet from `revision_plan.md`; then step 8 on Opus. CI: `.github/workflows/core-projection.yml` runs the
+Next: step 8 on Opus (H1 evaluation against the mechanism inventory, for the frozen candidate and for revision 1). CI: `.github/workflows/core-projection.yml` runs the
 research tests and the experiment on every push to `research/semantic-core`.
 
 ## Projection observables
@@ -229,7 +238,8 @@ docs/research/semantic-core/alloy_api_reference.md
 docs/research/semantic-core/handoff.md              this file (main keeps its own handoff.md at the root)
 docs/research/semantic-core/project_diary.md        append-only log
 docs/research/semantic-core/projection_plan.md      step 5 plan
-docs/research/semantic-core/projection_results.md   steps 5 and 6 results
+docs/research/semantic-core/revision_plan.md        step 7 plan
+docs/research/semantic-core/projection_results.md   steps 5 to 7 results
 research/core_projection/                           projection, observables, tests
 docs/research/semantic-core/peer_reviews/
 ```

@@ -1,9 +1,183 @@
-# Projection Results – Steps 5 and 6
+# Projection Results – Steps 5 to 7
 
-Status: first run and re-run after review, not interpreted for H1  
+Status: first run, re-run after review and revision 1 run, not interpreted for H1  
 Branch: `research/semantic-core`  
-Run at: `0950761` (first run), `cb74cea` (re-run after review); `PYTHONPATH=research python3 -m core_projection.run`, about 35 s each  
-Plan: `docs/research/semantic-core/projection_plan.md`
+Run at: `0950761` (first run), `cb74cea` (re-run after review), `6739252` (revision 1 run); `PYTHONPATH=research python3 -m core_projection.run`, about 35 s each for the first two  
+Plan: `docs/research/semantic-core/projection_plan.md`; revision 1: `docs/research/semantic-core/revision_plan.md`
+
+## Revision 1 run
+
+Status: run once, predictions checked, not interpreted for H1 (step 8)  
+Run at: `6739252` (code identical to the run; the commits after it only add this report, the diary entry and the handoff); `PYTHONPATH=research python3 -m core_projection.run`, about a minute  
+Plan: `docs/research/semantic-core/revision_plan.md`; charter §3.12
+
+The single candidate revision (named roots) was run once on the same corpus,
+continuity cases and adversarial cases as before, in three modes: `STRUCT` and
+`REF` (the frozen candidate, `core.py` untouched) and `NAMED` (the revision,
+`named.py`). The predictions of plan §3 were recorded before the run and are
+checked verbatim below; nothing in the projection was changed after seeing a
+result.
+
+Overall: agree 5947086, predicted mismatch 5488, unexpected mismatch 0, gap 0.
+
+### Predictions
+
+| observable | prediction | result | detail |
+|---|---|---|---|
+| O0 | round trip exact modulo arity; arity collapse unchanged | hit | modulo arity: 3760 of 3760 agree; exact: 0 unexpected, 316 arity collapses (STRUCT: 316) |
+| O1 | agrees with main on every pair, as REF did | hit | 1976135 of 1976135 entity pairs agree |
+| O2 | agrees | hit | 132 of 132 link targets agree |
+| O3 built twice / literal changed | agrees | hit | 94 of 94 state pairs agree |
+| O3 renamed (both orders) | agrees with main: not isomorphic, names are fixed | hit | 134 of 134 renamed state pairs (not isomorphic, as main) agree |
+| O4 shared and independent middle states | agrees with main on every real chain | hit | 138 of 138 composed sources (real chains and adversarial 4) agree |
+| adversarial 3, differently named | Unknown, as main | hit | 4 of 4 sources agree; 4 are Unknown |
+| adversarial 3, symmetric with same naming | agrees with main; no dependence on an isomorphism | hit | 8 of 8 sources agree; 0 vary (no isomorphism is searched) |
+| O5, all three scenarios | agrees with main (1, 1, 2) | hit | 3 of 3 scenarios agree; VersionID changes in main: [1, 1, 2] |
+| contained cycles in projected states | none | hit | 67 of 67 projected states agree; 0 with a contained cycle |
+
+Hits 10 of 10. No row is a miss and no `NAMED` row is `unexpected` or a `gap`.
+The two cases the plan does not list were judged by the rows they fall under
+(as decided before the run): adversarial 2 (`factorial`) by "contained cycles:
+none" and the O1 and O3 rows for `factorial`, whose self-reference is a `Named`
+target to its own name and agrees; adversarial 4 by "O4 agrees", included in the
+O4 row above.
+
+### Counts per mode
+
+| mode | agree | predicted mismatch | unexpected mismatch | gap | rows |
+|---|---|---|---|---|---|
+| `STRUCT` | 1,979,331 | 4,838 | 0 | 0 | 1,984,169 |
+| `REF` | 1,983,835 | 334 | 0 | 0 | 1,984,169 |
+| `NAMED` | 1,983,920 | 316 | 0 | 0 | 1,984,236 |
+
+`NAMED` has 67 more rows than the others: the C0 observable, one row per
+projected state. Its 316 predicted rows are all the arity collapse in O0 (the
+same 316 as `STRUCT` and `REF`); every other `NAMED` row agrees with `main`.
+The per-observable counts, with the other two modes beside them:
+
+| observable | agree | predicted mismatch | unexpected mismatch | gap | total |
+|---|---|---|---|---|---|
+| C0/NAMED | 67 | 0 | 0 | 0 | 67 |
+| O0/NAMED/exact | 3444 | 316 | 0 | 0 | 3760 |
+| O0/NAMED/modulo-arity | 3760 | 0 | 0 | 0 | 3760 |
+| O0/REF/exact | 3444 | 316 | 0 | 0 | 3760 |
+| O0/REF/modulo-arity | 3760 | 0 | 0 | 0 | 3760 |
+| O0/STRUCT/exact | 3444 | 316 | 0 | 0 | 3760 |
+| O0/STRUCT/modulo-arity | 3760 | 0 | 0 | 0 | 3760 |
+| O1/NAMED | 1976135 | 0 | 0 | 0 | 1976135 |
+| O1/REF | 1976135 | 0 | 0 | 0 | 1976135 |
+| O1/STRUCT | 1971756 | 4379 | 0 | 0 | 1976135 |
+| O2/NAMED | 132 | 0 | 0 | 0 | 132 |
+| O2/REF | 132 | 0 | 0 | 0 | 132 |
+| O2/STRUCT | 132 | 0 | 0 | 0 | 132 |
+| O3/NAMED/built twice | 47 | 0 | 0 | 0 | 47 |
+| O3/NAMED/one literal changed | 47 | 0 | 0 | 0 | 47 |
+| O3/NAMED/renamed (order-preserving) | 67 | 0 | 0 | 0 | 67 |
+| O3/NAMED/renamed (order-reversing) | 67 | 0 | 0 | 0 | 67 |
+| O3/REF/built twice | 47 | 0 | 0 | 0 | 47 |
+| O3/REF/one literal changed | 47 | 0 | 0 | 0 | 47 |
+| O3/REF/renamed (order-preserving) | 61 | 6 | 0 | 0 | 67 |
+| O3/REF/renamed (order-reversing) | 61 | 6 | 0 | 0 | 67 |
+| O3/STRUCT/built twice | 47 | 0 | 0 | 0 | 47 |
+| O3/STRUCT/one literal changed | 47 | 0 | 0 | 0 | 47 |
+| O3/STRUCT/renamed (order-preserving) | 0 | 67 | 0 | 0 | 67 |
+| O3/STRUCT/renamed (order-reversing) | 0 | 67 | 0 | 0 | 67 |
+| O4a/NAMED | 73 | 0 | 0 | 0 | 73 |
+| O4a/REF | 73 | 0 | 0 | 0 | 73 |
+| O4a/STRUCT | 73 | 0 | 0 | 0 | 73 |
+| O4b/NAMED | 77 | 0 | 0 | 0 | 77 |
+| O4b/REF | 71 | 6 | 0 | 0 | 77 |
+| O4b/STRUCT | 71 | 6 | 0 | 0 | 77 |
+| O5/NAMED | 3 | 0 | 0 | 0 | 3 |
+| O5/REF | 3 | 0 | 0 | 0 | 3 |
+| O5/STRUCT | 0 | 3 | 0 | 0 | 3 |
+| adv2/NAMED | 1 | 0 | 0 | 0 | 1 |
+| adv2/REF | 1 | 0 | 0 | 0 | 1 |
+| adv2/STRUCT | 1 | 0 | 0 | 0 | 1 |
+
+### Unexpected rows
+
+None.
+
+### Reproduction of the frozen candidate
+
+`STRUCT` and `REF` reproduce the `cb74cea` record exactly: every
+per-observable, per-classification count in the table of the re-run (full
+output at the end of this file) and the wording of the three O5 rows of each
+mode. The check is part of the runner (`baseline.py`): it reads the recorded
+table from this file and compares it with the run, and the runner exits with
+status 2 if the frozen modes differ.
+
+### What the hits are evidence of
+
+Facts about the rows, not a verdict on H1.
+
+- **Equality, links and churn (O1, O2, O5) are informative.** `NAMED` agrees
+  with `main` on all 1,976,135 entity pairs, all 132 link targets and the three
+  version-churn scenarios (1 of 42, 1 of 402, 2 of 549 value classes change),
+  as the `REF` control does, with the names held in `Named` targets and
+  bindings and none in atoms. `STRUCT` equates 4,379 pairs that `main` keeps apart and changes 22, 202 and
+  129 value classes in the same scenarios.
+- **Identity and composition (O3 renamed, O4) hold largely by the definition.**
+  Names are fixed in state identity (§3.12 item 5) and continuity composes over
+  names (item 6), so a renamed state is not isomorphic and two steps join where
+  the first step's destination names are the second step's source names. These
+  are the rules `main` has; their agreement restates the revision more than it
+  tests it. `NAMED` composition needs no isomorphism search (O4b is 77 of 77
+  agree where `STRUCT` and `REF` each have 6 predicted rows), and
+  adversarial 3 gives the answer `main` gives (`Unknown` when the middle states
+  are named differently).
+- **The cost is the one the plan named.** The frozen candidate's O3 renamed rows
+  are 134 of 134 predicted mismatches in `STRUCT` (names not in state identity);
+  in `NAMED` they are 134 of 134 agreements. That is charter §3.8 given up:
+  names are part of values that refer to them and of state identity.
+- **No new loss.** The arity collapse is unchanged (the same 316 O0 rows as
+  in the frozen modes); nothing else fails to round-trip.
+
+### Choices made in this execution
+
+The plan is silent on these; each was a decision of the execution, listed so
+the run can be read against them.
+
+1. **One content table.** `NAMED` reuses `project.py`'s builder (the `REF`
+   builder, which already puts a fresh nullary occurrence where content refers
+   to an entity) and then replaces each such occurrence by a `Named` target
+   (`project_named.py`). Content, handle allocation and gaps follow the same
+   code in all three modes.
+2. **Bare reference.** An entity whose whole content is a reference projects as
+   a relation with atom `symbol:ref` and one role `target` holding a `Named`
+   target. The plan names neither the atom nor the role. It decodes back; `STRUCT`
+   still cannot project it.
+3. **Reuse of `core.py` by encoding.** `named.py` decides equality and identity
+   by encoding a state as a `CState`: one nullary leaf per distinct referenced
+   name (atom `symbol:name:<n>`, no edge to the bound root, so bisimulation
+   cannot look through a name), and one relation per binding (atom
+   `symbol:binding:<n>`, role `root`). The encoding is injective; content atoms
+   with a reserved prefix are rejected, and the projection treats them (and
+   `ref` outside a bare reference) as a gap.
+4. **Containment check on use.** `NState` validates handles, names and bindings
+   when built; acyclicity of `Contained` targets is checked by `equal` and
+   `isomorphisms` (`ContainmentCycle`), so C0 can count cyclic states instead of
+   crashing on them. C0 is counted over the 67 states that `run.state_rows`
+   projects (corpus programs and continuity-corpus sources and destinations),
+   not over the churn and adversarial states.
+5. **NAMED composition does not search isomorphisms**, in either variant;
+   isomorphism search is used for O3 only.
+6. **Classification rules are mode-aware.** The predictions cited for the frozen
+   candidate do not carry over: in `NAMED`, a renamed state that is isomorphic,
+   a composition that varies or that joins where `main` cannot, and a version
+   churn above `main`'s are `unexpected`; the adversarial 1 label never applies
+   to O1. The arity label applies to O0 (and to any O1 row explained only by
+   arity).
+7. **Existing tests edited.** Two tests asserted the list of modes of a function's
+   rows (`test_one_row_per_mode`, `test_rows_for_every_scenario_and_mode`); they
+   now expect `NAMED` too. They check what they checked before.
+8. **Existing modules touched.** `project.py` gained `Mode.NAMED` and two
+   dispatches (`project`, `decode`); its `STRUCT` and `REF` paths are unchanged.
+   The observables, `identity.py`, `churn.py`, `composition.py` and
+   `adversarial.py` gained `NAMED` branches; `run.py` gained C0, the
+   predictions and the reproduction check. `NamedProjection` has no `cstate`, so
+   code that reads the candidate state must choose how a `NAMED` state is read.
 
 ## Re-run after review
 
@@ -853,3 +1027,391 @@ Consequences for equality (O1) and identity (O3), counted over the factorial pro
 | cross-function: compiler, edit in upper | O5/STRUCT | 2 of 549 entities change VersionID; 2 removed, 2 created | 129 of 549 entities change value class (5 of 5 functions) | predicted mismatch | 1 | predicted: direction review section 3.3 (version identity derived from candidate equality propagates to ancestors and referrers) |  |
 | cross-function: compiler, edit in upper | O5/REF | 2 of 549 entities change VersionID; 2 removed, 2 created | 2 of 549 entities change value class (1 of 5 functions) | agree | 1 |  |  |
 
+## Full report of the revision 1 run (`6739252`)
+
+The run's output, with headings demoted one level.
+
+### Counts per observable and classification
+
+| observable | agree | predicted mismatch | unexpected mismatch | gap | total |
+|---|---|---|---|---|---|
+| C0/NAMED | 67 | 0 | 0 | 0 | 67 |
+| O0/NAMED/exact | 3444 | 316 | 0 | 0 | 3760 |
+| O0/NAMED/modulo-arity | 3760 | 0 | 0 | 0 | 3760 |
+| O0/REF/exact | 3444 | 316 | 0 | 0 | 3760 |
+| O0/REF/modulo-arity | 3760 | 0 | 0 | 0 | 3760 |
+| O0/STRUCT/exact | 3444 | 316 | 0 | 0 | 3760 |
+| O0/STRUCT/modulo-arity | 3760 | 0 | 0 | 0 | 3760 |
+| O1/NAMED | 1976135 | 0 | 0 | 0 | 1976135 |
+| O1/REF | 1976135 | 0 | 0 | 0 | 1976135 |
+| O1/STRUCT | 1971756 | 4379 | 0 | 0 | 1976135 |
+| O2/NAMED | 132 | 0 | 0 | 0 | 132 |
+| O2/REF | 132 | 0 | 0 | 0 | 132 |
+| O2/STRUCT | 132 | 0 | 0 | 0 | 132 |
+| O3/NAMED/built twice | 47 | 0 | 0 | 0 | 47 |
+| O3/NAMED/one literal changed | 47 | 0 | 0 | 0 | 47 |
+| O3/NAMED/renamed (order-preserving) | 67 | 0 | 0 | 0 | 67 |
+| O3/NAMED/renamed (order-reversing) | 67 | 0 | 0 | 0 | 67 |
+| O3/REF/built twice | 47 | 0 | 0 | 0 | 47 |
+| O3/REF/one literal changed | 47 | 0 | 0 | 0 | 47 |
+| O3/REF/renamed (order-preserving) | 61 | 6 | 0 | 0 | 67 |
+| O3/REF/renamed (order-reversing) | 61 | 6 | 0 | 0 | 67 |
+| O3/STRUCT/built twice | 47 | 0 | 0 | 0 | 47 |
+| O3/STRUCT/one literal changed | 47 | 0 | 0 | 0 | 47 |
+| O3/STRUCT/renamed (order-preserving) | 0 | 67 | 0 | 0 | 67 |
+| O3/STRUCT/renamed (order-reversing) | 0 | 67 | 0 | 0 | 67 |
+| O4a/NAMED | 73 | 0 | 0 | 0 | 73 |
+| O4a/REF | 73 | 0 | 0 | 0 | 73 |
+| O4a/STRUCT | 73 | 0 | 0 | 0 | 73 |
+| O4b/NAMED | 77 | 0 | 0 | 0 | 77 |
+| O4b/REF | 71 | 6 | 0 | 0 | 77 |
+| O4b/STRUCT | 71 | 6 | 0 | 0 | 77 |
+| O5/NAMED | 3 | 0 | 0 | 0 | 3 |
+| O5/REF | 3 | 0 | 0 | 0 | 3 |
+| O5/STRUCT | 0 | 3 | 0 | 0 | 3 |
+| adv2/NAMED | 1 | 0 | 0 | 0 | 1 |
+| adv2/REF | 1 | 0 | 0 | 0 | 1 |
+| adv2/STRUCT | 1 | 0 | 0 | 0 | 1 |
+
+Overall: agree 5947086, predicted mismatch 5488, unexpected mismatch 0, gap 0
+
+### Every row that is not agree
+
+| case | observable | main | candidate | classification | n | note | examples |
+|---|---|---|---|---|---|---|---|
+| corpus: factorial | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | factorial/0.7 |
+| corpus: factorial | O0/REF/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | factorial/0.7 |
+| corpus: factorial | O0/NAMED/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | factorial/0.7 |
+| corpus: factorial | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: factorial | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: fibonacci | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | fibonacci/0.10; fibonacci/0.6 |
+| corpus: fibonacci | O0/REF/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | fibonacci/0.10; fibonacci/0.6 |
+| corpus: fibonacci | O0/NAMED/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | fibonacci/0.10; fibonacci/0.6 |
+| corpus: fibonacci | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: fibonacci | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: sum_to_n | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | sum_to_n/0.7 |
+| corpus: sum_to_n | O0/REF/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | sum_to_n/0.7 |
+| corpus: sum_to_n | O0/NAMED/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | sum_to_n/0.7 |
+| corpus: sum_to_n | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: sum_to_n | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: gcd | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: gcd | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: collatz_step_count | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 4 | predicted: arity collapse (single endpoint and one-element tuple project alike) | collatz_half/0.7; collatz_is_even/0.10; collatz_step_count_from/0.6 |
+| corpus: collatz_step_count | O0/REF/exact | content | decoded differs | predicted mismatch | 4 | predicted: arity collapse (single endpoint and one-element tuple project alike) | collatz_half/0.7; collatz_is_even/0.10; collatz_step_count_from/0.6 |
+| corpus: collatz_step_count | O0/NAMED/exact | content | decoded differs | predicted mismatch | 4 | predicted: arity collapse (single endpoint and one-element tuple project alike) | collatz_half/0.7; collatz_is_even/0.10; collatz_step_count_from/0.6 |
+| corpus: collatz_step_count | O1/STRUCT | unequal | equal | predicted mismatch | 4 | predicted: adversarial 1 (distinct referents with equal content) | collatz_half/0.1 ~ collatz_is_even/0.1; collatz_half/0.8 ~ collatz_is_even/0.11; collatz_is_even/0.6 ~ collatz_step_count_from/0.1 |
+| corpus: collatz_step_count | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: collatz_step_count | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: deep_loop | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | is_even/0.5; is_odd/0.5 |
+| corpus: deep_loop | O0/REF/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | is_even/0.5; is_odd/0.5 |
+| corpus: deep_loop | O0/NAMED/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | is_even/0.5; is_odd/0.5 |
+| corpus: deep_loop | O1/STRUCT | unequal | equal | predicted mismatch | 13 | predicted: adversarial 1 (distinct referents with equal content) | is_even/0.1 ~ is_odd/0.1; is_even/0.1 ~ sum_apply/0.1; is_even/0.1 ~ sum_loop/0.1 |
+| corpus: deep_loop | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: deep_loop | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: deep_recursion | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | deep_sum/0.7 |
+| corpus: deep_recursion | O0/REF/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | deep_sum/0.7 |
+| corpus: deep_recursion | O0/NAMED/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | deep_sum/0.7 |
+| corpus: deep_recursion | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: deep_recursion | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: abs_value | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: abs_value | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: max_of_two | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: max_of_two | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: clamp | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: clamp | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: counter | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: counter | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: account | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: account | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: power_compiler | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 4 | predicted: arity collapse (single endpoint and one-element tuple project alike) | compile/0.0; compile/0.3; emit/0.5 |
+| corpus: power_compiler | O0/REF/exact | content | decoded differs | predicted mismatch | 4 | predicted: arity collapse (single endpoint and one-element tuple project alike) | compile/0.0; compile/0.3; emit/0.5 |
+| corpus: power_compiler | O0/NAMED/exact | content | decoded differs | predicted mismatch | 4 | predicted: arity collapse (single endpoint and one-element tuple project alike) | compile/0.0; compile/0.3; emit/0.5 |
+| corpus: power_compiler | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: power_compiler | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: checked_compile | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 5 | predicted: arity collapse (single endpoint and one-element tuple project alike) | checked_compile/0.3; emit/0.5; emit/0.7 |
+| corpus: checked_compile | O0/REF/exact | content | decoded differs | predicted mismatch | 5 | predicted: arity collapse (single endpoint and one-element tuple project alike) | checked_compile/0.3; emit/0.5; emit/0.7 |
+| corpus: checked_compile | O0/NAMED/exact | content | decoded differs | predicted mismatch | 5 | predicted: arity collapse (single endpoint and one-element tuple project alike) | checked_compile/0.3; emit/0.5; emit/0.7 |
+| corpus: checked_compile | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: checked_compile | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: replace_self | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | replace_self/0.1 |
+| corpus: replace_self | O0/REF/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | replace_self/0.1 |
+| corpus: replace_self | O0/NAMED/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | replace_self/0.1 |
+| corpus: replace_self | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: replace_self | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: insertion_sort | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 4 | predicted: arity collapse (single endpoint and one-element tuple project alike) | insert/0.14; insert/0.18; insert/0.5 |
+| corpus: insertion_sort | O0/REF/exact | content | decoded differs | predicted mismatch | 4 | predicted: arity collapse (single endpoint and one-element tuple project alike) | insert/0.14; insert/0.18; insert/0.5 |
+| corpus: insertion_sort | O0/NAMED/exact | content | decoded differs | predicted mismatch | 4 | predicted: arity collapse (single endpoint and one-element tuple project alike) | insert/0.14; insert/0.18; insert/0.5 |
+| corpus: insertion_sort | O1/STRUCT | unequal | equal | predicted mismatch | 4 | predicted: adversarial 1 (distinct referents with equal content) | insert/0.10 ~ insert/0.19; insert/0.14 ~ insert/0.5; insert/0.2 ~ insert/0.27 |
+| corpus: insertion_sort | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: insertion_sort | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: let_bindings | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: let_bindings | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: map | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | map/0.7; map/0.8 |
+| corpus: map | O0/REF/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | map/0.7; map/0.8 |
+| corpus: map | O0/NAMED/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | map/0.7; map/0.8 |
+| corpus: map | O1/STRUCT | unequal | equal | predicted mismatch | 1 | predicted: adversarial 1 (distinct referents with equal content) | map/0.18 ~ map/0.2 |
+| corpus: map | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: map | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: fold | O1/STRUCT | unequal | equal | predicted mismatch | 1 | predicted: adversarial 1 (distinct referents with equal content) | fold/0.17 ~ fold/0.2 |
+| corpus: fold | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: fold | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: sort_swap | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 4 | predicted: arity collapse (single endpoint and one-element tuple project alike) | insert_by/0.15; insert_by/0.19; insert_by/0.5 |
+| corpus: sort_swap | O0/REF/exact | content | decoded differs | predicted mismatch | 4 | predicted: arity collapse (single endpoint and one-element tuple project alike) | insert_by/0.15; insert_by/0.19; insert_by/0.5 |
+| corpus: sort_swap | O0/NAMED/exact | content | decoded differs | predicted mismatch | 4 | predicted: arity collapse (single endpoint and one-element tuple project alike) | insert_by/0.15; insert_by/0.19; insert_by/0.5 |
+| corpus: sort_swap | O1/STRUCT | unequal | equal | predicted mismatch | 4 | predicted: adversarial 1 (distinct referents with equal content) | insert_by/0.11 ~ insert_by/0.20; insert_by/0.15 ~ insert_by/0.5; insert_by/0.2 ~ insert_by/0.29 |
+| corpus: sort_swap | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: sort_swap | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: map_long_tuple | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | map/0.7; map/0.8 |
+| corpus: map_long_tuple | O0/REF/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | map/0.7; map/0.8 |
+| corpus: map_long_tuple | O0/NAMED/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | map/0.7; map/0.8 |
+| corpus: map_long_tuple | O1/STRUCT | unequal | equal | predicted mismatch | 1 | predicted: adversarial 1 (distinct referents with equal content) | map/0.18 ~ map/0.2 |
+| corpus: map_long_tuple | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: map_long_tuple | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: make_adder | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | apply_adder/0.0; apply_adder/0.1 |
+| corpus: make_adder | O0/REF/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | apply_adder/0.0; apply_adder/0.1 |
+| corpus: make_adder | O0/NAMED/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | apply_adder/0.0; apply_adder/0.1 |
+| corpus: make_adder | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: make_adder | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: compose | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 7 | predicted: arity collapse (single endpoint and one-element tuple project alike) | compose/0.1; compose/0.3; run_compose/0.1 |
+| corpus: compose | O0/REF/exact | content | decoded differs | predicted mismatch | 7 | predicted: arity collapse (single endpoint and one-element tuple project alike) | compose/0.1; compose/0.3; run_compose/0.1 |
+| corpus: compose | O0/NAMED/exact | content | decoded differs | predicted mismatch | 7 | predicted: arity collapse (single endpoint and one-element tuple project alike) | compose/0.1; compose/0.3; run_compose/0.1 |
+| corpus: compose | O1/STRUCT | unequal | equal | predicted mismatch | 1 | predicted: adversarial 1 (distinct referents with equal content) | run_compose/0.7 ~ run_two_closures/0.10 |
+| corpus: compose | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: compose | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: compiler | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 75 | predicted: arity collapse (single endpoint and one-element tuple project alike) | evals/0.12; evals/0.15; lower/0.103 |
+| corpus: compiler | O0/REF/exact | content | decoded differs | predicted mismatch | 75 | predicted: arity collapse (single endpoint and one-element tuple project alike) | evals/0.12; evals/0.15; lower/0.103 |
+| corpus: compiler | O0/NAMED/exact | content | decoded differs | predicted mismatch | 75 | predicted: arity collapse (single endpoint and one-element tuple project alike) | evals/0.12; evals/0.15; lower/0.103 |
+| corpus: compiler | O1/STRUCT | unequal | equal | predicted mismatch | 685 | predicted: adversarial 1 (distinct referents with equal content) | evals/0.13 ~ seq_code/0.16; evals/0.15 ~ seq_code/0.10; evals/0.15 ~ seq_code/0.18 |
+| corpus: compiler | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: compiler | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: instrument | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 78 | predicted: arity collapse (single endpoint and one-element tuple project alike) | evals/0.12; evals/0.15; instrument/0.1 |
+| corpus: instrument | O0/REF/exact | content | decoded differs | predicted mismatch | 78 | predicted: arity collapse (single endpoint and one-element tuple project alike) | evals/0.12; evals/0.15; instrument/0.1 |
+| corpus: instrument | O0/NAMED/exact | content | decoded differs | predicted mismatch | 78 | predicted: arity collapse (single endpoint and one-element tuple project alike) | evals/0.12; evals/0.15; instrument/0.1 |
+| corpus: instrument | O1/STRUCT | unequal | equal | predicted mismatch | 686 | predicted: adversarial 1 (distinct referents with equal content) | evals/0.13 ~ seq_code/0.16; evals/0.15 ~ seq_code/0.10; evals/0.15 ~ seq_code/0.18 |
+| corpus: instrument | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: instrument | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: bootstrap | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 106 | predicted: arity collapse (single endpoint and one-element tuple project alike) | arg_exprs/0.6; evals/0.12; evals/0.15 |
+| corpus: bootstrap | O0/REF/exact | content | decoded differs | predicted mismatch | 106 | predicted: arity collapse (single endpoint and one-element tuple project alike) | arg_exprs/0.6; evals/0.12; evals/0.15 |
+| corpus: bootstrap | O0/NAMED/exact | content | decoded differs | predicted mismatch | 106 | predicted: arity collapse (single endpoint and one-element tuple project alike) | arg_exprs/0.6; evals/0.12; evals/0.15 |
+| corpus: bootstrap | O1/STRUCT | unequal | equal | predicted mismatch | 2977 | predicted: adversarial 1 (distinct referents with equal content) | arg_exprs/0.1 ~ vm_bind/0.1; arg_exprs/0.14 ~ evals/0.7; arg_exprs/0.14 ~ seq_code/0.26 |
+| corpus: bootstrap | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| corpus: bootstrap | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: rename (source) | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | quad/0.0; quad/0.1 |
+| continuity: rename (source) | O0/REF/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | quad/0.0; quad/0.1 |
+| continuity: rename (source) | O0/NAMED/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | quad/0.0; quad/0.1 |
+| continuity: rename (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: rename (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: rename (destination) | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | quad/0.0; quad/0.1 |
+| continuity: rename (destination) | O0/REF/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | quad/0.0; quad/0.1 |
+| continuity: rename (destination) | O0/NAMED/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | quad/0.0; quad/0.1 |
+| continuity: rename (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: rename (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: delete_function (source) | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | main/0.0 |
+| continuity: delete_function (source) | O0/REF/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | main/0.0 |
+| continuity: delete_function (source) | O0/NAMED/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | main/0.0 |
+| continuity: delete_function (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: delete_function (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: delete_function (destination) | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | main/0.0 |
+| continuity: delete_function (destination) | O0/REF/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | main/0.0 |
+| continuity: delete_function (destination) | O0/NAMED/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | main/0.0 |
+| continuity: delete_function (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: delete_function (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: delete_called (source) | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | main/0.0 |
+| continuity: delete_called (source) | O0/REF/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | main/0.0 |
+| continuity: delete_called (source) | O0/NAMED/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | main/0.0 |
+| continuity: delete_called (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: delete_called (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: merge_cells (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: merge_cells (source) | O3/REF/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: merge_cells (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: merge_cells (source) | O3/REF/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: merge_cells (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: merge_cells (destination) | O3/REF/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: merge_cells (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: merge_cells (destination) | O3/REF/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: split_cell (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: split_cell (source) | O3/REF/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: split_cell (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: split_cell (source) | O3/REF/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: split_cell (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: split_cell (destination) | O3/REF/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: split_cell (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: split_cell (destination) | O3/REF/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: upgrade_cell (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: upgrade_cell (source) | O3/REF/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: upgrade_cell (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: upgrade_cell (source) | O3/REF/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: upgrade_cell (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: upgrade_cell (destination) | O3/REF/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: upgrade_cell (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: upgrade_cell (destination) | O3/REF/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: fold (source) | O1/STRUCT | unequal | equal | predicted mismatch | 1 | predicted: adversarial 1 (distinct referents with equal content) | nested/0.2 ~ plain/0.0 |
+| continuity: fold (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: fold (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: fold (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: fold (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: activate_define (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: activate_define (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: activate_define (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: activate_define (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: leaf_replace (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: leaf_replace (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: leaf_replace (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: leaf_replace (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: insert (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: insert (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: insert (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: insert (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: remove (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: remove (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: remove (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: remove (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: wrap (source) | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.2 |
+| continuity: wrap (source) | O0/REF/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.2 |
+| continuity: wrap (source) | O0/NAMED/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.2 |
+| continuity: wrap (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: wrap (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: wrap (destination) | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.2; f/1.1 |
+| continuity: wrap (destination) | O0/REF/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.2; f/1.1 |
+| continuity: wrap (destination) | O0/NAMED/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.2; f/1.1 |
+| continuity: wrap (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: wrap (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: unwrap (source) | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.1; f/0.3 |
+| continuity: unwrap (source) | O0/REF/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.1; f/0.3 |
+| continuity: unwrap (source) | O0/NAMED/exact | content | decoded differs | predicted mismatch | 2 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.1; f/0.3 |
+| continuity: unwrap (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: unwrap (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: unwrap (destination) | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.3 |
+| continuity: unwrap (destination) | O0/REF/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.3 |
+| continuity: unwrap (destination) | O0/NAMED/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.3 |
+| continuity: unwrap (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: unwrap (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: swap (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: swap (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: swap (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: swap (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: redefine_same (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: redefine_same (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: redefine_same (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: redefine_same (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: shared_subtree (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: shared_subtree (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: shared_subtree (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: shared_subtree (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: ambiguous_duplicate (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: ambiguous_duplicate (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: ambiguous_duplicate (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: ambiguous_duplicate (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: rebase_disjoint (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: rebase_disjoint (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: rebase_disjoint (destination 1) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: rebase_disjoint (destination 1) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: rebase_disjoint (destination 2) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: rebase_disjoint (destination 2) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: conflicting_edits (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: conflicting_edits (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: extract_function (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: extract_function (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: extract_function (destination) | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/1.1 |
+| continuity: extract_function (destination) | O0/REF/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/1.1 |
+| continuity: extract_function (destination) | O0/NAMED/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/1.1 |
+| continuity: extract_function (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: extract_function (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: inline_function (source) | O0/STRUCT/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.1 |
+| continuity: inline_function (source) | O0/REF/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.1 |
+| continuity: inline_function (source) | O0/NAMED/exact | content | decoded differs | predicted mismatch | 1 | predicted: arity collapse (single endpoint and one-element tuple project alike) | f/0.1 |
+| continuity: inline_function (source) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: inline_function (source) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: inline_function (destination) | O3/STRUCT/renamed (order-preserving) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| continuity: inline_function (destination) | O3/STRUCT/renamed (order-reversing) | different StateID | isomorphic | predicted mismatch | 1 | predicted: section 3.11 (EntityID is not part of state identity) |  |
+| adversarial 1: two referents with equal content | O1/STRUCT | unequal | equal | predicted mismatch | 1 | predicted: adversarial 1 (distinct referents with equal content) | r1 ~ r2 |
+| adversarial 3: symmetric, differently named | O4b/STRUCT | Unknown | varies across isomorphisms | predicted mismatch | 2 | predicted: section 3.11 (the result depends on which isomorphism joins the steps); isomorphisms joining the middle states: 2 | p; q |
+| adversarial 3: symmetric, differently named | O4b/REF | Unknown | varies across isomorphisms | predicted mismatch | 2 | predicted: section 3.11 (the result depends on which isomorphism joins the steps); isomorphisms joining the middle states: 2 | p; q |
+| adversarial 3: asymmetric control, differently named | O4b/STRUCT | Unknown | Known(1) | predicted mismatch | 2 | predicted: adversarial 3 (main cannot join independently named middle states; the candidate joins them by isomorphism); isomorphisms joining the middle states: 1 | p; q |
+| adversarial 3: asymmetric control, differently named | O4b/REF | Unknown | Known(1) | predicted mismatch | 2 | predicted: adversarial 3 (main cannot join independently named middle states; the candidate joins them by isomorphism); isomorphisms joining the middle states: 1 | p; q |
+| adversarial 3: symmetric, same naming | O4b/STRUCT | Known(1) | varies across isomorphisms | predicted mismatch | 2 | predicted: section 3.11 (the result depends on which isomorphism joins the steps); isomorphisms joining the middle states: 2 | p; q |
+| adversarial 3: symmetric, same naming | O4b/REF | Known(1) | varies across isomorphisms | predicted mismatch | 2 | predicted: section 3.11 (the result depends on which isomorphism joins the steps); isomorphisms joining the middle states: 2 | p; q |
+| leaf_edit_41 | O5/STRUCT | 1 of 42 entities change VersionID; 1 relowered | 22 of 42 entities change value class (1 of 1 functions) | predicted mismatch | 1 | predicted: direction review section 3.3 (version identity derived from candidate equality propagates to ancestors and referrers) |  |
+| leaf_edit_401 | O5/STRUCT | 1 of 402 entities change VersionID; 1 relowered | 202 of 402 entities change value class (1 of 1 functions) | predicted mismatch | 1 | predicted: direction review section 3.3 (version identity derived from candidate equality propagates to ancestors and referrers) |  |
+| cross-function: compiler, edit in upper | O5/STRUCT | 2 of 549 entities change VersionID; 2 removed, 2 created | 129 of 549 entities change value class (5 of 5 functions) | predicted mismatch | 1 | predicted: direction review section 3.3 (version identity derived from candidate equality propagates to ancestors and referrers) |  |
+
+### Adversarial case 2: recursion (factorial)
+
+| case | observable | main | candidate | classification | n | note | examples |
+|---|---|---|---|---|---|---|---|
+| adversarial 2: factorial | adv2/STRUCT | function links to itself by EntityID | self-loop: the link role of handle 0 targets handle 0 | agree | 1 | matches the predicted representation |  |
+| adversarial 2: factorial | adv2/REF | function links to itself by EntityID | nullary atom symbol:'factorial' | agree | 1 | matches the predicted representation |  |
+| adversarial 2: factorial | adv2/NAMED | function links to itself by EntityID | Named target 'factorial'; containment acyclic | agree | 1 | self-reference is a Named target to the function's own name, not a contained cycle |  |
+
+Consequences for equality (O1) and identity (O3), counted over the factorial program:
+
+| observable | classification | n |
+|---|---|---|
+| O1/NAMED | agree | 66 |
+| O1/REF | agree | 66 |
+| O1/STRUCT | agree | 66 |
+| O3/NAMED/built twice | agree | 1 |
+| O3/NAMED/one literal changed | agree | 1 |
+| O3/NAMED/renamed (order-preserving) | agree | 1 |
+| O3/NAMED/renamed (order-reversing) | agree | 1 |
+| O3/REF/built twice | agree | 1 |
+| O3/REF/one literal changed | agree | 1 |
+| O3/REF/renamed (order-preserving) | agree | 1 |
+| O3/REF/renamed (order-reversing) | agree | 1 |
+| O3/STRUCT/built twice | agree | 1 |
+| O3/STRUCT/one literal changed | agree | 1 |
+| O3/STRUCT/renamed (order-preserving) | predicted mismatch | 1 |
+| O3/STRUCT/renamed (order-reversing) | predicted mismatch | 1 |
+
+### Composition (O4): outcomes by kind
+
+| variant | main | candidate | classification | n |
+|---|---|---|---|---|
+| O4a | Known(0) | Known(0) | agree | 48 |
+| O4a | Known(1) | Known(1) | agree | 159 |
+| O4a | Known(2) | Known(2) | agree | 3 |
+| O4a | Unknown | Unknown | agree | 6 |
+| O4a | absent (not mapped) | Unknown | agree | 3 |
+| O4b | Known(0) | Known(0) | agree | 48 |
+| O4b | Known(1) | Known(1) | agree | 155 |
+| O4b | Known(1) | varies across isomorphisms | predicted mismatch | 4 |
+| O4b | Known(2) | Known(2) | agree | 3 |
+| O4b | Unknown | Known(1) | predicted mismatch | 4 |
+| O4b | Unknown | Unknown | agree | 10 |
+| O4b | Unknown | varies across isomorphisms | predicted mismatch | 4 |
+| O4b | absent (not mapped) | Unknown | agree | 3 |
+
+### Version churn (O5)
+
+| case | observable | main | candidate | classification | n | note | examples |
+|---|---|---|---|---|---|---|---|
+| leaf_edit_41 | O5/STRUCT | 1 of 42 entities change VersionID; 1 relowered | 22 of 42 entities change value class (1 of 1 functions) | predicted mismatch | 1 | predicted: direction review section 3.3 (version identity derived from candidate equality propagates to ancestors and referrers) |  |
+| leaf_edit_41 | O5/REF | 1 of 42 entities change VersionID; 1 relowered | 1 of 42 entities change value class (0 of 1 functions) | agree | 1 |  |  |
+| leaf_edit_41 | O5/NAMED | 1 of 42 entities change VersionID; 1 relowered | 1 of 42 entities change value class (0 of 1 functions) | agree | 1 |  |  |
+| leaf_edit_401 | O5/STRUCT | 1 of 402 entities change VersionID; 1 relowered | 202 of 402 entities change value class (1 of 1 functions) | predicted mismatch | 1 | predicted: direction review section 3.3 (version identity derived from candidate equality propagates to ancestors and referrers) |  |
+| leaf_edit_401 | O5/REF | 1 of 402 entities change VersionID; 1 relowered | 1 of 402 entities change value class (0 of 1 functions) | agree | 1 |  |  |
+| leaf_edit_401 | O5/NAMED | 1 of 402 entities change VersionID; 1 relowered | 1 of 402 entities change value class (0 of 1 functions) | agree | 1 |  |  |
+| cross-function: compiler, edit in upper | O5/STRUCT | 2 of 549 entities change VersionID; 2 removed, 2 created | 129 of 549 entities change value class (5 of 5 functions) | predicted mismatch | 1 | predicted: direction review section 3.3 (version identity derived from candidate equality propagates to ancestors and referrers) |  |
+| cross-function: compiler, edit in upper | O5/REF | 2 of 549 entities change VersionID; 2 removed, 2 created | 2 of 549 entities change value class (1 of 5 functions) | agree | 1 |  |  |
+| cross-function: compiler, edit in upper | O5/NAMED | 2 of 549 entities change VersionID; 2 removed, 2 created | 2 of 549 entities change value class (1 of 5 functions) | agree | 1 |  |  |
+
+### Predictions (revision plan section 3)
+
+| observable | prediction | result | detail |
+|---|---|---|---|
+| O0 | round trip exact modulo arity; arity collapse unchanged | hit | modulo arity: 3760 of 3760 agree; exact: 0 unexpected, 316 arity collapses (STRUCT: 316) |
+| O1 | agrees with main on every pair, as REF did | hit | 1976135 of 1976135 entity pairs agree |
+| O2 | agrees | hit | 132 of 132 link targets agree |
+| O3 built twice / literal changed | agrees | hit | 94 of 94 state pairs agree |
+| O3 renamed (both orders) | agrees with main: not isomorphic, names are fixed | hit | 134 of 134 renamed state pairs (not isomorphic, as main) agree |
+| O4 shared and independent middle states | agrees with main on every real chain | hit | 138 of 138 composed sources (real chains and adversarial 4) agree |
+| adversarial 3, differently named | Unknown, as main | hit | 4 of 4 sources agree; 4 are Unknown |
+| adversarial 3, symmetric with same naming | agrees with main; no dependence on an isomorphism | hit | 8 of 8 sources agree; 0 vary (no isomorphism is searched) |
+| O5, all three scenarios | agrees with main (1, 1, 2) | hit | 3 of 3 scenarios agree; VersionID changes in main: [1, 1, 2] |
+| contained cycles in projected states | none | hit | 67 of 67 projected states agree; 0 with a contained cycle |
+
+Hits 10 of 10.
+
+### Reproduction of the frozen candidate (`cb74cea`)
+
+STRUCT and REF reproduce the recorded per-observable counts and O5 rows exactly.

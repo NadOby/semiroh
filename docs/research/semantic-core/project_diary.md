@@ -735,3 +735,40 @@ scenarios, the largest reaching all five functions of `compiler`.
 
 Whether that churn counts against H1 is a step-8 question; step 7 has not
 started.
+
+## 2026-10-05T15:27+02:00 – Candidate revision 1 run (named roots)
+
+### FACT
+
+The single candidate revision was executed from `revision_plan.md`: charter
+§3.12, `research/core_projection/named.py`, the `NAMED` projection mode, the
+C0 observable (contained cycles) and a predictions check in the report. The
+frozen candidate (`core.py`, modes `STRUCT` and `REF`) was not changed. The
+experiment was run once, at `6739252`.
+
+```text
+predictions of revision_plan.md section 3: 10 of 10 hit
+NAMED: 1,983,920 agree, 316 predicted (O0 arity collapse), 0 unexpected, 0 gaps
+STRUCT and REF: per-observable counts identical to cb74cea
+O1 NAMED 1,976,135 of 1,976,135 agree (STRUCT: 4,379 predicted mismatches)
+O5 NAMED: 1, 1, 2 value-class changes = main's VersionID changes (STRUCT: 22, 202, 129)
+C0: no contained cycle in 67 projected states; factorial's self-reference is a Named target
+```
+
+Details, and the choices the plan left open, in
+`docs/research/semantic-core/projection_results.md` ("Revision 1 run").
+
+### INTERPRETATION
+
+The informative agreements are equality, links and version churn, which the
+`REF` control also had but only with `EntityID` strings in atoms; `NAMED` holds
+the names in targets and bindings. The agreements on renamed states and on
+composition hold largely by the definition of the revision (names fixed in
+state identity, continuity over names), so they restate it more than they test
+it. The cost is charter §3.8: names become part of values that refer to them and
+of state identity.
+
+### OPEN
+
+Whether revision 1 counts as the same candidate or as a new mechanism, and how
+it scores against the mechanism inventory, is step 8, an Opus task.

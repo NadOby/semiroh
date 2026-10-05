@@ -1,0 +1,33 @@
+name: Core projection experiment
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - research/semantic-core
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Test the instruments
+        run: python3 -m unittest discover -s research -t research
+
+      # Mismatches are results, not failures: only a crash fails this step.
+      - name: Run the experiment
+        run: |
+          PYTHONPATH=research python3 -m core_projection.run | tee projection-report.md
+          cat projection-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: projection-report
+          path: projection-report.md

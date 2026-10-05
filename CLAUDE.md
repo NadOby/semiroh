@@ -30,12 +30,24 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 
 ## Workflow
 
-- Work follows `docs/roadmap.md`: its task order and its plan, execute,
-  review loop. Planning and review run on Opus, execution on Sonnet; each
-  phase ends by updating `handoff.md` and asking the owner to switch model.
-  No background agents.
-- Start from `handoff.md`: it is the compact current state (task, phase,
-  decisions, next steps), not a log. Keep it short and current.
+- Work follows `docs/roadmap.md`: its task order, and the five task roles
+  its Workflow section defines: Plan, Execute, Review, Resolve and Publish.
+  "Plan task N", "Execute task N", "Review task N", "Resolve task N" and
+  "Publish task N" are sufficient instructions, because the roadmap defines
+  each role's contract; read it when given one.
+- Plan, Execute and Review normally run in separate fresh chats. The context
+  or model that implemented a change is never its sole certifier: Review is
+  independent of Execute, and fixes for its findings belong to Resolve, not
+  to Review. A different model family can add independence but is optional;
+  role separation and fresh context are mandatory.
+- No background agents.
+- `handoff.md` is a compact checkpoint of state and claims (task, role,
+  decisions, next steps), not a log, not an authority and not verification
+  evidence: check a claim against the repository before relying on it. Keep
+  it short and current.
+- Review preserves epistemic labels: Decided / Provisional / Open in
+  specifications, and verified defect / limitation / hypothesis /
+  documentation drift in its findings.
 - Docs, tests, and code are three representations of one spec: change them
   together. Mark doc sections Decided / Provisional / Open where a design
   decision actually has that status.
@@ -50,7 +62,8 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   exposes a concrete architectural or process weakness. Surface the smallest
   justified improvement and explain why it follows from the evidence.
 - Distinguish changes required for the current task from useful architectural
-  or process follow-ups so scope remains explicit.
+  or process follow-ups so scope remains explicit. Non-blocking follow-ups
+  stay separate from the current task's defects.
 
 ## Conventions
 

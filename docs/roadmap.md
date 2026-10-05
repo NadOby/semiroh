@@ -6,28 +6,92 @@ order unless marked independent; each one is a PR and follows CLAUDE.md.
 
 ## Workflow
 
-**Decided.** A loop of phases, each in its own chat, with no background
-agents. `handoff.md` at the repository root carries the state between chats.
+**Decided.** Each task passes through five roles: Plan, Execute, Review,
+Resolve and Publish, each normally in its own fresh chat, with no background
+agents. The owner starts a role with "Plan task N", "Execute task N",
+"Review task N", "Resolve task N" or "Publish task N"; the contracts below
+make that instruction sufficient. Every role starts by fetching the
+repository and reading CLAUDE.md, this section, the task's roadmap entry and
+`handoff.md`, and ends by recording its state in `handoff.md` and stopping.
+`handoff.md` is a checkpoint of claims, not evidence that they hold.
 
-1. **Plan** (Opus). Write the task's plan and acceptance tests on a branch
-   `task/<n>-<name>`, settle with the owner any decision like D1, and update
-   `handoff.md` with what execution needs. Then stop and ask the owner to
-   switch to Sonnet.
-2. **Execute** (Sonnet). Implement the plan from `handoff.md`, committing
-   after every coherent step, without changing the acceptance tests. Update
-   `handoff.md` with what was done and what is open, then stop and ask the
-   owner to switch to Opus.
-3. **Review and publish** (Opus). Check the work against the plan and
-   CLAUDE.md, fix small issues as separate commits, check that the
-   acceptance tests are unchanged, run the suite, push, and open a ready PR
-   naming anything that needs the owner.
-4. **Merge.** The owner merges, or pushes back, and says so.
+1. **Plan** (`Plan task N`). A fresh context, preferably with the strongest
+   reasoning model available. No production changes.
+   - Inspect the current repository rather than relying on earlier context;
+     read the roadmap task, the relevant specifications, CLAUDE.md and
+     `handoff.md`.
+   - Treat the roadmap entry as a goal to validate, not a recipe to obey:
+     check that its assumptions still hold, and find contradictions,
+     underspecified semantics, scope hazards and decisions that need the
+     owner. Bring every decision that shapes the language to the owner,
+     like D1, with options and a recommendation; make every other choice
+     and mark it Provisional.
+   - Establish the intended semantics, the exact scope, an implementation
+     order where useful, falsifiable acceptance criteria where practical,
+     the tests and invariants that must not change, and the decisions
+     Execute must not make alone. A new layer gets an acceptance test that
+     runs the existing corpora through it.
+   - Name the important claims Review must verify independently, and keep
+     required work apart from useful follow-ups.
+   - Write the spec and acceptance tests on a branch `task/<n>-<name>`, and
+     turn `handoff.md` into the execution contract.
+2. **Execute** (`Execute task N`). A separate implementation context with
+   write access.
+   - Implement the Plan contract, committing coherent steps, preserving
+     settled semantics and the acceptance tests.
+   - Make provisional choices only where the plan permits them. If the work
+     shows the plan is materially wrong, do not redesign around it: return
+     the decision to the owner or to a new Plan pass.
+   - Record in `handoff.md` the implementation state, provisional choices,
+     verification performed, known limitations, mutation-survivor decisions
+     and the claims Review must verify.
+   - Execute does not certify its own implementation as correct.
+3. **Review** (`Review task N`). A fresh context separate from Execute;
+   a different model when useful. Adversarial, and read-only for the
+   implementation.
+   - Fetch the current repository before judging anything. Read
+     `handoff.md` as claims to check, not as evidence.
+   - Verify the important claims independently against code, tests, docs,
+     git history and diff, and CI, and check conformance with the Plan
+     contract.
+   - Look actively for false confidence: weakened or changed acceptance
+     tests; test gaming or task-specific special cases in production code;
+     self-referential or non-independent oracles; stale or over-recorded
+     goldens; incorrect mutation-survivor carry-over; CI gaps; accidental
+     semantic or public-API changes; replay or reduction mistakes;
+     documentation drift.
+   - Classify each observation as a verified defect, a limitation, a
+     hypothesis or documentation drift. Give each verified defect a severity
+     from P0 to P3, its exact location, why it is a defect, a concrete
+     failure mode or counterexample, and the smallest valid fix. Do not turn
+     suspicion into a defect, and do not re-raise historical issues that the
+     current code has fixed.
+   - Do not repair production code, tests or specifications; record the
+     findings in `handoff.md` if needed.
+4. **Resolve** (`Resolve task N`). An execution-capable context.
+   - Handle the findings one by one: fix a verified defect with the smallest
+     valid change, or rebut it with concrete repository evidence.
+   - Do not change Decided semantics, acceptance expectations or
+     specifications to make a finding disappear; escalate such decisions to
+     the owner.
+   - Record fixes, rebuttals and unresolved findings in `handoff.md`.
+   - A fresh Review pass follows every Resolve. Review and Resolve repeat
+     until Review has no unresolved blocking finding.
+5. **Publish** (`Publish task N`). Only after an independent Review has
+   accepted the final implementation state.
+   - Fetch current `main` and rebase the task branch if needed; re-check
+     that the acceptance tests are unchanged; verify the final diff and CI;
+     check that every finding is resolved or explicitly accepted as a
+     non-blocking limitation.
+   - Open a ready PR, then mark the roadmap entry Implemented with the PR's
+     number. The PR states intentionally deferred limitations and follow-ups
+     separately from defects.
+
+The owner merges, or pushes back, and says so.
 
 A chat whose context grows heavy ends by updating `handoff.md`; the next
-chat starts from CLAUDE.md, this roadmap and `handoff.md`. The planning
-phase asks the owner only about decisions like D1; any other choice is
-made, marked Provisional and named in the PR. Mutation campaigns run in CI,
-not in a chat.
+chat in the same role starts from CLAUDE.md, this section and `handoff.md`.
+Mutation campaigns run in CI, not in a chat.
 
 ## Decision D1: graph form is canonical
 

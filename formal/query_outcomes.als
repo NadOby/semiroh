@@ -133,6 +133,42 @@ fact FourPairComparisonBudget {
 
 
 /* -------------------------------------------------------------------------
+ * Independent bisimulation witness scaffolding
+ * ---------------------------------------------------------------------- */
+
+/*
+ * Reifies a possible bisimulation relating a Comparison's roots.
+ *
+ * This is verification scaffolding only. Its purpose is to let the
+ * EqualityNo soundness check quantify over ordinary Alloy atoms rather than
+ * negatively quantify over a relation variable, which would make the check
+ * higher-order.
+ */
+sig EqualityBisimWitness {
+    comparison: one Comparison,
+    pairs: Rel -> Rel
+}
+
+fact EqualityBisimWitnessesAreValid {
+    all witness: EqualityBisimWitness {
+        some witness.pairs
+
+        (
+            witness.comparison.leftRoot
+            ->
+            witness.comparison.rightRoot
+        ) in witness.pairs
+
+        bisimulation[
+            witness.comparison.leftState,
+            witness.comparison.rightState,
+            witness.pairs
+        ]
+    }
+}
+
+
+/* -------------------------------------------------------------------------
  * Pair observations
  * ---------------------------------------------------------------------- */
 
@@ -499,6 +535,18 @@ pred UnequalLeafComparisonExists {
 
 
 /*
+ * Independent non-vacuity witness for EqualityBisimWitness.
+ *
+ * A completed Yes comparison and an independently represented root
+ * bisimulation can coexist.
+ */
+pred EqualComparisonBisimulationWitnessExists {
+    some witness: EqualityBisimWitness |
+        EqualityYes[witness.comparison]
+}
+
+
+/*
  * Reuses the important cyclic case:
  *
  *     self -> self
@@ -724,6 +772,25 @@ assert ClosedBoundedComparisonIsBisimulation {
 }
 
 
+/*
+ * EqualityNo must exclude every independently represented bisimulation
+ * containing the comparison's root pair.
+ *
+ * EqualityBisimWitness reifies the potentially higher-order relation as an
+ * Alloy atom, so this assertion remains first-order. With exactly one
+ * Comparison and one witness in the check below, a counterexample exists iff
+ * the same root pair can both satisfy EqualityNo and participate in a valid
+ * bisimulation.
+ */
+assert EqualityNoHasNoRootBisimulation {
+    all c: Comparison |
+        EqualityNo[c]
+        implies
+        no witness: EqualityBisimWitness |
+            witness.comparison = c
+}
+
+
 assert IdentityNeverExhaustsStructuralBudget {
     all
         left, right: Rel,
@@ -755,7 +822,8 @@ run EqualLeafComparisonExists
         exactly 3 Atom,
         0 EntityID,
         0 View,
-        exactly 1 Comparison
+        exactly 1 Comparison,
+        0 EqualityBisimWitness
     expect 1
 
 run UnequalLeafComparisonExists
@@ -768,7 +836,22 @@ run UnequalLeafComparisonExists
         exactly 5 Atom,
         0 EntityID,
         0 View,
-        exactly 1 Comparison
+        exactly 1 Comparison,
+        0 EqualityBisimWitness
+    expect 1
+
+run EqualComparisonBisimulationWitnessExists
+    for 4
+    but 2 State,
+        4 Rel,
+        1 Role,
+        2 RoleUse,
+        2 Slot,
+        exactly 3 Atom,
+        0 EntityID,
+        0 View,
+        exactly 1 Comparison,
+        exactly 1 EqualityBisimWitness
     expect 1
 
 run CyclicEqualityClosesWithinBudget
@@ -781,7 +864,8 @@ run CyclicEqualityClosesWithinBudget
         exactly 3 Atom,
         0 EntityID,
         0 View,
-        exactly 1 Comparison
+        exactly 1 Comparison,
+        0 EqualityBisimWitness
     expect 1
 
 run EqualityBudgetExhaustionExists
@@ -794,7 +878,8 @@ run EqualityBudgetExhaustionExists
         exactly 3 Atom,
         0 EntityID,
         0 View,
-        exactly 1 Comparison
+        exactly 1 Comparison,
+        0 EqualityBisimWitness
     expect 1
 
 run SameIdentityExists
@@ -807,7 +892,8 @@ run SameIdentityExists
         exactly 3 Atom,
         0 EntityID,
         0 View,
-        0 Comparison
+        0 Comparison,
+        0 EqualityBisimWitness
     expect 1
 
 run EqualValueDistinctIdentityExists
@@ -820,7 +906,8 @@ run EqualValueDistinctIdentityExists
         exactly 3 Atom,
         0 EntityID,
         0 View,
-        0 Comparison
+        0 Comparison,
+        0 EqualityBisimWitness
     expect 1
 
 check ClosedBoundedComparisonIsBisimulation
@@ -833,7 +920,22 @@ check ClosedBoundedComparisonIsBisimulation
         exactly 3 Atom,
         0 EntityID,
         0 View,
-        exactly 1 Comparison
+        exactly 1 Comparison,
+        0 EqualityBisimWitness
+    expect 0
+
+check EqualityNoHasNoRootBisimulation
+    for 4
+    but 2 State,
+        4 Rel,
+        1 Role,
+        3 RoleUse,
+        3 Slot,
+        exactly 3 Atom,
+        0 EntityID,
+        0 View,
+        exactly 1 Comparison,
+        exactly 1 EqualityBisimWitness
     expect 0
 
 check IdentityNeverExhaustsStructuralBudget
@@ -846,5 +948,6 @@ check IdentityNeverExhaustsStructuralBudget
         exactly 3 Atom,
         0 EntityID,
         0 View,
-        0 Comparison
+        0 Comparison,
+        0 EqualityBisimWitness
     expect 0

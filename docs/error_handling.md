@@ -255,6 +255,13 @@ decision.
   exception carrying its error (the candidate runtime is discarded as today),
   and the enclosing run treats it like any other failure of the `trial`
   instruction.
+- A handler accepts only a failure whose error value the machine set during
+  the same run. Each `run` gets a fresh private run mark, the nested run of a
+  `trial` shares it, and the machine stamps it on every error value it sets.
+  A host exception that carries an `.error` of its own, or an exception
+  escaping an independent `run` started by host code (an evaluator that calls
+  `run`), is not this run's failure and is not caught (section 1). The mark
+  is not part of the error value and not a public interface.
 - Holds, code in flight and the two-version bound follow from releasing the
   unwound calls; nothing else about versions changes.
 - Existing nodes lower exactly as before: every corpus program of main keeps

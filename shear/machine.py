@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from typing import Any, Mapping
 
 from . import bytecode
@@ -20,6 +21,10 @@ from .runtime import (
 from .values import Value
 
 _RETURN: bytecode.Chunk = (("RETURN",),)
+
+# The run whose machine is currently executing. ``_attach`` stamps the errors
+# it creates with it; ``catch`` accepts only errors stamped by its own run.
+_RUN: ContextVar[object | None] = ContextVar("shear_run", default=None)
 
 
 class _Raised(LanguageError):
@@ -69,6 +74,7 @@ def _attach(
 ) -> BaseException:
     if not hasattr(exc, "error"):
         exc.error = (origin, kind, detail, (function, node))
+        exc._shear_run = _RUN.get()
     return exc
 
 
@@ -727,7 +733,9 @@ def _execute(
     may_activate: bool,
     entry: EntityID,
     args: list[Any],
+    run_token: object,
 ) -> Any:
+    previous_run = _RUN.set(run_token)
     stack: list[Any] = []
     control: list[tuple] = []
     live: list[_Activation] = []
@@ -1677,6 +1685,7 @@ def _execute(
                             False,
                             target,
                             arguments,
+                            run_token,
                         )
                     )
 
@@ -1783,6 +1792,8 @@ def _execute(
                 if (
                     not isinstance(error, tuple)
                     or len(error) != 4
+                    or getattr(exc, "_shear_run", None)
+                    is not run_token
                 ):
                     raise
 
@@ -1838,6 +1849,9 @@ def _execute(
 
         raise
 
+    finally:
+        _RUN.reset(previous_run)
+
 
 def run(
     runtime: Runtime,
@@ -1855,4 +1869,5 @@ def run(
             canonicalize(arg)
             for arg in args
         ],
-        )
+        object(),
+    )

@@ -3,7 +3,8 @@
 **Status: implemented.** `shear/lang.py` and `shear/bytecode.py`
 implement the `trial` operation below, and `tests/test_language_trials.py` passes; since roadmap task 4 its
 programs are loaded into graph form (graph_form.md), with the behaviour
-assertions unchanged.
+assertions unchanged. Roadmap task 20 adds catchable failures around trials
+without changing the trial operation itself.
 
 metaprogramming.md lets a program install code it wrote. This step lets it
 exercise that code first: the program runs a call against a candidate
@@ -17,10 +18,14 @@ result, and only then decides whether to `activate`.
 In scope: one operation, `trial`, over the same changes `activate` accepts,
 using `Runtime.trial` as it is.
 
-Out of scope: error handling inside the language (a failure in the
-candidate propagates, section 4); observing the candidate's cells after the
-trial; keeping or reusing a candidate across operations; converters; any
-change to the core model.
+The original trial task did not add error handling to the language. Roadmap
+task 20 later adds `catch` and `raise` independently: `trial` still
+propagates a candidate failure, but an enclosing `catch` can now turn that
+failure into a value (section 4).
+
+Still out of scope: observing the candidate's cells after the trial; keeping
+or reusing a candidate across operations; converters; any change to the core
+model.
 
 ## 2. The operation
 
@@ -76,19 +81,52 @@ default.
 
 **Decided:**
 
-The language has no error handling, so a trial reports success through its
-value and failure by raising:
+`trial` does not convert a candidate failure into its own result. A successful
+candidate returns its ordinary value; a failure propagates out of the
+isolated run:
 
-- a candidate the runtime rejects raises `ActivationRejected`, as
-  activating it would; the program's own constraints (metaprogramming.md §4)
-  therefore reject a candidate before any of its code runs;
+- a candidate the runtime rejects raises `ActivationRejected`, as activating
+  it would; the program's own constraints (metaprogramming.md §4) therefore
+  reject a candidate before any of its code runs;
 - anything the call raises in the candidate (`LanguageError`,
-  `CellContentRejected`, `ActivationRejected`, ...) propagates unchanged.
+  `CellContentRejected`, `ActivationRejected`, `CallDepthExceeded`, or a
+  program `raise`) propagates from the trial with its task-20 error value
+  unchanged;
+- a failure of the Python reference model that is not a SHEAR-reported
+  failure remains a model failure and is not converted into a catchable
+  language error.
 
-Either way the run stops before any later `activate`, and the real program
-is unchanged. A program that wants to decide rather than stop compares the
-trial's value, for example
-`("if", ("eq", ("trial", ...), expected), ("activate", ...), ...)`.
+The isolated runtime is discarded on all of these paths, so its cell writes
+and candidate program state never reach the real runtime.
+
+Without an enclosing `catch`, the propagated failure stops the outer run
+before any later `activate`, as before task 20. With `catch`, the caller can
+inspect the failure and decide whether to continue, for example:
+
+    ("catch", ("trial", ...))
+
+returns `("ok", value)` when the candidate returns normally, or
+`("failed", error)` when the candidate reports a catchable failure.
+
+A filtered catch can select only particular candidate failures:
+
+    ("catch", ("trial", ...), ("out_of_range", "depth_limit"))
+
+A non-matching failure passes through unchanged. Its origin, kind, detail and
+`where` continue to identify the failure inside the candidate rather than
+the enclosing `trial` node.
+
+This makes the intended test-before-install pattern explicit:
+
+    let r = catch(trial(power(x), power = candidate))
+    if item(r, 0) == "ok":
+        activate(power = candidate)
+    else:
+        ...
+
+`trial` remains the isolation boundary for state; `catch` is only the failure
+observation boundary. Catching a trial failure does not commit any effects
+from the isolated runtime.
 
 ## 5. Trials and the two-version bound
 
@@ -119,6 +157,10 @@ call form, unknown call link, the pair errors), for the order of checks
 (operand errors before the capability), for `N = 0`, and for a trial whose
 operands activate: the transformation starts from the active state after
 evaluation, so that trial still runs.
+
+Roadmap task 20 additionally pins trial failures through `catch` in
+`tests/test_error_handling.py`: failures from candidate code keep their error
+value and candidate location, while the isolated runtime remains discarded.
 
 ## 8. Implementation notes
 

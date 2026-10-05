@@ -1,15 +1,4 @@
-source_blob = "e7a8ce7216ad1c9366f59b2e8ffb11cba95bbde2"
-
-[[survivor]]
-kind = "constant"
-source = "may_activate: bool = False,"
-occurrence = 0
-classification = "unspecified"
-reason = """
-machine.run is an internal execution layer reached through lang.run; the
-specified language-level activation-capability default is
-lang.run(..., may_activate=False).
-"""
+source_blob = "eb9158c83448077f04694015250f458a4adde7ec"
 
 [[survivor]]
 kind = "boolean"

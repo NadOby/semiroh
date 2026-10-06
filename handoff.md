@@ -52,7 +52,45 @@ The first three fail on the pre-fix code; planted bugs (no reset, a fresh
 token for trial) are each caught. Docs: Provisional §8 bullet in
 `docs/error_handling.md`; one line in the `CHANGES.md` entry.
 
+## Second review: P1 host-callback boundary
+
+Finding: the run token blocked forged `.error` values and independent
+`run()` failures, but an evaluator could still raise a mapped class. For
+example, a `CellContentRejected` from another runtime's `write`, raised
+inside the evaluator of the program's own `write`, was translated by the
+machine into this program's `cell_rejected`, naming the inner cell at the
+outer node. The same applied to `CellError` on write and to
+`ActivationRejected` through `activate` and `trial` staging. That broke
+Decided §1.
+
+Fix: `Evaluator.evaluate` marks any exception escaping the predicate
+(`constraints._mark_host_failure`). `machine._attach`, through which every
+mapping passes, returns a marked exception unchanged, and the write site's
+`CellError` handler re-raises it instead of wrapping it. Object, class,
+message and any existing `.error` are preserved. `Converter.convert` is not
+marked: a program's `activate` and `trial` build transformations without
+conversions, so converters run only from host activation, and an
+evaluator that triggers one is covered by its own boundary.
+
+Regressions (`tests/test_error_provenance.py`, `HostCallbackFailureTests`)
+use real operations on another runtime inside an evaluator: rejected
+`write`; `write` to a non-cell (`CellError`, not wrapped); rejected
+`activate` under the program's `activate` and `trial`; plus a rejecting
+evaluator that stays a catchable `cell_rejected`. The four boundary tests
+fail on the previous code, and removing any one part of the fix fails at
+least one of them.
+
+Roadmap task 20 still says Planned: publish-time bookkeeping, per Review.
+
 ## Mutation evidence
+
+- After the second fix: `constraints.py` survivors all carry (14, none in
+  `Evaluator`). In `machine.py`, the four survivors inside `_execute` (three
+  tail-flag constants, the `not handlers` guard) were dropped by the task 19
+  rule, then restored after each exact mutation was reproduced on the new
+  source with `python -m tests.mutation_campaign replay` (all survived);
+  their reasons are unaffected because the change touches only the write
+  handler. The other seven carry. Both pins updated.
 
 - `shear/machine.py` repinned under the task 19 rule: the three
   `_semantically_equal` survivors carry (definition AST-identical); the

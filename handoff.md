@@ -57,10 +57,29 @@ token for trial) are each caught. Docs: Provisional §8 bullet in
   `_semantically_equal` survivors carry (definition AST-identical); the
   `run()` `may_activate: bool = False,` constant survivor is dropped because
   `run` changed. It is restored only if the campaign reproduces it.
-- Previously dropped parser and printer survivors are not restored by
-  inference; Review predicted three parser and one printer survivor may
-  reappear.
-- Campaign (`SHEAR_MUTATE=10000`, seed 1, batch 0, four shards): PENDING.
+- Campaign on `d05193b` (`SHEAR_MUTATE=10000`, seed 1, batch 0): run
+  37411182531 (eight shards, branch `experiment/mutation-8-shards` = same
+  code plus a survivor-annotation step) found 69 unclassified survivors.
+  The four-shard run 37411180181 selects the same set. Earlier runs were
+  cancelled during GitHub's runner-assignment incident of 2026-10-05.
+- 23 were real gaps, now killed by `tests/test_error_values.py` (each
+  mutant checked locally): `relation_rejected` and `activation_rejected`
+  values; `code`, `ref`, `linksof` of a cell; `apply`/`applyv` operation
+  names (stale closure, non-callable); malformed `catch` loading as an
+  `invalid` node; a directly caught call still taking a call level (the
+  catch body is not in tail position); renderer output for hand-built
+  malformed catches and non-ASCII kinds.
+- 46 classified. 37 re-reviewed carries of main's classifications that
+  Execute had dropped (parser 9, printer 25, lang 1, machine 2, including
+  `may_activate`), each matched by enclosing statement, not ordinal. 9
+  new: two printer atom precedences (a new `4,` and `catch(...)`); machine
+  base and catch
+  continuation tail flags, the handler-stack invariant guard, the
+  unreachable `activation_conflict` mapping, two `return exc` whose results
+  callers discard; `errors.describe` on a malformed value (unspecified).
+- Review's prediction (three parser, one printer) was low: Execute dropped
+  far more than it expected and no campaign had run on the branch.
+- A confirming campaign on the current head is still needed.
 
 ## Process change removed from task 20
 
@@ -102,6 +121,12 @@ unwinding, run provenance. §9 syntax. §10 compiler and VM deferral.
   this task.
 - `CATCH`/`FAIL` in the self-hosted compiler and VM stay deliberately
   deferred (§10, §13).
+- `activation_conflict` (§6) cannot be produced by a running program:
+  program activations always start from the active state.
+- `catch` around deep recursion can end in the host `RecursionError` while
+  nesting results, which §1 already lists as an uncaught model failure.
+- Actions artifacts and job logs cannot be downloaded from this workspace;
+  survivor keys were read from job annotations instead.
 
 ## Hypothesis only
 

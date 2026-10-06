@@ -6,17 +6,19 @@ repository. Read CLAUDE.md and `docs/roadmap.md` first.
 
 ## State
 
-- Task 20, error handling, on `task/20-error-handling` (no PR). The
-  implementation is complete, subject to review. Spec:
-  `docs/error_handling.md`.
+- Task 20, error handling, on `task/20-error-handling`, published as PR #55
+  after Review found no outstanding blocker. Spec: `docs/error_handling.md`;
+  roadmap entry Implemented.
 - The branch is based on current `main` (`27990e2`).
 - `research/semantic-core` is a separate experiment with its own
   `handoff.md`. Do not change it from main-line work.
 
 ## Phase
 
-**Resolve** is done for the first review. Next: a fresh **Review task 20**.
-No PR yet.
+**Publish** is done. Next: the owner merges PR #55, or pushes back.
+PR #48 (single test job, self-sizing shards) is open too; both add a
+`CHANGES.md` entry, so whichever merges second needs a rebase that keeps
+both entries. Follow-ups live in GitHub issues (label `follow-up`).
 
 ## P1 finding and fix
 
@@ -136,8 +138,12 @@ Roadmap task 20 still says Planned: publish-time bookkeeping, per Review.
   `ModelFailureTests` (hand-built malformed definition under `catch`; the
   failure escapes as the same `LanguageError` without an error value), and
   confirmed killed with `python -m tests.mutation_campaign replay`.
-- Campaign on `3153117` (run 37433679683, sixteen shards): all green.
-  Superseded by the fifth-review fix.
+- Campaign on `3153117` (run 37433679683, sixteen shards): all green,
+  superseded by the fifth-review fix.
+- Final campaign on `5273add` (run 37441477077, sixteen shards, 10000,
+  seed 1, batch 0): all sixteen shards and all eight ordinary lanes green.
+  Its head `c70f6d8` is `5273add` plus workflow-only commits on a
+  temporary branch.
 - After that fix: `constraints.py` re-reviewed against the exact source
   (every key resolved to its class or method and checked against its
   reason). The one survivor in the changed `External`, its `eq=False`
@@ -207,9 +213,10 @@ change) was dropped; a stray `.` body was removed.
 
 ## Verified at this state
 
-- Head `e4d2061` plus this handoff commit, based on `main` `27990e2`.
-- `python3 -m unittest discover` and every lane in `tests/lanes.py` pass
-  locally; all eight CI lanes passed on `e4d2061` (run 37416039828).
+- Head `5273add` plus publish-time commits (roadmap, handoff), based on
+  `main` `27990e2`.
+- `python3 -m unittest discover` passes locally; push CI on `5273add` (run
+  37441416894) and all eight lanes of run 37441477077 are green.
 - No existing exception class or message changed; `CLAUDE.md` and the
   roadmap Workflow section are untouched by this branch.
 - `tests/test_error_handling.py` and `shear/examples/errors.py` are

@@ -1,4 +1,0 @@
-# Intended golden changes: one <group>/<name> per line (programs/fold,
-# continuity/fold, api/shear.lang), or * when the recorder changes.
-# Only lines a branch adds count; earlier lines are history. See tests/golden.py.
-*

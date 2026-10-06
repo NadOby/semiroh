@@ -4,15 +4,12 @@ task 20).
 ``catch`` turns a failure into ``("ok", value)`` or ``("failed", error)``;
 ``raise`` fails with a program's own error; an error is
 ``(origin, kind, detail, where)``. Every test here fails on main because
-``catch`` and ``raise`` do not exist there, except
-``MainCorpusGuardTests``, which pins that the programs of main keep their
-identity, text and bytecode and so must pass before and after.
+``catch`` and ``raise`` do not exist there. That main's programs keep their
+identity, text and bytecode is now the golden check's job (tests/golden.py).
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
 import unittest
 from typing import Any, Mapping
 
@@ -806,41 +803,6 @@ class CorpusThroughCatchTests(unittest.TestCase):
 
     def test_a_filter_that_matches_nothing_changes_nothing(self) -> None:
         self.play(("no_such_kind",))
-
-
-# -- Guard: main's programs keep identity, text and bytecode ----------------
-
-MAIN_PROGRAMS = frozenset({
-    "abs_value", "account", "bootstrap", "checked_compile", "clamp",
-    "collatz_step_count", "compiler", "compose", "counter", "deep_loop",
-    "deep_recursion", "factorial", "fibonacci", "fold", "gcd",
-    "insertion_sort", "instrument", "let_bindings", "make_adder", "map",
-    "map_long_tuple", "max_of_two", "power_compiler", "replace_self",
-    "sort_swap", "sum_to_n",
-})
-# Digests of the golden records on main at 9f1b5cf, before task 20.
-MAIN_PROGRAMS_DIGEST = "ec3fafbb07dae4bafda75ab9ddc48565fc68ac3b"
-MAIN_CONTINUITY_DIGEST = "5a93ae07139ab3fb6a74a7082878dfdf3225ae0d"
-
-
-def _digest(value: object) -> str:
-    return hashlib.sha1(json.dumps(value, sort_keys=True).encode()).hexdigest()
-
-
-class MainCorpusGuardTests(unittest.TestCase):
-    def test_main_programs_and_continuity_cases_are_unchanged(self) -> None:
-        from tests.golden import observe
-
-        observed = observe()
-        programs = {
-            name: record
-            for name, record in observed["programs"].items()
-            if name in MAIN_PROGRAMS
-        }
-
-        self.assertEqual(set(programs), MAIN_PROGRAMS)
-        self.assertEqual(_digest(programs), MAIN_PROGRAMS_DIGEST)
-        self.assertEqual(_digest(observed["continuity"]), MAIN_CONTINUITY_DIGEST)
 
 
 if __name__ == "__main__":

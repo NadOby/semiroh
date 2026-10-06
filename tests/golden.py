@@ -5,9 +5,13 @@ corpus program its StateID, its graph-form StateID, a digest of its rendered
 text and of every node's bytecode chunk; for every continuity case its source
 StateID and its check result; and the public names of the language modules.
 
-``--against REF`` records the merge base of REF and HEAD (or, when HEAD is
-REF's tip, the previous commit) in a temporary worktree with the base's own
-recorder, records the working tree with this one, and compares the records:
+The check records a base commit and the working tree, each in its own
+``python -m`` subprocess whose working directory is that tree, so each runs
+its own recorder against its own ``shear`` (the base in a temporary
+worktree). The base is the merge base of ``--against REF`` and HEAD, which
+is HEAD itself on REF's tip, or an explicit ``--base COMMIT``: CI passes the
+commit before a push to ``main``, so a push of several commits is compared
+as a whole. Then it compares the records:
 
 - a new record passes and is printed in full;
 - an unchanged record passes;
@@ -15,22 +19,30 @@ recorder, records the working tree with this one, and compares the records:
   old and new records are printed. A public API record changes only when a
   name disappears; new names pass and are printed.
 
-Intended changes are lines this branch adds to ``tests/golden_changes.txt``:
-one ``<group>/<name>`` per line (``programs/fold``, ``continuity/fold``,
-``api/shear.lang``); blank lines and lines starting with ``#`` are ignored.
-Lines already in the base are history and grant nothing. An added line whose
-record did not change fails. A branch that changes this file's recorder fails
-unless it adds a ``*`` line, which accepts and prints every difference; a
-``*`` without a recorder change fails.
+Records keep the recorder's schema: identities and digests, so a changed
+text or bytecode record shows old and new digests, not the text itself.
 
-    python3 -m tests.golden --against main     # the check, as CI runs it
+Intended changes are declared per issue in a new file the branch adds to
+``tests/golden_changes/``, named after its issue (``GH-72.txt``): one record
+ID per line, ``<group>/<name>`` (``programs/fold``, ``continuity/fold``,
+``api/shear.lang``); blank lines and lines starting with ``#`` are ignored.
+Files already in the base are history: they grant nothing, and changing or
+deleting one fails. A declared record that did not change fails.
+
+A branch that changes this file's recorder fails unless its declaration has
+a ``*`` line, which accepts and prints every difference; a ``*`` without a
+recorder change fails. ``*`` turns the semantic protection off exactly when
+the instrument changes, so a recorder change should normally be a branch of
+its own: the check warns when ``*`` comes with changes under ``shear/``.
+
+    python3 -m tests.golden --against main     # the check, as on a branch
+    python3 -m tests.golden --base <commit>    # as CI runs it on main
     python3 -m tests.golden --record           # this tree's records as JSON
 """
 
 from __future__ import annotations
 
 import argparse
-import difflib
 import hashlib
 import importlib
 import json
@@ -41,7 +53,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CHANGES = "tests/golden_changes.txt"
+DECLARATIONS = "tests/golden_changes"
 RECORDER = "tests/golden.py"
 GROUPS = ("programs", "continuity", "api")
 API_MODULES = ("shear", "shear.lang", "shear.syntax", "shear.bytecode", "shear.machine")
@@ -139,20 +151,32 @@ def observe() -> dict[str, object]:
 # -- The comparison ----------------------------------------------------------
 
 
-def added_lines(base_text: str, head_text: str) -> list[str]:
-    """Meaningful lines the head adds to the base text of the changes file."""
+def _lines(text: str) -> list[str]:
+    stripped = (line.strip() for line in text.splitlines())
+    return [line for line in stripped if line and not line.startswith("#")]
 
-    old, new = base_text.splitlines(), head_text.splitlines()
-    added = []
 
-    for tag, _, _, j1, j2 in difflib.SequenceMatcher(a=old, b=new).get_opcodes():
-        if tag in ("insert", "replace"):
-            added += new[j1:j2]
+def intended(
+    base_files: dict[str, str], head_files: dict[str, str],
+) -> tuple[list[str], list[str]]:
+    """Return (record IDs, failures) from the declaration files of base and
+    head, each a mapping from file name to content."""
 
-    return [
-        line.strip() for line in added
-        if line.strip() and not line.strip().startswith("#")
-    ]
+    ids: list[str] = []
+    failures: list[str] = []
+
+    for name in sorted(set(base_files) | set(head_files)):
+        if name not in base_files:
+            ids += _lines(head_files[name])
+        elif name not in head_files:
+            failures.append(f"{DECLARATIONS}/{name} is history and was deleted")
+        elif base_files[name] != head_files[name]:
+            failures.append(
+                f"{DECLARATIONS}/{name} is history and was changed; declare "
+                f"in a new file named after this branch's issue"
+            )
+
+    return ids, failures
 
 
 def _show(value: object) -> str:
@@ -216,24 +240,24 @@ def compare(
             if star or key in keys:
                 report.append(f"intended: {detail}")
             else:
-                failures.append(f"{detail}\n  (not in lines this branch added to {CHANGES})")
+                failures.append(f"{detail}\n  (not declared in a new file in {DECLARATIONS}/)")
 
     for key in keys:
         if key not in changed:
-            failures.append(f"{CHANGES} adds {key!r}, but that record did not change")
+            failures.append(f"{key!r} is declared, but that record did not change")
 
     if recorder_changed and not star:
         failures.append(
-            f"recorder changed: {RECORDER} differs from the base; add a '*' line "
-            f"to {CHANGES} so that every difference is accepted and printed"
+            f"recorder changed: {RECORDER} differs from the base; declare '*' "
+            f"so that every difference is accepted and printed for Review"
         )
 
     if star and not recorder_changed:
-        failures.append(f"{CHANGES} adds '*', but the recorder did not change")
+        failures.append("'*' is declared, but the recorder did not change")
 
     summary = (
         f"{counts['unchanged']} unchanged, {counts['new']} new, "
-        f"{len(changed)} changed, {len(failures)} failures"
+        f"{len(changed)} changed"
     )
 
     return [summary, *report], failures
@@ -257,9 +281,23 @@ def _show_file(commit: str, path: str) -> str | None:
 
 
 def base_commit(against: str) -> str:
-    head = _git("rev-parse", "HEAD")
-    base = _git("merge-base", against, "HEAD")
-    return _git("rev-parse", "HEAD^") if base == head else base
+    """The merge base of ``against`` and HEAD; HEAD itself on its tip."""
+
+    return _git("merge-base", against, "HEAD")
+
+
+def _declarations(base: str) -> tuple[dict[str, str], dict[str, str]]:
+    listed = _git("ls-tree", "--name-only", base, "--", f"{DECLARATIONS}/")
+    base_files = {
+        Path(path).name: _show_file(base, path) or ""
+        for path in listed.splitlines() if path
+    }
+    folder = ROOT / DECLARATIONS
+    head_files = {
+        path.name: path.read_text()
+        for path in sorted(folder.iterdir()) if path.is_file()
+    } if folder.is_dir() else {}
+    return base_files, head_files
 
 
 def record(tree: Path, legacy: bool = False) -> dict:
@@ -278,15 +316,11 @@ def record(tree: Path, legacy: bool = False) -> dict:
     return json.loads(result.stdout)
 
 
-def check(against: str) -> int:
-    base = base_commit(against)
+def check(base: str, label: str) -> int:
+    base = _git("rev-parse", "--verify", f"{base}^{{commit}}")
     base_recorder = _show_file(base, RECORDER)
     head_recorder = (ROOT / RECORDER).read_text()
-    changes = ROOT / CHANGES
-    intended = added_lines(
-        _show_file(base, CHANGES) or "",
-        changes.read_text() if changes.exists() else "",
-    )
+    ids, failures = intended(*_declarations(base))
 
     with tempfile.TemporaryDirectory() as scratch:
         tree = Path(scratch) / "base"
@@ -298,16 +332,28 @@ def check(against: str) -> int:
             _git("worktree", "remove", "--force", str(tree))
 
     new = record(ROOT)
-    report, failures = compare(old, new, intended, base_recorder != head_recorder)
+    report, compared = compare(old, new, ids, base_recorder != head_recorder)
+    failures += compared
 
-    print(f"golden check against {base[:12]} ({against})")
+    print(f"golden check against {base[:12]} ({label})")
 
     for line in report:
         print(line)
 
+    if "*" in ids:
+        language = _git("diff", "--name-only", base, "--", "shear")
+
+        if language:
+            print(
+                "warning: '*' is declared together with changes under shear/; "
+                "a recorder change should normally be a branch of its own:\n  "
+                + language.replace("\n", "\n  ")
+            )
+
     for line in failures:
         print(f"FAIL: {line}")
 
+    print(f"{len(failures)} failures")
     return 1 if failures else 0
 
 
@@ -315,6 +361,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python3 -m tests.golden")
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--against", metavar="REF", help="compare with the merge base of REF")
+    mode.add_argument("--base", metavar="COMMIT", help="compare with COMMIT")
     mode.add_argument("--record", action="store_true", help="print this tree's records")
     args = parser.parse_args(argv)
 
@@ -322,7 +369,10 @@ def main(argv: list[str] | None = None) -> int:
         json.dump(observe(), sys.stdout, sort_keys=True)
         return 0
 
-    return check(args.against)
+    if args.base:
+        return check(args.base, "explicit base")
+
+    return check(base_commit(args.against), args.against)
 
 
 if __name__ == "__main__":

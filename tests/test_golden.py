@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from tests.golden import added_lines, compare
+from tests.golden import compare, intended
 
 BASE = {
     "programs": {"fold": {"graph": "g1"}, "gcd": {"graph": "g2"}},
@@ -67,7 +67,7 @@ class ComparisonTests(unittest.TestCase):
         _, failures = _run(head, ["programs/fold"])
 
         self.assertTrue(any("continuity/fold changed" in f for f in failures))
-        self.assertTrue(any("adds 'programs/fold'" in f for f in failures))
+        self.assertTrue(any("'programs/fold' is declared" in f for f in failures))
 
     def test_an_added_line_whose_record_did_not_change_fails(self) -> None:
         _, failures = _run(BASE, ["programs/gcd", "programs/missing"])
@@ -118,22 +118,33 @@ class RecorderTests(unittest.TestCase):
         self.assertIn("recorder did not change", failures[0])
 
 
-class ChangesFileTests(unittest.TestCase):
-    def test_only_lines_the_branch_adds_count(self) -> None:
-        base = "programs/gcd\n"
-        head = "programs/gcd\n# task 32\n\nprograms/fold\n"
+class DeclarationTests(unittest.TestCase):
+    def test_only_files_new_in_the_branch_declare(self) -> None:
+        base = {"GH-1.txt": "programs/gcd\n"}
+        head = {**base, "GH-2.txt": "# why\n\nprograms/fold\n"}
 
-        self.assertEqual(added_lines(base, head), ["programs/fold"])
+        self.assertEqual(intended(base, head), (["programs/fold"], []))
 
-    def test_a_line_added_again_counts_again(self) -> None:
-        self.assertEqual(
-            added_lines("programs/gcd\n", "programs/gcd\nprograms/gcd\n"),
-            ["programs/gcd"],
-        )
+    def test_an_earlier_declaration_grants_nothing_but_can_be_declared_again(self) -> None:
+        base = {"GH-1.txt": "programs/gcd\n"}
+        head = {**base, "GH-2.txt": "programs/gcd\n"}
 
-    def test_a_missing_file_is_empty(self) -> None:
-        self.assertEqual(added_lines("", ""), [])
-        self.assertEqual(added_lines("", "*\n"), ["*"])
+        self.assertEqual(intended(base, head), (["programs/gcd"], []))
+        self.assertEqual(intended(base, base), ([], []))
+
+    def test_changing_or_deleting_history_fails(self) -> None:
+        base = {"GH-1.txt": "programs/gcd\n"}
+
+        ids, failures = intended(base, {"GH-1.txt": "programs/gcd\nprograms/fold\n"})
+        self.assertEqual(ids, [])
+        self.assertIn("is history and was changed", failures[0])
+
+        ids, failures = intended(base, {})
+        self.assertEqual(ids, [])
+        self.assertIn("is history and was deleted", failures[0])
+
+    def test_no_declarations_is_empty(self) -> None:
+        self.assertEqual(intended({}, {}), ([], []))
 
 
 if __name__ == "__main__":

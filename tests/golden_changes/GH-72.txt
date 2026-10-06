@@ -1,0 +1,3 @@
+# GH-72: the recorder moves from tests/test_language_golden.py to
+# tests/golden.py; no language behaviour changes.
+*

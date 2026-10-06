@@ -65,8 +65,17 @@ jobs:
       - name: Run every lane, one process per lane
         run: python -m tests.lanes --all
 
-      - name: Compare golden records with the merge base
-        run: python -m tests.golden --against origin/main
+      - name: Compare golden records with the base
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then
+            python -m tests.golden --base "$BEFORE"
+          else
+            python -m tests.golden --against origin/main
+          fi
 
   mutation-plan:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.mutation_count != '' && inputs.mutation_count != '0' }}

@@ -127,6 +127,15 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 - A new regression test must fail on the old code. For a property test,
   plant a plausible bug and confirm the property catches it.
 - Test semantic contracts, not incidental implementation details.
+- CI compares the language layer's golden records (corpus programs,
+  continuity cases, public names) with the merge base, or on `main` with the
+  commit before the push; nothing is stored or re-recorded.
+  `python3 -m tests.golden --against main` runs the same check locally. A
+  record may change only when Plan declares its ID (`programs/<name>`,
+  `continuity/<name>`, `api/<module>`) in a new file
+  `tests/golden_changes/GH-<n>.txt` for the task's issue (other names fail);
+  earlier files are history and never change. A change to the recorder in `tests/golden.py`
+  is declared with `*`, preferably in a branch of its own.
 - Mutation target policy and explicit omissions live in
   `tests/mutation_catalog.py`. Reviewed survivor classifications and exact
   target-source pins live in per-target TOML files under

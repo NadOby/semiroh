@@ -1400,3 +1400,28 @@ valid evidence after the relevant oracle was shown to be unsound.
   operations; the SHEAR VM costs about 150x the host machine per layer.
 - The bootstrap delivery review that proposed this is kept in
   `docs/reviews/`. Roadmap tasks 21 to 31 name their GitHub issues.
+
+### Golden check against the merge base
+
+- `tests/language_golden.json` and `--record` are gone. A step in the CI
+  `tests` job records the corpus programs, continuity cases and public names
+  in a base commit and in the head, each in its own subprocess running its
+  own recorder (`tests/golden.py`) in its own tree, and compares them: new
+  records pass and are printed in full, unchanged ones pass, and a changed or
+  removed record, or a lost public name, fails with old and new printed. New
+  public names pass, as before. Records keep the old schema, so text and
+  bytecode differences show as digests.
+- The base is the merge base with `main`; on a push to `main` it is the
+  commit before the push, so a push of several commits is checked as a whole.
+- Intended changes are record IDs (`programs/<name>`, `continuity/<name>`,
+  `api/<module>`) in a new file per issue, `tests/golden_changes/GH-<n>.txt`.
+  Earlier files are history: they grant nothing and may not change. A
+  declared record that did not change fails. A recorder change is declared
+  with `*`, which accepts and prints every difference; the check warns when
+  `*` comes with changes under `shear/`.
+- Fail closed (Review of #72): a new declaration file not named
+  `GH-<n>.txt` fails and grants nothing, and a recording with a group outside
+  the check's `GROUPS` fails, so a recorder that gains a group must add it to
+  `GROUPS` instead of having it silently unchecked.
+- `MainCorpusGuardTests`, task 20's pin of the pre-task-20 digests, is
+  removed: it would reject intended changes, and the golden check covers it.

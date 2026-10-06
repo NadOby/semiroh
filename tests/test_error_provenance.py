@@ -182,9 +182,15 @@ class ForeignErrorTests(unittest.TestCase):
         self.assertEqual(raised.exception.error[3][0], G)
 
 
-def _guarded_program(body: Any, evaluator: Callable[[Any], ConstraintResult]) -> Runtime:
+def _guarded_program(
+    body: Any,
+    evaluator: Callable[[Any], ConstraintResult],
+    overriding: bool = False,
+) -> Runtime:
     """``body`` runs with cell ``audited`` checked by ``evaluator``; the
-    initial content 0 is accepted without calling it."""
+    initial content 0 is accepted without calling it. With ``overriding``
+    the external is an Evaluator subclass whose own ``evaluate`` calls
+    ``evaluator`` instead of the base predicate path."""
 
     def audit(value: Any) -> ConstraintResult:
         if value == 0 and not calls:
@@ -193,7 +199,17 @@ def _guarded_program(body: Any, evaluator: Callable[[Any], ConstraintResult]) ->
         return evaluator(value)
 
     calls: list = []
-    context = EvaluationContext(externals={"audit": Evaluator(audit)})
+
+    if overriding:
+        class Overriding(Evaluator):
+            def evaluate(self, subject: Any) -> ConstraintResult:
+                return audit(subject)
+
+        external = Overriding(lambda value: ConstraintResult.SATISFIED)
+    else:
+        external = Evaluator(audit)
+
+    context = EvaluationContext(externals={"audit": external})
     return Runtime(
         load(program({
             AUDITED: CellDeclaration(External("audit"), 0),
@@ -261,6 +277,11 @@ def _host_exceptions(base: type) -> dict[str, Callable[[], tuple]]:
 
 
 class HostCallbackFailureTests(unittest.TestCase):
+    overriding = False
+
+    def guarded(self, body: Any, evaluator: Callable[[Any], ConstraintResult]) -> Runtime:
+        return _guarded_program(body, evaluator, self.overriding)
+
     def setUp(self) -> None:
         self.inner_cell = EntityID("inner")
         self.inner_function = EntityID("inner_function")
@@ -286,7 +307,7 @@ class HostCallbackFailureTests(unittest.TestCase):
         raised, evaluator = self.raising(
             lambda: self.inner.write(self.inner_cell, 1)
         )
-        runtime = _guarded_program(
+        runtime = self.guarded(
             ("catch", ("write", "audited", ("arg", "v"))), evaluator
         )
 
@@ -301,7 +322,7 @@ class HostCallbackFailureTests(unittest.TestCase):
         raised, evaluator = self.raising(
             lambda: self.inner.write(self.inner_function, 1)
         )
-        runtime = _guarded_program(
+        runtime = self.guarded(
             ("catch", ("write", "audited", ("arg", "v"))), evaluator
         )
 
@@ -327,7 +348,7 @@ class HostCallbackFailureTests(unittest.TestCase):
                 raised, evaluator = self.raising(
                     lambda: self.inner.activate(stale)
                 )
-                runtime = _guarded_program(body, evaluator)
+                runtime = self.guarded(body, evaluator)
                 before = runtime.active.state.id
 
                 with self.assertRaises(ActivationRejected) as caught:
@@ -361,7 +382,7 @@ class HostCallbackFailureTests(unittest.TestCase):
                         )
                         raise failure from cause
 
-                    runtime = _guarded_program(body, evaluator)
+                    runtime = self.guarded(body, evaluator)
 
                     with self.assertRaises(base) as caught:
                         run(runtime, F, argument, may_activate=True)
@@ -375,7 +396,7 @@ class HostCallbackFailureTests(unittest.TestCase):
                     )
 
     def test_a_rejecting_evaluator_is_still_a_catchable_runtime_error(self) -> None:
-        runtime = _guarded_program(
+        runtime = self.guarded(
             ("catch", ("write", "audited", ("arg", "v"))),
             lambda value: ConstraintResult.VIOLATED,
         )
@@ -384,6 +405,14 @@ class HostCallbackFailureTests(unittest.TestCase):
 
         self.assertEqual(result[1][:2], ("runtime", "cell_rejected"))
         self.assertEqual(dict(result[1][2])["cell"], AUDITED)
+
+
+class OverridingEvaluatorFailureTests(HostCallbackFailureTests):
+    """The same boundary when the external is an Evaluator subclass that
+    overrides ``evaluate``: the boundary is the call into the evaluator, not
+    one implementation of it."""
+
+    overriding = True
 
 
 class ModelFailureTests(unittest.TestCase):

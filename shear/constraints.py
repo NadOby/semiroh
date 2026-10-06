@@ -89,13 +89,7 @@ class Evaluator:
         ``External``. A subject that cannot be canonicalized is rejected.
         """
 
-        content = canonicalize(subject)
-
-        try:
-            result = self.predicate(content)
-        except BaseException as exc:
-            _record_host_failure(exc)
-            raise
+        result = self.predicate(canonicalize(subject))
 
         if not isinstance(result, ConstraintResult):
             raise TypeError(
@@ -672,4 +666,11 @@ class External(Constraint):
         if evaluator is None:
             return ConstraintResult.UNKNOWN
 
-        return evaluator.evaluate(subject)
+        # The host boundary is the call into the evaluator, whatever its
+        # Evaluator subtype implements: an exception escaping it is a failure
+        # of the model, never of the program (_HOST_FAILURES).
+        try:
+            return evaluator.evaluate(subject)
+        except BaseException as exc:
+            _record_host_failure(exc)
+            raise

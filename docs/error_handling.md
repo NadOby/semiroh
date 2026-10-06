@@ -263,7 +263,8 @@ decision.
   `run`), is not this run's failure and is not caught (section 1). The mark
   is not part of the error value and not a public interface.
 - An exception that escapes an evaluator is recorded at that boundary
-  (`Evaluator.evaluate`), by identity in a registry private to the run, and
+  (the call into an `External` evaluator, whatever its `Evaluator` subtype
+  implements), by identity in a registry private to the run, and
   the machine never maps it, whatever its class. The exception itself is
   never modified or inspected, so a host exception reserving any attribute
   name escapes intact:

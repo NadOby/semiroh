@@ -41,6 +41,10 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   to Review. A different model family can add independence but is optional;
   role separation and fresh context are mandatory.
 - No background agents.
+- No role may assume write access to GitHub or the repository. A role without
+  it delivers its output in its reply (findings, `handoff.md` text, issue or
+  PR text) for the owner or a write-capable role to record, and never says
+  something is recorded, opened or pushed unless it checked.
 - Work is tracked in GitHub issues: every roadmap task and every other change
   has an issue before work starts, and a follow-up found while working becomes
   a `follow-up` issue, not a note in a file or a chat. The roadmap's Workflow

@@ -117,6 +117,16 @@ Roadmap task 20 still says Planned: publish-time bookkeeping, per Review.
 
 ## Mutation evidence
 
+- Campaign on `5f85f50` (run 37427645434, sixteen shards, 10000, seed 1,
+  batch 0): fifteen shards green, one unclassified survivor: the `or` to
+  `and` mutation of the catch handler's admission test. It only matters for
+  a failure without an error value, where the mutant replaces the model
+  failure with a `TypeError`. Now killed by
+  `ModelFailureTests` (hand-built malformed definition under `catch`; the
+  failure escapes as the same `LanguageError` without an error value), and
+  confirmed killed with `python -m tests.mutation_campaign replay`. A final
+  campaign on the resulting head confirms the whole set.
+
 - After the evaluator-boundary fixes: `constraints.py` survivors all carry
   (14, none in changed definitions). In `machine.py` only the three
   `_semantically_equal` survivors carry by the task 19 rule. The eight in

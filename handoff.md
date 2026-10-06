@@ -63,11 +63,14 @@ outer node. The same applied to `CellError` on write and to
 `ActivationRejected` through `activate` and `trial` staging. That broke
 Decided §1.
 
-Fix: `Evaluator.evaluate` marks any exception escaping the predicate
-(`constraints._mark_host_failure`). `machine._attach`, through which every
-mapping passes, returns a marked exception unchanged, and the write site's
-`CellError` handler re-raises it instead of wrapping it. Object, class,
-message and any existing `.error` are preserved. `Converter.convert` is not
+Fix, as revised after the third review: `Evaluator.evaluate` records any
+exception escaping the predicate by identity in a per-run registry
+(`constraints._HOST_FAILURES`, a context variable that `machine.run`
+creates and resets; `trial` shares it, an independent inner run has its
+own). The machine checks the registry before touching any attribute: in the
+`catch` handler, at the top of `_attach_runtime`, and in the write site's
+`CellError` handler, so a host exception is never mapped, modified or
+inspected and escapes as the same object. `Converter.convert` is not
 marked: a program's `activate` and `trial` build transformations without
 conversions, so converters run only from host activation, and an
 evaluator that triggers one is covered by its own boundary.
@@ -80,17 +83,32 @@ evaluator that stays a catchable `cell_rejected`. The four boundary tests
 fail on the previous code, and removing any one part of the fix fails at
 least one of them.
 
+Third review (P2): the first version of this fix set a marker attribute on
+the host exception. A host class reserving that name with a read-only
+property made `setattr` raise, replacing the exception and breaking the §8
+contract. Resolve also found that the existing handler `getattr(exc,
+"error")` and `_attach_runtime`'s `hasattr` would replace a host exception
+whose `error` property raises. The registry design fixes both. The new
+regression raises two such classes (read-only reserved names; an `error`
+property that raises) and asserts the same object escapes. Removing any
+one of the three machine checks, putting `hasattr` first, or returning to
+the attribute mark fails at least one test.
+
 Roadmap task 20 still says Planned: publish-time bookkeeping, per Review.
 
 ## Mutation evidence
 
-- After the second fix: `constraints.py` survivors all carry (14, none in
-  `Evaluator`). In `machine.py`, the four survivors inside `_execute` (three
-  tail-flag constants, the `not handlers` guard) were dropped by the task 19
-  rule, then restored after each exact mutation was reproduced on the new
-  source with `python -m tests.mutation_campaign replay` (all survived);
-  their reasons are unaffected because the change touches only the write
-  handler. The other seven carry. Both pins updated.
+- After the evaluator-boundary fixes: `constraints.py` survivors all carry
+  (14, none in changed definitions). In `machine.py` only the three
+  `_semantically_equal` survivors carry by the task 19 rule. The eight in
+  `_execute`, `run` and `_attach_runtime` were dropped, re-keyed by
+  enclosing function and statement on the new source, and restored only
+  after `python -m tests.mutation_campaign replay` reproduced each exact
+  mutation as a survivor.
+- Resolve error found and corrected on the way: the previous repin kept
+  `return exc` occurrence keys although the then-new `_attach` guard had
+  shifted the ordinals, so one entry pointed at the wrong site. Keys are now
+  derived per site, never by ordinal.
 
 - `shear/machine.py` repinned under the task 19 rule: the three
   `_semantically_equal` survivors carry (definition AST-identical); the

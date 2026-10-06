@@ -555,10 +555,14 @@ Manual workflow dispatch exposes:
 
 `generated_cases=0` uses ordinary generated-test budgets.
 `mutation_count=0` skips the heavy mutation campaign.
-`mutation_shards` (default 16, at most 16) sets how many jobs share the
-campaign; a small plan job validates it and builds the shard matrix. The cap
-keeps a campaign and the test job within the account's concurrent-job limit
-with room to spare, so other runs are not starved.
+`mutation_shards` sets how many jobs share the campaign. Left empty, a small
+plan job counts the selected mutants with the campaign's own selection
+(`python -m tests.mutation_campaign plan`) and uses one shard per 150
+mutants, between 1 and 16: each shard pays runner setup and one baseline
+oracle run before its first mutant, so small campaigns stay on few runners.
+An explicit value from 1 to 16 overrides the sizing. The cap of 16 keeps a
+campaign and the test job within the account's concurrent-job limit with
+room to spare, so other runs are not starved.
 
 A positive mutation count selects that many sites per target in the requested
 deterministic batch. A count larger than the number of sites in a target

@@ -1355,8 +1355,12 @@ valid evidence after the relevant oracle was shown to be unsound.
   time as the runner has CPUs, prints each lane's output and a timing table,
   and fails if any lane fails. The partition and its validation are
   unchanged. Eight runners of mostly setup time become one.
-- The mutation campaign takes a `mutation_shards` dispatch input, default 16
-  and at most 16, validated by a small plan job that builds the shard matrix.
-  Timing campaigns on the task 20 head showed gains through sixteen shards;
-  the cap keeps a campaign below the concurrent-job limit. The selected
-  mutation set does not depend on the shard count.
+- A small plan job sizes the mutation campaign from its selected work: one
+  shard per 150 selected mutants, between 1 and 16, so an exhaustive
+  campaign uses 16 shards and a small sample uses one. The `mutation_shards`
+  dispatch input overrides it with 1 to 16. Timing campaigns on the task 20
+  head cut the slowest shard from 41 to 27 minutes going from eight to
+  sixteen shards for about 12% more runner time; the remaining tail comes
+  from uneven mutant costs, and the cap keeps a campaign below the
+  concurrent-job limit. The selected mutation set does not depend on the
+  shard count.

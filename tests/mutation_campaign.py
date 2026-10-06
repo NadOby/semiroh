@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import os
 import random
 import sys
 from dataclasses import dataclass
@@ -68,6 +70,35 @@ def build_work_set(
     random.Random(seed).shuffle(shuffled)
 
     return tuple(shuffled)
+
+
+MAX_SHARDS = 16
+MUTANTS_PER_SHARD = 150
+
+
+def plan_shards(selected: int, requested: str = "") -> int:
+    """How many shards a campaign of ``selected`` mutants uses.
+
+    An explicit request wins and must be an integer from 1 to MAX_SHARDS.
+    Otherwise there is one shard per MUTANTS_PER_SHARD selected mutants,
+    between 1 and MAX_SHARDS: each shard pays a fixed cost (runner setup and
+    one baseline oracle run) before its first mutant, so tiny campaigns stay
+    on few runners. MAX_SHARDS keeps a campaign below the account's
+    concurrent-job limit.
+    """
+
+    requested = requested.strip()
+
+    if requested:
+        if not requested.isdigit() or not 1 <= int(requested) <= MAX_SHARDS:
+            raise ValueError(
+                f"shard count must be an integer from 1 to {MAX_SHARDS}, "
+                f"got {requested!r}"
+            )
+
+        return int(requested)
+
+    return min(MAX_SHARDS, max(1, math.ceil(selected / MUTANTS_PER_SHARD)))
 
 
 def shard_work(
@@ -605,6 +636,19 @@ def _parser() -> argparse.ArgumentParser:
         help="repository root; defaults to the current repository",
     )
 
+    plan = subparsers.add_parser(
+        "plan",
+        help="size the shard matrix for a campaign",
+    )
+    plan.add_argument("--count", type=int, required=True)
+    plan.add_argument("--seed", type=int, required=True)
+    plan.add_argument("--batch", type=int, default=0)
+    plan.add_argument(
+        "--shards",
+        default="",
+        help="explicit shard count; empty sizes it from the selected work",
+    )
+
     replay_failures_parser = subparsers.add_parser(
         "replay-failures",
         help=(
@@ -652,6 +696,33 @@ def _print_result(
 def main(argv: list[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
+
+    if args.action == "plan":
+        from tests.mutation_catalog import TARGETS
+
+        work = build_work_set(
+            mutation.ROOT,
+            TARGETS,
+            args.count,
+            args.seed,
+            batch=args.batch,
+        )
+
+        try:
+            shards = plan_shards(len(work), args.shards)
+        except ValueError as exc:
+            print(f"mutation plan failed: {exc}", file=sys.stderr)
+            return 2
+
+        print(f"selected={len(work)} shards={shards}")
+        output = os.environ.get("GITHUB_OUTPUT")
+
+        if output:
+            with open(output, "a") as handle:
+                handle.write(f"count={shards}\n")
+                handle.write(f"shards={json.dumps(list(range(shards)))}\n")
+
+        return 0
 
     if args.action == "replay":
         try:

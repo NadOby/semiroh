@@ -272,6 +272,23 @@ class MutationCampaignTests(unittest.TestCase):
             ),
         )
 
+    def test_plan_sizes_shards_from_the_selected_work(self) -> None:
+        plan = mutation_campaign.plan_shards
+        per = mutation_campaign.MUTANTS_PER_SHARD
+        top = mutation_campaign.MAX_SHARDS
+
+        self.assertEqual(plan(0), 1)
+        self.assertEqual(plan(1), 1)
+        self.assertEqual(plan(per), 1)
+        self.assertEqual(plan(per + 1), 2)
+        self.assertEqual(plan(per * top * 10), top)
+        self.assertEqual(plan(per * top * 10, " 3 "), 3)
+
+        for bad in ("0", str(top + 1), "x", "-1", "2.5"):
+            with self.subTest(requested=bad):
+                with self.assertRaises(ValueError):
+                    plan(10, bad)
+
     def test_invalid_shards_are_rejected(self) -> None:
         work = mutation_campaign.build_work_set(
             self.root,

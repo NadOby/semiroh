@@ -8,7 +8,7 @@ from typing import Any, Mapping
 from . import bytecode
 from .canonical import CanonicalNode, canonical_serialize, canonicalize
 from .closures import Closure, closure_value
-from .constraints import kind_of
+from .constraints import _is_host_failure, kind_of
 from .identity import EntityID
 from .lang import (
     CallDepthExceeded, Function, LanguageError, _decode, _definition_of, _fill,
@@ -72,6 +72,9 @@ def _attach(
     function: EntityID,
     node: EntityID,
 ) -> BaseException:
+    if _is_host_failure(exc):
+        return exc
+
     if not hasattr(exc, "error"):
         exc.error = (origin, kind, detail, (function, node))
         exc._shear_run = _RUN.get()
@@ -1482,6 +1485,9 @@ def _execute(
                             stack[-1],
                         )
                     except CellError as exc:
+                        if _is_host_failure(exc):
+                            raise
+
                         wrapped = LanguageError(
                             str(exc)
                         )

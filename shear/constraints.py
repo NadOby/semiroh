@@ -16,6 +16,24 @@ from .canonical import (
 )
 
 
+_HOST_FAILURE = "_shear_host_failure"
+
+
+def _mark_host_failure(exc: BaseException) -> None:
+    """Mark an exception that escaped host code the model called.
+
+    The language machine never reports a marked exception as a language or
+    runtime error, whatever its class (error_handling.md section 1): an
+    evaluator that raises is a failure of the model, not of the program.
+    """
+
+    setattr(exc, _HOST_FAILURE, True)
+
+
+def _is_host_failure(exc: BaseException) -> bool:
+    return getattr(exc, _HOST_FAILURE, False) is True
+
+
 class ConstraintResult(Enum):
     """Three-valued result of constraint evaluation."""
 
@@ -65,7 +83,13 @@ class Evaluator:
         ``External``. A subject that cannot be canonicalized is rejected.
         """
 
-        result = self.predicate(canonicalize(subject))
+        content = canonicalize(subject)
+
+        try:
+            result = self.predicate(content)
+        except BaseException as exc:
+            _mark_host_failure(exc)
+            raise
 
         if not isinstance(result, ConstraintResult):
             raise TypeError(

@@ -262,6 +262,12 @@ decision.
   escaping an independent `run` started by host code (an evaluator that calls
   `run`), is not this run's failure and is not caught (section 1). The mark
   is not part of the error value and not a public interface.
+- An exception that escapes an evaluator is marked at that boundary
+  (`Evaluator.evaluate`) and the machine never maps it, whatever its class:
+  a rejection raised inside an evaluator by another runtime's `write` or
+  `activate` escapes the program's `write`, `activate` or `trial` unchanged
+  instead of becoming this program's `runtime` or `language` error (section
+  1). The original exception object, class and message are kept.
 - Holds, code in flight and the two-version bound follow from releasing the
   unwound calls; nothing else about versions changes.
 - Existing nodes lower exactly as before: every corpus program of main keeps

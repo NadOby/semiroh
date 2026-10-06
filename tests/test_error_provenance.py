@@ -5,7 +5,9 @@ of the same logical run created that error. A host exception that merely
 carries an ``.error`` tuple, or a SHEAR error escaping an independent ``run``
 started by host code such as an external evaluator, escapes unchanged.
 Nested execution that belongs to the same run, such as ``trial``, stays
-catchable.
+catchable. An exception escaping an evaluator is a failure of the model
+(error_handling.md section 1), so it escapes even when its class is one the
+machine maps, such as a rejection raised by another runtime.
 """
 
 from __future__ import annotations
@@ -14,7 +16,10 @@ import unittest
 from typing import Any, Callable
 
 from shear import (
+    ActivationRejected,
     CellContentRejected,
+    CellError,
+    IntRange,
     CellDeclaration,
     ConstraintResult,
     EntityID,
@@ -26,7 +31,7 @@ from shear import (
     canonicalize,
 )
 from shear.examples._support import program
-from shear.lang import Function, LanguageError, links, load, run
+from shear.lang import Function, LanguageError, define, links, load, run
 
 F = EntityID("f")
 G = EntityID("g")
@@ -174,6 +179,118 @@ class ForeignErrorTests(unittest.TestCase):
 
         self.assertEqual(raised.exception.error[:2], ("runtime", "cell_rejected"))
         self.assertEqual(raised.exception.error[3][0], G)
+
+
+def _guarded_program(body: Any, evaluator: Callable[[Any], ConstraintResult]) -> Runtime:
+    """``body`` runs with cell ``audited`` checked by ``evaluator``; the
+    initial content 0 is accepted without calling it."""
+
+    def audit(value: Any) -> ConstraintResult:
+        if value == 0 and not calls:
+            calls.append(value)
+            return ConstraintResult.SATISFIED
+        return evaluator(value)
+
+    calls: list = []
+    context = EvaluationContext(externals={"audit": Evaluator(audit)})
+    return Runtime(
+        load(program({
+            AUDITED: CellDeclaration(External("audit"), 0),
+            G: Function((), ("lit", 1)),
+            F: Function(("v",), body),
+            EntityID("f.links"): links(F, audited=AUDITED, g=G),
+        })),
+        context,
+    )
+
+
+class HostCallbackFailureTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.inner_cell = EntityID("inner")
+        self.inner_function = EntityID("inner_function")
+        self.inner = Runtime(load(program({
+            self.inner_cell: CellDeclaration(IntRange(0, 0), 0),
+            self.inner_function: Function((), ("lit", 1)),
+        })))
+
+    def raising(self, operation: Callable[[], Any]) -> tuple[list, Callable]:
+        raised: list = []
+
+        def evaluator(value: Any) -> ConstraintResult:
+            try:
+                operation()
+            except BaseException as exc:
+                raised.append(exc)
+                raise
+            return ConstraintResult.SATISFIED
+
+        return raised, evaluator
+
+    def test_another_runtimes_rejected_write_escapes_catch_write(self) -> None:
+        raised, evaluator = self.raising(
+            lambda: self.inner.write(self.inner_cell, 1)
+        )
+        runtime = _guarded_program(
+            ("catch", ("write", "audited", ("arg", "v"))), evaluator
+        )
+
+        with self.assertRaises(CellContentRejected) as caught:
+            run(runtime, F, 1)
+
+        self.assertIs(caught.exception, raised[0])
+        self.assertFalse(hasattr(caught.exception, "error"))
+        self.assertEqual(runtime.read(AUDITED), 0)
+
+    def test_another_runtimes_non_cell_write_escapes_unwrapped(self) -> None:
+        raised, evaluator = self.raising(
+            lambda: self.inner.write(self.inner_function, 1)
+        )
+        runtime = _guarded_program(
+            ("catch", ("write", "audited", ("arg", "v"))), evaluator
+        )
+
+        with self.assertRaises(CellError) as caught:
+            run(runtime, F, 1)
+
+        self.assertIs(caught.exception, raised[0])
+        self.assertNotIsInstance(caught.exception, LanguageError)
+
+    def test_another_runtimes_rejected_activation_escapes_activate_and_trial(
+        self,
+    ) -> None:
+        unrelated = load(program({G: Function((), ("lit", 9))}))
+        stale = define(unrelated, {G: Function((), ("lit", 8))})
+        replacement = ("function", ("lit", ()), ("lit", ("lit", 2)))
+        bodies = {
+            "activate": ("catch", ("activate", "g", replacement)),
+            "trial": ("catch", ("trial", ("call", "g"), "g", replacement)),
+        }
+
+        for operation, body in bodies.items():
+            with self.subTest(operation=operation):
+                raised, evaluator = self.raising(
+                    lambda: self.inner.activate(stale)
+                )
+                runtime = _guarded_program(body, evaluator)
+                before = runtime.active.state.id
+
+                with self.assertRaises(ActivationRejected) as caught:
+                    run(runtime, F, 0, may_activate=True)
+
+                self.assertIs(caught.exception, raised[0])
+                self.assertFalse(hasattr(caught.exception, "error"))
+                self.assertEqual(runtime.active.state.id, before)
+
+    def test_a_rejecting_evaluator_is_still_a_catchable_runtime_error(self) -> None:
+        runtime = _guarded_program(
+            ("catch", ("write", "audited", ("arg", "v"))),
+            lambda value: ConstraintResult.VIOLATED,
+        )
+
+        result = run(runtime, F, 1)
+
+        self.assertEqual(result[1][:2], ("runtime", "cell_rejected"))
+        self.assertEqual(dict(result[1][2])["cell"], AUDITED)
 
 
 class SameRunTests(unittest.TestCase):

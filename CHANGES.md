@@ -1328,7 +1328,10 @@ valid evidence after the relevant oracle was shown to be unsound.
 - A handler accepts only errors the machine created in the same run, marked
   with a private per-run token shared by nested `trial` execution. A host
   exception carrying a forged `.error`, or a failure escaping an independent
-  `run` started by an evaluator, is not caught.
+  `run` started by an evaluator, is not caught. Exceptions escaping an
+  evaluator are marked at that boundary and never mapped, so a rejection an
+  evaluator triggers on another runtime escapes `write`, `activate` and
+  `trial` unchanged.
 - Added program-raised errors through `raise(kind, detail)`, plus the
   `shear.errors` catalogue and human-readable `describe(error)` helper.
 - Extended graph form, bytecode and text syntax with `catch` and `raise`.

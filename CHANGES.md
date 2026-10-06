@@ -1367,3 +1367,19 @@ valid evidence after the relevant oracle was shown to be unsound.
 - CLAUDE.md prefers extending the existing workflow over adding workflows or
   throwaway branches. The seven workflows left over from the semantic-core
   experiment were removed along with their runs.
+
+### Independent planning, review and resolution
+
+- The task workflow now has five roles, each normally in a fresh chat:
+  planning validates the roadmap task and writes the execution contract,
+  execution implements it, an adversarial review independently verifies
+  the result without repairing it, resolution fixes or rebuts each finding,
+  and publication opens the PR after an independent review accepts the
+  final state. Review no longer fixes issues itself.
+- `handoff.md` is a checkpoint of state and claims, not an authority or
+  verification evidence. Contracts are in the roadmap's Workflow section;
+  "Plan task N" through "Publish task N" invoke them.
+- Work is tracked in GitHub issues: each roadmap task has a `task` issue,
+  other changes get an issue before they start, and follow-ups become
+  `follow-up` issues. Commits start with the issue key `GH-<n>` in
+  smart-commit style, and a PR description closes the issues it completes.

@@ -111,6 +111,23 @@ class RecorderTests(unittest.TestCase):
         self.assertTrue(any("intended: programs/gcd changed" in r for r in report))
         self.assertTrue(any("intended: continuity/fold removed" in r for r in report))
 
+    def test_a_group_outside_the_schema_fails_in_base_or_head(self) -> None:
+        extra = {**BASE, "effects": {"x": 1}}
+
+        _, failures = compare(BASE, extra, [], False)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("head recording has groups effects", failures[0])
+
+        _, failures = compare(extra, BASE, [], False)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("base recording has groups effects", failures[0])
+
+    def test_a_star_does_not_excuse_an_unknown_group(self) -> None:
+        _, failures = compare(BASE, {**BASE, "effects": {}}, ["*"], True)
+
+        self.assertEqual(len(failures), 1)
+        self.assertIn("effects", failures[0])
+
     def test_a_star_without_a_recorder_change_fails(self) -> None:
         _, failures = _run(BASE, ["*"])
 
@@ -142,6 +159,18 @@ class DeclarationTests(unittest.TestCase):
         ids, failures = intended(base, {})
         self.assertEqual(ids, [])
         self.assertIn("is history and was deleted", failures[0])
+
+    def test_a_new_file_not_named_after_an_issue_fails_and_grants_nothing(self) -> None:
+        for name in ("notes.txt", "GH-.txt", "GH-7.md", "gh-7.txt", "GH-7.txt.bak", "x/GH-7.txt"):
+            with self.subTest(name=name):
+                ids, failures = intended({}, {name: "programs/gcd\n"})
+
+                self.assertEqual(ids, [])
+                self.assertEqual(len(failures), 1)
+                self.assertIn("not named after an issue", failures[0])
+
+    def test_an_issue_named_file_declares(self) -> None:
+        self.assertEqual(intended({}, {"GH-123.txt": "programs/gcd\n"}), (["programs/gcd"], []))
 
     def test_no_declarations_is_empty(self) -> None:
         self.assertEqual(intended({}, {}), ([], []))

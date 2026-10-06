@@ -26,8 +26,10 @@ Intended changes are declared per issue in a new file the branch adds to
 ``tests/golden_changes/``, named after its issue (``GH-72.txt``): one record
 ID per line, ``<group>/<name>`` (``programs/fold``, ``continuity/fold``,
 ``api/shear.lang``); blank lines and lines starting with ``#`` are ignored.
-Files already in the base are history: they grant nothing, and changing or
-deleting one fails. A declared record that did not change fails.
+A new file not named ``GH-<n>.txt`` fails and grants nothing. Files already
+in the base are history: they grant nothing, and changing or deleting one
+fails. A declared record that did not change fails. A recording with a group
+outside ``GROUPS`` fails, so a recorder that gains a group must add it there.
 
 A branch that changes this file's recorder fails unless its declaration has
 a ``*`` line, which accepts and prints every difference; a ``*`` without a
@@ -47,6 +49,7 @@ import hashlib
 import importlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -56,6 +59,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DECLARATIONS = "tests/golden_changes"
 RECORDER = "tests/golden.py"
 GROUPS = ("programs", "continuity", "api")
+DECLARATION_NAME = re.compile(r"GH-[0-9]+\.txt")
 API_MODULES = ("shear", "shear.lang", "shear.syntax", "shear.bytecode", "shear.machine")
 
 # A base from before this file existed records with the retired module.
@@ -167,6 +171,13 @@ def intended(
 
     for name in sorted(set(base_files) | set(head_files)):
         if name not in base_files:
+            if not DECLARATION_NAME.fullmatch(name):
+                failures.append(
+                    f"{DECLARATIONS}/{name} is not named after an issue "
+                    f"(GH-<n>.txt); its lines grant nothing"
+                )
+                continue
+
             ids += _lines(head_files[name])
         elif name not in head_files:
             failures.append(f"{DECLARATIONS}/{name} is history and was deleted")
@@ -197,6 +208,15 @@ def compare(
     failures: list[str] = []
     changed: set[str] = set()
     counts = {"unchanged": 0, "new": 0}
+
+    for label, recording in (("base", base), ("head", head)):
+        extra = sorted(set(recording) - set(GROUPS))
+
+        if extra:
+            failures.append(
+                f"the {label} recording has groups {', '.join(extra)} that the "
+                f"check does not compare; add them to GROUPS in {RECORDER}"
+            )
 
     for group in GROUPS:
         old, new = base.get(group, {}), head.get(group, {})

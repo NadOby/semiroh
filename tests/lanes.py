@@ -8,7 +8,7 @@ an error rather than silently reducing CI coverage.
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 from pathlib import Path
 import subprocess
@@ -202,9 +202,9 @@ def run_all(
     """Run every lane as a separate process, ``jobs`` at a time.
 
     Each lane runs exactly the command it runs alone, so this executes the
-    same tests as running the lanes one by one. Output is printed per lane in
-    ``LANES`` order, grouped in GitHub Actions; the result fails if any lane
-    fails.
+    same tests as running the lanes one by one. Each lane's output is printed
+    as soon as it finishes, grouped in GitHub Actions, then a timing table in
+    ``LANES`` order; the result fails if any lane fails.
     """
 
     lanes = list(LANES)
@@ -216,20 +216,28 @@ def run_all(
         code, output = run(lane)
         return code, output, time.monotonic() - start
 
+    finished: dict[str, tuple[int, str, float]] = {}
+
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        results = list(pool.map(timed, lanes))
+        pending = {pool.submit(timed, lane): lane for lane in lanes}
 
-    for lane, (code, output, _) in zip(lanes, results):
-        status = "ok" if code == 0 else "FAILED"
+        # Print each lane as soon as it finishes, so a lane that hangs until
+        # the job times out does not hide the output of the others.
+        for future in as_completed(pending):
+            lane = pending[future]
+            code, output, seconds = future.result()
+            finished[lane] = (code, output, seconds)
+            status = "ok" if code == 0 else "FAILED"
 
-        if grouped and code == 0:
-            print(f"::group::{lane} ({status})")
-            print(output, end="")
-            print("::endgroup::")
-        else:
-            print(f"===== {lane} ({status}) =====")
-            print(output, end="")
+            if grouped and code == 0:
+                print(f"::group::{lane} ({status})")
+                print(output, end="")
+                print("::endgroup::", flush=True)
+            else:
+                print(f"===== {lane} ({status}) =====")
+                print(output, end="", flush=True)
 
+    results = [finished[lane] for lane in lanes]
     print(f"lanes run {workers} at a time:")
 
     for lane, (code, _, seconds) in zip(lanes, results):

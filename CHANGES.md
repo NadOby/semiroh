@@ -1379,3 +1379,7 @@ valid evidence after the relevant oracle was shown to be unsound.
 - `handoff.md` is a checkpoint of state and claims, not an authority or
   verification evidence. Contracts are in the roadmap's Workflow section;
   "Plan task N" through "Publish task N" invoke them.
+- Work is tracked in GitHub issues: each roadmap task has a `task` issue,
+  other changes get an issue before they start, and follow-ups become
+  `follow-up` issues. Commits start with the issue key `GH-<n>` in
+  smart-commit style, and a PR description closes the issues it completes.

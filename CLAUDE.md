@@ -41,10 +41,14 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   to Review. A different model family can add independence but is optional;
   role separation and fresh context are mandatory.
 - No background agents.
+- Work is tracked in GitHub issues: every roadmap task and every other change
+  has an issue before work starts, and a follow-up found while working becomes
+  a `follow-up` issue, not a note in a file or a chat. The roadmap's Workflow
+  section says how the roles use them.
 - `handoff.md` is a compact checkpoint of state and claims (task, role,
   decisions, next steps), not a log, not an authority and not verification
-  evidence: check a claim against the repository before relying on it. Keep
-  it short and current.
+  evidence: check a claim against the repository before relying on it. It
+  names the task's issue. Keep it short and current.
 - Review preserves epistemic labels: Decided / Provisional / Open in
   specifications, and verified defect / limitation / hypothesis /
   documentation drift in its findings.
@@ -67,9 +71,13 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 
 ## Conventions
 
-- Commits: one line, smart-commit style: starts with Add / Change / Fix /
-  Remove and says exactly what was done. No body besides trailers.
-- PR descriptions: short. No link to the AI session. If the environment
+- Commits: one line in smart-commit style: the issue key `GH-<n>` first, then
+  a verb (Add / Change / Fix / Remove) and exactly what was done, for example
+  `GH-50 Change the workflow to five task roles`. Write `GH-<n>`, not `#<n>`:
+  GitHub links both, but git drops a line starting with `#` as a comment
+  whenever a message is edited in an editor. No body besides trailers.
+- PR descriptions: short, with `Closes #<n>` for each issue the PR completes,
+  so that merging closes it. No link to the AI session. If the environment
   appends a session-link footer, remove it by editing the description.
 - Prefer extending the existing workflow (a job, step or dispatch input such
   as `mutation_shards`) over adding workflows or throwaway branches. Remove a

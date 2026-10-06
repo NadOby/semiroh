@@ -2,7 +2,8 @@
 
 **Status: provisional.** The order of work after the code-as-graph spike
 (PR #17, docs/spikes/code_as_graph.md on that branch). Tasks are done in
-order unless marked independent; each one is a PR and follows CLAUDE.md.
+order unless marked independent; each one has a GitHub issue, is a PR and
+follows CLAUDE.md.
 
 ## Workflow
 
@@ -14,6 +15,15 @@ make that instruction sufficient. Every role starts by fetching the
 repository and reading CLAUDE.md, this section, the task's roadmap entry and
 `handoff.md`, and ends by recording its state in `handoff.md` and stopping.
 `handoff.md` is a checkpoint of claims, not evidence that they hold.
+
+**Decided.** Work is tracked in GitHub issues. Each roadmap task not yet
+done has an issue labelled `task`, named in its entry's status line; any
+other change gets an issue before work starts, and a follow-up found during
+a task becomes an issue labelled `follow-up`. An issue holds the goal, the status and the
+discussion. This roadmap remains the order and the task definitions, the
+specifications the design, `CHANGES.md` the log and `handoff.md` the
+checkpoint between chats. Commits and PRs name their issue as CLAUDE.md
+describes.
 
 1. **Plan** (`Plan task N`). A fresh context, preferably with the strongest
    reasoning model available. No production changes.
@@ -33,6 +43,8 @@ repository and reading CLAUDE.md, this section, the task's roadmap entry and
      runs the existing corpora through it.
    - Name the important claims Review must verify independently, and keep
      required work apart from useful follow-ups.
+   - Find the task's issue, or create it with the `task` label and name it
+     in the roadmap entry.
    - Write the spec and acceptance tests on a branch `task/<n>-<name>`, and
      turn `handoff.md` into the execution contract.
 2. **Execute** (`Execute task N`). A separate implementation context with
@@ -83,9 +95,11 @@ repository and reading CLAUDE.md, this section, the task's roadmap entry and
      that the acceptance tests are unchanged; verify the final diff and CI;
      check that every finding is resolved or explicitly accepted as a
      non-blocking limitation.
-   - Open a ready PR, then mark the roadmap entry Implemented with the PR's
+   - Open a ready PR whose description closes the task's issue
+     (`Closes #<n>`), then mark the roadmap entry Implemented with the PR's
      number. The PR states intentionally deferred limitations and follow-ups
-     separately from defects.
+     separately from defects; each deferred follow-up gets a `follow-up`
+     issue named in the PR.
 
 The owner merges, or pushes back, and says so.
 

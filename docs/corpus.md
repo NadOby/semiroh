@@ -189,8 +189,8 @@ implementation is done when it passes without changes.
 
 Task 20 additionally uses the three `errors` examples as cross-boundary
 canaries. They must run under the ordinary language path, round-trip through
-text syntax, and be recorded in `tests/language_golden.json` without changing
-the golden records of any pre-existing program.
+text syntax, and add golden records without changing the golden records of
+any pre-existing program (`tests/golden.py`).
 
 ## 6. Implementation notes
 

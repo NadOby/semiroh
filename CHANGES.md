@@ -1400,3 +1400,20 @@ valid evidence after the relevant oracle was shown to be unsound.
   operations; the SHEAR VM costs about 150x the host machine per layer.
 - The bootstrap delivery review that proposed this is kept in
   `docs/reviews/`. Roadmap tasks 21 to 31 name their GitHub issues.
+
+### Golden check against the merge base
+
+- `tests/language_golden.json` and `--record` are gone. A step in the CI
+  `tests` job records the corpus programs, continuity cases and public names
+  in the merge base with `main` (on `main`, the previous commit) and in the
+  head, each with its own recorder (`tests/golden.py`), and compares them:
+  new records pass and are printed in full, unchanged ones pass, and a
+  changed or removed record, or a lost public name, fails with old and new
+  printed.
+- Intended changes are `<group>/<name>` lines a branch adds to
+  `tests/golden_changes.txt`; lines from earlier branches grant nothing, a
+  line whose record did not change fails, and a change to the recorder needs
+  a `*` line. Lines name their group because `fold` is both a program and a
+  continuity case.
+- The same check runs locally with `python3 -m tests.golden --against main`.
+  The task 20 guard reads the recorder from its new module.

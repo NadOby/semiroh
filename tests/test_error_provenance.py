@@ -205,6 +205,61 @@ def _guarded_program(body: Any, evaluator: Callable[[Any], ConstraintResult]) ->
     )
 
 
+def _host_exceptions(base: type) -> dict[str, Callable[[], tuple]]:
+    """Host exception kinds of a mapped class ``base`` that skip its
+    constructor (no runtime fields) and resist or forge model metadata.
+    Each maker returns the exception, its cause, and a hook the evaluator
+    calls just before raising (forging uses the current run's token)."""
+
+    class Plain(base):
+        pass
+
+    class IgnoresSetattr(base):
+        def __setattr__(self, name: str, value: Any) -> None:
+            pass
+
+    class ReadOnlyNames(base):
+        @property
+        def _shear_host_failure(self) -> str:
+            return "host-owned"
+
+        @property
+        def _shear_run(self) -> str:
+            return "host-owned"
+
+    class ThrowingError(base):
+        @property
+        def error(self) -> Any:
+            raise LookupError("the model inspected a host exception")
+
+    class ForgedCurrentRun(base):
+        pass
+
+    def maker(cls: type, name: str, forge: bool = False) -> Callable[[], tuple]:
+        def make() -> tuple:
+            failure = cls.__new__(cls)
+            Exception.__init__(failure, name)
+
+            def prepare() -> None:
+                if forge:
+                    from shear.machine import _RUN
+
+                    failure.error = ("runtime", "cell_rejected", (), (F, F))
+                    failure._shear_run = _RUN.get()
+
+            return failure, ValueError("host cause"), prepare
+
+        return make
+
+    return {
+        "plain": maker(Plain, "plain"),
+        "ignores setattr": maker(IgnoresSetattr, "ignores setattr"),
+        "read-only reserved names": maker(ReadOnlyNames, "read-only reserved names"),
+        "throwing error getter": maker(ThrowingError, "throwing error getter"),
+        "forged current-run provenance": maker(ForgedCurrentRun, "forged current-run provenance", forge=True),
+    }
+
+
 class HostCallbackFailureTests(unittest.TestCase):
     def setUp(self) -> None:
         self.inner_cell = EntityID("inner")
@@ -283,46 +338,41 @@ class HostCallbackFailureTests(unittest.TestCase):
                 self.assertEqual(runtime.active.state.id, before)
 
     def test_a_host_exception_escapes_as_the_same_untouched_object(self) -> None:
-        class ReservedNames(CellContentRejected):
-            """Reserves the attribute names the model uses internally."""
+        """Every boundary leaves a host exception exactly as raised, even
+        when its class is mapped and it resists or forges model metadata."""
 
-            def __init__(self) -> None:
-                Exception.__init__(self, "host failure with reserved names")
+        replacement = ("function", ("lit", ()), ("lit", ("lit", 2)))
+        boundaries = (
+            ("write", ("catch", ("write", "audited", ("arg", "v"))), 1, CellContentRejected),
+            ("activate", ("catch", ("activate", "g", replacement)), 0, ActivationRejected),
+            ("trial", ("catch", ("trial", ("call", "g"), "g", replacement)), 0, ActivationRejected),
+        )
 
-            @property
-            def _shear_host_failure(self) -> bool:
-                return False
+        for operation, body, argument, base in boundaries:
+            for name, make in _host_exceptions(base).items():
+                with self.subTest(operation=operation, exception=name):
+                    failure, cause, prepare = make()
+                    snapshot: list = []
 
-            @property
-            def _shear_run(self) -> None:
-                return None
+                    def evaluator(value: Any) -> ConstraintResult:
+                        prepare()
+                        snapshot.append(
+                            dict(object.__getattribute__(failure, "__dict__"))
+                        )
+                        raise failure from cause
 
-        class TouchyError(CellContentRejected):
-            """Fails if anyone reads ``.error``."""
+                    runtime = _guarded_program(body, evaluator)
 
-            def __init__(self) -> None:
-                Exception.__init__(self, "host failure that refuses inspection")
+                    with self.assertRaises(base) as caught:
+                        run(runtime, F, argument, may_activate=True)
 
-            @property
-            def error(self) -> Any:
-                raise RuntimeError("the model inspected a host exception")
-
-        for cls in (ReservedNames, TouchyError):
-            with self.subTest(exception=cls.__name__):
-                failure = cls()
-
-                def evaluator(value: Any) -> ConstraintResult:
-                    raise failure
-
-                runtime = _guarded_program(
-                    ("catch", ("write", "audited", ("arg", "v"))), evaluator
-                )
-
-                with self.assertRaises(cls) as caught:
-                    run(runtime, F, 1)
-
-                self.assertIs(caught.exception, failure)
-                self.assertEqual(runtime.read(AUDITED), 0)
+                    self.assertIs(caught.exception, failure)
+                    self.assertIs(type(caught.exception), type(failure))
+                    self.assertEqual(str(caught.exception), name)
+                    self.assertIs(caught.exception.__cause__, cause)
+                    self.assertEqual(
+                        object.__getattribute__(failure, "__dict__"), snapshot[0]
+                    )
 
     def test_a_rejecting_evaluator_is_still_a_catchable_runtime_error(self) -> None:
         runtime = _guarded_program(

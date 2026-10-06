@@ -1419,6 +1419,9 @@ valid evidence after the relevant oracle was shown to be unsound.
   declared record that did not change fails. A recorder change is declared
   with `*`, which accepts and prints every difference; the check warns when
   `*` comes with changes under `shear/`.
+- The workflow no longer assumes that every role can write to GitHub: a role
+  without access delivers findings, `handoff.md` text and issue or PR text in
+  its reply (CLAUDE.md, roadmap Workflow). Review's findings are its reply.
 - Fail closed (Review of #72): a new declaration file not named
   `GH-<n>.txt` fails and grants nothing, and a recording with a group outside
   the check's `GROUPS` fails, so a recorder that gains a group must add it to

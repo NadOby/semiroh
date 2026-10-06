@@ -16,6 +16,14 @@ repository and reading CLAUDE.md, this section, the task's roadmap entry and
 `handoff.md`, and ends by recording its state in `handoff.md` and stopping.
 `handoff.md` is a checkpoint of claims, not evidence that they hold.
 
+**Decided.** No role may assume write access to GitHub or to the repository.
+A role states in its reply what it needs to write, and when it lacks the
+access it delivers the content in that reply instead: the findings, the
+`handoff.md` text, the issue or PR title and body. The owner, or a later role
+that has the access, records it. A role never reports something as recorded,
+opened or pushed unless it checked. Review needs no write access at all: its
+findings are its reply.
+
 **Decided.** Work is tracked in GitHub issues. Each roadmap task not yet
 done has an issue labelled `task`, named in its entry's status line; any
 other change gets an issue before work starts, and a follow-up found during
@@ -45,7 +53,8 @@ describes.
    - Name the important claims Review must verify independently, and keep
      required work apart from useful follow-ups.
    - Find the task's issue, or create it with the `task` label and name it
-     in the roadmap entry.
+     in the roadmap entry; without issue write access, give the owner the
+     issue title and body to create.
    - Write the spec and acceptance tests on a branch `task/<n>-<name>`, and
      turn `handoff.md` into the execution contract.
 2. **Execute** (`Execute task N`). A separate implementation context with
@@ -79,15 +88,17 @@ describes.
      failure mode or counterexample, and the smallest valid fix. Do not turn
      suspicion into a defect, and do not re-raise historical issues that the
      current code has fixed.
-   - Do not repair production code, tests or specifications; record the
-     findings in `handoff.md` if needed.
+   - Do not repair production code, tests or specifications. The findings
+     are the reply; the owner or Resolve records them in `handoff.md` if
+     they should outlive the chat.
 4. **Resolve** (`Resolve task N`). An execution-capable context.
    - Handle the findings one by one: fix a verified defect with the smallest
      valid change, or rebut it with concrete repository evidence.
    - Do not change Decided semantics, acceptance expectations or
      specifications to make a finding disappear; escalate such decisions to
      the owner.
-   - Record fixes, rebuttals and unresolved findings in `handoff.md`.
+   - Record the findings (from the Review's reply), fixes, rebuttals and
+     unresolved findings in `handoff.md`.
    - A fresh Review pass follows every Resolve. Review and Resolve repeat
      until Review has no unresolved blocking finding.
 5. **Publish** (`Publish task N`). Only after an independent Review has
@@ -96,7 +107,8 @@ describes.
      that the acceptance tests are unchanged; verify the final diff and CI;
      check that every finding is resolved or explicitly accepted as a
      non-blocking limitation.
-   - Open a ready PR whose description closes the task's issue
+   - Open a ready PR (without PR access, give the owner its title and
+     description) whose description closes the task's issue
      (`Closes #<n>`), then mark the roadmap entry Implemented with the PR's
      number. The PR states intentionally deferred limitations and follow-ups
      separately from defects; each deferred follow-up gets a `follow-up`

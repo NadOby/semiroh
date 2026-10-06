@@ -18,33 +18,32 @@ repository. Read CLAUDE.md and `docs/roadmap.md` first.
 
 ## #72 claims for Review
 
-- `tests/language_golden.json`, `tests/test_language_golden.py` and
-  `--record` are deleted. `tests/golden.py` holds the recorder (`observe`,
-  moved unchanged) and the check; `tests/test_golden.py` (lane
-  `cross-boundary`) tests the comparison rules on planted records. Each rule
-  was confirmed by planting a bug in it: every plant fails at least one test.
-- CI: the `tests` job checks out with `fetch-depth: 0` and runs
-  `python -m tests.golden --against origin/main` after the lanes.
-- Base: merge base of the ref and HEAD; when HEAD is the ref's tip (a push
-  to `main`), the previous commit. A base without `tests/golden.py` records
-  with the retired `tests.test_language_golden.observe`, so this branch's
-  own run works; that fallback can go once `main` has the new module.
-- Rules: new records pass and are printed in full; unchanged pass; changed
-  or removed fail with old and new. API records fail only when a public name
-  disappears. Intended changes are `<group>/<name>` lines the branch adds to
-  `tests/golden_changes.txt` (difflib over the base and head file); groups
-  are qualified because `fold` is both a program and a continuity case. An
-  added line whose record did not change fails. A recorder change needs a
-  `*` line, and `*` without a recorder change fails (Provisional: the design
-  did not say).
-- This branch adds `*`, because the recorder moved. Locally against `main`:
-  55 unchanged, 0 failures. End to end on a scratch branch: missing `*`,
-  a changed `gcd` without a line, the same with `programs/gcd`, and a padded
-  `programs/fold` gave fail, fail, pass and fail.
-- `tests/test_error_handling.py` (task 20's guard) now imports `observe`
-  from `tests.golden`; only the import and a comment changed.
-- Known limit: run locally on `main` itself with uncommitted changes, the
-  base is the previous commit, not HEAD.
+The issue body is the amended specification (owner's review of the first
+version: push baseline, per-issue declarations, namespaced IDs, the guard
+test, separate subprocesses, digests, the `*` rule).
+
+- Deleted: `tests/language_golden.json`, `tests/test_language_golden.py`,
+  `--record`, and `MainCorpusGuardTests` in `tests/test_error_handling.py`
+  (an owner's test: it pinned pre-task-20 digests and would reject intended
+  changes). `tests/golden.py` holds the recorder (`observe`, unchanged) and
+  the check; `tests/test_golden.py` (lane `cross-boundary`) tests the rules.
+  Planting a bug in each rule fails at least one test.
+- Base and head record in separate `python -m tests.golden --record`
+  subprocesses, each with its tree as working directory and `PYTHONPATH`
+  removed. A base without `tests/golden.py` uses the retired module's
+  `observe`; that fallback can go once `main` has the new module.
+- CI: `fetch-depth: 0`; on a push to `main`, `--base` with
+  `github.event.before`; otherwise `--against origin/main` (merge base, which
+  is HEAD itself on the ref's tip).
+- Declarations: new files in `tests/golden_changes/`; changing or deleting
+  an existing one fails. This branch declares `*` in `GH-72.txt` because the
+  recorder moved; nothing under `shear/` changes.
+- Locally against `main`: 55 unchanged, 0 failures. End to end on a scratch
+  branch: an undeclared change to `gcd` fails; declared in a new `GH-99.txt`
+  it passes; an explicit `--base` over two commits works; editing
+  `GH-72.txt` fails; a clean tip against itself passes.
+- Not verified locally: the `push` to `main` path, which only runs after
+  merge.
 
 ## Next
 

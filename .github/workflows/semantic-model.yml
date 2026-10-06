@@ -55,6 +55,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v7
         with:
@@ -62,6 +64,9 @@ jobs:
 
       - name: Run every lane, one process per lane
         run: python -m tests.lanes --all
+
+      - name: Compare golden records with the merge base
+        run: python -m tests.golden --against origin/main
 
   mutation-plan:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.mutation_count != '' && inputs.mutation_count != '0' }}

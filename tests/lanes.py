@@ -89,6 +89,7 @@ LANES: dict[str, tuple[str, ...]] = {
         "test_self_hosting",
     ),
     "vm-bootstrap": (
+        "test_rebuild",
         "test_vm",
     ),
     "cross-boundary": (

@@ -736,7 +736,9 @@ their own conditions; neither side waits for the other.
 
 ### 27. Rebuild the compiler with its own output (one session)
 
-**Planned.** Independent. Issue #63.
+**Planned.** Independent. Issue #63. Planned: spec in vm_in_shear.md
+section 7, acceptance tests in `tests/test_rebuild.py`, declaration in
+`tests/golden_changes/GH-63.txt`.
 
 Keep the compiler's source as data across swaps. Generation 1 is today's
 `swap_all`; generation 2 is compiled by the swapped generation-1 compiler on

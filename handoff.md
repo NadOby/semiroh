@@ -13,8 +13,8 @@ repository. Read CLAUDE.md and `docs/roadmap.md` first.
   #67, labelled `task`; tasks 27 to 31 form the milestone "Hosted
   bootstrap". Commits start with the issue key `GH-<n>`.
 - Current: #72 on `workflow/golden-check`, a workflow change split out of
-  #68 at the owner's request ("as soon as possible"). Implemented; next role
-  is **Review**, in a fresh chat.
+  #68 at the owner's request ("as soon as possible"). Review found three
+  issues (below); Resolve fixed them; next role is a fresh **Review**.
 
 ## #72 claims for Review
 
@@ -45,9 +45,24 @@ test, separate subprocesses, digests, the `*` rule).
 - Not verified locally: the `push` to `main` path, which only runs after
   merge.
 
+## Review findings and Resolve (#72)
+
+- Verified defect (P2): groups outside `GROUPS` in a recording were silently
+  ignored. Fixed: `compare()` fails if base or head has one; a `*` does not
+  excuse it.
+- Verified defect (P3): any new file in `tests/golden_changes/` declared.
+  Fixed: a new file must match `GH-[0-9]+\.txt`, else it fails and grants
+  nothing.
+- Documentation drift (P3): `tests/test_error_handling.py` docstring said its
+  tests fail on main. Reworded.
+- Planted bugs (ignore extra groups; no name check; `search` for `fullmatch`)
+  each fail new tests. Limitation, left open: recorder and verifier share
+  `tests/golden.py`, so a change to it is only guarded by the `*` rule; #68's
+  protected-file machinery is the place to separate them.
+
 ## Next
 
-- Review #72, then Resolve/Publish. After it merges, the rest of #68
+- Fresh Review of #72, then Publish. After it merges, the rest of #68
   (acceptance contract, task-contract verifier, CLAUDE.md principle and
   trim) remains.
 - Independent candidates: task 21 (#58), task 27 (#63); task 23 (#60).

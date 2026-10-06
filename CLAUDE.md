@@ -133,8 +133,8 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   `python3 -m tests.golden --against main` runs the same check locally. A
   record may change only when Plan declares its ID (`programs/<name>`,
   `continuity/<name>`, `api/<module>`) in a new file
-  `tests/golden_changes/GH-<n>.txt` for the task's issue; earlier files are
-  history and never change. A change to the recorder in `tests/golden.py`
+  `tests/golden_changes/GH-<n>.txt` for the task's issue (other names fail);
+  earlier files are history and never change. A change to the recorder in `tests/golden.py`
   is declared with `*`, preferably in a branch of its own.
 - Mutation target policy and explicit omissions live in
   `tests/mutation_catalog.py`. Reviewed survivor classifications and exact

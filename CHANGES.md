@@ -1419,5 +1419,9 @@ valid evidence after the relevant oracle was shown to be unsound.
   declared record that did not change fails. A recorder change is declared
   with `*`, which accepts and prints every difference; the check warns when
   `*` comes with changes under `shear/`.
+- Fail closed (Review of #72): a new declaration file not named
+  `GH-<n>.txt` fails and grants nothing, and a recording with a group outside
+  the check's `GROUPS` fails, so a recorder that gains a group must add it to
+  `GROUPS` instead of having it silently unchecked.
 - `MainCorpusGuardTests`, task 20's pin of the pre-task-20 digests, is
   removed: it would reject intended changes, and the golden check covers it.

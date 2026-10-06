@@ -16,6 +16,7 @@ repository. Read CLAUDE.md and `docs/roadmap.md` first.
 ## Phase
 
 **Resolve** is done for the first review. Next: a fresh **Review task 20**.
+No PR yet.
 
 ## P1 finding and fix
 
@@ -79,7 +80,15 @@ token for trial) are each caught. Docs: Provisional §8 bullet in
   callers discard; `errors.describe` on a malformed value (unspecified).
 - Review's prediction (three parser, one printer) was low: Execute dropped
   far more than it expected and no campaign had run on the branch.
-- A confirming campaign on the current head is still needed.
+- Confirming campaign on the current head `e4d2061` (10000, seed 1, batch
+  0): run 37416039828, sixteen shards, every shard green, so no unclassified
+  survivors remain; its eight CI lanes passed too. Its head `5931a59` is
+  `e4d2061` plus workflow-only commits (shard count, survivor annotations):
+  `git diff e4d2061 5931a59` touches only the workflow file. The shard count
+  does not change the selected set (`test_shard_count_does_not_change_selected_work`),
+  so this covers exactly the four-shard configuration's 3,528 mutants. The
+  four-shard run on the task branch was cancelled after 1 h 45 min to free
+  runners; the experiment branches are to be deleted.
 
 ## Process change removed from task 20
 
@@ -96,7 +105,11 @@ change) was dropped; a stray `.` body was removed.
 
 ## Verified at this state
 
-- `python3 -m unittest discover` and every lane in `tests/lanes.py` pass.
+- Head `e4d2061` plus this handoff commit, based on `main` `27990e2`.
+- `python3 -m unittest discover` and every lane in `tests/lanes.py` pass
+  locally; all eight CI lanes passed on `e4d2061` (run 37416039828).
+- No existing exception class or message changed; `CLAUDE.md` and the
+  roadmap Workflow section are untouched by this branch.
 - `tests/test_error_handling.py` and `shear/examples/errors.py` are
   unchanged since the Plan anchor `6746afc`.
 - `git diff main -- tests/language_golden.json` only adds `safe_install`,

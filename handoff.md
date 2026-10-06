@@ -124,8 +124,12 @@ Roadmap task 20 still says Planned: publish-time bookkeeping, per Review.
   failure with a `TypeError`. Now killed by
   `ModelFailureTests` (hand-built malformed definition under `catch`; the
   failure escapes as the same `LanguageError` without an error value), and
-  confirmed killed with `python -m tests.mutation_campaign replay`. A final
-  campaign on the resulting head confirms the whole set.
+  confirmed killed with `python -m tests.mutation_campaign replay`.
+- Final campaign on `3153117` (run 37433679683, sixteen shards, 10000,
+  seed 1, batch 0): all sixteen shards and all eight ordinary lanes green,
+  so no unclassified survivors remain. Its head `9de6b96` is `3153117` plus
+  workflow-only commits (shard count, survivor annotations) on the temporary
+  branch `experiment/task-20-16-shards`, which is to be deleted.
 
 - After the evaluator-boundary fixes: `constraints.py` survivors all carry
   (14, none in changed definitions). In `machine.py` only the three

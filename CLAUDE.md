@@ -128,11 +128,14 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   plant a plausible bug and confirm the property catches it.
 - Test semantic contracts, not incidental implementation details.
 - CI compares the language layer's golden records (corpus programs,
-  continuity cases, public names) with the merge base; nothing is stored or
-  re-recorded. `python3 -m tests.golden --against main` runs the same check
-  locally. A record may change only through a `<group>/<name>` line the
-  branch adds to `tests/golden_changes.txt`, written by Plan; a change to the
-  recorder in `tests/golden.py` needs a `*` line instead.
+  continuity cases, public names) with the merge base, or on `main` with the
+  commit before the push; nothing is stored or re-recorded.
+  `python3 -m tests.golden --against main` runs the same check locally. A
+  record may change only when Plan declares its ID (`programs/<name>`,
+  `continuity/<name>`, `api/<module>`) in a new file
+  `tests/golden_changes/GH-<n>.txt` for the task's issue; earlier files are
+  history and never change. A change to the recorder in `tests/golden.py`
+  is declared with `*`, preferably in a branch of its own.
 - Mutation target policy and explicit omissions live in
   `tests/mutation_catalog.py`. Reviewed survivor classifications and exact
   target-source pins live in per-target TOML files under

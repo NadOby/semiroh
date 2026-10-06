@@ -41,7 +41,7 @@ describes.
      the tests and invariants that must not change, and the decisions
      Execute must not make alone. A new layer gets an acceptance test that
      runs the existing corpora through it. Golden records the task
-     intends to change are lines added to `tests/golden_changes.txt`.
+     intends to change are declared in `tests/golden_changes/GH-<n>.txt`.
    - Name the important claims Review must verify independently, and keep
      required work apart from useful follow-ups.
    - Find the task's issue, or create it with the `task` label and name it
@@ -69,8 +69,8 @@ describes.
      contract.
    - Look actively for false confidence: weakened or changed acceptance
      tests; test gaming or task-specific special cases in production code;
-     self-referential or non-independent oracles; golden changes listed
-     in `tests/golden_changes.txt` without a reason in the plan; incorrect
+     self-referential or non-independent oracles; golden changes declared
+     in `tests/golden_changes/` without a reason in the plan; incorrect
      mutation-survivor carry-over; CI gaps; accidental semantic or
      public-API changes; replay or reduction mistakes; documentation drift.
    - Classify each observation as a verified defect, a limitation, a

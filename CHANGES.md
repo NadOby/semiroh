@@ -1405,15 +1405,19 @@ valid evidence after the relevant oracle was shown to be unsound.
 
 - `tests/language_golden.json` and `--record` are gone. A step in the CI
   `tests` job records the corpus programs, continuity cases and public names
-  in the merge base with `main` (on `main`, the previous commit) and in the
-  head, each with its own recorder (`tests/golden.py`), and compares them:
-  new records pass and are printed in full, unchanged ones pass, and a
-  changed or removed record, or a lost public name, fails with old and new
-  printed.
-- Intended changes are `<group>/<name>` lines a branch adds to
-  `tests/golden_changes.txt`; lines from earlier branches grant nothing, a
-  line whose record did not change fails, and a change to the recorder needs
-  a `*` line. Lines name their group because `fold` is both a program and a
-  continuity case.
-- The same check runs locally with `python3 -m tests.golden --against main`.
-  The task 20 guard reads the recorder from its new module.
+  in a base commit and in the head, each in its own subprocess running its
+  own recorder (`tests/golden.py`) in its own tree, and compares them: new
+  records pass and are printed in full, unchanged ones pass, and a changed or
+  removed record, or a lost public name, fails with old and new printed. New
+  public names pass, as before. Records keep the old schema, so text and
+  bytecode differences show as digests.
+- The base is the merge base with `main`; on a push to `main` it is the
+  commit before the push, so a push of several commits is checked as a whole.
+- Intended changes are record IDs (`programs/<name>`, `continuity/<name>`,
+  `api/<module>`) in a new file per issue, `tests/golden_changes/GH-<n>.txt`.
+  Earlier files are history: they grant nothing and may not change. A
+  declared record that did not change fails. A recorder change is declared
+  with `*`, which accepts and prints every difference; the check warns when
+  `*` comes with changes under `shear/`.
+- `MainCorpusGuardTests`, task 20's pin of the pre-task-20 digests, is
+  removed: it would reject intended changes, and the golden check covers it.

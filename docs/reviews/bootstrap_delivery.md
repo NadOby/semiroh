@@ -46,21 +46,21 @@ Two risks remain in tension:
 
 The delivery plan must address both.
 
-Sources: [project guidance](CLAUDE.md),
-[semantic graph](docs/semantic_graph.md),
-[relations](docs/relation_model.md),
-[constraints](docs/constraint_model.md),
-[contracts](docs/contract_model.md), and
-[graph ledger](docs/graph_ledger.md).
+Sources: [project guidance](../../CLAUDE.md),
+[semantic graph](../semantic_graph.md),
+[relations](../relation_model.md),
+[constraints](../constraint_model.md),
+[contracts](../contract_model.md), and
+[graph ledger](../graph_ledger.md).
 
 ## 2. Starting point
 
 The Python implementation is an executable semantic reference model and the
 intended starting environment for bootstrap.
 
-[Self-hosting](docs/self_hosting.md) establishes subset lowering written in
+[Self-hosting](../self_hosting.md) establishes subset lowering written in
 SHEAR and comparison with host-generated output.
-The [VM in SHEAR](docs/vm_in_shear.md) executes that output and supports a
+The [VM in SHEAR](../vm_in_shear.md) executes that output and supports a
 compiler fixpoint. The Python-hosted machine still executes the system;
 the embedded interpreter is intentionally slow and supports a restricted
 subset.
@@ -430,7 +430,7 @@ budget, not the number of mechanisms, documents, or passing tests.
 
 ## 10. Relationship to the current development path
 
-The [roadmap](docs/roadmap.md) remains the scheduling authority.
+The [roadmap](../roadmap.md) remains the scheduling authority.
 This proposal interprets and extends that path rather than silently replacing it.
 
 Task 20 supplies the error-handling foundation.

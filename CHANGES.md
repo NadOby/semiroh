@@ -1442,3 +1442,11 @@ valid evidence after the relevant oracle was shown to be unsound.
   it adds a policy subsystem for a problem git history and independent Review
   handle. The golden check stays. Mechanical enforcement returns if repeated
   Review failures show the need.
+
+### CLAUDE.md compacted
+
+- The mutation-campaign detail of CLAUDE.md's Testing section moved to
+  `docs/verification_hardening.md` section 15 unchanged; CLAUDE.md keeps a
+  short pointer and the survivor rule. CLAUDE.md is read every session, so
+  it went from 252 to about 200 lines. A one-line principle was added: a
+  check Review keeps missing becomes a repository check.

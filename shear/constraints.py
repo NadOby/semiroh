@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from enum import Enum
 from types import MappingProxyType
@@ -16,22 +17,27 @@ from .canonical import (
 )
 
 
-_HOST_FAILURE = "_shear_host_failure"
+# Exceptions that escaped an evaluator during the current language run, by
+# identity. The language machine never reports one as a language or runtime
+# error, whatever its class (error_handling.md section 1): an evaluator that
+# raises is a failure of the model, not of the program. Provenance is kept
+# outside the exception, so a host exception is never modified or inspected.
+_HOST_FAILURES: ContextVar[dict[int, BaseException] | None] = ContextVar(
+    "shear_host_failures",
+    default=None,
+)
 
 
-def _mark_host_failure(exc: BaseException) -> None:
-    """Mark an exception that escaped host code the model called.
+def _record_host_failure(exc: BaseException) -> None:
+    failures = _HOST_FAILURES.get()
 
-    The language machine never reports a marked exception as a language or
-    runtime error, whatever its class (error_handling.md section 1): an
-    evaluator that raises is a failure of the model, not of the program.
-    """
-
-    setattr(exc, _HOST_FAILURE, True)
+    if failures is not None:
+        failures[id(exc)] = exc
 
 
 def _is_host_failure(exc: BaseException) -> bool:
-    return getattr(exc, _HOST_FAILURE, False) is True
+    failures = _HOST_FAILURES.get()
+    return failures is not None and failures.get(id(exc)) is exc
 
 
 class ConstraintResult(Enum):
@@ -88,7 +94,7 @@ class Evaluator:
         try:
             result = self.predicate(content)
         except BaseException as exc:
-            _mark_host_failure(exc)
+            _record_host_failure(exc)
             raise
 
         if not isinstance(result, ConstraintResult):

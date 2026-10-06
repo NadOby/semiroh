@@ -262,8 +262,11 @@ decision.
   escaping an independent `run` started by host code (an evaluator that calls
   `run`), is not this run's failure and is not caught (section 1). The mark
   is not part of the error value and not a public interface.
-- An exception that escapes an evaluator is marked at that boundary
-  (`Evaluator.evaluate`) and the machine never maps it, whatever its class:
+- An exception that escapes an evaluator is recorded at that boundary
+  (`Evaluator.evaluate`), by identity in a registry private to the run, and
+  the machine never maps it, whatever its class. The exception itself is
+  never modified or inspected, so a host exception reserving any attribute
+  name escapes intact:
   a rejection raised inside an evaluator by another runtime's `write` or
   `activate` escapes the program's `write`, `activate` or `trial` unchanged
   instead of becoming this program's `runtime` or `language` error (section

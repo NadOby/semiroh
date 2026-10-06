@@ -8,7 +8,7 @@ from typing import Any, Mapping
 from . import bytecode
 from .canonical import CanonicalNode, canonical_serialize, canonicalize
 from .closures import Closure, closure_value
-from .constraints import _is_host_failure, kind_of
+from .constraints import _HOST_FAILURES, _is_host_failure, kind_of
 from .identity import EntityID
 from .lang import (
     CallDepthExceeded, Function, LanguageError, _decode, _definition_of, _fill,
@@ -72,9 +72,6 @@ def _attach(
     function: EntityID,
     node: EntityID,
 ) -> BaseException:
-    if _is_host_failure(exc):
-        return exc
-
     if not hasattr(exc, "error"):
         exc.error = (origin, kind, detail, (function, node))
         exc._shear_run = _RUN.get()
@@ -87,7 +84,7 @@ def _attach_runtime(
     node: EntityID,
     operation: str,
 ) -> BaseException:
-    if hasattr(exc, "error"):
+    if _is_host_failure(exc) or hasattr(exc, "error"):
         return exc
 
     if isinstance(exc, CellContentRejected):
@@ -1789,6 +1786,9 @@ def _execute(
                     )
 
             except BaseException as exc:
+                if _is_host_failure(exc):
+                    raise
+
                 error = getattr(
                     exc,
                     "error",
@@ -1867,13 +1867,18 @@ def run(
 ) -> Any:
     """Evaluate one graph-form function."""
 
-    return _execute(
-        runtime,
-        may_activate,
-        entry,
-        [
-            canonicalize(arg)
-            for arg in args
-        ],
-        object(),
-    )
+    failures = _HOST_FAILURES.set({})
+
+    try:
+        return _execute(
+            runtime,
+            may_activate,
+            entry,
+            [
+                canonicalize(arg)
+                for arg in args
+            ],
+            object(),
+        )
+    finally:
+        _HOST_FAILURES.reset(failures)

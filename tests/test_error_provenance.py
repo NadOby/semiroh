@@ -6,8 +6,9 @@ carries an ``.error`` tuple, or a SHEAR error escaping an independent ``run``
 started by host code such as an external evaluator, escapes unchanged.
 Nested execution that belongs to the same run, such as ``trial``, stays
 catchable. An exception escaping an evaluator is a failure of the model
-(error_handling.md section 1), so it escapes even when its class is one the
-machine maps, such as a rejection raised by another runtime.
+(error_handling.md section 1), so it escapes as the same untouched object
+even when its class is one the machine maps, such as a rejection raised by
+another runtime.
 """
 
 from __future__ import annotations
@@ -280,6 +281,48 @@ class HostCallbackFailureTests(unittest.TestCase):
                 self.assertIs(caught.exception, raised[0])
                 self.assertFalse(hasattr(caught.exception, "error"))
                 self.assertEqual(runtime.active.state.id, before)
+
+    def test_a_host_exception_escapes_as_the_same_untouched_object(self) -> None:
+        class ReservedNames(CellContentRejected):
+            """Reserves the attribute names the model uses internally."""
+
+            def __init__(self) -> None:
+                Exception.__init__(self, "host failure with reserved names")
+
+            @property
+            def _shear_host_failure(self) -> bool:
+                return False
+
+            @property
+            def _shear_run(self) -> None:
+                return None
+
+        class TouchyError(CellContentRejected):
+            """Fails if anyone reads ``.error``."""
+
+            def __init__(self) -> None:
+                Exception.__init__(self, "host failure that refuses inspection")
+
+            @property
+            def error(self) -> Any:
+                raise RuntimeError("the model inspected a host exception")
+
+        for cls in (ReservedNames, TouchyError):
+            with self.subTest(exception=cls.__name__):
+                failure = cls()
+
+                def evaluator(value: Any) -> ConstraintResult:
+                    raise failure
+
+                runtime = _guarded_program(
+                    ("catch", ("write", "audited", ("arg", "v"))), evaluator
+                )
+
+                with self.assertRaises(cls) as caught:
+                    run(runtime, F, 1)
+
+                self.assertIs(caught.exception, failure)
+                self.assertEqual(runtime.read(AUDITED), 0)
 
     def test_a_rejecting_evaluator_is_still_a_catchable_runtime_error(self) -> None:
         runtime = _guarded_program(

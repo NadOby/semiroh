@@ -1329,9 +1329,9 @@ valid evidence after the relevant oracle was shown to be unsound.
   with a private per-run token shared by nested `trial` execution. A host
   exception carrying a forged `.error`, or a failure escaping an independent
   `run` started by an evaluator, is not caught. Exceptions escaping an
-  evaluator are marked at that boundary and never mapped, so a rejection an
-  evaluator triggers on another runtime escapes `write`, `activate` and
-  `trial` unchanged.
+  evaluator are recorded by identity in a per-run registry and never mapped
+  or touched, so a rejection an evaluator triggers on another runtime escapes
+  `write`, `activate` and `trial` as the same object.
 - Added program-raised errors through `raise(kind, detail)`, plus the
   `shear.errors` catalogue and human-readable `describe(error)` helper.
 - Extended graph form, bytecode and text syntax with `catch` and `raise`.

@@ -19,6 +19,10 @@ on:
         description: "Zero-based disjoint mutation batch"
         required: false
         default: "0"
+      mutation_shards:
+        description: "Mutation campaign shards, 1 to 16; the cap leaves room for other jobs within the account's concurrent-job limit"
+        required: false
+        default: "16"
 
   push:
     paths:
@@ -59,27 +63,49 @@ jobs:
       - name: Run every lane, one process per lane
         run: python -m tests.lanes --all
 
-  mutation-campaign:
+  mutation-plan:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.mutation_count != '' && inputs.mutation_count != '0' }}
 
     runs-on: ubuntu-latest
-    name: mutation campaign (shard ${{ matrix.shard }}/4)
+    name: mutation plan
+
+    outputs:
+      count: ${{ steps.plan.outputs.count }}
+      shards: ${{ steps.plan.outputs.shards }}
+
+    steps:
+      - name: Validate the shard count and build the shard matrix
+        id: plan
+        env:
+          SHARDS: ${{ inputs.mutation_shards }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          raw = os.environ["SHARDS"].strip() or "16"
+          if not raw.isdigit() or not 1 <= int(raw) <= 16:
+              raise SystemExit(f"mutation_shards must be an integer from 1 to 16, got {raw!r}")
+          count = int(raw)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"count={count}\n")
+              out.write(f"shards={json.dumps(list(range(count)))}\n")
+          PY
+
+  mutation-campaign:
+    needs: mutation-plan
+
+    runs-on: ubuntu-latest
+    name: mutation campaign (shard ${{ matrix.shard }}/${{ needs.mutation-plan.outputs.count }})
 
     strategy:
       fail-fast: false
-      max-parallel: 4
       matrix:
-        shard:
-          - 0
-          - 1
-          - 2
-          - 3
+        shard: ${{ fromJSON(needs.mutation-plan.outputs.shards) }}
 
     env:
       SHEAR_MUTATE: ${{ inputs.mutation_count }}
       SHEAR_MUTATE_SEED: ${{ inputs.mutation_seed }}
       SHEAR_MUTATE_BATCH: ${{ inputs.mutation_batch }}
-      SHEAR_MUTATE_SHARDS: "4"
+      SHEAR_MUTATE_SHARDS: ${{ needs.mutation-plan.outputs.count }}
       SHEAR_MUTATE_SHARD: ${{ matrix.shard }}
       SHEAR_MUTATION_REPORT: mutation-report-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}.jsonl
 

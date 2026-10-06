@@ -1346,4 +1346,17 @@ valid evidence after the relevant oracle was shown to be unsound.
 - The embedded compiler and SHEAR-written bytecode VM are intentionally not
   extended with `CATCH`/`FAIL` in this task; that remains a follow-up.
 
-  
+## 2026-10-06
+
+### Single test job and configurable mutation sharding
+
+- CI runs every ordinary lane in one job: `python -m tests.lanes --all` runs
+  each lane as its own `python -m tests.lanes <lane>` process, as many at a
+  time as the runner has CPUs, prints each lane's output and a timing table,
+  and fails if any lane fails. The partition and its validation are
+  unchanged. Eight runners of mostly setup time become one.
+- The mutation campaign takes a `mutation_shards` dispatch input, default 16
+  and at most 16, validated by a small plan job that builds the shard matrix.
+  Timing campaigns on the task 20 head showed gains through sixteen shards;
+  the cap keeps a campaign below the concurrent-job limit. The selected
+  mutation set does not depend on the shard count.

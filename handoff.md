@@ -94,6 +94,25 @@ property that raises) and asserts the same object escapes. Removing any
 one of the three machine checks, putting `hasattr` first, or returning to
 the attribute mark fails at least one test.
 
+Fourth review (of `ac0dcec`): findings 1 and 2 (host exceptions ignoring
+or forging metadata, read-only or throwing attributes, mapped subclasses
+without runtime fields) were already closed by the identity registry; all
+twelve probes pass on `9dcd7ec`. They are now a regression parameterized
+over `write`, `activate` and `trial` and five host exception kinds,
+asserting identity, class, message, cause and an unchanged attribute
+dictionary; it fails on `ac0dcec` and when either registry check before
+attribute access is removed. Finding 3: `catch(e, None)` skipped filter
+validation and became catch-all; `lang.py` now validates whenever two
+operands are given, so an explicit `None` builds an invalid node (fails
+with `invalid_code` without running its body, round-trips through
+`raw(...)`). Finding 4, the stale `return exc` key, was fixed in
+`9dcd7ec`; every classification in `machine.py`, `constraints.py` and
+`lang.py` has now been re-reviewed against the exact current source (each
+key resolved to its function, statement and mutation; each decorator key
+confirmed to decorate the class its reason names). An automated check that
+carried keys still resolve to the reviewed site belongs to the planned
+CI-contract mutation-carry check, not this task.
+
 Roadmap task 20 still says Planned: publish-time bookkeeping, per Review.
 
 ## Mutation evidence
@@ -205,8 +224,11 @@ unwinding, run provenance. §9 syntax. §10 compiler and VM deferral.
 ## Rules learned the hard way
 
 - Editing a mutation target invalidates its survivor classifications. Carry
-  one only when its enclosing top-level definition is AST-identical; drop
-  the rest. Mutation campaigns run in CI (manual dispatch), not in a chat.
+  one only when its enclosing top-level definition is AST-identical and its
+  key still resolves to the same site: occurrence ordinals are file-wide, so
+  a line inserted anywhere can move them. Re-key by function and statement,
+  never by ordinal, and replay dropped survivors before restoring them.
+  Mutation campaigns run in CI (manual dispatch), not in a chat.
 - After restoring a file you planted a bug in, delete every `__pycache__`.
 - Language failures stay exactly `LanguageError` with today's messages;
   `test_vm` compares class names and `test_bytecode` message prefixes.

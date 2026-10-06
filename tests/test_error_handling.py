@@ -818,7 +818,7 @@ MAIN_PROGRAMS = frozenset({
     "map_long_tuple", "max_of_two", "power_compiler", "replace_self",
     "sort_swap", "sum_to_n",
 })
-# Digests of tests/language_golden.json on main at 9f1b5cf, before task 20.
+# Digests of the golden records on main at 9f1b5cf, before task 20.
 MAIN_PROGRAMS_DIGEST = "ec3fafbb07dae4bafda75ab9ddc48565fc68ac3b"
 MAIN_CONTINUITY_DIGEST = "5a93ae07139ab3fb6a74a7082878dfdf3225ae0d"
 
@@ -829,7 +829,7 @@ def _digest(value: object) -> str:
 
 class MainCorpusGuardTests(unittest.TestCase):
     def test_main_programs_and_continuity_cases_are_unchanged(self) -> None:
-        from tests.test_language_golden import observe
+        from tests.golden import observe
 
         observed = observe()
         programs = {

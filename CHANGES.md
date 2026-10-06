@@ -1364,3 +1364,7 @@ valid evidence after the relevant oracle was shown to be unsound.
   from uneven mutant costs, and the cap keeps a campaign below the
   concurrent-job limit. The selected mutation set does not depend on the
   shard count.
+- CLAUDE.md keeps CI to one workflow: new workflows, jobs or inputs need a
+  stated reason, and experiments use dispatch inputs rather than new
+  workflows or throwaway branches. The seven workflows left over from the
+  semantic-core experiment were removed along with their runs.

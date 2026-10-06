@@ -58,6 +58,12 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   Remove and says exactly what was done. No body besides trailers.
 - PR descriptions: short. No link to the AI session. If the environment
   appends a session-link footer, remove it by editing the description.
+- CI is one workflow, `.github/workflows/semantic-model.yml`. Add a
+  workflow, job or input only when the existing ones cannot carry the check,
+  and say why in the PR. Run experiments through dispatch inputs (such as
+  `mutation_shards`) on the task branch, not through new workflows or
+  throwaway branches. When a workflow's purpose ends, remove it and delete
+  its runs.
 - Python, standard library only. Frozen dataclasses for semantic records.
 - Around 500 lines is a review threshold for source, test, and configuration
   files, not a hard limit. When a file approaches or exceeds it, consider

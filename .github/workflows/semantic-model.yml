@@ -44,20 +44,7 @@ jobs:
   tests:
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        lane:
-          - core-model
-          - language-runtime
-          - transform-continuity
-          - syntax-reconcile
-          - compiler-self-hosting
-          - vm-bootstrap
-          - cross-boundary
-          - mutation
-
-    name: tests (${{ matrix.lane }})
+    name: tests
 
     env:
       SHEAR_CASES: ${{ inputs.generated_cases || '0' }}
@@ -69,8 +56,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run ${{ matrix.lane }}
-        run: python -m tests.lanes "${{ matrix.lane }}"
+      - name: Run every lane, one process per lane
+        run: python -m tests.lanes --all
 
   mutation-campaign:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.mutation_count != '' && inputs.mutation_count != '0' }}

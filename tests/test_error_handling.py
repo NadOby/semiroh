@@ -3,9 +3,9 @@ task 20).
 
 ``catch`` turns a failure into ``("ok", value)`` or ``("failed", error)``;
 ``raise`` fails with a program's own error; an error is
-``(origin, kind, detail, where)``. Every test here fails on main because
-``catch`` and ``raise`` do not exist there. That main's programs keep their
-identity, text and bytecode is now the golden check's job (tests/golden.py).
+``(origin, kind, detail, where)``. These tests failed before task 20 added
+``catch`` and ``raise``. That earlier programs keep their identity, text and
+bytecode is the golden check's job (tests/golden.py).
 """
 
 from __future__ import annotations

@@ -1428,3 +1428,17 @@ valid evidence after the relevant oracle was shown to be unsound.
   `GROUPS` instead of having it silently unchecked.
 - `MainCorpusGuardTests`, task 20's pin of the pre-task-20 digests, is
   removed: it would reject intended changes, and the golden check covers it.
+
+### Review and Publish carry the acceptance boundary
+
+- Plan records its head commit in `handoff.md`. Review diffs that commit
+  with the implementation head over the Plan-owned files (acceptance tests,
+  specifications, golden declarations); an unexplained difference is a
+  blocking defect, and a list of specific false-confidence checks is added.
+  Publish re-checks the files against the commit the final accepted Review
+  examined.
+- A proposed task-contract verifier (blob pins, amendment protocol, commit
+  isolation, checker run from the base) is dropped by the owner's decision:
+  it adds a policy subsystem for a problem git history and independent Review
+  handle. The golden check stays. Mechanical enforcement returns if repeated
+  Review failures show the need.

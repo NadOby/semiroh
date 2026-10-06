@@ -10,20 +10,18 @@ repository. Read CLAUDE.md and `docs/roadmap.md` first.
   bootstrap (roadmap section I), the golden check (#72, PR #75) and the
   no-write-assumption rule (#74, PR #76).
 - Work is tracked in GitHub issues; commits start with `GH-<n>`.
-- Current: Plan for #68, on `workflow/task-contract`: `docs/task_contract.md`
-  (Provisional). Split into #77 (contract and verifier) and #78 (CLAUDE.md
-  principle and trim). Waiting for the owner's decisions D-A, D-B, D-C
-  (section 5 of that doc). Next role: **Execute #77**, then #78.
-
-## Claims for Review of this plan
-
-- The contract needs no GitHub state: it is files plus git history.
-- Running the checker from the merge base is what stops a branch from
-  weakening its own checker; the first merge is the only exception.
-- Splitting `tests/golden_check.py` from the recorder removes the shared-file
-  limitation recorded in Review of #72.
+- Current: #77 on `workflow/task-contract`. The owner dropped the task-contract
+  verifier (blob pins, amendments, commit isolation, base-side checker) as
+  more infrastructure than the problem needs: the Review and Publish roles
+  now carry the check. The golden base-vs-head check stays. Mechanical
+  enforcement returns only if repeated Review failures show a need.
+- #77 changes `docs/roadmap.md` (Plan records its head commit; Review diffs
+  the Plan-owned files; Publish re-checks them) and `CHANGES.md`. Next role:
+  Review, then Publish. #78 (CLAUDE.md principle and trim) stays; its
+  principle should say mechanical checks are added when Review repeatedly
+  misses something, not by default.
 
 ## Next
 
-- Owner answers D-A to D-C; then Execute #77 and #78.
+- Review and Publish #77, then #78.
 - Independent candidates: task 21 (#58), task 27 (#63), task 23 (#60), #73.

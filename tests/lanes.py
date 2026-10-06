@@ -43,6 +43,7 @@ LANES: dict[str, tuple[str, ...]] = {
         "test_data_regressions",
         "test_error_handling",
         "test_error_provenance",
+        "test_error_values",
         "test_first_program",
         "test_graph_form",
         "test_lang",

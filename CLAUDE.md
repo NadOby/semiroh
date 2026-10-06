@@ -83,8 +83,9 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   GitHub links both, but git drops a line starting with `#` as a comment
   whenever a message is edited in an editor. No body besides trailers.
 - PR descriptions: short, with `Closes #<n>` for each issue the PR completes,
-  so that merging closes it. No link to the AI session. If the environment
-  appends a session-link footer, remove it by editing the description.
+  so that merging closes it. No link to the AI session anywhere: not in PR
+  descriptions, issues or commit trailers. If the environment appends a
+  session link, remove it.
 - Prefer extending the existing workflow (a job, step or dispatch input such
   as `mutation_shards`) over adding workflows or throwaway branches. Remove a
   workflow and its runs once its purpose ends.

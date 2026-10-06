@@ -82,3 +82,12 @@ changes _node_at behaviour for malformed graph form containing a missing or
 non-code node; behaviour of such privately forged malformed graph state is not
 specified.
 """
+
+[[survivor]]
+kind = "constant"
+source = "f\"let name must be a non-empty string, got {rest[0]!r}\","
+occurrence = 0
+classification = "unspecified"
+reason = """
+The selected value appears only in diagnostic text.
+"""

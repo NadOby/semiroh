@@ -112,7 +112,7 @@ _INFIX = {
 }
 
 
-_PLAIN = {"len", "item", "slice", "concat"}
+_PLAIN = {"len", "item", "slice", "concat", "raise"}
 
 
 class _Renderer:
@@ -441,6 +441,31 @@ class _Renderer:
         if op in _PLAIN:
             return (
                 f"{op}({', '.join(operand(arg) for arg in rest)})",
+                4,
+            )
+
+        if op == "catch":
+            if len(rest) == 1:
+                return f"catch({operand(rest[0])})", 4
+
+            if (
+                len(rest) != 2
+                or not _tup(rest[1])
+                or not rest[1]
+                or not all(
+                    isinstance(kind, str) and kind
+                    for kind in rest[1]
+                )
+                or len(set(rest[1])) != len(rest[1])
+            ):
+                raise _NoSyntax
+
+            kinds = ", ".join(
+                json.dumps(kind, ensure_ascii=False)
+                for kind in rest[1]
+            )
+            return (
+                f"catch({operand(rest[0])}, {kinds})",
                 4,
             )
 

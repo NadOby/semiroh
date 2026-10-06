@@ -117,6 +117,11 @@ Tail position is:
 - the last item of a `seq` in tail position;
 - the body of a `let` in tail position.
 
+The body of `catch` is never in tail position. The catch must retain its
+caller frame so that a successful result can still be wrapped as
+`("ok", value)`, or a caught failure as `("failed", error)`. Tail calls
+inside functions called by the caught expression are unaffected.
+
 The caller's frame is released when the callee's frame is entered. Holds,
 code in flight (metaprogramming.md section 5), results and ordinary error
 ordering are otherwise unchanged.

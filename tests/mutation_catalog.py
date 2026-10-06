@@ -45,6 +45,7 @@ TARGETS = (
     "shear/constraints.py",
     "shear/continuity.py",
     "shear/equality.py",
+    "shear/errors.py",
     "shear/fold.py",
     "shear/identity.py",
     "shear/lang.py",
@@ -85,6 +86,8 @@ OMITTED = {
     "shear/examples/control.py":
         "example program exercised through the corpus",
     "shear/examples/data.py":
+        "example program exercised through the corpus",
+    "shear/examples/errors.py":
         "example program exercised through the corpus",
     "shear/examples/higher_order.py":
         "example program exercised through the corpus",

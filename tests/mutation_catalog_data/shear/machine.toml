@@ -1,15 +1,4 @@
-source_blob = "393edf59ab28ef6acdf14c05b44ebeabc3fb65aa"
-
-[[survivor]]
-kind = "constant"
-source = "may_activate: bool = False,"
-occurrence = 0
-classification = "unspecified"
-reason = """
-machine.run is an internal execution layer reached through lang.run; the
-specified language-level activation-capability default is
-lang.run(..., may_activate=False).
-"""
+source_blob = "fcfbdf12b2e86985897b783c1c43dca78511912a"
 
 [[survivor]]
 kind = "boolean"
@@ -39,12 +28,15 @@ Changing the right fast-path guard only changes which equivalent path runs.
 """
 
 [[survivor]]
-kind = "constant"
-source = "(_RETURN, 0, False, None, activation)"
-occurrence = 1
+kind = "boolean"
+source = "not handlers"
+occurrence = 0
 classification = "equivalent"
 reason = """
-The tail flag of the RETURN sentinel is never read.
+CATCH_OK runs only from the continuation pushed together with its handler,
+and unwinding removes handlers and their continuations together, so the
+matching handler is always on top. The mutated guard differs only when that
+internal invariant is already broken.
 """
 
 [[survivor]]
@@ -53,7 +45,75 @@ source = "False,"
 occurrence = 0
 classification = "equivalent"
 reason = """
+This is the tail flag of the base RETURN sentinel installed when a run
+starts. Its chunk holds only RETURN, which ends the run or restores the
+caller's saved frame; no call instruction reads this flag.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "False,"
+occurrence = 1
+classification = "equivalent"
+reason = """
 This is the tail flag of the multiline RETURN sentinel installed for a
 non-tail call; RETURN executes before that flag can be read and restores the
 caller continuation directly.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "False,"
+occurrence = 2
+classification = "equivalent"
+reason = """
+This is the tail flag of the catch continuation frame. Its chunk is CATCH_OK
+then END, and neither reads the flag; END restores the enclosing frame's own
+flag. An unwound failure restores this frame and runs the same two
+instructions.
+"""
+
+[[survivor]]
+kind = "constant"
+source = "may_activate: bool = False,"
+occurrence = 0
+classification = "unspecified"
+reason = """
+machine.run is an internal execution layer reached through lang.run; the
+specified language-level activation-capability default is lang.run(...,
+may_activate=False).
+"""
+
+[[survivor]]
+kind = "return"
+source = "return _attach("
+occurrence = 2
+classification = "equivalent"
+reason = """
+ActivationConflict is raised only when a result's source is not the active
+state and rebasing fails. A running program's activate and trial build their
+result from runtime.active.state within the same instruction, so no
+ActivationConflict reaches _attach_runtime from a program.
+"""
+
+[[survivor]]
+kind = "return"
+source = "return exc"
+occurrence = 1
+classification = "equivalent"
+reason = """
+Every caller of _attach_runtime discards its return value and re-raises the
+original exception, so returning None instead of the exception is
+unobservable.
+"""
+
+[[survivor]]
+kind = "return"
+source = "return exc"
+occurrence = 2
+classification = "equivalent"
+reason = """
+Every caller of _attach_runtime discards its return value and re-raises the
+original exception, so returning None instead of the exception is
+unobservable.
 """

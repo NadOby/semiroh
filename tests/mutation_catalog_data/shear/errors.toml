@@ -1,0 +1,12 @@
+source_blob = "4bb2c7e2aadb04b46b3b510196f8896184fe036e"
+
+[[survivor]]
+kind = "return"
+source = "return f\"malformed error value: {error!r}\""
+occurrence = 0
+classification = "unspecified"
+reason = """
+describe renders an error value as text for people; its docstring and
+error_handling.md section 7 keep that text outside the semantics of error
+values, and describing a malformed value is not specified.
+"""

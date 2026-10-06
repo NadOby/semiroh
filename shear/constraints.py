@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from enum import Enum
 from types import MappingProxyType
@@ -14,6 +15,29 @@ from .canonical import (
     canonical_serialize,
     canonicalize,
 )
+
+
+# Exceptions that escaped an evaluator during the current language run, by
+# identity. The language machine never reports one as a language or runtime
+# error, whatever its class (error_handling.md section 1): an evaluator that
+# raises is a failure of the model, not of the program. Provenance is kept
+# outside the exception, so a host exception is never modified or inspected.
+_HOST_FAILURES: ContextVar[dict[int, BaseException] | None] = ContextVar(
+    "shear_host_failures",
+    default=None,
+)
+
+
+def _record_host_failure(exc: BaseException) -> None:
+    failures = _HOST_FAILURES.get()
+
+    if failures is not None:
+        failures[id(exc)] = exc
+
+
+def _is_host_failure(exc: BaseException) -> bool:
+    failures = _HOST_FAILURES.get()
+    return failures is not None and failures.get(id(exc)) is exc
 
 
 class ConstraintResult(Enum):
@@ -642,4 +666,11 @@ class External(Constraint):
         if evaluator is None:
             return ConstraintResult.UNKNOWN
 
-        return evaluator.evaluate(subject)
+        # The host boundary is the call into the evaluator, whatever its
+        # Evaluator subtype implements: an exception escaping it is a failure
+        # of the model, never of the program (_HOST_FAILURES).
+        try:
+            return evaluator.evaluate(subject)
+        except BaseException as exc:
+            _record_host_failure(exc)
+            raise

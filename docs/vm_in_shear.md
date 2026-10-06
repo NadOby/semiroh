@@ -17,6 +17,10 @@ Task 17 extended this path with lexical closures. The interpreter therefore
 has its own semantic representation of callable values rather than depending
 on the host Python `Closure` record.
 
+Roadmap task 20 adds `catch` and `raise` to the host language and machine but
+does not extend this self-hosted compiler/VM path with them. That remains a
+follow-up (sections 4 and 7).
+
 ## 1. Reflection and indirect calls
 
 **Provisional:**
@@ -92,6 +96,10 @@ The interpreter handles:
 This is the pure subset of the bytecode instruction set needed by the
 self-hosted compiler and closure tests.
 
+Task 20 does not enlarge this subset. The embedded compiler remains limited
+to `self_hosting.LOWERED`, and the SHEAR-written VM therefore does not yet
+need handler state or the host machine's `CATCH`/`FAIL` instructions.
+
 ## 3. Callable representation
 
 **Decided:**
@@ -137,21 +145,27 @@ Thus another closure can itself be captured as an ordinary semantic value.
 
 Each deviation has tests defining the current behaviour.
 
-- **Errors are made by doing.** The language has no general raise operation,
-  so checks use existing failing operations: `INT` adds zero, `TUPLE` takes
-  the length, and `vm_trap` indexes an empty tuple. The resulting failure is
-  still a `LanguageError`, but its message need not match the host machine's.
+- **Errors are still made by doing.** The host language now has `raise`
+  (error_handling.md), but this interpreter does not yet execute task-20
+  error bytecode. Its own checks therefore continue to use existing failing
+  operations: `INT` adds zero, `TUPLE` takes the length, and `vm_trap` indexes
+  an empty tuple. The resulting failure is a host `LanguageError` and now
+  carries the host machine's ordinary error value, but it describes the
+  failing operation used by the VM rather than the semantic error the VM
+  intended to report.
 - **`REF` does not itself prove that its linked entity is a function.** It
   creates a tagged reference to the resolved entity. Applying it later goes
   through the ordinary host `applyv` semantics, which rejects a non-function.
-- **`READ`, `WRITE`, `CODE`, `LINKS` and `RAISE` are not interpreted.**
-  Functions containing those instructions can be compiled and their chunks
-  passed to the interpreter, but execution traps at the unsupported
-  instruction.
+- **`READ`, `WRITE`, `CODE`, `LINKS`, `CATCH`, `FAIL` and `RAISE` are not
+  interpreted.** Functions containing unsupported instructions can have
+  chunks constructed by the host compiler, but execution by this VM traps at
+  the unsupported instruction. The embedded compiler does not currently emit
+  task-20 `CATCH` or `FAIL` because `catch` and `raise` are outside
+  `self_hosting.LOWERED`.
 - The VM's closure value contains expanded bytecode and a captured link table,
-  while the host closure contains semantic graph identities. The two paths are
-  required to agree observably over the subset the interpreted VM supports,
-  not to share representation.
+  while the host closure contains semantic graph identities. The two paths
+  are required to agree observably over the subset the interpreted VM
+  supports, not to share representation.
 
 The old task-10 deviation where `REFCHECK` did nothing is gone: task 17 needed
 the interpreter to distinguish tagged function references and closures before
@@ -221,9 +235,13 @@ for compiler output.
 - **`CODE` and `LINKS` by reference** for a genuinely meta-circular
   interpreter, and how the regress of an interpreter running itself should
   terminate.
-- **General error construction.** A language-level error operation would let
-  the interpreted VM reproduce host-machine failures and messages more
-  precisely instead of trapping through unrelated invalid operations.
+- **Task-20 error handling in the self-hosted path.** The host language now
+  has explicit `raise` and catchable error values, but the embedded compiler
+  does not lower `catch`/`raise` and this interpreter has no handler stack or
+  `CATCH`/`FAIL` implementation. Extending both together would let `vm_trap`
+  construct the intended semantic error instead of triggering an unrelated
+  host operation, and would let interpreted programs observe failures with
+  the same `("ok", value)` / `("failed", error)` protocol as the host VM.
 - **Speed.** A tuple program counter and stack copy data per instruction, and
   opcode dispatch is a chain of comparisons. Numeric opcodes or a dispatch
   table could improve this if performance ever matters.

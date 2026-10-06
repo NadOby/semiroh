@@ -521,8 +521,32 @@ class _Builder:
 
             return Relation(op, roles)
 
+        if op == "catch":
+            if len(rest) not in (1, 2):
+                return _invalid(
+                    f"catch takes one or two operands, got {len(rest)}",
+                    expr,
+                )
 
+            kinds = None if len(rest) == 1 else rest[1]
 
+            if len(rest) == 2 and (
+                not isinstance(kinds, tuple)
+                or not kinds
+                or not all(isinstance(kind, str) and kind for kind in kinds)
+                or len(kinds) != len(set(kinds))
+            ):
+                return _invalid(
+                    "catch kinds must be a non-empty tuple of distinct "
+                    "non-empty strings",
+                    expr,
+                )
+
+            return Relation(
+                "catch",
+                {"body": self.expr(rest[0])},
+                kinds,
+            )
 
         if op in ("call", "read", "write"):
             if not rest:
@@ -560,7 +584,6 @@ class _Builder:
             template = self.template(rest[0], holes)
             return Relation("quote", {"holes": tuple(holes)}, template)
 
-
         if op == "closure":
             return Relation(
                 "closure",
@@ -570,11 +593,6 @@ class _Builder:
                     "captures": rest[1],
                 },
             )
-
-
-
-
-
 
         if op == "let":
             if not isinstance(rest[0], str) or not rest[0]:
@@ -607,8 +625,6 @@ class _Builder:
                 return _invalid(problem, expr)
 
             return Relation(op, {"target": target}, rest[0])
-
-
 
         if op == "activate":
             if not rest or len(rest) % 2:
@@ -1403,6 +1419,14 @@ def _collapse(
             _decode(node.payload),
             collapse(roles["value"]),
             collapse(roles["body"]),
+        )
+    elif kind == "catch":
+        kinds = _decode(node.payload)
+        body = collapse(roles["body"])
+        expr = (
+            ("catch", body)
+            if kinds is None
+            else ("catch", body, kinds)
         )
     elif kind == "ref":
         expr = (

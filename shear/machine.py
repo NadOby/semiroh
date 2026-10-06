@@ -2,40 +2,151 @@
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from typing import Any, Mapping
 
 from . import bytecode
 from .canonical import CanonicalNode, canonical_serialize, canonicalize
 from .closures import Closure, closure_value
+from .constraints import _HOST_FAILURES, _is_host_failure, kind_of
 from .identity import EntityID
 from .lang import (
-    CallDepthExceeded,
-    Function,
-    LanguageError,
-    _decode,
-    _definition_of,
-    _fill,
-    _function_value,
-    define,
-    function_at,
-    function_of,
+    CallDepthExceeded, Function, LanguageError, _decode, _definition_of, _fill,
+    _function_value, define, function_at, function_of,
 )
-from .runtime import ActivationRejected, CellError, Runtime
+from .runtime import (
+    ActivationConflict, ActivationRejected, CellContentRejected, CellError,
+    RelationConstraintRejected, Runtime,
+)
 from .values import Value
-
 
 _RETURN: bytecode.Chunk = (("RETURN",),)
 
+# The run whose machine is currently executing. ``_attach`` stamps the errors
+# it creates with it; ``catch`` accepts only errors stamped by its own run.
+_RUN: ContextVar[object | None] = ContextVar("shear_run", default=None)
+
+
+class _Raised(LanguageError):
+    """An uncaught program ``raise``."""
+
+
+_Raised.__name__ = "Raised"
+_Raised.__qualname__ = "Raised"
+
 
 class _Activation:
-    """One live call and its hold on a program version."""
-
     __slots__ = ("entity", "hold", "values")
 
     def __init__(self, entity: EntityID, hold: Any) -> None:
         self.entity = entity
         self.hold = hold
         self.values: Mapping[EntityID, Value] = {}
+
+
+class _Handler:
+    __slots__ = ("control_depth", "stack_height", "live_count", "kinds")
+
+    def __init__(
+        self,
+        control_depth: int,
+        stack_height: int,
+        live_count: int,
+        kinds: tuple[str, ...] | None,
+    ) -> None:
+        self.control_depth = control_depth
+        self.stack_height = stack_height
+        self.live_count = live_count
+        self.kinds = kinds
+
+
+def _detail(**fields: Any) -> tuple[tuple[str, Any], ...]:
+    return tuple(sorted(fields.items()))
+
+
+def _attach(
+    exc: BaseException,
+    origin: str,
+    kind: str,
+    detail: Any,
+    function: EntityID,
+    node: EntityID,
+) -> BaseException:
+    if not hasattr(exc, "error"):
+        exc.error = (origin, kind, detail, (function, node))
+        exc._shear_run = _RUN.get()
+    return exc
+
+
+def _attach_runtime(
+    exc: BaseException,
+    function: EntityID,
+    node: EntityID,
+    operation: str,
+) -> BaseException:
+    if _is_host_failure(exc) or hasattr(exc, "error"):
+        return exc
+
+    if isinstance(exc, CellContentRejected):
+        return _attach(
+            exc,
+            "runtime",
+            "cell_rejected",
+            _detail(
+                cell=exc.cell,
+                constraint=exc.result.value,
+                operation=operation,
+            ),
+            function,
+            node,
+        )
+
+    if isinstance(exc, RelationConstraintRejected):
+        return _attach(
+            exc,
+            "runtime",
+            "relation_rejected",
+            _detail(
+                constraint=exc.result.value,
+                operation=operation,
+                relation=exc.relation,
+            ),
+            function,
+            node,
+        )
+
+    if isinstance(exc, ActivationConflict):
+        return _attach(
+            exc,
+            "runtime",
+            "activation_conflict",
+            _detail(reason=exc.reason),
+            function,
+            node,
+        )
+
+    if isinstance(exc, ActivationRejected):
+        fields: dict[str, Any] = {"reason": exc.reason}
+
+        if exc.cell is not None:
+            fields["cell"] = exc.cell
+
+        if exc.result is not None:
+            fields["constraint"] = exc.result.value
+
+        if exc.relation is not None:
+            fields["relation"] = exc.relation
+
+        return _attach(
+            exc,
+            "runtime",
+            "activation_rejected",
+            _detail(**fields),
+            function,
+            node,
+        )
+
+    return exc
 
 
 def _is_int(value: Any) -> bool:
@@ -58,10 +169,7 @@ def _items(value: Any) -> tuple[Any, ...] | None:
     if isinstance(value, CanonicalNode):
         return value[2] if value[1] == "tuple" else None
 
-    if isinstance(value, tuple):
-        return value
-
-    return None
+    return value if isinstance(value, tuple) else None
 
 
 def _reference(value: Any) -> EntityID | None:
@@ -76,16 +184,11 @@ def _reference(value: Any) -> EntityID | None:
 
 def _callable(value: Any) -> EntityID | Closure | None:
     reference = _reference(value)
-
-    if reference is not None:
-        return reference
-
-    return closure_value(value)
+    return reference if reference is not None else closure_value(value)
 
 
 def _function(owner: EntityID, params: Any, body: Any) -> Function:
-    params = _decode(params)
-    body = _decode(body)
+    params, body = _decode(params), _decode(body)
 
     if not isinstance(params, tuple):
         raise LanguageError(
@@ -110,8 +213,7 @@ def _closure(
     capture_names: Any,
     env: Mapping[str, Any],
 ) -> Closure:
-    params = _decode(params)
-    capture_names = _decode(capture_names)
+    params, capture_names = _decode(params), _decode(capture_names)
 
     if not isinstance(params, tuple):
         raise LanguageError(
@@ -128,11 +230,10 @@ def _closure(
         for name in capture_names
     ):
         raise LanguageError(
-            f"{owner.value}: "
-            "closure captures need non-empty string names"
+            f"{owner.value}: closure captures need non-empty string names"
         )
 
-    captures: list[tuple[str, Any]] = []
+    captures = []
 
     for name in capture_names:
         if name not in env:
@@ -158,11 +259,12 @@ def _closure(
 def _activation_pairs(
     runtime: Runtime,
     owner: EntityID,
+    node: EntityID,
     entries: tuple[Any, ...],
     targets: tuple[EntityID, ...],
     values: list[Any],
     op: str,
-) -> tuple[Any, dict[EntityID | tuple[EntityID, str], Any]]:
+) -> tuple[Any, dict]:
     active = runtime.active.state
     resolved = iter(targets)
     seen: set[Any] = set()
@@ -170,53 +272,107 @@ def _activation_pairs(
 
     for (name, problem), value in zip(entries, values):
         if problem is not None:
-            raise LanguageError(
+            exc = LanguageError(
                 f"{owner.value}: {problem}"
+            )
+            raise _attach(
+                exc,
+                "language",
+                "malformed",
+                _detail(operation=op, problem=problem),
+                owner,
+                node,
             )
 
         target = next(resolved)
         label = name[1] if isinstance(name, tuple) else None
-        key: EntityID | tuple[EntityID, str] = (
+        key = (
             (target, label)
             if label is not None
             else target
         )
 
         if key in seen:
-            raise LanguageError(
-                f"{owner.value}: {op} target appears twice: "
-                f"{target.value}"
+            problem = (
+                f"{op} target appears twice: {target.value}"
+            )
+            exc = LanguageError(
+                f"{owner.value}: {problem}"
+            )
+            raise _attach(
+                exc,
+                "language",
+                "malformed",
+                _detail(operation=op, problem=problem),
+                owner,
+                node,
             )
 
         seen.add(key)
 
         if target not in active.values:
-            raise LanguageError(
+            exc = LanguageError(
                 f"{owner.value}: {op} target does not exist: "
                 f"{target.value}"
             )
+            raise _attach(
+                exc,
+                "language",
+                "absent",
+                _detail(entity=target, operation=op),
+                owner,
+                node,
+            )
 
         if _definition_of(active.values[target]) is None:
-            raise LanguageError(
+            exc = LanguageError(
                 f"{owner.value}: {op} target is not a function: "
                 f"{target.value}"
+            )
+            raise _attach(
+                exc,
+                "language",
+                "not_a_function",
+                _detail(entity=target, operation=op),
+                owner,
+                node,
             )
 
         function = _function_value(value)
 
         if label is not None:
             if function is not None:
-                raise LanguageError(
-                    f"{owner.value}: {op} value is not an expression: "
-                    f"{target.value}"
+                problem = (
+                    f"{op} value is not an expression: {target.value}"
+                )
+                exc = LanguageError(
+                    f"{owner.value}: {problem}"
+                )
+                raise _attach(
+                    exc,
+                    "language",
+                    "malformed",
+                    _detail(operation=op, problem=problem),
+                    owner,
+                    node,
                 )
 
             edits[key] = value
         else:
             if function is None:
-                raise LanguageError(
-                    f"{owner.value}: {op} value is not a function: "
-                    f"{target.value}"
+                problem = (
+                    f"{op} value is not a function: {target.value}"
+                )
+                exc = LanguageError(
+                    f"{owner.value}: {problem}"
+                )
+                raise _attach(
+                    exc,
+                    "language",
+                    "malformed",
+                    _detail(operation=op, problem=problem),
+                    owner,
+                    node,
                 )
 
             edits[key] = function
@@ -231,14 +387,52 @@ def _pop_n(
     start = len(stack) - count
     values = stack[start:]
     del stack[start:]
-
     return values
+
+
+def _child_chunk(
+    activation: _Activation,
+    entity: EntityID,
+    function: EntityID,
+) -> bytecode.Chunk:
+    value = activation.values.get(entity)
+    child = (
+        None
+        if value is None
+        else value.__dict__.get("_chunk")
+    )
+
+    if child is not None:
+        return child
+
+    try:
+        return bytecode.lower_value(
+            value,
+            entity,
+            function,
+        )
+    except LanguageError as exc:
+        _attach(
+            exc,
+            "language",
+            "invalid_code",
+            _detail(problem=str(exc)),
+            function,
+            entity,
+        )
+        raise
 
 
 def _open(
     activation: _Activation,
     args: list[Any],
-) -> tuple[bytecode.Chunk, dict[str, Any]]:
+    where: tuple[EntityID, EntityID] | None = None,
+    operation: str = "call",
+) -> tuple[
+    bytecode.Chunk,
+    dict[str, Any],
+    EntityID,
+]:
     entity = activation.entity
     state = activation.hold.version.state
     activation.values = state.values
@@ -247,7 +441,7 @@ def _open(
 
     if definition is None:
         unloaded = function_of(value) is not None
-        raise LanguageError(
+        exc = LanguageError(
             f"{entity.value} is not a function"
             + (
                 "; load the program first"
@@ -255,21 +449,63 @@ def _open(
                 else ""
             )
         )
+        function, node = where or (entity, entity)
+        raise _attach(
+            exc,
+            "language",
+            "not_a_function",
+            _detail(
+                entity=entity,
+                operation=operation,
+            ),
+            function,
+            node,
+        )
+
+    failure_where = where or (
+        entity,
+        definition.body,
+    )
 
     if len(args) != len(definition.params):
-        raise LanguageError(
+        exc = LanguageError(
             f"{entity.value} takes "
             f"{len(definition.params)} argument(s), "
             f"got {len(args)}"
         )
+        raise _attach(
+            exc,
+            "language",
+            "arity",
+            _detail(
+                expected=len(definition.params),
+                function=entity,
+                got=len(args),
+            ),
+            *failure_where,
+        )
 
-    return (
-        bytecode.chunk_of(
+    try:
+        chunk = bytecode.chunk_of(
             state,
             definition.body,
             entity,
-        ),
+        )
+    except LanguageError as exc:
+        _attach(
+            exc,
+            "language",
+            "invalid_code",
+            _detail(problem=str(exc)),
+            entity,
+            definition.body,
+        )
+        raise
+
+    return (
+        chunk,
         dict(zip(definition.params, args)),
+        definition.body,
     )
 
 
@@ -277,82 +513,219 @@ def _open_closure(
     activation: _Activation,
     closure: Closure,
     args: list[Any],
-) -> tuple[bytecode.Chunk, dict[str, Any]]:
+    where: tuple[EntityID, EntityID],
+    operation: str,
+) -> tuple[
+    bytecode.Chunk,
+    dict[str, Any],
+    EntityID,
+]:
     state = activation.hold.version.state
     activation.values = state.values
+    owner_value = state.values.get(
+        closure.owner
+    )
+    message = (
+        f"{closure.owner.value}: closure owner is not "
+        f"a function in the active version"
+    )
 
-    owner_value = state.values.get(closure.owner)
+    if owner_value is None:
+        raise _attach(
+            LanguageError(message),
+            "language",
+            "absent",
+            _detail(
+                entity=closure.owner,
+                operation=operation,
+            ),
+            *where,
+        )
 
-    if (
-        owner_value is None
-        or _definition_of(owner_value) is None
-    ):
-        raise LanguageError(
-            f"{closure.owner.value}: closure owner is not "
-            f"a function in the active version"
+    if _definition_of(owner_value) is None:
+        raise _attach(
+            LanguageError(message),
+            "language",
+            "not_a_function",
+            _detail(
+                entity=closure.owner,
+                operation=operation,
+            ),
+            *where,
         )
 
     if closure.body not in state.values:
-        raise LanguageError(
+        exc = LanguageError(
             f"{closure.owner.value}: closure body "
             f"{closure.body.value} is absent from the active version"
         )
+        raise _attach(
+            exc,
+            "language",
+            "absent",
+            _detail(
+                entity=closure.body,
+                operation=operation,
+            ),
+            *where,
+        )
 
     if state.owner_of(closure.body) != closure.owner:
-        raise LanguageError(
-            f"{closure.owner.value}: closure body "
-            f"{closure.body.value} no longer belongs to its owner"
+        problem = (
+            f"closure body {closure.body.value} "
+            f"no longer belongs to its owner"
+        )
+        exc = LanguageError(
+            f"{closure.owner.value}: {problem}"
+        )
+        raise _attach(
+            exc,
+            "language",
+            "malformed",
+            _detail(
+                operation=operation,
+                problem=problem,
+            ),
+            *where,
         )
 
     if len(args) != len(closure.params):
-        raise LanguageError(
+        exc = LanguageError(
             f"{closure.owner.value} closure takes "
             f"{len(closure.params)} argument(s), "
             f"got {len(args)}"
         )
+        raise _attach(
+            exc,
+            "language",
+            "arity",
+            _detail(
+                expected=len(closure.params),
+                function=closure.owner,
+                got=len(args),
+            ),
+            *where,
+        )
 
     env = dict(closure.captures)
-    env.update(zip(closure.params, args))
+    env.update(
+        zip(closure.params, args)
+    )
 
-    return (
-        bytecode.chunk_of(
+    try:
+        chunk = bytecode.chunk_of(
             state,
             closure.body,
             closure.owner,
-        ),
-        env,
-    )
+        )
+    except LanguageError as exc:
+        _attach(
+            exc,
+            "language",
+            "invalid_code",
+            _detail(problem=str(exc)),
+            closure.owner,
+            closure.body,
+        )
+        raise
+
+    return chunk, env, closure.body
 
 
 def _resolved_call(
     runtime: Runtime,
     owner: EntityID,
+    node: EntityID,
     target: EntityID | Closure,
-) -> tuple[EntityID, Closure | None]:
+    operation: str,
+) -> tuple[
+    EntityID,
+    Closure | None,
+]:
     active = runtime.active.state
 
     if isinstance(target, Closure):
         if not active.contains(target.owner):
-            raise LanguageError(
+            exc = LanguageError(
                 f"{owner.value}: apply of closure whose owner "
                 f"{target.owner.value} is not in the active state"
             )
+            raise _attach(
+                exc,
+                "language",
+                "absent",
+                _detail(
+                    entity=target.owner,
+                    operation=operation,
+                ),
+                owner,
+                node,
+            )
 
         if not active.contains(target.body):
-            raise LanguageError(
+            exc = LanguageError(
                 f"{owner.value}: apply of closure whose body "
                 f"{target.body.value} is not in the active state"
+            )
+            raise _attach(
+                exc,
+                "language",
+                "absent",
+                _detail(
+                    entity=target.body,
+                    operation=operation,
+                ),
+                owner,
+                node,
             )
 
         return target.owner, target
 
     if not active.contains(target):
-        raise LanguageError(
+        exc = LanguageError(
             f"{owner.value}: apply of {target.value}, "
             f"which is not in the active state"
         )
+        raise _attach(
+            exc,
+            "language",
+            "absent",
+            _detail(
+                entity=target,
+                operation=operation,
+            ),
+            owner,
+            node,
+        )
 
     return target, None
+
+
+def _define_for_operation(
+    active: Any,
+    edits: Mapping,
+    operation: str,
+    function: EntityID,
+    node: EntityID,
+) -> Any:
+    try:
+        return define(
+            active,
+            edits,
+        )
+    except LanguageError as exc:
+        _attach(
+            exc,
+            "language",
+            "malformed",
+            _detail(
+                operation=operation,
+                problem=str(exc),
+            ),
+            function,
+            node,
+        )
+        raise
 
 
 def _execute(
@@ -360,202 +733,52 @@ def _execute(
     may_activate: bool,
     entry: EntityID,
     args: list[Any],
+    run_token: object,
 ) -> Any:
+    previous_run = _RUN.set(run_token)
     stack: list[Any] = []
     control: list[tuple] = []
     live: list[_Activation] = []
+    handlers: list[_Handler] = []
 
     try:
         hold = runtime.enter(entry)
-        activation = _Activation(entry, hold)
+        activation = _Activation(
+            entry,
+            hold,
+        )
         live.append(activation)
-        chunk, env = _open(activation, args)
+        chunk, env, current_node = _open(
+            activation,
+            args,
+        )
+        current_function = entry
         pc = 0
         tail = True
         control.append(
-            (_RETURN, 0, False, None, activation)
+            (
+                _RETURN,
+                0,
+                False,
+                None,
+                activation,
+                current_function,
+                current_node,
+            )
         )
 
         while True:
-            instr = chunk[pc]
-            pc += 1
-            op = instr[0]
+            try:
+                instr = chunk[pc]
+                pc += 1
+                op = instr[0]
 
-            if op == "EVAL":
-                value = activation.values.get(instr[1])
-                child = (
-                    None
-                    if value is None
-                    else value.__dict__.get("_chunk")
-                )
-
-                if child is None:
-                    child = bytecode.lower_value(
-                        value,
+                if op == "EVAL":
+                    child = _child_chunk(
+                        activation,
                         instr[1],
-                        activation.entity,
+                        current_function,
                     )
-
-                control.append(
-                    (chunk, pc, tail, env, activation)
-                )
-                chunk = child
-                pc = 0
-                tail = False
-
-            elif op == "ARG":
-                name = instr[1]
-
-                if (
-                    not isinstance(name, str)
-                    or name not in env
-                ):
-                    raise LanguageError(
-                        f"{activation.entity.value}: "
-                        f"unknown parameter {name!r}"
-                    )
-
-                stack.append(env[name])
-
-            elif op == "LIT":
-                stack.append(_decode(instr[1]))
-
-            elif op == "END":
-                (
-                    chunk,
-                    pc,
-                    tail,
-                    env,
-                    activation,
-                ) = control.pop()
-
-            elif op == "INT":
-                if not _is_int(stack[-1]):
-                    raise LanguageError(
-                        f"{activation.entity.value}: "
-                        f"{instr[1]} operands must be int"
-                    )
-
-            elif op == "ADD":
-                right = stack.pop()
-                stack[-1] += right
-
-            elif op == "SUB":
-                right = stack.pop()
-                stack[-1] -= right
-
-            elif op == "MUL":
-                right = stack.pop()
-                stack[-1] *= right
-
-            elif op == "LT":
-                right = stack.pop()
-                stack[-1] = stack[-1] < right
-
-            elif op == "EQ":
-                right = stack.pop()
-                stack[-1] = _semantically_equal(
-                    stack[-1],
-                    right,
-                )
-
-            elif op == "BRANCH":
-                condition = stack.pop()
-
-                if not isinstance(condition, bool):
-                    raise LanguageError(
-                        f"{activation.entity.value}: "
-                        f"if condition must be bool"
-                    )
-
-                entity = (
-                    instr[1]
-                    if condition
-                    else instr[2]
-                )
-                value = activation.values.get(entity)
-                child = (
-                    None
-                    if value is None
-                    else value.__dict__.get("_chunk")
-                )
-
-                if child is None:
-                    child = bytecode.lower_value(
-                        value,
-                        entity,
-                        activation.entity,
-                    )
-
-                chunk = child
-                pc = 0
-
-            elif op == "GOTO":
-                value = activation.values.get(instr[1])
-                child = (
-                    None
-                    if value is None
-                    else value.__dict__.get("_chunk")
-                )
-
-                if child is None:
-                    child = bytecode.lower_value(
-                        value,
-                        instr[1],
-                        activation.entity,
-                    )
-
-                chunk = child
-                pc = 0
-
-            elif op == "POP":
-                stack.pop()
-
-            elif op in ("CALL", "APPLY", "APPLYV"):
-                closure: Closure | None = None
-
-                if op == "CALL":
-                    target_entity = instr[1]
-                    arguments = _pop_n(
-                        stack,
-                        instr[2],
-                    )
-                else:
-                    if op == "APPLY":
-                        arguments = _pop_n(
-                            stack,
-                            instr[1],
-                        )
-                    else:
-                        arguments = list(stack.pop())
-
-                    target = stack.pop()
-                    target_entity, closure = _resolved_call(
-                        runtime,
-                        activation.entity,
-                        target,
-                    )
-
-                if (
-                    not tail
-                    and len(live)
-                    >= bytecode.CALL_DEPTH_LIMIT
-                ):
-                    raise CallDepthExceeded(
-                        f"{activation.entity.value}: "
-                        f"more than "
-                        f"{bytecode.CALL_DEPTH_LIMIT} "
-                        f"calls waiting on each other"
-                    )
-
-                hold = runtime.enter(target_entity)
-
-                if tail:
-                    released = activation.hold
-                    activation.entity = target_entity
-                    activation.hold = hold
-                    released.release()
-                else:
                     control.append(
                         (
                             chunk,
@@ -563,44 +786,1057 @@ def _execute(
                             tail,
                             env,
                             activation,
+                            current_function,
+                            current_node,
                         )
                     )
-                    activation = _Activation(
-                        target_entity,
-                        hold,
+                    chunk = child
+                    current_node = instr[1]
+                    pc = 0
+                    tail = False
+
+                elif op == "ARG":
+                    name = instr[1]
+
+                    if (
+                        not isinstance(name, str)
+                        or name not in env
+                    ):
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"unknown parameter {name!r}"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            "unknown_name",
+                            _detail(name=name),
+                            current_function,
+                            current_node,
+                        )
+
+                    stack.append(env[name])
+
+                elif op == "LIT":
+                    stack.append(
+                        _decode(instr[1])
                     )
-                    live.append(activation)
+
+                elif op == "END":
+                    (
+                        chunk,
+                        pc,
+                        tail,
+                        env,
+                        activation,
+                        current_function,
+                        current_node,
+                    ) = control.pop()
+
+                elif op == "INT":
+                    value = stack[-1]
+
+                    if not _is_int(value):
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"{instr[1]} operands must be int"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            "wrong_kind",
+                            _detail(
+                                expected="int",
+                                got=kind_of(value),
+                                operation=instr[1],
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                elif op in (
+                    "ADD",
+                    "SUB",
+                    "MUL",
+                    "LT",
+                ):
+                    right = stack.pop()
+
+                    if op == "ADD":
+                        stack[-1] += right
+                    elif op == "SUB":
+                        stack[-1] -= right
+                    elif op == "MUL":
+                        stack[-1] *= right
+                    else:
+                        stack[-1] = (
+                            stack[-1] < right
+                        )
+
+                elif op == "EQ":
+                    right = stack.pop()
+                    stack[-1] = _semantically_equal(
+                        stack[-1],
+                        right,
+                    )
+
+                elif op == "BRANCH":
+                    condition = stack.pop()
+
+                    if not isinstance(condition, bool):
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"if condition must be bool"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            "wrong_kind",
+                            _detail(
+                                expected="bool",
+                                got=kind_of(condition),
+                                operation="if",
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                    entity = (
+                        instr[1]
+                        if condition
+                        else instr[2]
+                    )
+                    chunk = _child_chunk(
+                        activation,
+                        entity,
+                        current_function,
+                    )
+                    current_node = entity
+                    pc = 0
+
+                elif op == "GOTO":
+                    chunk = _child_chunk(
+                        activation,
+                        instr[1],
+                        current_function,
+                    )
+                    current_node = instr[1]
+                    pc = 0
+
+                elif op == "POP":
+                    stack.pop()
+
+                elif op in (
+                    "CALL",
+                    "APPLY",
+                    "APPLYV",
+                ):
+                    closure = None
+                    call_function = current_function
+                    call_node = current_node
+                    operation = (
+                        "call"
+                        if op == "CALL"
+                        else op.lower()
+                    )
+
+                    if op == "CALL":
+                        target_entity = instr[1]
+                        arguments = _pop_n(
+                            stack,
+                            instr[2],
+                        )
+                    else:
+                        arguments = (
+                            _pop_n(
+                                stack,
+                                instr[1],
+                            )
+                            if op == "APPLY"
+                            else list(stack.pop())
+                        )
+                        target = stack.pop()
+                        (
+                            target_entity,
+                            closure,
+                        ) = _resolved_call(
+                            runtime,
+                            call_function,
+                            call_node,
+                            target,
+                            operation,
+                        )
+
+                    if (
+                        not tail
+                        and len(live)
+                        >= bytecode.CALL_DEPTH_LIMIT
+                    ):
+                        exc = CallDepthExceeded(
+                            f"{activation.entity.value}: more than "
+                            f"{bytecode.CALL_DEPTH_LIMIT} "
+                            f"calls waiting on each other"
+                        )
+                        raise _attach(
+                            exc,
+                            "limit",
+                            "depth_limit",
+                            _detail(
+                                limit=bytecode.CALL_DEPTH_LIMIT,
+                            ),
+                            call_function,
+                            call_node,
+                        )
+
+                    hold = runtime.enter(
+                        target_entity
+                    )
+
+                    if tail:
+                        released = activation.hold
+                        activation.entity = (
+                            target_entity
+                        )
+                        activation.hold = hold
+                        released.release()
+                    else:
+                        control.append(
+                            (
+                                chunk,
+                                pc,
+                                tail,
+                                env,
+                                activation,
+                                current_function,
+                                current_node,
+                            )
+                        )
+                        activation = _Activation(
+                            target_entity,
+                            hold,
+                        )
+                        live.append(activation)
+                        control.append(
+                            (
+                                _RETURN,
+                                0,
+                                False,
+                                None,
+                                activation,
+                                target_entity,
+                                call_node,
+                            )
+                        )
+
+                    if closure is None:
+                        (
+                            chunk,
+                            env,
+                            current_node,
+                        ) = _open(
+                            activation,
+                            arguments,
+                            (
+                                call_function,
+                                call_node,
+                            ),
+                            operation,
+                        )
+                        current_function = (
+                            target_entity
+                        )
+                    else:
+                        (
+                            chunk,
+                            env,
+                            current_node,
+                        ) = _open_closure(
+                            activation,
+                            closure,
+                            arguments,
+                            (
+                                call_function,
+                                call_node,
+                            ),
+                            operation,
+                        )
+                        current_function = (
+                            closure.owner
+                        )
+
+                    pc = 0
+                    tail = True
+
+                elif op == "RETURN":
+                    live.pop()
+                    activation.hold.release()
+
+                    if not control:
+                        return stack.pop()
+
+                    (
+                        chunk,
+                        pc,
+                        tail,
+                        env,
+                        activation,
+                        current_function,
+                        current_node,
+                    ) = control.pop()
+
+                elif op == "LETCHECK":
+                    if instr[1] in env:
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"let name {instr[1]!r} "
+                            f"is already in scope"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            "name_in_scope",
+                            _detail(
+                                name=instr[1],
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                elif op == "LETBIND":
+                    env = {
+                        **env,
+                        instr[1]: stack.pop(),
+                    }
+                    chunk = _child_chunk(
+                        activation,
+                        instr[2],
+                        current_function,
+                    )
+                    current_node = instr[2]
+                    pc = 0
+
+                elif op == "CATCH":
+                    handler = _Handler(
+                        len(control),
+                        len(stack),
+                        len(live),
+                        instr[2],
+                    )
+                    handlers.append(handler)
+                    continuation = (
+                        (
+                            "CATCH_OK",
+                            handler,
+                        ),
+                        ("END",),
+                    )
                     control.append(
                         (
-                            _RETURN,
+                            continuation,
                             0,
                             False,
-                            None,
+                            env,
                             activation,
+                            current_function,
+                            current_node,
+                        )
+                    )
+                    chunk = _child_chunk(
+                        activation,
+                        instr[1],
+                        current_function,
+                    )
+                    current_node = instr[1]
+                    pc = 0
+                    tail = False
+
+                elif op == "CATCH_OK":
+                    handler = instr[1]
+
+                    if (
+                        not handlers
+                        or handlers[-1]
+                        is not handler
+                    ):
+                        raise RuntimeError(
+                            "catch handler stack is inconsistent"
+                        )
+
+                    handlers.pop()
+                    value = stack.pop()
+                    stack.append(
+                        ("ok", value)
+                    )
+
+                elif op == "MKTUPLE":
+                    stack.append(
+                        tuple(
+                            _pop_n(
+                                stack,
+                                instr[1],
+                            )
                         )
                     )
 
-                if closure is None:
-                    chunk, env = _open(
-                        activation,
-                        arguments,
+                elif op == "TUPLE":
+                    value = stack.pop()
+                    items = _items(value)
+
+                    if items is None:
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"{instr[1]} operands must be tuples"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            "wrong_kind",
+                            _detail(
+                                expected="tuple",
+                                got=kind_of(value),
+                                operation=instr[1],
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                    stack.append(items)
+
+                elif op == "LEN":
+                    stack.append(
+                        len(stack.pop())
                     )
+
+                elif op == "ITEM":
+                    index = stack.pop()
+                    items = stack.pop()
+
+                    if not 0 <= index < len(items):
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"item index {index} is outside "
+                            f"a tuple of {len(items)}"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            "out_of_range",
+                            _detail(
+                                index=index,
+                                length=len(items),
+                                operation="item",
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                    stack.append(
+                        items[index]
+                    )
+
+                elif op == "SLICE":
+                    stop = stack.pop()
+                    start = stack.pop()
+                    items = stack.pop()
+
+                    if not (
+                        0 <= start
+                        <= stop
+                        <= len(items)
+                    ):
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"slice {start}:{stop} is outside "
+                            f"a tuple of {len(items)}"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            "out_of_range",
+                            _detail(
+                                length=len(items),
+                                operation="slice",
+                                start=start,
+                                stop=stop,
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                    stack.append(
+                        items[start:stop]
+                    )
+
+                elif op == "CONCAT":
+                    right = stack.pop()
+                    stack[-1] += right
+
+                elif op == "REF":
+                    held = activation.values.get(
+                        instr[1]
+                    )
+
+                    if (
+                        held is None
+                        or _definition_of(held)
+                        is None
+                    ):
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"ref {instr[2]!r} does not "
+                            f"name a function"
+                        )
+                        error_kind = (
+                            "absent"
+                            if held is None
+                            else "not_a_function"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            error_kind,
+                            _detail(
+                                entity=instr[1],
+                                operation="ref",
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                    stack.append(instr[1])
+
+                elif op == "CODE":
+                    function = function_at(
+                        runtime.active.state,
+                        instr[1],
+                    )
+
+                    if function is None:
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"code {instr[2]!r} does not "
+                            f"name a function"
+                        )
+                        error_kind = (
+                            "absent"
+                            if instr[1]
+                            not in runtime.active.state.values
+                            else "not_a_function"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            error_kind,
+                            _detail(
+                                entity=instr[1],
+                                operation="code",
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                    stack.append(
+                        (
+                            function.params,
+                            function.body,
+                        )
+                    )
+
+                elif op == "LINKS":
+                    held = (
+                        runtime.active.state.values.get(
+                            instr[1]
+                        )
+                    )
+                    definition = (
+                        None
+                        if held is None
+                        else _definition_of(held)
+                    )
+
+                    if definition is None:
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"linksof {instr[2]!r} does not "
+                            f"name a function"
+                        )
+                        error_kind = (
+                            "absent"
+                            if held is None
+                            else "not_a_function"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            error_kind,
+                            _detail(
+                                entity=instr[1],
+                                operation="linksof",
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                    stack.append(
+                        tuple(
+                            (
+                                name,
+                                target,
+                            )
+                            for name, target
+                            in sorted(
+                                definition.links.items()
+                            )
+                            if isinstance(
+                                target,
+                                EntityID,
+                            )
+                        )
+                    )
+
+                elif op == "REFCHECK":
+                    value = stack.pop()
+                    target = _callable(value)
+
+                    if target is None:
+                        operation = (
+                            "applyv"
+                            if any(
+                                item[0] == "APPLYV"
+                                for item in chunk[pc:]
+                            )
+                            else "apply"
+                        )
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"apply needs a function "
+                            f"reference or closure"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            "wrong_kind",
+                            _detail(
+                                expected="callable",
+                                got=kind_of(value),
+                                operation=operation,
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                    stack.append(target)
+
+                elif op == "CLOSURE":
+                    try:
+                        value = _closure(
+                            activation.entity,
+                            instr[1],
+                            instr[2],
+                            instr[3],
+                            env,
+                        )
+                    except LanguageError as exc:
+                        _attach(
+                            exc,
+                            "language",
+                            "malformed",
+                            _detail(
+                                operation="closure",
+                                problem=str(exc),
+                            ),
+                            current_function,
+                            current_node,
+                        )
+                        raise
+
+                    stack.append(value)
+
+                elif op == "READ":
+                    try:
+                        stack.append(
+                            runtime.read(
+                                instr[1]
+                            )
+                        )
+                    except CellError as exc:
+                        wrapped = LanguageError(
+                            str(exc)
+                        )
+                        raise _attach(
+                            wrapped,
+                            "language",
+                            "not_a_cell",
+                            _detail(
+                                entity=instr[1],
+                                operation="read",
+                            ),
+                            current_function,
+                            current_node,
+                        ) from exc
+
+                elif op == "WRITE":
+                    try:
+                        runtime.write(
+                            instr[1],
+                            stack[-1],
+                        )
+                    except CellError as exc:
+                        if _is_host_failure(exc):
+                            raise
+
+                        wrapped = LanguageError(
+                            str(exc)
+                        )
+                        raise _attach(
+                            wrapped,
+                            "language",
+                            "not_a_cell",
+                            _detail(
+                                entity=instr[1],
+                                operation="write",
+                            ),
+                            current_function,
+                            current_node,
+                        ) from exc
+                    except (
+                        CellContentRejected,
+                        RelationConstraintRejected,
+                    ) as exc:
+                        _attach_runtime(
+                            exc,
+                            current_function,
+                            current_node,
+                            "write",
+                        )
+                        raise
+
+                elif op == "QUOTE":
+                    holes = iter(
+                        _pop_n(
+                            stack,
+                            instr[2],
+                        )
+                    )
+                    stack.append(
+                        _fill(
+                            _decode(instr[1]),
+                            holes,
+                        )
+                    )
+
+                elif op == "FUNCTION":
+                    body = stack.pop()
+                    params = stack.pop()
+
+                    try:
+                        value = _function(
+                            activation.entity,
+                            params,
+                            body,
+                        )
+                    except LanguageError as exc:
+                        _attach(
+                            exc,
+                            "language",
+                            "malformed",
+                            _detail(
+                                operation="function",
+                                problem=str(exc),
+                            ),
+                            current_function,
+                            current_node,
+                        )
+                        raise
+
+                    stack.append(value)
+
+                elif op == "ACTIVATE":
+                    values = _pop_n(
+                        stack,
+                        len(instr[1]),
+                    )
+                    active, edits = _activation_pairs(
+                        runtime,
+                        current_function,
+                        current_node,
+                        instr[1],
+                        instr[2],
+                        values,
+                        "activate",
+                    )
+
+                    if not may_activate:
+                        exc = ActivationRejected(
+                            "activation capability not granted"
+                        )
+                        raise _attach(
+                            exc,
+                            "runtime",
+                            "no_capability",
+                            _detail(
+                                operation="activate",
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                    result = _define_for_operation(
+                        active,
+                        edits,
+                        "activate",
+                        current_function,
+                        current_node,
+                    )
+
+                    try:
+                        runtime.activate(result)
+                    except ActivationRejected as exc:
+                        _attach_runtime(
+                            exc,
+                            current_function,
+                            current_node,
+                            "activate",
+                        )
+                        raise
+
+                    stack.append(None)
+
+                elif op == "TRIAL":
+                    (
+                        _,
+                        entries,
+                        targets,
+                        problem,
+                        target,
+                        arg_count,
+                    ) = instr
+                    values = _pop_n(
+                        stack,
+                        len(entries),
+                    )
+                    arguments = _pop_n(
+                        stack,
+                        arg_count,
+                    )
+                    active, edits = _activation_pairs(
+                        runtime,
+                        current_function,
+                        current_node,
+                        entries,
+                        targets,
+                        values,
+                        "trial",
+                    )
+
+                    if problem is not None:
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"{problem}"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            "malformed",
+                            _detail(
+                                operation="trial",
+                                problem=problem,
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                    if not may_activate:
+                        exc = ActivationRejected(
+                            "activation capability not granted"
+                        )
+                        raise _attach(
+                            exc,
+                            "runtime",
+                            "no_capability",
+                            _detail(
+                                operation="trial",
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                    result = _define_for_operation(
+                        active,
+                        edits,
+                        "trial",
+                        current_function,
+                        current_node,
+                    )
+
+                    try:
+                        candidate = runtime.trial(
+                            result
+                        )
+                    except ActivationRejected as exc:
+                        _attach_runtime(
+                            exc,
+                            current_function,
+                            current_node,
+                            "trial",
+                        )
+                        raise
+
+                    stack.append(
+                        _execute(
+                            candidate,
+                            False,
+                            target,
+                            arguments,
+                            run_token,
+                        )
+                    )
+
+                elif op == "FAIL":
+                    detail = stack.pop()
+                    error_kind = stack.pop()
+
+                    if not isinstance(
+                        error_kind,
+                        str,
+                    ):
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"raise kind must be str"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            "wrong_kind",
+                            _detail(
+                                expected="str",
+                                got=kind_of(error_kind),
+                                operation="raise",
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                    if not error_kind:
+                        problem = (
+                            "raise kind must not be empty"
+                        )
+                        exc = LanguageError(
+                            f"{activation.entity.value}: "
+                            f"{problem}"
+                        )
+                        raise _attach(
+                            exc,
+                            "language",
+                            "malformed",
+                            _detail(
+                                operation="raise",
+                                problem=problem,
+                            ),
+                            current_function,
+                            current_node,
+                        )
+
+                    exc = _Raised(
+                        f"{activation.entity.value}: "
+                        f"{error_kind}"
+                    )
+                    raise _attach(
+                        exc,
+                        "program",
+                        error_kind,
+                        detail,
+                        current_function,
+                        current_node,
+                    )
+
+                elif op == "RAISE":
+                    exc = LanguageError(
+                        f"{activation.entity.value}: "
+                        f"{instr[1]}"
+                    )
+                    raise _attach(
+                        exc,
+                        "language",
+                        "invalid_code",
+                        _detail(
+                            problem=instr[1],
+                        ),
+                        current_function,
+                        current_node,
+                    )
+
                 else:
-                    chunk, env = _open_closure(
-                        activation,
-                        closure,
-                        arguments,
+                    problem = (
+                        f"unknown instruction {op!r}"
+                    )
+                    exc = LanguageError(
+                        f"{activation.entity.value}: "
+                        f"{problem}"
+                    )
+                    raise _attach(
+                        exc,
+                        "language",
+                        "invalid_code",
+                        _detail(
+                            problem=problem,
+                        ),
+                        current_function,
+                        current_node,
                     )
 
-                pc = 0
-                tail = True
+            except BaseException as exc:
+                if _is_host_failure(exc):
+                    raise
 
-            elif op == "RETURN":
-                live.pop()
-                activation.hold.release()
+                error = getattr(
+                    exc,
+                    "error",
+                    None,
+                )
 
-                if not control:
-                    return stack.pop()
+                if (
+                    not isinstance(error, tuple)
+                    or len(error) != 4
+                    or getattr(exc, "_shear_run", None)
+                    is not run_token
+                ):
+                    raise
+
+                accepted = None
+
+                for index in range(
+                    len(handlers) - 1,
+                    -1,
+                    -1,
+                ):
+                    kinds = handlers[index].kinds
+
+                    if (
+                        kinds is None
+                        or error[1] in kinds
+                    ):
+                        accepted = index
+                        break
+
+                if accepted is None:
+                    raise
+
+                handler = handlers[accepted]
+                del handlers[accepted:]
+
+                for pending in reversed(
+                    live[handler.live_count:]
+                ):
+                    if not pending.hold.released:
+                        pending.hold.release()
+
+                del live[handler.live_count:]
+                del stack[handler.stack_height:]
+                del control[handler.control_depth:]
+                stack.append(
+                    ("failed", error)
+                )
 
                 (
                     chunk,
@@ -608,322 +1844,9 @@ def _execute(
                     tail,
                     env,
                     activation,
+                    current_function,
+                    current_node,
                 ) = control.pop()
-
-            elif op == "LETCHECK":
-                if instr[1] in env:
-                    raise LanguageError(
-                        f"{activation.entity.value}: "
-                        f"let name {instr[1]!r} "
-                        f"is already in scope"
-                    )
-
-            elif op == "LETBIND":
-                env = {
-                    **env,
-                    instr[1]: stack.pop(),
-                }
-                value = activation.values.get(instr[2])
-                child = (
-                    None
-                    if value is None
-                    else value.__dict__.get("_chunk")
-                )
-
-                if child is None:
-                    child = bytecode.lower_value(
-                        value,
-                        instr[2],
-                        activation.entity,
-                    )
-
-                chunk = child
-                pc = 0
-
-            elif op == "MKTUPLE":
-                stack.append(
-                    tuple(
-                        _pop_n(
-                            stack,
-                            instr[1],
-                        )
-                    )
-                )
-
-            elif op == "TUPLE":
-                items = _items(stack.pop())
-
-                if items is None:
-                    raise LanguageError(
-                        f"{activation.entity.value}: "
-                        f"{instr[1]} operands must be tuples"
-                    )
-
-                stack.append(items)
-
-            elif op == "LEN":
-                stack.append(
-                    len(stack.pop())
-                )
-
-            elif op == "ITEM":
-                index = stack.pop()
-                items = stack.pop()
-
-                if not 0 <= index < len(items):
-                    raise LanguageError(
-                        f"{activation.entity.value}: "
-                        f"item index {index} is outside "
-                        f"a tuple of {len(items)}"
-                    )
-
-                stack.append(items[index])
-
-            elif op == "SLICE":
-                stop = stack.pop()
-                start = stack.pop()
-                items = stack.pop()
-
-                if not 0 <= start <= stop <= len(items):
-                    raise LanguageError(
-                        f"{activation.entity.value}: "
-                        f"slice {start}:{stop} is outside "
-                        f"a tuple of {len(items)}"
-                    )
-
-                stack.append(
-                    items[start:stop]
-                )
-
-            elif op == "CONCAT":
-                right = stack.pop()
-                stack[-1] = (
-                    stack[-1] + right
-                )
-
-            elif op == "REF":
-                held = activation.values.get(
-                    instr[1]
-                )
-
-                if (
-                    held is None
-                    or _definition_of(held) is None
-                ):
-                    raise LanguageError(
-                        f"{activation.entity.value}: "
-                        f"ref {instr[2]!r} does not "
-                        f"name a function"
-                    )
-
-                stack.append(instr[1])
-
-            elif op == "CODE":
-                function = function_at(
-                    runtime.active.state,
-                    instr[1],
-                )
-
-                if function is None:
-                    raise LanguageError(
-                        f"{activation.entity.value}: "
-                        f"code {instr[2]!r} does not "
-                        f"name a function"
-                    )
-
-                stack.append(
-                    (
-                        function.params,
-                        function.body,
-                    )
-                )
-
-            elif op == "LINKS":
-                held = runtime.active.state.values.get(
-                    instr[1]
-                )
-                definition = (
-                    None
-                    if held is None
-                    else _definition_of(held)
-                )
-
-                if definition is None:
-                    raise LanguageError(
-                        f"{activation.entity.value}: "
-                        f"linksof {instr[2]!r} does not "
-                        f"name a function"
-                    )
-
-                stack.append(tuple(
-                    (
-                        name,
-                        target,
-                    )
-                    for name, target in sorted(
-                        definition.links.items()
-                    )
-                    if isinstance(
-                        target,
-                        EntityID,
-                    )
-                ))
-
-            elif op == "REFCHECK":
-                target = _callable(
-                    stack.pop()
-                )
-
-                if target is None:
-                    raise LanguageError(
-                        f"{activation.entity.value}: "
-                        f"apply needs a function "
-                        f"reference or closure"
-                    )
-
-                stack.append(target)
-
-            elif op == "CLOSURE":
-                stack.append(
-                    _closure(
-                        activation.entity,
-                        instr[1],
-                        instr[2],
-                        instr[3],
-                        env,
-                    )
-                )
-
-            elif op == "READ":
-                try:
-                    stack.append(
-                        runtime.read(instr[1])
-                    )
-                except CellError as exc:
-                    raise LanguageError(
-                        str(exc)
-                    ) from exc
-
-            elif op == "WRITE":
-                try:
-                    runtime.write(
-                        instr[1],
-                        stack[-1],
-                    )
-                except CellError as exc:
-                    raise LanguageError(
-                        str(exc)
-                    ) from exc
-
-            elif op == "QUOTE":
-                holes = iter(
-                    _pop_n(
-                        stack,
-                        instr[2],
-                    )
-                )
-                stack.append(
-                    _fill(
-                        _decode(instr[1]),
-                        holes,
-                    )
-                )
-
-            elif op == "FUNCTION":
-                body = stack.pop()
-                params = stack.pop()
-                stack.append(
-                    _function(
-                        activation.entity,
-                        params,
-                        body,
-                    )
-                )
-
-            elif op == "ACTIVATE":
-                values = _pop_n(
-                    stack,
-                    len(instr[1]),
-                )
-                active, edits = _activation_pairs(
-                    runtime,
-                    activation.entity,
-                    instr[1],
-                    instr[2],
-                    values,
-                    "activate",
-                )
-
-                if not may_activate:
-                    raise ActivationRejected(
-                        "activation capability not granted"
-                    )
-
-                runtime.activate(
-                    define(active, edits)
-                )
-                stack.append(None)
-
-            elif op == "TRIAL":
-                (
-                    _,
-                    entries,
-                    targets,
-                    problem,
-                    target,
-                    arg_count,
-                ) = instr
-                values = _pop_n(
-                    stack,
-                    len(entries),
-                )
-                arguments = _pop_n(
-                    stack,
-                    arg_count,
-                )
-                active, edits = _activation_pairs(
-                    runtime,
-                    activation.entity,
-                    entries,
-                    targets,
-                    values,
-                    "trial",
-                )
-
-                if problem is not None:
-                    raise LanguageError(
-                        f"{activation.entity.value}: "
-                        f"{problem}"
-                    )
-
-                if not may_activate:
-                    raise ActivationRejected(
-                        "activation capability not granted"
-                    )
-
-                candidate = runtime.trial(
-                    define(active, edits)
-                )
-                stack.append(
-                    _execute(
-                        candidate,
-                        False,
-                        target,
-                        arguments,
-                    )
-                )
-
-            elif op == "RAISE":
-                raise LanguageError(
-                    f"{activation.entity.value}: "
-                    f"{instr[1]}"
-                )
-
-            else:
-                raise LanguageError(
-                    f"{activation.entity.value}: "
-                    f"unknown instruction {op!r}"
-                )
 
     except BaseException:
         for pending in reversed(live):
@@ -931,6 +1854,9 @@ def _execute(
                 pending.hold.release()
 
         raise
+
+    finally:
+        _RUN.reset(previous_run)
 
 
 def run(
@@ -941,12 +1867,18 @@ def run(
 ) -> Any:
     """Evaluate one graph-form function."""
 
-    return _execute(
-        runtime,
-        may_activate,
-        entry,
-        [
-            canonicalize(arg)
-            for arg in args
-        ],
-    )
+    failures = _HOST_FAILURES.set({})
+
+    try:
+        return _execute(
+            runtime,
+            may_activate,
+            entry,
+            [
+                canonicalize(arg)
+                for arg in args
+            ],
+            object(),
+        )
+    finally:
+        _HOST_FAILURES.reset(failures)

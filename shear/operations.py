@@ -67,6 +67,8 @@ OPERATIONS: Mapping[str, Shape] = _shapes(
     Shape("slice", 3, ("tuple", "start", "stop"), positional=True),
     Shape("concat", 2, ("left", "right"), positional=True),
     Shape("let", 3, ("value", "body")),
+    Shape("catch", None, ("body",)),
+    Shape("raise", 2, ("kind", "detail"), positional=True),
     Shape("ref", 1),
     Shape("code", 1),
     Shape("linksof", 1),

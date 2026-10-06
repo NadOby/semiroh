@@ -136,8 +136,23 @@ MLIR dialect could later map from.
 
 ## Pending decisions
 
-None. Decided since: constraint relations see an owner endpoint with its
-owned subtree (relation_model.md §7).
+Both belong to section I, hosted bootstrap.
+
+- **D3: where compiler-produced chunks run.** Open; task 29 brings options
+  and a recommendation. Either the SHEAR VM (no change in what the host
+  trusts, about 150x the host machine per layer), or the host machine running
+  the SHEAR compiler's chunks as derived artifacts of the nodes they compile,
+  with recorded provenance and behind a verifier. The second narrows
+  bytecode.md section 8 without letting a program run arbitrary bytecode.
+- **D4: the hosted-bootstrap workload and boundary.** Open; settled before
+  task 30 is planned, with task 28's inventory. Recommended: the workload is
+  the SHEAR compiler rebuilding itself plus the corpus, live evolution
+  included; Python stays permitted for parsing, `define` and continuity
+  inference, state and identity derivation, canonicalization and activation;
+  the result is called hosted, never Python-independent.
+
+Decided since: constraint relations see an owner endpoint with its owned
+subtree (relation_model.md §7).
 
 ## A. Foundations
 
@@ -512,6 +527,10 @@ mutation targets are carried or dropped by the task 19 rule.
   the source view of task 11.
 - The program root and modules (ownership_model.md §13), when explicit
   modules or libraries need them.
+- No Python at runtime: the milestone after section I. It lists the runtime
+  services that are still Python's and the evidence needed to replace each.
+  Self-hosting does not imply it, and it does not require rewriting platform
+  services in SHEAR.
 
 ## H. After the semantic-core experiment
 
@@ -527,7 +546,7 @@ Task 21 is independent of it; tasks 23 and 24 should start only after task
 
 ### 21. Endpoint arity audit (one session)
 
-**Planned.** Independent.
+**Planned.** Independent. Issue #58.
 
 `Relation` distinguishes a single endpoint from a one-element tuple. For
 code relations `shear/operations.py` already determines which roles hold
@@ -540,7 +559,7 @@ evidence. No refactor in this task.
 
 ### 22. Reference version audit (one session)
 
-**Planned.**
+**Planned.** Issue #59.
 
 `Reference(StateID, EntityID, VersionID)`: `State.resolve` and reference
 transfer check `StateID` first, so `StaleReference` is reachable only for a
@@ -560,7 +579,7 @@ reference_model.md. No refactor in this task.
 
 ### 23. Content duplication baseline (one session)
 
-**Planned.** After task 20.
+**Planned.** After task 20. Issue #60.
 
 Measure the machinery that handles semantic content in several forms:
 conversion sites between host values and canonical content, `Value` content
@@ -569,11 +588,18 @@ versus `Relation` records and payloads, mutation survivors in
 self-hosted compiler and VM. Taken after task 20, which changes the machine,
 and before tasks 24 and 25 change the code again.
 
-Done when: the measurements are recorded. No refactor.
+Section I adds bootstrap costs to the same pass, kept apart from the
+duplication counts: on named hardware, native and SHEAR-VM time for the
+compiler compiling itself, peak memory, chunk and image sizes, and one small
+edit end to end through `define`, lowering and activation. No benchmark
+framework; timings stay diagnostic and outside ordinary CI.
+
+Done when: the measurements, bootstrap costs included, are recorded. No
+refactor.
 
 ### 24. Constraints as functions (handoff)
 
-**Planned.** After task 20.
+**Planned.** After task 20. Issue #56.
 
 Falsification experiment: can the constraint algebra (`constraints.py`, its
 own evaluator, budget and three-valued result) be expressed through the
@@ -595,7 +621,7 @@ result – adopt or kill – is recorded.
 
 ### 25. Field identity under layout change (handoff)
 
-**Planned.** Research input to records; the owner has postponed systems
+**Planned.** Issue #61. Research input to records; the owner has postponed systems
 data until records exist (Later).
 
 When records are planned, first run this spike. Scenario: record A `{x, y}`,
@@ -618,7 +644,7 @@ need from it.
 
 ### 26. Content consolidation decision (one session)
 
-**Planned.**
+**Planned.** Issue #62.
 
 Decide from task 23's baseline and what tasks 24 and 25 taught whether
 unifying `Value` content, relation records and payloads into one relational
@@ -628,3 +654,127 @@ or conversion paths.
 
 Done when: the decision is recorded; if positive, the refactor becomes its
 own task.
+
+## I. Hosted bootstrap
+
+**Provisional.** Adopted from the bootstrap delivery review
+([reviews/bootstrap_delivery.md](reviews/bootstrap_delivery.md)), which stays
+as the dated input for this section. Issue #69; the tasks are grouped in the
+GitHub milestone "Hosted bootstrap".
+
+The destination of the work after task 20 is SHEAR bootstrapped from the
+Python model, with its distinctive capability on the same path. Four stages
+are kept apart:
+
+1. **Python seed.** The Python model runs the compiler written in SHEAR.
+   Done by tasks 8 and 10.
+2. **Self-rebuild.** The compiler's own output compiles the next generation
+   of the compiler, and the record shows that no host fallback did.
+3. **Hosted bootstrap**, this section's milestone. The rebuilt compiler
+   handles a declared subset, the corpus and live evolution, using explicitly
+   permitted Python services at a recorded cost.
+4. **No Python at runtime.** A later, separate milestone (Later).
+
+Tasks 8 and 10 reached stage 1 and a fixpoint check: `swap_all` replaces
+each compiler function with a call to the SHEAR VM holding a chunk that the
+host-run compiler produced, and the swapped compiler compiles `lower` to the
+same chunk. Three facts shape this section:
+
+- No chunk the swapped compiler produced is ever run. The swap also replaces
+  the compiler's source in the active state with wrappers whose literal
+  chunks become its code, so the executable form displaces the semantic one,
+  against the first point of the vision.
+- The SHEAR compiler does not cover `quote`, `unquote`, `function`,
+  `activate`, `trial`, `catch` or `raise` (self_hosting.md section 2,
+  vm_in_shear.md). These are mostly the live-evolution operations, so the
+  bootstrap route cannot compile a self-modifying program yet.
+- Program-produced chunks run only on the SHEAR VM (bytecode.md section 8),
+  at about 150x the host machine for one layer: `lower(lower)` takes 0.04 s
+  natively and 5.9 s on the SHEAR VM (2 cores, best of 3).
+
+The acceptance anchors are the review's section 4: the semantic graph stays
+canonical and executable forms stay derived; an image keeps the compiler
+machinery that regenerates its execution; producing a candidate stays
+distinct from activating it; continuity alone does not establish
+preservation. A task here that would trade one of them for speed brings the
+trade to the owner.
+
+Order: task 27 is independent and can start now; then task 23 with its
+bootstrap costs, tasks 28 and 29, decisions D3 and D4, and tasks 30 and 31.
+Tasks 21 and 22 are independent of this section, and tasks 24 to 26 keep
+their own conditions; neither side waits for the other.
+
+### 27. Rebuild the compiler with its own output (one session)
+
+**Planned.** Independent. Issue #63.
+
+Keep the compiler's source as data across swaps. Generation 1 is today's
+`swap_all`; generation 2 is compiled by the swapped generation-1 compiler on
+the SHEAR VM and installed; generation 3 compiles again. Record which
+generation produced each installed chunk.
+
+Done when: generations 2 and 3 agree with generation 1 and with the host
+expansion over the compiler and the curated expressions; a test fails if a
+generation-2 chunk came from the host-run compiler or from host lowering;
+time and peak memory per generation are recorded.
+
+### 28. Bootstrap boundary (one session)
+
+**Planned.** Issue #64.
+
+Every operation in `shear/operations.py` declares its status on four routes,
+host lowering, host execution, SHEAR lowering and SHEAR-VM execution, as
+supported, explicitly rejected or deferred. A test checks each declaration
+against behaviour: a deferred operation fails explicitly, never by falling
+back to the host. A new `docs/bootstrap.md` inventories the host services the
+compiler workload uses (parsing, `define` and continuity inference, state and
+identity derivation, canonicalization, activation, reflection, data
+operations), each with its contract, implementation, whether the hosted
+bootstrap permits it, and the test that covers it.
+
+Done when: the matrix test passes and the inventory is written, as input to
+D4.
+
+### 29. Execution route for compiler-produced chunks (one session)
+
+**Planned.** Issue #65. A spike for D3.
+
+Compare the SHEAR VM with host execution of the SHEAR compiler's chunks as
+derived artifacts of the nodes they compile, behind a verifier and with
+recorded provenance. The second needs the compiler to see node identities
+(self_hosting.md section 6) and keeps the source canonical, which the swap of
+task 27 does not. Predictions are recorded before the run; one revision;
+costs by task 23's method. If the route adds a machine boundary, weigh
+extracting one run-context component from `machine.py` first (review
+section 8).
+
+Done when: the results and a recommendation are recorded and the owner
+decides D3.
+
+### 30. Hosted-bootstrap pipeline (handoff)
+
+**Planned.** Issue #66. After D3 and D4.
+
+Extend the SHEAR compiler to the subset D4 names, including the operations
+above where the workload needs them; embedded `catch` and `raise` close the
+follow-up of error_handling.md. One documented command runs source text
+through host parsing and `define`, SHEAR lowering, and execution on D3's
+route; an unsupported operation fails explicitly.
+
+Done when: task 27's rebuild and the corpus run on this path, provenance
+shows no host lowering for executed code, task 28's matrix is updated and
+the costs are recorded.
+
+### 31. Live evolution on the bootstrap route (handoff)
+
+**Planned.** Issue #67. After task 30.
+
+With every executed chunk produced by the SHEAR compiler: the
+self-modification and error canaries of the corpus; a running image that
+changes its program, compiles the candidate with its retained compiler,
+trials and activates it with declared continuity and live data, and rejects
+a bad candidate by the failure semantics; an old frame or closure across a
+change; repeated updates with retirement under the declared lifetime policy.
+
+Done when: these pass and update latency and retained states are recorded.
+The hosted-bootstrap milestone is then met.

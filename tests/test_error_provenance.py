@@ -386,6 +386,34 @@ class HostCallbackFailureTests(unittest.TestCase):
         self.assertEqual(dict(result[1][2])["cell"], AUDITED)
 
 
+class ModelFailureTests(unittest.TestCase):
+    def test_a_failure_without_an_error_value_escapes_catch_unchanged(self) -> None:
+        """A failure that carries no error value is a failure of the model
+        (error_handling.md section 1): catch neither accepts nor replaces it.
+        The fixture is a hand-built malformed definition, the section's own
+        example of a model failure; if that state is ever reported as a
+        language error, choose another model failure here."""
+
+        from shear import Relation
+        from shear.relations import relation_of
+
+        state = load(program({
+            G: Function((), ("lit", 1)),
+            F: Function((), ("catch", ("call", "g"))),
+            EntityID("f.links"): links(F, g=G),
+        }))
+        definition = relation_of(state.values[G])
+        broken = state.with_changes({
+            G: Relation(definition.kind, definition.roles, None),
+        })
+
+        with self.assertRaises(Exception) as caught:
+            run(Runtime(broken), F)
+
+        self.assertIs(type(caught.exception), LanguageError)
+        self.assertFalse(hasattr(caught.exception, "error"))
+
+
 class SameRunTests(unittest.TestCase):
     def test_a_raise_under_trial_is_caught_by_the_enclosing_catch(self) -> None:
         runtime = Runtime(

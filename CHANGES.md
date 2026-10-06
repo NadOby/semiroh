@@ -1346,4 +1346,24 @@ valid evidence after the relevant oracle was shown to be unsound.
 - The embedded compiler and SHEAR-written bytecode VM are intentionally not
   extended with `CATCH`/`FAIL` in this task; that remains a follow-up.
 
-  
+## 2026-10-06
+
+### Single test job and configurable mutation sharding
+
+- CI runs every ordinary lane in one job: `python -m tests.lanes --all` runs
+  each lane as its own `python -m tests.lanes <lane>` process, as many at a
+  time as the runner has CPUs, prints each lane's output and a timing table,
+  and fails if any lane fails. The partition and its validation are
+  unchanged. Eight runners of mostly setup time become one.
+- A small plan job sizes the mutation campaign from its selected work: one
+  shard per 150 selected mutants, between 1 and 16, so an exhaustive
+  campaign uses 16 shards and a small sample uses one. The `mutation_shards`
+  dispatch input overrides it with 1 to 16. Timing campaigns on the task 20
+  head cut the slowest shard from 41 to 27 minutes going from eight to
+  sixteen shards for about 12% more runner time; the remaining tail comes
+  from uneven mutant costs, and the cap keeps a campaign below the
+  concurrent-job limit. The selected mutation set does not depend on the
+  shard count.
+- CLAUDE.md prefers extending the existing workflow over adding workflows or
+  throwaway branches. The seven workflows left over from the semantic-core
+  experiment were removed along with their runs.

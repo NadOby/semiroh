@@ -1,14 +1,20 @@
 """Semantic partitions of the ordinary deterministic test suite.
 
-CI runs these lanes independently.  The partition is deliberately explicit:
+CI runs every lane in one job, each lane as its own process
+(``python -m tests.lanes --all``).  The partition is deliberately explicit:
 adding a new ordinary test module without assigning it to exactly one lane is
 an error rather than silently reducing CI coverage.
 """
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
 from pathlib import Path
+import subprocess
 import sys
+import time
+from typing import Callable
 import unittest
 
 
@@ -173,14 +179,85 @@ def suite_for(lane: str) -> unittest.TestSuite:
     return suite
 
 
+def lane_command(lane: str) -> list[str]:
+    """The command that runs one lane on its own."""
+
+    return [sys.executable, "-m", "tests.lanes", lane]
+
+
+def _run_lane(lane: str) -> tuple[int, str]:
+    done = subprocess.run(
+        lane_command(lane),
+        cwd=Path(__file__).resolve().parent.parent,
+        capture_output=True,
+        text=True,
+    )
+    return done.returncode, done.stdout + done.stderr
+
+
+def run_all(
+    jobs: int | None = None,
+    run: Callable[[str], tuple[int, str]] = _run_lane,
+) -> int:
+    """Run every lane as a separate process, ``jobs`` at a time.
+
+    Each lane runs exactly the command it runs alone, so this executes the
+    same tests as running the lanes one by one. Each lane's output is printed
+    as soon as it finishes, grouped in GitHub Actions, then a timing table in
+    ``LANES`` order; the result fails if any lane fails.
+    """
+
+    lanes = list(LANES)
+    workers = jobs or os.cpu_count() or 1
+    grouped = os.environ.get("GITHUB_ACTIONS") == "true"
+
+    def timed(lane: str) -> tuple[int, str, float]:
+        start = time.monotonic()
+        code, output = run(lane)
+        return code, output, time.monotonic() - start
+
+    finished: dict[str, tuple[int, str, float]] = {}
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        pending = {pool.submit(timed, lane): lane for lane in lanes}
+
+        # Print each lane as soon as it finishes, so a lane that hangs until
+        # the job times out does not hide the output of the others.
+        for future in as_completed(pending):
+            lane = pending[future]
+            code, output, seconds = future.result()
+            finished[lane] = (code, output, seconds)
+            status = "ok" if code == 0 else "FAILED"
+
+            if grouped and code == 0:
+                print(f"::group::{lane} ({status})")
+                print(output, end="")
+                print("::endgroup::", flush=True)
+            else:
+                print(f"===== {lane} ({status}) =====")
+                print(output, end="", flush=True)
+
+    results = [finished[lane] for lane in lanes]
+    print(f"lanes run {workers} at a time:")
+
+    for lane, (code, _, seconds) in zip(lanes, results):
+        status = "ok" if code == 0 else "FAILED"
+        print(f"  {lane:<24} {status:<6} {seconds:6.1f}s")
+
+    return 0 if all(code == 0 for code, _, _ in results) else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
 
     validate_partition()
 
+    if args == ["--all"]:
+        return run_all()
+
     if len(args) != 1:
         print(
-            "usage: python -m tests.lanes <lane>",
+            "usage: python -m tests.lanes <lane> | --all",
             file=sys.stderr,
         )
         print(

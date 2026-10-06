@@ -58,6 +58,9 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   Remove and says exactly what was done. No body besides trailers.
 - PR descriptions: short. No link to the AI session. If the environment
   appends a session-link footer, remove it by editing the description.
+- Prefer extending the existing workflow (a job, step or dispatch input such
+  as `mutation_shards`) over adding workflows or throwaway branches. Remove a
+  workflow and its runs once its purpose ends.
 - Python, standard library only. Frozen dataclasses for semantic records.
 - Around 500 lines is a review threshold for source, test, and configuration
   files, not a hard limit. When a file approaches or exceeds it, consider
@@ -74,10 +77,16 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 
       python3 -m unittest discover
 
-- CI runs the same deterministic test modules on Python 3.12, partitioned into
-  semantic lanes defined by `tests/lanes.py`:
+- The deterministic test modules are partitioned into semantic lanes defined
+  by `tests/lanes.py`. Run one lane with:
 
       python3 -m tests.lanes <lane>
+
+  CI runs every lane in one job on Python 3.12, each lane as its own process,
+  as many at a time as the runner has CPUs, and prints a per-lane result and
+  timing table:
+
+      python3 -m tests.lanes --all
 
 - Every ordinary `tests/test_*.py` module must appear in exactly one lane in
   `tests/lanes.py`. Adding a test module without assigning it to a lane, listing

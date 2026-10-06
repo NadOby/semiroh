@@ -532,8 +532,10 @@ The ordinary deterministic suite is partitioned into eight semantic lanes:
 must belong to exactly one lane. Missing, duplicate and stale assignments are
 errors.
 
-The lanes run independently in CI with fail-fast disabled at the matrix level,
-so one semantic failure does not hide results from unrelated lanes.
+CI runs every lane in one job with `python -m tests.lanes --all`: each lane is
+its own process, as many at a time as the runner has CPUs, and every lane runs
+to completion, so one semantic failure does not hide results from unrelated
+lanes. The job prints each lane's result and duration.
 
 The ordinary `mutation` lane runs mutation-engine and catalog integrity tests.
 It does not launch the expensive planted-mutant campaign by default.
@@ -549,9 +551,18 @@ Manual workflow dispatch exposes:
     mutation_count
     mutation_seed
     mutation_batch
+    mutation_shards
 
 `generated_cases=0` uses ordinary generated-test budgets.
 `mutation_count=0` skips the heavy mutation campaign.
+`mutation_shards` sets how many jobs share the campaign. Left empty, a small
+plan job counts the selected mutants with the campaign's own selection
+(`python -m tests.mutation_campaign plan`) and uses one shard per 150
+mutants, between 1 and 16: each shard pays runner setup and one baseline
+oracle run before its first mutant, so small campaigns stay on few runners.
+An explicit value from 1 to 16 overrides the sizing. The cap of 16 keeps a
+campaign and the test job within the account's concurrent-job limit with
+room to spare, so other runs are not starved.
 
 A positive mutation count selects that many sites per target in the requested
 deterministic batch. A count larger than the number of sites in a target

@@ -83,12 +83,15 @@ jobs:
       - name: Size the shard matrix from the selected mutants
         id: plan
         env:
+          COUNT: ${{ inputs.mutation_count }}
+          SEED: ${{ inputs.mutation_seed }}
+          BATCH: ${{ inputs.mutation_batch }}
           SHARDS: ${{ inputs.mutation_shards }}
         run: >-
           python -m tests.mutation_campaign plan
-          --count "${{ inputs.mutation_count }}"
-          --seed "${{ inputs.mutation_seed }}"
-          --batch "${{ inputs.mutation_batch }}"
+          --count "$COUNT"
+          --seed "$SEED"
+          --batch "$BATCH"
           --shards "$SHARDS"
 
   mutation-campaign:

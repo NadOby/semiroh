@@ -59,6 +59,8 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 - Docs, tests, and code are three representations of one spec: change them
   together. Mark doc sections Decided / Provisional / Open where a design
   decision actually has that status.
+- A check Review keeps missing becomes a repository check; do not add
+  mechanical checks by default.
 - Check a proposal against the vision first; if existing code conflicts with
   it, say so rather than rationalize it.
 - One coherent change per PR. Append an entry to `CHANGES.md` per PR. If two
@@ -81,8 +83,9 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   GitHub links both, but git drops a line starting with `#` as a comment
   whenever a message is edited in an editor. No body besides trailers.
 - PR descriptions: short, with `Closes #<n>` for each issue the PR completes,
-  so that merging closes it. No link to the AI session. If the environment
-  appends a session-link footer, remove it by editing the description.
+  so that merging closes it. No link to the AI session anywhere: not in PR
+  descriptions, issues or commit trailers. If the environment appends a
+  session link, remove it.
 - Prefer extending the existing workflow (a job, step or dispatch input such
   as `mutation_shards`) over adding workflows or throwaway branches. Remove a
   workflow and its runs once its purpose ends.
@@ -138,65 +141,14 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
   record may change only when Plan declares its ID (`programs/<name>`,
   `continuity/<name>`, `api/<module>`) in a new file
   `tests/golden_changes/GH-<n>.txt` for the task's issue (other names fail);
-  earlier files are history and never change. A change to the recorder in `tests/golden.py`
-  is declared with `*`, preferably in a branch of its own.
-- Mutation target policy and explicit omissions live in
-  `tests/mutation_catalog.py`. Reviewed survivor classifications and exact
-  target-source pins live in per-target TOML files under
-  `tests/mutation_catalog_data/`; its manifest pins the mutation-engine version
-  and inventories every target with classified survivors. The Python loader
-  validates that serialized catalog fail-closed.
-- A survivor classification is valid only for the exact pinned target-source
-  version and pinned mutation-engine version under which it was reviewed. Any
-  edit to a target file invalidates all survivor classifications for that file
-  until explicit re-review and repinning; any edit to `tests/mutation.py`
-  invalidates the survivor catalog as a whole until explicit re-review and
-  repinning.
-- Run a seeded mutation sample with, for example:
-
-      SHEAR_MUTATE=1 SHEAR_MUTATE_SEED=1 \
-          python3 -m tests.test_mutation
-
-  `SHEAR_MUTATE` is the number of mutants sampled per target. A survivor may
-  be catalogued only when it is reviewed as semantically equivalent or
-  intentionally unspecified, with a reason. A semantic test gap receives a
-  regression test and must not be whitelisted as a survivor.
-- Mutation work is selected before sharding. The complete selected set is
-  deterministically shuffled from `SHEAR_MUTATE_SEED`, then individual
-  mutants are distributed round-robin across `SHEAR_MUTATE_SHARDS`.
-  Changing the shard count must not change the selected mutation set, and shard
-  sizes differ by at most one mutant.
-- The mutation subprocess semantic oracle is centralized in
-  `tests/mutation_oracle.py`. The ordinary `mutation` lane contains harness,
-  catalog and infrastructure checks and remains mandatory CI, but it is
-  excluded from mutation-kill decisions. Baseline and mutant subprocesses must
-  use the same semantic oracle command.
-- Mutation campaigns emit flushed human progress plus JSONL evidence. Set
-  `SHEAR_MUTATION_REPORT=<path>` to choose the report path. Each report pins
-  the mutation engine and target sources, records campaign inputs and exact
-  selected keys, records every mutant outcome, and ends with reconciled counts
-  and diagnostic timing summaries.
-- Replay one reported mutation directly from its key and pins:
-
-      python3 -m tests.mutation_campaign replay \
-          --key-json '["shear/example.py","constant","value = False",0]' \
-          --source-blob <source-blob> \
-          --engine-blob <engine-blob>
-
-- After a large failed campaign, replay only the previously unclassified
-  survivors from one or more downloaded shard reports:
-
-      python3 -m tests.mutation_campaign replay-failures \
-          mutation-report-*.jsonl
-
-  Report-driven replay validates completed reports and their recorded pins,
-  runs the semantic baseline once, and then executes only the recorded
-  unclassified survivors. It does not reconstruct their original seed, batch,
-  or shard.
-- Larger generated and mutation campaigns are available through manual
-  workflow dispatch; ordinary PR CI keeps the deterministic default budgets.
-  Mutation campaign shards publish their JSONL evidence as workflow artifacts,
-  including when a shard fails after finding unclassified survivors.
+  earlier files are history and never change. A change to the recorder in
+  `tests/golden.py` is declared with `*`, preferably in a branch of its own.
+- Mutation testing (`tests/mutation*.py`, catalog in
+  `tests/mutation_catalog_data/`): survivors are classified only when
+  reviewed as equivalent or intentionally unspecified, and only for the exact
+  pinned target-source and engine versions; a test gap gets a regression
+  test, never a whitelist entry. Sampling, sharding, reports and replay
+  commands: `docs/verification_hardening.md` section 15.
 
 ## Model map
 

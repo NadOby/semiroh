@@ -626,3 +626,65 @@ Task 18 is done when:
 
 Task 19 may then refactor architecture against this stronger verification
 baseline.
+
+## 15. Mutation workflow reference
+
+Moved from CLAUDE.md's Testing section; no rule changed.
+
+- Mutation target policy and explicit omissions live in
+  `tests/mutation_catalog.py`. Reviewed survivor classifications and exact
+  target-source pins live in per-target TOML files under
+  `tests/mutation_catalog_data/`; its manifest pins the mutation-engine version
+  and inventories every target with classified survivors. The Python loader
+  validates that serialized catalog fail-closed.
+- A survivor classification is valid only for the exact pinned target-source
+  version and pinned mutation-engine version under which it was reviewed. Any
+  edit to a target file invalidates all survivor classifications for that file
+  until explicit re-review and repinning; any edit to `tests/mutation.py`
+  invalidates the survivor catalog as a whole until explicit re-review and
+  repinning.
+- Run a seeded mutation sample with, for example:
+
+      SHEAR_MUTATE=1 SHEAR_MUTATE_SEED=1 \
+          python3 -m tests.test_mutation
+
+  `SHEAR_MUTATE` is the number of mutants sampled per target. A survivor may
+  be catalogued only when it is reviewed as semantically equivalent or
+  intentionally unspecified, with a reason. A semantic test gap receives a
+  regression test and must not be whitelisted as a survivor.
+- Mutation work is selected before sharding. The complete selected set is
+  deterministically shuffled from `SHEAR_MUTATE_SEED`, then individual
+  mutants are distributed round-robin across `SHEAR_MUTATE_SHARDS`.
+  Changing the shard count must not change the selected mutation set, and shard
+  sizes differ by at most one mutant.
+- The mutation subprocess semantic oracle is centralized in
+  `tests/mutation_oracle.py`. The ordinary `mutation` lane contains harness,
+  catalog and infrastructure checks and remains mandatory CI, but it is
+  excluded from mutation-kill decisions. Baseline and mutant subprocesses must
+  use the same semantic oracle command.
+- Mutation campaigns emit flushed human progress plus JSONL evidence. Set
+  `SHEAR_MUTATION_REPORT=<path>` to choose the report path. Each report pins
+  the mutation engine and target sources, records campaign inputs and exact
+  selected keys, records every mutant outcome, and ends with reconciled counts
+  and diagnostic timing summaries.
+- Replay one reported mutation directly from its key and pins:
+
+      python3 -m tests.mutation_campaign replay \
+          --key-json '["shear/example.py","constant","value = False",0]' \
+          --source-blob <source-blob> \
+          --engine-blob <engine-blob>
+
+- After a large failed campaign, replay only the previously unclassified
+  survivors from one or more downloaded shard reports:
+
+      python3 -m tests.mutation_campaign replay-failures \
+          mutation-report-*.jsonl
+
+  Report-driven replay validates completed reports and their recorded pins,
+  runs the semantic baseline once, and then executes only the recorded
+  unclassified survivors. It does not reconstruct their original seed, batch,
+  or shard.
+- Larger generated and mutation campaigns are available through manual
+  workflow dispatch; ordinary PR CI keeps the deterministic default budgets.
+  Mutation campaign shards publish their JSONL evidence as workflow artifacts,
+  including when a shard fails after finding unclassified survivors.

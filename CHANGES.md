@@ -1383,3 +1383,20 @@ valid evidence after the relevant oracle was shown to be unsound.
   other changes get an issue before they start, and follow-ups become
   `follow-up` issues. Commits start with the issue key `GH-<n>` in
   smart-commit style, and a PR description closes the issues it completes.
+
+### Hosted bootstrap in the roadmap
+
+- Roadmap section I makes a hosted bootstrap from the Python model the
+  destination after task 20, with live evolution on the same path. It
+  separates four stages (Python seed, self-rebuild, hosted bootstrap, no
+  Python at runtime) and adds tasks 27 to 31: rebuilding the compiler with
+  its own output, the bootstrap boundary, the execution route for
+  compiler-produced chunks, the pipeline, and live evolution on that route.
+  Task 23 also records bootstrap costs. Decisions D3 (where compiler-produced
+  chunks run) and D4 (workload and boundary) are pending.
+- Findings behind it: the compiler swap of task 10 never runs a chunk the
+  swapped compiler produced and replaces the compiler's source with wrappers
+  around literal chunks; the SHEAR compiler lacks mostly the live-evolution
+  operations; the SHEAR VM costs about 150x the host machine per layer.
+- The bootstrap delivery review that proposed this is kept in
+  `docs/reviews/`. Roadmap tasks 21 to 31 name their GitHub issues.

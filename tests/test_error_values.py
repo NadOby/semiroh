@@ -274,6 +274,11 @@ class MalformedCatchGraphFormTests(unittest.TestCase):
                 "catch kinds must be a non-empty tuple of distinct "
                 "non-empty strings",
             ),
+            (
+                ("catch", ("raise", ("lit", "boom"), ("lit", 3)), None),
+                "catch kinds must be a non-empty tuple of distinct "
+                "non-empty strings",
+            ),
         )
 
         for body, problem in cases:
@@ -323,6 +328,18 @@ class CatchFrameTests(unittest.TestCase):
             run(runtime, F, CALL_DEPTH_LIMIT - 1)[1][:2],
             ("limit", "depth_limit"),
         )
+
+
+class ExplicitNoneFilterTests(unittest.TestCase):
+    def test_an_explicit_none_filter_round_trips_as_raw_and_stays_invalid(self) -> None:
+        state = load(program({
+            F: Function((), ("catch", ("raise", ("lit", "boom"), ("lit", 3)), None)),
+        }))
+
+        text = render_program(state)
+
+        self.assertIn("raw(", text)
+        self.assertEqual(load(parse(text)).id, state.id)
 
 
 class CatchRenderingTests(unittest.TestCase):

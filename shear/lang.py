@@ -530,7 +530,7 @@ class _Builder:
 
             kinds = None if len(rest) == 1 else rest[1]
 
-            if kinds is not None and (
+            if len(rest) == 2 and (
                 not isinstance(kinds, tuple)
                 or not kinds
                 or not all(isinstance(kind, str) and kind for kind in kinds)

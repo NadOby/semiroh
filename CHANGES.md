@@ -1335,6 +1335,8 @@ valid evidence after the relevant oracle was shown to be unsound.
 - Added program-raised errors through `raise(kind, detail)`, plus the
   `shear.errors` catalogue and human-readable `describe(error)` helper.
 - Extended graph form, bytecode and text syntax with `catch` and `raise`.
+  A supplied filter that is not a non-empty tuple of distinct non-empty
+  strings, including an explicit `None`, builds an invalid node.
   A catch body is not in tail position because its result must still be
   wrapped after the body finishes.
 - Added the `errors` corpus tag and the `safe_install`, `account_report` and

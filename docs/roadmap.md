@@ -399,7 +399,7 @@ behaviour.
 
 ### 20. Error handling (handoff)
 
-**Planned.** The design is in error_handling.md.
+**Implemented** (PR #55). The design is in error_handling.md.
 
 Today every failure ends the whole run. A candidate that crashes under
 `trial` stops the program deciding about it, `account` cannot report a

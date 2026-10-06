@@ -113,6 +113,17 @@ confirmed to decorate the class its reason names). An automated check that
 carried keys still resolve to the reviewed site belongs to the planned
 CI-contract mutation-carry check, not this task.
 
+Fifth review (of `ad1b022`, P2): the boundary sat inside
+`Evaluator.evaluate`, so an `Evaluator` subclass overriding `evaluate`
+(accepted by `EvaluationContext`) bypassed it and its mapped exception was
+caught. The boundary now wraps the polymorphic call in `External._check`,
+the only place the model invokes evaluators; `Evaluator` is back to main's
+exact code. `OverridingEvaluatorFailureTests` reruns every host-callback
+test with such a subclass; all of them fail on `ad1b022`. A `Constraint`
+subclass is not a vector: constraints are semantic values, so a stored
+constraint loses any host override. Converters stay unmarked: a program's
+`activate` and `trial` never carry conversions.
+
 Roadmap task 20 still says Planned: publish-time bookkeeping, per Review.
 
 ## Mutation evidence
@@ -125,11 +136,13 @@ Roadmap task 20 still says Planned: publish-time bookkeeping, per Review.
   `ModelFailureTests` (hand-built malformed definition under `catch`; the
   failure escapes as the same `LanguageError` without an error value), and
   confirmed killed with `python -m tests.mutation_campaign replay`.
-- Final campaign on `3153117` (run 37433679683, sixteen shards, 10000,
-  seed 1, batch 0): all sixteen shards and all eight ordinary lanes green,
-  so no unclassified survivors remain. Its head `9de6b96` is `3153117` plus
-  workflow-only commits (shard count, survivor annotations) on the temporary
-  branch `experiment/task-20-16-shards`, which is to be deleted.
+- Campaign on `3153117` (run 37433679683, sixteen shards): all green.
+  Superseded by the fifth-review fix.
+- After that fix: `constraints.py` re-reviewed against the exact source
+  (every key resolved to its class or method and checked against its
+  reason). The one survivor in the changed `External`, its `eq=False`
+  flag, was replayed on the new source and survived; the other thirteen
+  carry. Pin updated.
 
 - After the evaluator-boundary fixes: `constraints.py` survivors all carry
   (14, none in changed definitions). In `machine.py` only the three

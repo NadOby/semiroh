@@ -56,7 +56,10 @@ describes.
      in the roadmap entry; without issue write access, give the owner the
      issue title and body to create.
    - Write the spec and acceptance tests on a branch `task/<n>-<name>`, and
-     turn `handoff.md` into the execution contract.
+     turn `handoff.md` into the execution contract. End by recording the
+     Plan head commit in `handoff.md`: the state Execute starts from. Plan
+     owns the acceptance tests, the specifications and the golden
+     declarations as of that commit.
 2. **Execute** (`Execute task N`). A separate implementation context with
    write access.
    - Implement the Plan contract, committing coherent steps, preserving
@@ -76,6 +79,18 @@ describes.
    - Verify the important claims independently against code, tests, docs,
      git history and diff, and CI, and check conformance with the Plan
      contract.
+   - Find the Plan head commit (named in `handoff.md`, checked against git
+     history) and diff it with the implementation head over the Plan-owned
+     files: acceptance tests, specifications, `tests/golden_changes/`. Every
+     difference must be called out and justified against the Plan; an
+     unexplained one is a blocking defect. Check that:
+     acceptance tests were not weakened, removed or bypassed; assertions and
+     expected values were not relaxed to fit the implementation; production
+     code has no special case that only satisfies the acceptance tests;
+     specifications were not changed afterwards to legitimize the behaviour;
+     golden declarations contain only the semantic changes Plan intended; and
+     a material error in the Plan went back through Plan instead of being
+     absorbed by Execute.
    - Look actively for false confidence: weakened or changed acceptance
      tests; test gaming or task-specific special cases in production code;
      self-referential or non-independent oracles; golden changes declared
@@ -104,7 +119,9 @@ describes.
 5. **Publish** (`Publish task N`). Only after an independent Review has
    accepted the final implementation state.
    - Fetch current `main` and rebase the task branch if needed; re-check
-     that the acceptance tests are unchanged; verify the final diff and CI;
+     that the Plan-owned files (acceptance tests, specifications, golden
+     declarations) have not changed since the commit the final accepted
+     Review examined; verify the final diff and CI;
      check that every finding is resolved or explicitly accepted as a
      non-blocking limitation.
    - Open a ready PR (without PR access, give the owner its title and

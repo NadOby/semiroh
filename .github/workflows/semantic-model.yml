@@ -142,5 +142,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: mutation-evidence-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}
-          path: mutation-report-batch-0-shard-${{ matrix.shard }}.jsonl
+          path: mutation-report-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}.jsonl
           if-no-files-found: warn

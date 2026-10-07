@@ -261,6 +261,21 @@ four functions on the SHEAR interpreter, `lower` about 6 s of it) and about
 2 MB of Python allocations; the three-generation test costs about 25 s of its
 lane.
 
+Measurement (GitHub Actions run 37673221466, Intel Xeon Platinum 8370C
+2.80 GHz, Linux x86-64, Python 3.12.14; peak memory is `tracemalloc` peak
+traced Python memory):
+
+- generation 1: 1.182 s, 3.906 MiB;
+- generation 2: 21.232 s, 4.096 MiB;
+- generation 3: 21.271 s, 3.210 MiB;
+- total generation time: 43.685 s.
+
+Revision: the interpreted generations take about 21.25 s each, roughly
+2.7 times the predicted 8 s, while peak traced Python memory is about
+3.2–4.1 MiB rather than about 2 MB. Generation 1 remains host-run and takes
+only 1.182 s, so the complete three-generation run is about 43.7 s rather
+than the predicted 25 s.
+
 ## 8. Open
 
 **Open:**

@@ -1484,4 +1484,17 @@ valid evidence after the relevant oracle was shown to be unsound.
   VM changes as its cause. Follow-up issue #81 tracks that pre-existing
   rendering/mutation-coverage question.
 
+  ## 2026-10-08
+
+### Direct rendering regression coverage (#81)
+
+- Added an exact rendering test requiring an inline-if `let` value
+  without redundant parentheses. Production code and the mutation
+  catalog are unchanged.
+- The same printer mutant survived on Task 27 and main. Previously,
+  the stored golden detected its changed bootstrap text; GH-72 moved
+  golden comparison outside the mutation oracle, exposing the missing
+  direct assertion.
+- Ordinary CI and all 16 exhaustive mutation shards passed on code
+  head `7654fe6`, run `37692632581`.
   

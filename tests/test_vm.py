@@ -604,12 +604,12 @@ class BootstrapTests(unittest.TestCase):
         with self.assertRaises(ActivationRejected):
             run(self.runtime(), vm.SWAP_ALL)
 
-    def test_a_run_swaps_once(self) -> None:
+    def test_a_second_run_rebuilds_again_from_retained_source(self) -> None:
         runtime = self.runtime()
         run(runtime, vm.SWAP_ALL, may_activate=True)
 
-        # The functions are wrappers now; swapping wrappers again still works
-        # and still compiles the same expressions.
+        # A second run recompiles the retained source with the installed
+        # compiler rather than compiling the wrappers it installed.
         run(runtime, vm.SWAP_ALL, may_activate=True)
 
         same(

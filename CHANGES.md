@@ -1450,3 +1450,38 @@ valid evidence after the relevant oracle was shown to be unsound.
   short pointer and the survivor rule. CLAUDE.md is read every session, so
   it went from 252 to about 200 lines. A one-line principle was added: a
   check Review keeps missing becomes a repository check.
+
+## 2026-10-07
+
+### Compiler rebuilds from retained source
+
+- Completed roadmap task 27 / issue #63. The bootstrap program retains exact
+  source twins of `upper`, `evals`, `seq_code` and `lower`. These retained
+  functions are never swapped; their links resolve through the active compiler
+  functions so later generations compile the same source with the compiler
+  installed by the previous generation.
+- `swap_all` compiles all four retained functions before activation, then
+  atomically installs the four interpreter-backed compiler wrappers together
+  with a fifth `generation` entry. The generation record contains the same
+  chunks installed by that activation.
+- Generation 1 is compiled by the host-run compiler. Generations 2 and 3 are
+  compiled by the previously installed compiler running on the SHEAR VM.
+  Acceptance coverage verifies that retained source is not sent through the
+  host lowering path after generation 1, and all three generations produce
+  the host compiler's chunks.
+- The bootstrap golden record is the only intended golden change. The retained
+  source bodies and parameters remain exact twins of the original compiler
+  functions, and the existing bootstrap corpus behaviour is preserved.
+- Measured on GitHub Actions run `37673221466` on an Intel Xeon Platinum 8370C
+  with Python 3.12.14: generations 1–3 took 1.182 s, 21.232 s and 21.271 s,
+  with peak traced Python memory of 3.906 MiB, 4.096 MiB and 3.210 MiB.
+  The interpreted generations were slower than the predicted 8 s each; the
+  complete measured rebuild took 43.685 s rather than about 25 s.
+- An exhaustive 3543-mutant campaign found no Task-27-specific survivor.
+  Fifteen of sixteen shards passed; the remaining shard exposed one
+  unclassified `shear/syntax/printer.py` survivor. The exact same survivor was
+  reproduced by the same campaign on unchanged `main`, ruling out the Task 27
+  VM changes as its cause. Follow-up issue #81 tracks that pre-existing
+  rendering/mutation-coverage question.
+
+  

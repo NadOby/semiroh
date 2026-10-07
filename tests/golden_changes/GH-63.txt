@@ -1,0 +1,4 @@
+# GH-63: the bootstrap program gains the retained compiler source
+# (upper_source, evals_source, seq_code_source, lower_source) and the
+# generation record, and swap_all compiles from that source.
+programs/bootstrap

@@ -31,7 +31,7 @@ follow-up (sections 4 and 7).
 
 `applyv` is `apply` with the arguments in a tuple, so that an interpreter can
 call with a count it only knows at run time. `f` may be either a function
-reference or a closure. It evaluates `f`, checks that it is callable,
+reference or a closure. It evaluates `f`, checks that it is callable`,
 evaluates `args`, checks that it is a tuple, and then follows the ordinary
 call rules.
 
@@ -183,7 +183,8 @@ parameters and a body equivalent to:
     ("call", "vm", ("lit", chunk), ("lit", params),
      ("tuple", ("arg", p), ...), ("lit", links))
 
-That is one `activate` with four pairs: a run may activate once under the
+(Section 7 changes what is compiled: the retained source, not the live
+function.) That is one `activate` with four pairs: a run may activate once under the
 two-version bound, so they are installed together.
 
 The functions need a `vm` link, which `compiler_entities` takes as an extra.
@@ -225,7 +226,57 @@ The SHEAR interpreter is intentionally much slower than the host machine;
 performance is not its purpose. It exists as an independent executable path
 for compiler output.
 
-## 7. Open
+## 7. Rebuilding the compiler with its own output
+
+**Provisional:**
+
+Roadmap task 27 (issue #63) narrows section 5: `swap_all` no longer reads
+the live function, which after the first swap is a wrapper.
+
+- The compiler's source is retained as graph code: twin functions
+  `upper_source`, `evals_source`, `seq_code_source` and `lower_source`, built
+  from the same body constructors as the originals and never swapped or
+  called. The language creates no entities at runtime (metaprogramming.md
+  section 9), so they exist from the start of the bootstrap program.
+- `swap_all` and the `swap_*` helpers read `(code <name>_source)`, compile it
+  with whatever `lower` is active, and install the wrappers as before. A run
+  swaps once; each run is one generation. Generation 1 is compiled by the
+  host-run compiler (what section 5 describes). Generation 2 is compiled by
+  generation 1's `lower`, running on the SHEAR interpreter; generation 3 by
+  generation 2's.
+- `generation` is a function whose body is the literal record of the last
+  swap, `(n, ((name, chunk), ...))` in `SWAPPED` order, replaced in the same
+  activation (a fifth pair); it starts as `(0, ())`.
+- The record says which generation installed a chunk. It is not evidence of
+  how the chunk was produced: that is shown by the test that the host machine
+  never lowers or runs the retained source after generation 1.
+
+Done when generations 2 and 3 agree with generation 1 and with the host
+compiler's chunks, the retained source equals the original bodies, that test
+holds, and time and peak memory per generation are recorded here (measured
+on named hardware, before the run predicted, one revision).
+
+Prediction (recorded before the run): one generation takes about 8 s (the
+four functions on the SHEAR interpreter, `lower` about 6 s of it) and about
+2 MB of Python allocations; the three-generation test costs about 25 s of its
+lane.
+
+Measurement (GitHub Actions run 37673221466, Intel Xeon Platinum 8370C
+2.80 GHz, Linux x86-64, Python 3.12.14; peak memory is `tracemalloc` peak
+traced Python memory):
+
+- generation 1: 1.182 s, 3.906 MiB;
+- generation 2: 21.232 s, 4.096 MiB;
+- generation 3: 21.271 s, 3.210 MiB;
+- total generation time: 43.685 s.
+
+Revision: the interpreted generations take about 21.25 s each, roughly
+2.7 times the predicted 8 s, while peak traced Python memory is about
+3.2–4.1 MiB rather than about 2 MB. Generation 1 remains host-run and takes
+only 1.182 s, so the complete three-generation run is about 43.7 s rather
+than the predicted 25 s.
+
+## 8. Open
 
 **Open:**
 

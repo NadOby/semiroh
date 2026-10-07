@@ -7,8 +7,7 @@ Current checkpoint. Read CLAUDE.md and docs/roadmap.md first.
 - Task 27 / #63 merged through PR #82 as `532b68b`.
 - Its implementation, measurements and changelog are complete.
 - Current work: #81 on `fix/81-let-inline-if-render`.
-- Tested code head: `7654fe6be74a930abbd8cf1932ce93c67a4ab36e`.
-- The fix is verified but not merged. Next role: Publish.
+- The implementation is complete. Next role: Publish after CI verification.
 
 ## Task 27 review
 
@@ -34,29 +33,34 @@ maintained source-dependency map is correct but can drift.
 The same printer mutant survived Task 27 run `37673486710` and main
 control run `37682687438`. It was not introduced by Task 27.
 
-The previous exhaustive run `37441477077` killed this mutant through the
-stored golden's bootstrap text hash. GH-72 moved golden comparison outside
-the mutation oracle, exposing the missing direct rendering assertion.
+The mutant changes the minimum precedence requested for an ordinary `let`
+value from 0 to 1. Its only observable effect is redundant parentheses around
+a precedence-0 expression such as an inline `if`; parsing and behaviour are
+unchanged.
 
-The chosen resolution is an exact rendering regression test, not a
-mutation-catalog classification:
-`test_let_inline_if_value_is_not_parenthesized` requires
-`let x = 1 if true else 0` without redundant parentheses.
+`docs/syntax.md` marks exact rendering layout as Provisional. The mutation
+catalog already classifies analogous redundant-parenthesization changes as
+`unspecified`.
 
-Production code and the mutation catalog are unchanged.
+The final resolution therefore classifies this survivor as `unspecified`
+rather than pinning one exact rendering layout with a regression test.
+Production code is unchanged.
 
 ## Verification
 
-On code head `7654fe6`:
+Before the final classification decision:
 - ordinary push CI `37690789201` passed;
 - exhaustive run `37692632581` passed ordinary tests and all 16 mutation
-  shards.
+  shards with the temporary exact-layout regression test.
 
-These results precede this documentation update.
+The temporary regression test was subsequently removed and the survivor was
+added to `tests/mutation_catalog_data/shear/syntax/printer.toml`.
+
+Final branch CI must be green before publication.
 
 ## Next
 
-- Add the #81 changelog entry.
-- Check ordinary CI after documentation updates.
+- Correct the #81 changelog entry to describe the final classification.
+- Verify ordinary CI on the final branch head.
 - Publish the separate fix PR with `Closes #81`.
 - Keep the issue open until the fix merges.

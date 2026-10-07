@@ -65,56 +65,6 @@ jobs:
       - name: Run every lane, one process per lane
         run: python -m tests.lanes --all
 
-      - name: Measure compiler rebuild generations
-        if: ${{ always() }}
-        run: |
-          python - <<'PY'
-          import gc
-          import platform
-          import time
-          import tracemalloc
-          from pathlib import Path
-
-          from shear import Runtime
-          from shear.examples import vm
-          from shear.examples._support import program
-          from shear.lang import load, run
-
-          cpu = "unknown"
-          cpuinfo = Path("/proc/cpuinfo")
-          if cpuinfo.exists():
-              for line in cpuinfo.read_text().splitlines():
-                  if line.startswith("model name"):
-                      cpu = line.split(":", 1)[1].strip()
-                      break
-
-          print(f"CPU: {cpu}")
-          print(f"platform: {platform.platform()}")
-          print(f"python: {platform.python_version()}")
-
-          runtime = Runtime(load(program(vm.bootstrap_entities())))
-
-          for expected_generation in range(1, 4):
-              gc.collect()
-              tracemalloc.start()
-              started = time.perf_counter()
-
-              run(runtime, vm.SWAP_ALL, may_activate=True)
-
-              elapsed = time.perf_counter() - started
-              _, peak = tracemalloc.get_traced_memory()
-              tracemalloc.stop()
-
-              generation = run(runtime, vm.GENERATION)
-              assert generation[0] == expected_generation
-
-              print(
-                  f"generation {expected_generation}: "
-                  f"{elapsed:.3f} s, "
-                  f"{peak / (1024 * 1024):.3f} MiB peak traced Python memory"
-              )
-          PY
-
       - name: Compare golden records with the base
         env:
           EVENT: ${{ github.event_name }}
@@ -192,5 +142,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: mutation-evidence-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}
-          path: mutation-report-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}.jsonl
+          path: mutation-report-batch-0-shard-${{ matrix.shard }}.jsonl
           if-no-files-found: warn

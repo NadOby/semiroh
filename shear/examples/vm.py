@@ -490,8 +490,6 @@ def _cases() -> list[tuple[str, tuple]]:
     ]
 
 
-# Most frequent first (in the compiler's own chunk): every instruction costs a
-# comparison for each opcode before it.
 _ORDER = (
     "END",
     "EVAL",
@@ -891,12 +889,17 @@ def vm_entities() -> dict[EntityID, Any]:
 
 ARG_EXPRS = EntityID("arg_exprs")
 SWAP_ALL = EntityID("swap_all")
+GENERATION = EntityID("generation")
 SWAPPED = (
     "upper",
     "evals",
     "seq_code",
     "lower",
 )
+
+
+def source_name(name: str) -> EntityID:
+    return EntityID(f"{name}_source")
 
 
 def _swap_name(target: str) -> EntityID:
@@ -935,7 +938,7 @@ def _swapped_function(
     target: str,
     chunk: tuple,
 ) -> tuple:
-    """The value that replaces ``target``."""
+    """The value that replaces target."""
 
     params = _item(
         ("code", target),
@@ -984,13 +987,13 @@ def _swapped_function(
 
 
 def _compiled(target: str) -> tuple:
-    """The chunk of ``target``, compiled now by ``lower``."""
+    """Compile the retained source of target with the active lower."""
 
     return (
         "call",
         "lower",
         _item(
-            ("code", target),
+            ("code", source_name(target).value),
             1,
         ),
     )
@@ -1018,9 +1021,45 @@ def _swap_body(target: str) -> tuple:
     )
 
 
-def _swap_all_body() -> tuple:
-    """Replace every compiler function in one activation."""
+def _generation_function(record: tuple) -> tuple:
+    """Build a no-argument function returning record as literal data."""
 
+    return (
+        "function",
+        _lit(()),
+        (
+            "quote",
+            (
+                "lit",
+                ("unquote", record),
+            ),
+        ),
+    )
+
+
+def _swap_all_body() -> tuple:
+    """Replace the compiler and record one rebuild generation."""
+
+    chunk_names = {
+        target: f"{target}_chunk"
+        for target in SWAPPED
+    }
+    generation_number = "generation_number"
+    record = (
+        "tuple",
+        _arg(generation_number),
+        (
+            "tuple",
+            *(
+                (
+                    "tuple",
+                    _lit(target),
+                    _arg(chunk_names[target]),
+                )
+                for target in SWAPPED
+            ),
+        ),
+    )
     pairs: list[tuple] = []
 
     for target in SWAPPED:
@@ -1028,26 +1067,51 @@ def _swap_all_body() -> tuple:
             target,
             _swapped_function(
                 target,
-                _compiled(target),
+                _arg(chunk_names[target]),
             ),
         ]
 
-    return (
-        "seq",
-        ("activate", *pairs),
-        _lit(True),
+    pairs += [
+        GENERATION.value,
+        _generation_function(record),
+    ]
+
+    body: tuple = (
+        "let",
+        generation_number,
+        (
+            "add",
+            _item(("call", GENERATION.value), 0),
+            _lit(1),
+        ),
+        (
+            "seq",
+            ("activate", *pairs),
+            _lit(True),
+        ),
     )
+
+    for target in reversed(SWAPPED):
+        body = (
+            "let",
+            chunk_names[target],
+            _compiled(target),
+            body,
+        )
+
+    return body
 
 
 def bootstrap_entities() -> dict[EntityID, Any]:
-    """The compiler, interpreter, and compiler-swapping program."""
+    """The compiler, retained source, interpreter, and rebuild program."""
 
     from .self_hosting import compiler_entities
 
+    compiler = compiler_entities({
+        "vm": VM,
+    })
     entities: dict[EntityID, Any] = {
-        **compiler_entities({
-            "vm": VM,
-        }),
+        **compiler,
         **vm_entities(),
         ARG_EXPRS: Function(
             ("params", "i"),
@@ -1057,10 +1121,33 @@ def bootstrap_entities() -> dict[EntityID, Any]:
             ARG_EXPRS,
             arg_exprs=ARG_EXPRS,
         ),
+        GENERATION: Function(
+            (),
+            _lit((0, ())),
+        ),
+    }
+
+    source_dependencies = {
+        "upper": (),
+        "evals": ("evals", "lower"),
+        "seq_code": ("seq_code", "lower"),
+        "lower": ("lower", "upper", "evals", "seq_code"),
     }
 
     for target in SWAPPED:
+        source = source_name(target)
+        entities[source] = compiler[EntityID(target)]
+        entities[EntityID(f"{source.value}.links")] = links(
+            source,
+            **{
+                name: source_name(name)
+                for name in source_dependencies[target]
+            },
+        )
+
+    for target in SWAPPED:
         entity = _swap_name(target)
+        source = source_name(target)
         entities[entity] = Function(
             (),
             _swap_body(target),
@@ -1073,6 +1160,7 @@ def bootstrap_entities() -> dict[EntityID, Any]:
             entity,
             **{
                 target: EntityID(target),
+                source.value: source,
                 "lower": EntityID("lower"),
                 "arg_exprs": ARG_EXPRS,
             },
@@ -1090,6 +1178,11 @@ def bootstrap_entities() -> dict[EntityID, Any]:
             target: EntityID(target)
             for target in SWAPPED
         },
+        **{
+            source_name(target).value: source_name(target)
+            for target in SWAPPED
+        },
+        generation=GENERATION,
         arg_exprs=ARG_EXPRS,
     )
 
@@ -1219,4 +1312,4 @@ def _bootstrap() -> Example:
 
 EXAMPLES: tuple[Example, ...] = (
     _bootstrap(),
-        )
+    )

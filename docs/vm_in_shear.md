@@ -31,7 +31,7 @@ follow-up (sections 4 and 7).
 
 `applyv` is `apply` with the arguments in a tuple, so that an interpreter can
 call with a count it only knows at run time. `f` may be either a function
-reference or a closure. It evaluates `f`, checks that it is callable,
+reference or a closure. It evaluates `f`, checks that it is callable`,
 evaluates `args`, checks that it is a tuple, and then follows the ordinary
 call rules.
 
@@ -228,8 +228,10 @@ for compiler output.
 
 ## 7. Rebuilding the compiler with its own output
 
-**Provisional** (roadmap task 27, issue #63). It narrows section 5: `swap_all`
-no longer reads the live function, which after the first swap is a wrapper.
+**Provisional:**
+
+Roadmap task 27 (issue #63) narrows section 5: `swap_all` no longer reads
+the live function, which after the first swap is a wrapper.
 
 - The compiler's source is retained as graph code: twin functions
   `upper_source`, `evals_source`, `seq_code_source` and `lower_source`, built

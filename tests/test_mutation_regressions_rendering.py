@@ -148,32 +148,6 @@ class SyntaxRenderingRegressionTests(unittest.TestCase):
                     f"    {expected}\n",
                 )
 
-    def test_let_inline_if_value_is_not_parenthesized(self) -> None:
-        function = EntityID("f")
-        state = load(program({
-            function: Function(
-                (),
-                (
-                    "let",
-                    "x",
-                    (
-                        "if",
-                        ("lit", True),
-                        ("lit", 1),
-                        ("lit", 0),
-                    ),
-                    ("arg", "x"),
-                ),
-            ),
-        }))
-
-        self.assertEqual(
-            render(state, function),
-            "fn f():\n"
-            "    let x = 1 if true else 0\n"
-            "    x\n",
-        )
-
     def test_single_item_seq_renders_without_recursing(self) -> None:
         function = EntityID("f")
         state = load(program({

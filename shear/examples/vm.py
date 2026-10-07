@@ -1140,7 +1140,7 @@ def bootstrap_entities() -> dict[EntityID, Any]:
         entities[EntityID(f"{source.value}.links")] = links(
             source,
             **{
-                name: source_name(name)
+                name: EntityID(name)
                 for name in source_dependencies[target]
             },
         )

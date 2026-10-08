@@ -1572,3 +1572,26 @@ the answer held.
     recorded with its reason.
 - Open for the owner: the positioning (glue or control layer), and what
   follows hosted bootstrap.
+
+### Content duplication and bootstrap baseline (#60)
+
+- Recorded the pre-consolidation baseline in `docs/content_baseline.md`,
+  with a deterministic inventory, pinned mutation-survivor classifications,
+  named compiler/VM conversion boundaries, and source-level evidence.
+- Counted 140 static calls to selected conversion helpers. These counts
+  describe existing machinery, not necessarily redundant conversions.
+- Added an explicitly dispatched GitHub Actions diagnostic, separate from
+  ordinary CI and without performance thresholds.
+- On the recorded four-core Intel Xeon CI runner, `lower(lower)` took
+  0.0362 seconds median through the host-executed SHEAR compiler and
+  5.1262 seconds through the installed SHEAR VM compiler (approximately
+  142 times slower). The complete outputs agreed structurally.
+- Recorded separate peak traced allocations, 1,858 derived chunks,
+  serialized chunk sizes, a state-content image proxy, and a small
+  `define` → lowering → activation edit with verified before/after behavior.
+- Evidence: https://github.com/NadOby/shear/actions/runs/37763237141
+  at revision `9b5f9225636a4ac8ff3b21c5eb32ebd6668084ff`.
+- The measurements are diagnostic and specific to the tested workload
+  and runner. The image proxy is not an executable-image measurement.
+- No production semantic change or content refactor was made.
+  Consolidation and execution-route decisions remain separate tasks.

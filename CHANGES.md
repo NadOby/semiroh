@@ -1539,3 +1539,36 @@ the answer held.
   updated; self_hosting.md lists `catch` and `raise` as uncovered; README no
   longer lists closures and error handling as untouched; `handoff.md` is
   current.
+
+### Design goals, canaries and the review ledger (#84)
+
+- The inputs of the 2026-10-08 design discussion are kept verbatim in
+  `docs/reviews/`: a peer review of the bootstrap plan, design canaries, a
+  design-goals document and a note on development velocity, with three
+  review rounds and their replies. `2026-10-08_ledger.md` maps every point,
+  the owner's comments included, to where SHEAR states it. Nothing is
+  dropped; contested points keep their reasons.
+- Consolidation edits existing documents only:
+  - README §35 "Long-term direction", Provisional and not scheduled: SHEAR's
+    machinery is expected to pay off most in long-lived evolving systems
+    (glue or control layer is open; it stays a systems language); DSLs and
+    malleability, compiling new language structures at run time, composing
+    libraries, applications as libraries. §36 adds application domains as a
+    non-goal, §8 the invocation contexts, §22 semantic versus physical
+    uniformity, §26 the first formalization targets.
+  - corpus.md section 7, "Design canaries": unusual programs as design
+    tests, how to read a failure, the independence condition, and when a
+    canary becomes an example or `Wanted` entry, with the 31 canaries and
+    their status.
+  - graph_ledger.md: the graph hypothesis and its falsifier, the evidence
+    against to watch for, and the object-image control architecture as a
+    bounded experiment.
+  - priors.md: an eight-question checklist for a new mechanism.
+  - roadmap Later: what waits until after hosted bootstrap, final syntax
+    included; concurrency starting with a semantic spike; a pointer to the
+    long-term direction.
+  - CLAUDE.md "Vision": cheap implementation buys evidence; the
+    discriminator and predictions are fixed before the run, and a revision is
+    recorded with its reason.
+- Open for the owner: the positioning (glue or control layer), and what
+  follows hosted bootstrap.

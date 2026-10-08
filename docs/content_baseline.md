@@ -1,4 +1,3 @@
-
 # Content duplication and bootstrap baseline
 
 **Status: Provisional (Plan, roadmap task 23, issue #60).**

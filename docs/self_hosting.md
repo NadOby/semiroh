@@ -74,7 +74,8 @@ the same expression and compares it with `lower`'s output.
 for closure lowering, including expansion of the closure body.
 
 Covered: every operation of the language except `quote`, `unquote`,
-`function`, `activate` and `trial`; `label` costs nothing, as in graph form.
+`function`, `activate`, `trial`, `catch` and `raise`; `label` costs nothing,
+as in graph form.
 `closure` is covered since roadmap task 17.
 
 Anything else lowers to `RAISE "unknown operation"`. The compiler assumes a
@@ -156,7 +157,8 @@ observable behaviour over the supported subset must agree.
   so a program can read a function it only holds as a value.
 - Whether reading code should expose semantic node identities directly,
   rather than only collapsed input form.
-- Covering `quote`, `function`, `activate` and `trial` in the compiler.
+- Covering `quote`, `function`, `activate`, `trial`, `catch` and `raise` in
+  the compiler.
 - Whether malformed closure expressions should receive more validation in
   the self-hosted compiler itself rather than relying on the ordinary graph
   construction path.

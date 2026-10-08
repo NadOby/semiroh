@@ -1498,4 +1498,35 @@ valid evidence after the relevant oracle was shown to be unsound.
   The survivor is therefore classified narrowly as `unspecified`; production
   code and rendering behaviour are unchanged.
 
+### Hosted-bootstrap tasks after the peer review
 
+An outside peer review of the bootstrap plan (owner-relayed) was checked
+against `main` and answered point by point. Roadmap section I changes where
+the answer held.
+
+- Task 29 compares the two execution routes on D4's recommended workload,
+  not on the compiler alone. For the SHEAR VM that counts the instructions it
+  does not run, the targets interpreted code would have to choose by value,
+  and the wrappers every reached function needs because the VM's `CALL` runs
+  the callee as installed. For host execution the recommendation states the
+  verifier's admission rule; host lowering stays a test oracle, outside
+  admission. The recommendation also lists the Provisional items its route
+  makes expensive to change.
+- D4 sets provisional budgets for compiler rebuild time and
+  small-edit-to-activation latency; the host boundary is decided with D3.
+- Task 30's provenance criterion covers executed program code, maps each
+  executed chunk's node version to its producer, and names the route's own
+  machinery as exempt: on the SHEAR-VM route the VM and its wrappers are
+  host-lowered by design.
+- Task 31 starts beyond task 30's corpus, which already holds the
+  self-modification and error canaries.
+- Task 28's matrix test reads support from the code where it exists and
+  declares only rejected or deferred for the rest; `operations.py` keeps
+  shapes only.
+- vm_in_shear.md section 7 names task 27's twins, wrappers, `generation`
+  record and source dependency map as SHEAR-VM-route scaffolding that goes
+  if D3 chooses host execution.
+- Drift fixed: task 27 is marked implemented and section I's first fact
+  updated; self_hosting.md lists `catch` and `raise` as uncovered; README no
+  longer lists closures and error handling as untouched; `handoff.md` is
+  current.

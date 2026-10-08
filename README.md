@@ -93,9 +93,8 @@ program model. Cell declaration edits and explicit modules remain deferred
 ([`syntax.md`](docs/syntax.md), [`name_resolution.md`](docs/name_resolution.md)).
 
 **Not touched yet:** systems data (structures, layout, references between
-cells), explicit modules, closures, error handling inside the language,
-concurrency, native code, capabilities beyond one grant, and formal
-semantics.
+cells), explicit modules, concurrency, native code, capabilities beyond one
+grant, and formal semantics.
 
 ## Contents
 

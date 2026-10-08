@@ -179,7 +179,11 @@ Both belong to section I, hosted bootstrap.
   the SHEAR compiler rebuilding itself plus the corpus, live evolution
   included; Python stays permitted for parsing, `define` and continuity
   inference, state and identity derivation, canonicalization and activation;
-  the result is called hosted, never Python-independent.
+  the result is called hosted, never Python-independent. Task 29 compares
+  the routes on this recommended workload. D4 also sets provisional budgets
+  for compiler rebuild time and small-edit-to-activation latency from task
+  23's measurements; the host boundary is decided with D3, since it depends
+  on the route.
 
 Decided since: constraint relations see an owner endpoint with its owned
 subtree (relation_model.md §7).
@@ -710,10 +714,12 @@ each compiler function with a call to the SHEAR VM holding a chunk that the
 host-run compiler produced, and the swapped compiler compiles `lower` to the
 same chunk. Three facts shape this section:
 
-- No chunk the swapped compiler produced is ever run. The swap also replaces
-  the compiler's source in the active state with wrappers whose literal
-  chunks become its code, so the executable form displaces the semantic one,
-  against the first point of the vision.
+- The swap replaces the compiler's functions in the active state with
+  wrappers whose literal chunks become their code, so the executable form
+  displaces the semantic one, against the first point of the vision. Task 27
+  keeps the source as never-swapped twins, and generations 2 and 3 are
+  compiled by the previous generation's chunks on the SHEAR VM; the wrappers
+  remain.
 - The SHEAR compiler does not cover `quote`, `unquote`, `function`,
   `activate`, `trial`, `catch` or `raise` (self_hosting.md section 2,
   vm_in_shear.md). These are mostly the live-evolution operations, so the
@@ -729,16 +735,14 @@ distinct from activating it; continuity alone does not establish
 preservation. A task here that would trade one of them for speed brings the
 trade to the owner.
 
-Order: task 27 is independent and can start now; then task 23 with its
-bootstrap costs, tasks 28 and 29, decisions D3 and D4, and tasks 30 and 31.
+Order: task 27 is done; then task 23 with its bootstrap costs, tasks 28 and
+29, decisions D3 and D4, and tasks 30 and 31.
 Tasks 21 and 22 are independent of this section, and tasks 24 to 26 keep
 their own conditions; neither side waits for the other.
 
 ### 27. Rebuild the compiler with its own output (one session)
 
-**Planned.** Independent. Issue #63. Planned: spec in vm_in_shear.md
-section 7, acceptance tests in `tests/test_rebuild.py`, declaration in
-`tests/golden_changes/GH-63.txt`.
+**Implemented** (PR #82). The design is in vm_in_shear.md section 7.
 
 Keep the compiler's source as data across swaps. Generation 1 is today's
 `swap_all`; generation 2 is compiled by the swapped generation-1 compiler on
@@ -754,15 +758,19 @@ time and peak memory per generation are recorded.
 
 **Planned.** Issue #64.
 
-Every operation in `shear/operations.py` declares its status on four routes,
-host lowering, host execution, SHEAR lowering and SHEAR-VM execution, as
-supported, explicitly rejected or deferred. A test checks each declaration
-against behaviour: a deferred operation fails explicitly, never by falling
-back to the host. A new `docs/bootstrap.md` inventories the host services the
-compiler workload uses (parsing, `define` and continuity inference, state and
-identity derivation, canonicalization, activation, reflection, data
-operations), each with its contract, implementation, whether the hosted
-bootstrap permits it, and the test that covers it.
+For every operation in `shear/operations.py`, a bootstrap matrix declares
+its status on four routes, host lowering, host execution, SHEAR lowering and
+SHEAR-VM execution, as supported, explicitly rejected or deferred. A test
+checks each declaration against behaviour: a deferred operation fails
+explicitly, never by falling back to the host. The supported entries are
+derived from the code where it exists (host lowering's dispatch,
+`self_hosting.LOWERED`, the SHEAR VM's instruction set); only rejected or
+deferred is declared, in the test. `operations.py` keeps operation shapes
+only. A new `docs/bootstrap.md` inventories the host
+services the compiler workload uses (parsing, `define` and continuity
+inference, state and identity derivation, canonicalization, activation,
+reflection, data operations), each with its contract, implementation,
+whether the hosted bootstrap permits it, and the test that covers it.
 
 Done when: the matrix test passes and the inventory is written, as input to
 D4.
@@ -780,8 +788,29 @@ costs by task 23's method. If the route adds a machine boundary, weigh
 extracting one run-context component from `machine.py` first (review
 section 8).
 
-Done when: the results and a recommendation are recorded and the owner
-decides D3.
+The routes are compared on D4's recommended workload with task 28's matrix,
+not on the compiler alone. For the SHEAR VM that includes the instructions it
+does not run (`READ`, `WRITE`, `CODE`, `LINKS`, `QUOTE`, `FUNCTION`,
+`ACTIVATE`, `TRIAL`, `CATCH`, `FAIL`, `RAISE`); those that name an entity
+through the
+running function's links, such as `READ`, `WRITE`, `CODE` and `ACTIVATE`,
+would need it chosen by value in interpreted code (vm_in_shear.md section 8).
+It also includes that the VM's `CALL` runs the callee as installed, so every
+function the workload reaches needs a wrapper, and the wrappers displace the
+semantic source. The spike establishes whether the SHEAR-VM route has a form
+that keeps the source canonical and executable forms derived; if it has none,
+that route stays a candidate only if the owner explicitly changes the first
+acceptance anchor. For host execution, the verifier's admission rule is
+stated: what it checks for a chunk of node N at version V, and who may assert
+that a compiler generation produced that chunk and why program code cannot
+forge the assertion. Host lowering is not part of admission; it stays a test
+oracle. If D4 settles on a workload that differs materially from the
+recommended one, the comparison is redone for it before D3 is accepted.
+
+Done when: the results and a recommendation are recorded, with the admission
+rule and the Provisional items the recommended route makes expensive to
+change (the instruction set, which version `code` reads, node identities in
+its output), and the owner decides D3.
 
 ### 30. Hosted-bootstrap pipeline (handoff)
 
@@ -794,15 +823,18 @@ through host parsing and `define`, SHEAR lowering, and execution on D3's
 route; an unsupported operation fails explicitly.
 
 Done when: task 27's rebuild and the corpus run on this path, provenance
-shows no host lowering for executed code, task 28's matrix is updated and
-the costs are recorded.
+shows no host lowering for executed program code (each executed chunk's node
+version maps to its producer: host lowering or a SHEAR compiler generation),
+the route's own fixed machinery (on the SHEAR-VM route, the VM's own
+functions; per-function wrappers are program code, not machinery) is named
+as exempt, task 28's matrix is updated and the costs are recorded.
 
 ### 31. Live evolution on the bootstrap route (handoff)
 
 **Planned.** Issue #67. After task 30.
 
-With every executed chunk produced by the SHEAR compiler: the
-self-modification and error canaries of the corpus; a running image that
+With every executed chunk produced by the SHEAR compiler, beyond the corpus
+of task 30: a running image that
 changes its program, compiles the candidate with its retained compiler,
 trials and activates it with declared continuity and live data, and rejects
 a bad candidate by the failure semantics; an old frame or closure across a

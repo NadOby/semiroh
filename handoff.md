@@ -1,64 +1,32 @@
 # Handoff
 
-Current checkpoint. Read CLAUDE.md and docs/roadmap.md first.
+Compact current state for the next chat. Not a log: replace what is stale,
+keep it short. A checkpoint of claims, not evidence: verify against the
+repository. Read CLAUDE.md and `docs/roadmap.md` first.
 
 ## State
 
-- Task 27 / #63 merged through PR #82 as `532b68b`.
-- Its implementation, measurements and changelog are complete.
-- Current work: #81 on `fix/81-let-inline-if-render`.
-- The implementation and verification are complete. Next role: Publish.
-
-## Task 27 review
-
-No blocking code defect found.
-
-Independent checks verified:
-- generations 1–3 match host-bytecode expansion;
-- retained source stays unchanged;
-- each rebuild uses one atomic activation;
-- installed chunks match the generation record;
-- failure during final compilation leaves state and generation unchanged;
-- an injected host-run compiler bypass fails the unchanged acceptance
-  test for generations 2 and 3.
-
-Plan-owned acceptance tests and the golden declaration were preserved.
-Only `programs/bootstrap` changed in the golden comparison.
-
-The provenance test is specific to the current architecture. The manually
-maintained source-dependency map is correct but can drift.
-
-## Issue #81
-
-The same printer mutant survived Task 27 run `37673486710` and main
-control run `37682687438`. It was not introduced by Task 27.
-
-The mutant changes the minimum precedence requested for an ordinary `let`
-value from 0 to 1. Its only observable effect is redundant parentheses around
-a precedence-0 expression such as an inline `if`; parsing and behaviour are
-unchanged.
-
-`docs/syntax.md` marks exact rendering layout as Provisional. The mutation
-catalog already classifies analogous redundant-parenthesization changes as
-`unspecified`.
-
-The final resolution therefore classifies this survivor as `unspecified`
-rather than pinning one exact rendering layout with a regression test.
-Production code is unchanged.
-
-## Verification
-
-On final code head `01399df824761e2ed846b8072d827b3722d65aa1`:
-
-- ordinary CI run `37700225086` passed;
-- exhaustive mutation run `37700446867` passed ordinary tests and all
-  16 mutation shards;
-- all 3543 selected mutants were accounted for;
-- every shard reported zero unclassified survivors;
-- `shear/syntax/printer.py` constant survivors were accepted only through
-  reviewed catalog classifications.
+- `main` has task 27 (PR #82): the compiler rebuilds from retained source,
+  generations 2 and 3 compiled on the SHEAR VM; and the #81 fix (PR #85):
+  the printer survivor is classified as unspecified layout. Work is tracked
+  in GitHub issues; commits start with `GH-<n>`.
+- No roadmap task is in progress.
+- `workflow/bootstrap-review` (this change) sharpens roadmap section I after
+  the 2026-10-08 peer review: task 29 compares routes on D4's recommended
+  workload and states the verifier's admission rule, task 30's provenance
+  criterion names program code and exempts the route's machinery, task 31
+  builds on task 30's corpus, D4 sets two provisional budgets, task 28 reads
+  route support from the code. It also fixes drift found by the review.
+  A second review round (input and reply on `workflow/design-goals`, issue
+  #84) added: route (a) must show a source-preserving form or the owner
+  changes the first anchor; provenance must be unforgeable; the comparison
+  is redone if D4 changes the workload. Reviewed as conceptually ready;
+  next: the owner merges after green CI.
+- Design goals from the same discussion go on a separate branch,
+  `workflow/design-goals`, through several review rounds before merging.
 
 ## Next
 
-- Publish the separate fix PR with `Closes #81`.
-- Keep the issue open until the PR merges.
+- Roadmap order: task 23 (issue #60) with its bootstrap costs, then tasks 28
+  and 29, decisions D3 and D4, tasks 30 and 31. Tasks 21 and 22 are
+  independent.

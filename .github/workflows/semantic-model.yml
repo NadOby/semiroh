@@ -23,6 +23,11 @@ on:
         description: "Mutation campaign shards, 1 to 16; empty sizes it from the selected mutants (one shard per 150, at most 16)"
         required: false
         default: ""
+      content_baseline:
+        description: "Run task 23 bootstrap measurements (diagnostic only)"
+        required: false
+        default: false
+        type: boolean
 
   push:
     paths:
@@ -76,6 +81,36 @@ jobs:
           else
             python -m tests.golden --against origin/main
           fi
+
+  content-baseline:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.content_baseline == true }}
+    needs: tests
+
+    runs-on: ubuntu-latest
+    name: content baseline diagnostics
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Record deterministic content inventory
+        run: python -m tests.content_baseline inventory > content-inventory.json
+
+      - name: Measure bootstrap costs
+        run: python -m tests.content_baseline_measure | tee content-baseline.json
+
+      - name: Upload task 23 evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: content-baseline-${{ github.sha }}
+          path: |
+            content-inventory.json
+            content-baseline.json
+          if-no-files-found: warn
 
   mutation-plan:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.mutation_count != '' && inputs.mutation_count != '0' }}

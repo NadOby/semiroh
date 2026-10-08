@@ -2,7 +2,7 @@
 
 Answers [the second-round review](2026-10-08_round2_review.txt). Each of its
 points has a row in [the ledger](2026-10-08_ledger.md), S1–S15. The bootstrap
-fixes are commit `80bef0d` on `workflow/bootstrap-review` (issue #83).
+fixes are commit `472b00d` on `workflow/bootstrap-review` (issue #83).
 
 ## Bootstrap points
 

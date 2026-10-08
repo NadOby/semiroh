@@ -199,3 +199,67 @@ any pre-existing program (`tests/golden.py`).
   example's `context`.
 - Keep each program small and readable; one module per tag is fine.
 - When done: add a `CHANGES.md` entry and mark this document's status.
+
+## 7. Design canaries
+
+**Provisional:**
+
+Unusual programs are design tests: a DSL, an ontology, a small store. Each
+asks whether it can be written as an ordinary SHEAR program or library
+without a new privileged mechanism. With implementation cheap, a precise
+discriminator like this is the scarce resource.
+
+A canary ends in one of: passes naturally; passes with an opaque or
+specialized representation; reveals a missing reusable abstraction; reveals
+too much core responsibility; not relevant yet. Failures count as evidence
+for a missing core abstraction only when the canaries exercise independent
+requirements, not one shared deferred prerequisite.
+
+Canaries are not acceptance tests. Use them when adding a major semantic
+mechanism, deciding what belongs in the core, generalizing, judging whether
+relations earn their cost, designing metaprogramming or DSL facilities,
+moving the boundary between semantic and derived representations, or adding
+privileged compiler or runtime behaviour.
+
+A canary that runs becomes a corpus example. One that needs a feature
+becomes a `Wanted` entry (section 4) naming that feature. One that
+re-implements a core mechanism as a library is evidence for removing the
+mechanism, as roadmap task 24 tests for constraints.
+
+The list as written on 2026-10-08
+([design canaries](reviews/2026-10-08_design_canaries.txt)), with its status
+then:
+
+| Canary | Status | Needs or evidence |
+| --- | --- | --- |
+| 2. Small embedded language | not yet | program-defined syntax |
+| 3. Radically different DSL | not yet | program-defined syntax; the SHEAR VM half-answers it |
+| 4. User-defined relationships | blocked | programs creating entities and relations |
+| 5. Independent libraries interacting | blocked | entity creation, modules |
+| 6. Structured knowledge (an ontology) | blocked | entity creation |
+| 7. Database-like application | blocked | entity creation, records |
+| 8. Specialized indexed representation | blocked | entity creation, opaque values |
+| 9. Large opaque data | blocked | opaque values |
+| 10. External resource | blocked | external values |
+| 11. Replaceable implementation | partial | interpreters run one corpus; decision D3 |
+| 12. Derived executable representation | partial | task 27's wrappers; decision D3 |
+| 13. Cheap local edit | passes | bytecode.md section 5 |
+| 14. Rename and movement | passes | continuity corpus |
+| 15. Split and merge | passes | continuity corpus |
+| 16. Long-running evolution | partial | roadmap task 31 |
+| 17. Rejected change | passes | `checked_compile`, `safe_install` |
+| 18. Repeated evolution | partial | roadmap task 31 |
+| 19. Compiler as ordinary program | passes | self_hosting.md, roadmap task 27 |
+| 20. Compiler replacement | partial | artifact provenance (roadmap task 30) |
+| 21. Compile-time ordinary functions | not yet | a compile-time phase |
+| 22. Different execution contexts | partial | only a run and a trial exist |
+| 23. Application-defined constraints | experiment | roadmap task 24 |
+| 24. Application-defined transformation | blocked | programs declaring continuity |
+| 25. Provenance as application data | blocked | entity creation |
+| 26. Introspection | partial | artifact provenance |
+| 27. Tooling without source authority | partial | Python model only (`render`, `reconcile`) |
+| 28. Round trip through another representation | passes | roadmap task 11 |
+| 29. Library-defined execution model | passes | the SHEAR VM |
+| 30. Specialized computation, external implementation | blocked | opaque values, foreign integration |
+| 31. Application stressing relations more than code | blocked | entity creation |
+| 32. Application barely using relations | passes | the recursion and control examples |

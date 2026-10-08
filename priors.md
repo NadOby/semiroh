@@ -340,3 +340,33 @@ reflective/metaprogrammable compilation
 That intersection is the part for which prior art is currently much weaker.
 
 This makes the individual precedents useful primarily as sources of constraints, counterexamples and design questions rather than as templates.
+
+## Checklist for a new mechanism
+
+**Provisional:**
+
+Before adding or generalizing a semantic mechanism, ask each question
+separately; the answers are independent.
+
+1. Does it need to be a semantic value at all?
+2. Does it need semantic identity, and which one? Not merely because the
+   implementation allocates an object.
+3. Must its internals be graph-expanded, or can it stay inline, opaque,
+   external or derived?
+4. Does it need generic relations, or would a record field, map, tree,
+   array, ordinary reference or derived index be simpler?
+5. Must it persist in the program image, or only during execution,
+   compilation, in a cache or externally?
+6. Could it be regenerated from semantic state, as a derived artifact?
+7. Could an ordinary library implement it? If not, name the missing
+   capability: machine resources, a security boundary, a bootstrap
+   requirement, performance, or representation access ordinary code lacks.
+   "The compiler does it" is not a reason for permanent privilege.
+8. What does it remove and what does it add: which mechanisms and special
+   cases disappear, which interactions, couplings and runtime costs appear?
+   Count total mechanisms and verification obligations, not primitives.
+
+Several unrelated subsystems inventing the same identity, relation,
+transformation, provenance or continuity mechanism is evidence for a common
+abstraction. One difficult application is weak evidence, and failures that
+share one deferred prerequisite count once.

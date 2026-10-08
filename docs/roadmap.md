@@ -565,6 +565,22 @@ mutation targets are carried or dropped by the task 19 rule.
   services that are still Python's and the evidence needed to replace each.
   Self-hosting does not imply it, and it does not require rewriting platform
   services in SHEAR.
+- After hosted bootstrap, not before it (2026-10-08 review): removing
+  Python, native code generation, the final memory manager, concurrency, the
+  full systems-data model, records unless the workload needs them, package
+  management, the final module system, polished final syntax, IDE tooling,
+  complete formal semantics, general theorem proving, a second compiler
+  implementation, a new review workflow, and redesign of identity,
+  continuity or retirement without a concrete counterexample.
+- Concurrency starts with a semantic spike, not with thread safety added to
+  the current path: two computations reading and writing cells, activation
+  while other computations run old code, capability authority across
+  computations, holds and retirement, failure during concurrent activation or
+  trial, and the order of externally visible effects.
+- Long-term direction (README, "Design philosophy"): DSLs and malleability,
+  compiling new language structures at run time, composing libraries, and
+  applications as libraries. Not scheduled; the design canaries
+  (corpus.md section 7) say when a prerequisite is due.
 
 ## H. After the semantic-core experiment
 

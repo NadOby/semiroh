@@ -286,6 +286,14 @@ There is no fundamental "meta-function" category.
 The context in which a function is invoked determines what it may observe or
 modify.
 
+**Provisional:** possible contexts include runtime, compilation, expansion,
+transformation, trial, migration and analysis. A context may decide the
+available capabilities, external access, resource limits, visible semantic
+state, allowed mutation, reproducibility requirements, failure handling and
+execution budget. A function does not become a different kind of function
+because it runs during compilation. Today only a run and a trial exist, and
+they differ by the activation grant (docs/metaprogramming.md section 4).
+
 ## 9. Explicitness
 
 SHEAR does not require every operation to be syntactically explicit.
@@ -531,6 +539,10 @@ representation is intentionally not exposed.
 
 Expansion is an explicit transformation.
 
+Semantic uniformity does not imply physical uniformity: relationships stay
+uniform, representations stay as specialized as efficiency needs, and only
+semantic authority must stay with the graph.
+
 ## 23. Compiler and semantic tooling
 
 The compiler is primarily a transformation layer operating on the semantic
@@ -613,6 +625,11 @@ properties.
 
 Formalization should follow demonstrated semantic stability rather than
 freezing immature design.
+
+Likely first targets are stable areas: identity and state, transformation
+continuity, activation and version coexistence, and reference transfer. A
+formal model is added where it answers a concrete question or verifies a
+named invariant, as roadmap task 25 plans with Alloy.
 
 ## 27. High-value invariants
 
@@ -762,6 +779,37 @@ implementation fragility.
 
 The intended balance is pragmatic.
 
+### Long-term direction
+
+**Provisional:** not scheduled. Recorded so the goals are not lost; the
+roadmap decides what is built when (docs/reviews/2026-10-08_ledger.md).
+
+SHEAR is meant for large, long-lived systems that change while they run, not
+for small programs: carrying its graph, compiler and versions pays off where
+structure and live change matter. Whether that is best described as glue for
+complex systems or as their control layer is open; either way SHEAR remains
+a systems programming language.
+
+Beyond the current roadmap, SHEAR aims to make these ordinary programming
+rather than compiler construction:
+
+- language malleability in the spirit of Lisp and Forth images: a program
+  defines a small DSL (syntax, semantic forms, validation, transformations,
+  interpretation or compilation) through ordinary functions and values. The
+  machinery stays proportional to the DSL, measured in concepts, code,
+  privileged APIs, compile-time and runtime overhead, and integration
+  burden. A normal DSL needs no change to the compiler's dispatch, the
+  parser's internals, VM instructions or core semantic kinds;
+- compiling newly introduced language structures from inside a running
+  program;
+- independently written libraries whose entities, relations and
+  transformations compose through shared language mechanisms;
+- unusual applications built as libraries: a new application domain should
+  normally need library code, not new primitives.
+
+Unusual programs of these kinds are design tests (docs/corpus.md section 7):
+a failure shows what the language must add, remove or change.
+
 ## 36. Non-goals
 
 SHEAR does not aim to:
@@ -776,7 +824,13 @@ SHEAR does not aim to:
 - require garbage collection;
 - provide exceptions as the primary error mechanism;
 - force one concurrency implementation strategy;
-- solve every systems-programming problem inside the language core.
+- solve every systems-programming problem inside the language core;
+- absorb application domains into the core: ontology and knowledge-graph
+  systems, databases and graph databases, AI architectures and agent
+  frameworks, workflow engines, a DSL framework as a product, theorem
+  provers, deployment platforms, a particular image format or compiler
+  backend. **Provisional:** SHEAR should make unusual systems implementable
+  without making unusual systems part of SHEAR.
 
 ## 37. Open design areas
 

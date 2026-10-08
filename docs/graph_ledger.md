@@ -178,6 +178,10 @@ The graph earns its keep where those mechanisms collapse into the same semantic 
 
 Continuity inference itself is not a graph advantage. It remains a matching problem, and the present rules would work over a stable-id AST.
 
+The hypothesis behind graph form, stated so it can fail: first-class semantic relations are worth their cost if they replace several specialized identity, dependency, provenance, continuity and metadata systems with one composable substrate. If they mostly reproduce specialized systems less efficiently and rarely compose across domains, the architecture is too general.
+
+The four compositions above are the current evidence for it. The case strengthens as relationships between relationships become common: a constraint on a relation, produced by a transformation that continues entities whose artifacts depend on versions, under an authority. The hypothesis predicts that a conventional object image is favoured where relationships stay independent of each other, and SHEAR where relations themselves compose extensively; the bounded experiment in section 5 is how to test that.
+
 ## 5. Open
 
 **Open:**
@@ -186,3 +190,5 @@ Continuity inference itself is not a graph advantage. It remains a matching prob
 - Revisit the rebase verdict when semantic conflicts beyond overlapping `touched` sets are implemented.
 - Revisit the moves verdict once lexical/module scope exists; scope repair may expose a larger difference between graph ownership and AST containment.
 - If a future implementation uses an AST with stable node ids underneath, compare its total bookkeeping directly with the semantic graph rather than treating “AST” as necessarily ephemeral.
+- Evidence against the hypothesis, to watch for: ordinary programs rarely use generic relations; relation kinds stay isolated subsystems; generic graph operations are slower or harder than specialized structures without compensating benefit; implementations keep needing escape hatches around graph semantics; specialized indexes become the practical authority; graph machinery complicates ordinary values for little payoff; cross-subsystem relations are rare; programmers must think in graphs where records or trees would do; a conventional object and index model would be simpler. These accumulate as evidence; none alone triggers a redesign.
+- The control architecture is a persistent reflective program image: an immutable map from `EntityID` to definition versions; a runtime of the active snapshot, cells, resources and frames; change sets of definitions, continuity declarations and migrations; artifacts derived from a semantic version, its dependencies and a compiler version; and specialized fields or indexes instead of generic relations for dependencies, ownership, provenance, types and calls. It can probably provide stable identity, snapshots, live evolution, self-hosting, reflective and incremental compilation, DSLs and introspection, with likely advantages in implementation simplicity, conventional optimization, backend integration, predictable performance, debugging, serialization and systems-data representation. If the evidence against grows, implement it far enough to run the corpus and compare mechanism count, complexity, locality and performance: a bounded experiment, not a rewrite.

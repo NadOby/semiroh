@@ -27,6 +27,11 @@ holds one spec per concept; `CHANGES.md` is the architectural log.
 - Be pragmatic, not pure: prefer the smallest change that works, defer design
   decisions until a real program needs them, and change the vision where it
   contradicts reality.
+- Spend cheap implementation on evidence, not on accumulated code. When
+  bounded competing implementations can settle an architectural question,
+  prefer the experiment to argument, but fix the discriminator and the
+  predictions before building them and name what would falsify the current
+  design; a revision is recorded with its reason before the rerun.
 
 ## Workflow
 

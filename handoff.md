@@ -1,59 +1,81 @@
-
 # Handoff
 
-Compact current state for the next chat. Not a log: replace what is stale,
-keep it short. A checkpoint of claims, not evidence: verify against the
-repository. Read CLAUDE.md and `docs/roadmap.md` first.
+Compact current state for the next chat. This is a checkpoint of claims,
+not evidence: verify against the repository. Read `CLAUDE.md` and
+`docs/roadmap.md` first.
 
 ## State
 
-- Task 23, issue #60, is in Plan → Execute handoff.
-- Base: `main` at `a4998b0` (PR #87 merged).
+- Task 23, issue #60, has completed Execute and awaits independent Review.
 - Branch: `task/23-content-baseline`.
-- Plan-owned contract frozen at `c4a4bcc`:
-  `docs/content_baseline.md`, `tests/test_content_baseline.py`,
-  and registration in `tests/lanes.py`.
-- No production implementation or measurements have been completed.
-- CI execution only. The acceptance tests currently import the absent
-  `tests.content_baseline` module, so failure is expected until Execute
-  implements it. No test result is claimed here.
+- Latest Execute commit: `4ebb339`.
+- Plan acceptance contract: `c4a4bcc`.
+- No pull request has been opened for this task.
 
-## Execute contract
+Execute added:
 
-- Implement `tests/content_baseline.py` against the Plan-owned acceptance
-  tests and measurement protocol. Keep the diagnostic separate from
-  ordinary test execution.
-- Inventory content conversion sites, representations, mutation survivors
-  and compiler/VM representation boundaries using current source evidence.
-- Measure identical `lower(lower)` workloads through host execution of the
-  SHEAR compiler and the installed SHEAR-VM compiler route. Verify
-  structural equality and provenance independently of timing.
-- Record warm-up, at least three untraced timing observations per route,
-  separately traced peak allocations, byte-size definitions, chunk counts,
-  and one verified `define` → lower → activation edit.
-- Extend the existing GitHub Actions workflow with an explicitly
-  dispatched diagnostic mode. Do not make ordinary CI benchmark timings
-  or enforce performance thresholds.
-- Record CI provenance, raw observations, hardware, limitations and
-  results in the specification's append-only results section.
-- Do not refactor semantic content, change public semantics, rewrite
-  Plan acceptance tests, or change golden records.
-- Append the PR's architectural-log entry to `CHANGES.md`.
+- `tests/content_baseline.py` – deterministic conversion inventory,
+  representation and compiler/VM boundary classification, pinned mutation
+  survivors, and measurement validation.
+- `tests/content_baseline_measure.py` – CI-only bootstrap diagnostic.
+- A manually dispatched `content_baseline` input and diagnostic job in
+  `.github/workflows/semantic-model.yml`.
+- Recorded evidence in `docs/content_baseline.md` section 5 and an
+  architectural-log entry in `CHANGES.md`.
 
-## Review contract
+No production semantic implementation, golden records, or Plan acceptance
+tests were intentionally changed. The initial blank line in the Plan-owned
+results document was corrected to satisfy documentation checks.
 
-Independently verify conversion counts and classifications against source,
-mutation catalog pins, runtime-route equivalence and absence of host
-lowering fallback, measurement provenance, units, workload definitions,
-and the program-image proxy's exclusions.
+## Evidence
 
-Keep findings classified as verified defects, limitations, hypotheses
-or documentation drift. Material changes to Plan-owned expectations return
-to Plan rather than being absorbed by Execute.
+- Measurement revision: `9b5f922`.
+- Dispatched diagnostic:
+  https://github.com/NadOby/shear/actions/runs/37763237141
+- Latest Execute CI:
+  https://github.com/NadOby/shear/actions/runs/37767279723
+- Both runs passed.
+- Diagnostic artifact contains `content-inventory.json` and
+  `content-baseline.json`.
+- Inventory: 140 static conversion-helper calls across the selected
+  helper set, with provisional necessity and retention classifications.
+- `lower(lower)` median: 0.03619 s through the host-executed SHEAR
+  compiler versus 5.12615 s through the installed SHEAR VM compiler.
+  Outputs matched structurally.
+- Peak traced allocations: 212,392 and 1,355,751 bytes respectively.
+- Recorded 1,858 derived code-node chunks, serialized size proxies,
+  and a verified `define` → lowering → activation edit.
+- Measurements are runner-specific diagnostics. The state-content proxy
+  is not an executable image size.
+
+Full raw observations, definitions, hardware, scope and exclusions are in
+`docs/content_baseline.md` section 5 and the cited CI artifact.
+
+## Independent Review contract
+
+Review must independently check:
+
+- Conversion site counts, helper coverage and classifications against
+  current source; avoid treating static calls as proven duplication.
+- Representation distinctions, named compiler/VM boundaries and mutation
+  survivor source pins.
+- Native and interpreted `lower(lower)` workload equivalence, output
+  equality, generation provenance and host-lowering fallback checks.
+- Timing and memory methodology, raw observations, measurement units,
+  CI provenance, and the image-size proxy's exclusions.
+- The small edit's define, lowering and activation boundaries.
+- Workflow isolation, validation behavior, documentation accuracy and
+  absence of unintended production changes.
+
+Classify findings as verified defects, limitations, hypotheses or
+documentation drift. The implementer must not certify their own work.
+Material fixes belong to Resolve; changes to frozen Plan expectations
+require returning to Plan.
 
 ## Next
 
-Start a fresh Execute task 23 context from the frozen Plan contract.
-After Execute, independently Review, Resolve if needed, and Publish.
-Roadmap order thereafter: tasks 28 and 29, decisions D3 and D4, then
-tasks 30 and 31. Tasks 21 and 22 are independent.
+Start a fresh chat with **Review task 23**, reading current `main`,
+the issue, the branch and the relevant specifications and tests.
+
+After Review: Resolve findings if necessary, then Publish the task PR
+with `Closes #60`. Do not merge before independent Review.

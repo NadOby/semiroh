@@ -100,7 +100,10 @@ jobs:
         run: python -m tests.content_baseline inventory > content-inventory.json
 
       - name: Measure bootstrap costs
-        run: python -m tests.content_baseline_measure | tee content-baseline.json
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m tests.content_baseline_measure | tee content-baseline.json
 
       - name: Upload task 23 evidence
         if: ${{ always() }}

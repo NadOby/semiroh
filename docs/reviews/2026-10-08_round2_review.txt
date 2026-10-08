@@ -1,0 +1,135 @@
+Worked for 3m 48s
+
+The peer review is strong. I would accept most of it. I found a few places where I would push back or tighten the proposed changes before merging.
+
+The biggest point is that the peer correctly corrected several parts of my first review: D4 does not necessarily need to be fully decided before D3; the Task-30/31 split I proposed was wrong because the rebuild itself already needs function, quote/unquote, activate, etc.; the equivalence relations are already substantially specified; and the design-goal material should mostly be consolidated into existing authoritative documents rather than creating four more vision documents.
+
+I would send back roughly the following second-round findings.
+
+1. F3 – accept, with one guard. No reordering is necessary. Using D4's recommended workload for Task 29 and deciding the route-dependent host boundary together with D3 is cleaner than my original ordering. But Task 29 is still evaluating against a recommended, not yet decided, D4 workload. Add a guard: if final D4 materially changes the workload used by Task 29, the route comparison must be updated before D3 is accepted. Otherwise there is a small circularity where the route evidence may describe a workload the owner then changes.
+
+2. F4 – accept. The peer is right. My proposed BootstrapWorkload versus LiveEvolutionWorkload split was artificial. Task 30 necessarily crosses into some live-evolution operations because Task 27's rebuild uses them. “Task 31 covers what remains beyond the Task-30 corpus” is a better boundary.
+
+3. F5/F6 – mostly accept, but provenance needs authenticity, not merely a label. For the current per-node bytecode model, the peer is right that the five-link provenance chain I proposed is excessive and dependency freshness is not generally needed: the chunk belongs to a node value and remains valid with that value. But “the producer is recorded” is insufficient as an admission property unless the producer record cannot be forged by the program supplying the chunk.
+
+   Task 29 should answer something equivalent to:
+
+   Who is allowed to assert that compiler generation G produced chunk C
+   for node version V, and why can arbitrary program code not forge that assertion?
+
+   That might be guaranteed structurally by the compilation/admission API rather than cryptographically. But it has to be part of the trust boundary. Otherwise recorded provenance is just metadata supplied alongside arbitrary bytecode.
+
+4. A1 – correct distinction, but the proposed wording hides a deeper route-(a) problem. The peer is right that “no host lowering for executed code” was too broad because the SHEAR VM itself is host-lowered.
+
+   However, the branch currently says:
+
+   > the route's own fixed machinery (on the SHEAR-VM route, the VM and its wrappers) is named as exempt
+
+
+
+   The VM is fixed machinery. The wrappers are not really fixed – they are per-function adapters containing program-specific chunks/parameters/links.
+
+   More importantly, the peer itself observes that route (a) needs wrappers for every reached function and that these wrappers displace semantic source, violating the first bootstrap acceptance anchor.
+
+   This is the main unresolved issue I see.
+
+   Task 29 should not merely price that cost. It must establish whether route (a) has a form that satisfies:
+
+   semantic graph remains canonical
+   executable form remains derived
+
+   If it cannot, route (a) is not a valid hosted-bootstrap candidate unless the owner explicitly changes that acceptance anchor.
+
+   As currently written, D3 could select route (a), Task 30 could satisfy its listed criteria, yet the canonical-source anchor could remain violated.
+
+5. Task 28 branch edit contains a direct wording contradiction. It currently says:
+
+   > Every operation in shear/operations.py declares its status on four routes
+
+
+
+   and a few lines later:
+
+   > operations.py keeps operation shapes only.
+
+
+
+   Those cannot both be true after accepting F9.
+
+   It should instead say something like:
+
+   For every operation in shear/operations.py, the bootstrap matrix declares
+   its status on the four routes...
+
+   Then state that the supported columns are derived from the existing implementations.
+
+6. Task 29's missing-instruction list accidentally omits RAISE. Current main's bytecode includes:
+
+   CATCH
+   FAIL
+   RAISE
+
+   and _ORDER in the SHEAR VM contains none of them. The edited Task 29 lists CATCH and FAIL but not RAISE. The peer's own F3 text correctly included RAISE, so this appears to be a transcription error into the roadmap.
+
+7. F10 – only partially solved. The new vm_in_shear.md sentence says the twins/wrappers/generation/source-dependency map disappear if D3 chooses host execution. Fine for route (b).
+
+   But if route (a) wins, the classification remains unresolved. Are these then:
+
+   - permanent route machinery,
+   - temporary scaffolding to be replaced by a source-preserving route-(a) design,
+   - or an accepted violation of the canonical-source anchor?
+
+   This folds back into finding 4. I would not create the four-way classification I originally suggested, but there still needs to be an answer for the route-(a) outcome.
+
+On the broader design material, I mostly agree with the peer.
+
+The critique of the canaries is good. My phrase “several unrelated canaries” needed a stronger independence condition. Eleven canaries all failing because the language currently cannot create application-defined semantic structures are not eleven independent pieces of evidence. They share one prerequisite. The useful rule is closer to:
+
+> Repeated failures count as evidence for a missing core abstraction only when the canaries exercise genuinely independent requirements rather than sharing the same deferred prerequisite.
+
+
+
+I would preserve the canaries, though. They should be treated as future probes blocked by particular prerequisites, rather than current acceptance requirements. Keeping the original dated document under docs/reviews/ while later adding a much smaller “design canaries” section to corpus.md seems reasonable.
+
+On the design goals, the peer identified an important mistake in my document: I accidentally weakened SHEAR from a systems programming language to merely “a programming language with a reflective, evolvable semantic program model.” I agree with the rebuttal. Do not adopt that wording. Systems programming remains part of the project identity.
+
+The genuinely new goals are also correctly identified:
+
+- Lisp/Forth-like language malleability;
+- cheap DSL construction;
+- independently developed semantic libraries composing through ordinary language mechanisms;
+- unusual applications should normally require libraries, not new core primitives.
+
+Those are not consolidation of existing documentation – they are new direction. But from this conversation you have already answered the owner question: yes, those are goals. I would record them as provisional long-term goals in the existing README design-philosophy/metaprogramming material, explicitly without changing current roadmap priority.
+
+The graph-hypothesis/object-image comparison belongs in graph_ledger.md, as the peer suggests. That is much better than creating architecture_hypotheses.md.
+
+On the velocity note, I think the peer improved my formulation. In particular this qualification is worth keeping:
+
+> An experiment buys evidence only if the discriminator is chosen before the run and is mechanical enough to decide something; otherwise cheap implementation merely produces two implementations that must still be compared by argument.
+
+
+
+So I would preserve both principles:
+
+> Exploit cheap implementation to buy evidence rather than accumulate implementation.
+
+
+
+> When bounded competing implementations can resolve an architectural uncertainty, prefer the experiment – but specify the discriminator before implementing them.
+
+
+
+I would not generalize the “one revision” rule to every architectural experiment. That is useful discipline for tightly scoped research tasks, but some experiments legitimately expose instrumentation problems or an incorrectly formulated discriminator. Predictions-before-run and explicit falsifiers are the important general rules; revision count can remain task-specific.
+
+So my second-round verdict is:
+
+- The peer successfully rebuts or improves most of my original review.
+- The proposed bootstrap branch is directionally good but has two concrete documentation defects: the contradictory Task-28 wording and omitted RAISE.
+- It also has one substantive unresolved architectural point: route (a) still appears unable to satisfy the canonical-semantic-source acceptance anchor because its per-function wrappers replace semantic code.
+- Provenance admission should additionally state why the producer attribution is trustworthy rather than merely recorded.
+- The peer is right to preserve SHEAR's systems-language identity.
+- The new DSL/malleability/library-composition goals should be accepted as provisional long-term goals, since you have now explicitly confirmed them.
+- The peer's refinement of the AI-velocity principle is better than my original formulation.
+
+I would resolve those four bootstrap points before merging workflow/bootstrap-review; the design-goals branch looks suitable for another consolidation/review round rather than direct merge.

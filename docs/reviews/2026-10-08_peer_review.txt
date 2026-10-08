@@ -1,0 +1,1210 @@
+SHEAR language-design and bootstrap peer review
+
+Status: peer-review input.
+
+Date: 2026-10-08
+
+This review examines the current SHEAR language-design process and the current hosted-bootstrap plan on "main".
+
+It is intentionally concerned with the repository as it exists now. Earlier concerns that have already been addressed by the current specifications or implementation are excluded. In particular, this review does not treat identity/equality separation, transformation reversibility, or version-retirement semantics as unresolved merely because they were design risks earlier in the project.
+
+The purpose is not to propose a redesign. The purpose is to identify places where the current architecture or development sequence still carries avoidable ambiguity, scope pressure, or bootstrap risk.
+
+---
+
+Instructions for peer review of this review
+
+Before accepting any conclusion below:
+
+1. Fetch current "main".
+2. Read at minimum:
+   - "README.md"
+   - "CLAUDE.md"
+   - "docs/roadmap.md"
+   - "docs/reviews/bootstrap_delivery.md"
+   - "docs/semantic_graph.md"
+   - "docs/identity_model.md"
+   - "docs/transformation_model.md"
+   - "docs/activation_model.md"
+   - "docs/bytecode.md"
+   - "docs/self_hosting.md"
+   - "docs/vm_in_shear.md"
+   - "docs/corpus.md"
+   - "priors.md"
+   - "CHANGES.md"
+   - current implementations of the self-hosted compiler, VM and rebuild path
+   - issues #64–#67 and any subsequently adopted bootstrap decisions.
+3. Treat this document as claims to test, not evidence.
+4. Distinguish:
+   - verified defect;
+   - architectural limitation;
+   - risk/hypothesis;
+   - documentation ambiguity;
+   - recommendation that is unnecessary because current code/specification already covers it.
+5. Challenge especially:
+   - whether the proposed sequencing changes are actually dependencies;
+   - whether the suggested bootstrap contract adds useful precision or merely duplicates existing documentation;
+   - whether the language-design concerns below are genuine present risks rather than generic programming-language-design advice;
+   - whether any recommendation would unnecessarily slow delivery.
+6. For every disagreement, cite the current repository evidence that defeats the claim.
+7. For every accepted concern, propose the smallest change that resolves it. Prefer changing an existing roadmap task or specification over introducing new process or documents.
+8. Do not recommend broad redesign without a concrete failing program, dependency, cost, contradiction or falsifiable experiment.
+
+A useful output format is:
+
+Finding N:
+    Verdict: confirmed / partly confirmed / rejected / already covered
+    Evidence:
+    Consequence:
+    Smallest action:
+
+The review should be adversarial. Agreement with this document is not an objective.
+
+---
+
+1. Overall assessment
+
+The current development process is unusually rigorous for an early language, but its important property is not the amount of verification. It is that the repository increasingly treats language-design claims as hypotheses that must survive executable examples, counterexamples, differential testing and implementation.
+
+The current fast-bootstrap plan is broadly sound.
+
+Its effective route is:
+
+Python semantic reference
+    ↓
+compiler written in SHEAR
+    ↓
+real successive compiler generations
+    ↓
+explicit inventory of remaining host services
+    ↓
+chosen execution route for compiler-produced artifacts
+    ↓
+closed hosted-bootstrap pipeline
+    ↓
+live evolution on that same route
+
+This avoids two common bootstrap failures:
+
+1. calling a compiler "self-hosting" merely because it can compile its own source while the seed implementation still performs the meaningful work;
+2. attempting to eliminate the bootstrap language before the actual language/runtime boundary is understood.
+
+Task 27 is especially useful evidence because later compiler generations actually produce the chunks used to build subsequent generations, and tests attempt to exclude host lowering/compiler fallback.
+
+The remaining concerns are therefore not that SHEAR lacks a bootstrap strategy. They concern the exact boundary, ordering and permanence of mechanisms introduced while completing it.
+
+---
+
+2. Current strengths that should be preserved
+
+These are relevant because several recommendations below should not accidentally weaken them.
+
+2.1 Semantic graph remains canonical
+
+Current specifications consistently distinguish the semantic program from its source and executable representations.
+
+The bootstrap route must preserve:
+
+semantic graph
+    → derived executable artifact
+
+rather than evolving into:
+
+source/compiler artifact
+    → authoritative executable program
+
+merely because the latter is easier to optimize.
+
+This is already an explicit bootstrap acceptance anchor and should remain one.
+
+2.2 Identity and equality are no longer conflated
+
+The current identity model explicitly separates:
+
+EntityID
+VersionID
+StateID
+runtime identity
+semantic equality
+continuity
+
+This is sufficiently explicit that it should be treated as established architecture rather than reopened during bootstrap unless an implementation exposes a concrete contradiction.
+
+2.3 Continuity does not claim semantic preservation
+
+The current transformation model distinguishes continuity mappings from semantic equality, reversibility and provenance.
+
+That distinction is important for bootstrap optimizations: an artifact may remain associated with the same semantic entity without thereby proving that a compiler transformation preserved behavior.
+
+2.4 Lifetime and retirement have a concrete current model
+
+"activation_model.md" specifies version coexistence, holds and retirement. The reference runtime implements the relevant mechanism.
+
+The eventual non-Python runtime may implement this differently, but the hosted-bootstrap milestone has sufficiently concrete lifetime behavior to test against.
+
+It therefore should not be blocked on inventing a general ownership/borrowing system.
+
+2.5 The bootstrap milestone is explicitly hosted
+
+The distinction between:
+
+self-rebuild
+hosted bootstrap
+no Python at runtime
+
+is correct and important.
+
+Removing Python prematurely would combine compiler bootstrap, runtime replacement, memory-management implementation and platform work into one milestone for little semantic benefit.
+
+That separation should remain.
+
+---
+
+3. Bootstrap finding: D4 should constrain D3
+
+Status
+
+Recommendation / dependency risk.
+
+The roadmap currently treats D3 and D4 as decisions reached after Tasks 28 and 29.
+
+D3 asks where compiler-produced chunks should execute.
+
+D4 asks what workload and host boundary constitute the first useful hosted bootstrap.
+
+These decisions are not fully independent.
+
+The execution route should be evaluated against the workload it must actually support.
+
+Problem
+
+Task 29 can compare execution mechanisms using the current compiler, but this risks answering:
+
+«Which route runs today's compiler artifacts best?»
+
+instead of:
+
+«Which route best supports the actual hosted-bootstrap workload?»
+
+Those may produce different answers.
+
+For example, a route that is attractive for pure compiler functions may become unattractive once the required bootstrap workload includes activation, trial, reflection, errors and stateful evolution.
+
+Recommendation
+
+Prefer the logical ordering:
+
+Task 27
+    ↓
+Task 23 measurements
+    ↓
+Task 28 inventory
+    ↓
+D4: define workload and permitted host boundary
+    ↓
+Task 29: test execution routes against that workload/boundary
+    ↓
+D3: choose route
+    ↓
+Task 30
+    ↓
+Task 31
+
+Task 29 may still begin exploratory implementation earlier.
+
+The important requirement is that its final comparison and recommendation be evaluated against the D4 workload, not merely today's compiler subset.
+
+Falsification condition
+
+Reject this recommendation if Task 29's candidate routes are genuinely workload-independent, or if Task 29 is explicitly only an architectural feasibility spike followed by a second workload-specific evaluation before D3.
+
+---
+
+4. Bootstrap finding: Task 30 and Task 31 need a sharper workload boundary
+
+Status
+
+Documentation/scope ambiguity.
+
+Task 30 currently requires the corpus to run on the hosted-bootstrap path.
+
+Task 31 separately requires self-modification, error canaries, trial, activation, old frames/closures and repeated updates.
+
+But those capabilities already overlap with the existing corpus.
+
+Risk
+
+"The corpus runs" can mean either:
+
+all current corpus scenarios
+
+or:
+
+the ordinary/bootstrap subset selected for Task 30
+
+If interpreted literally as all current corpus behavior, Task 30 can absorb a large fraction of Task 31.
+
+If interpreted narrowly, the selected subset is not currently named precisely enough.
+
+Recommendation
+
+D4 should define an explicit bootstrap workload.
+
+For example, conceptually:
+
+BootstrapWorkload =
+    compiler rebuild workload
+    + selected ordinary-program canaries
+    + selected error/runtime cases
+
+LiveEvolutionWorkload =
+    BootstrapWorkload
+    + self-modification
+    + trial/activation
+    + old-frame/closure continuity
+    + repeated update/retirement scenarios
+
+The exact names should come from the existing corpus rather than creating a parallel test collection.
+
+Task 30 should name the exact subset it must run.
+
+Task 31 should name the additional scenarios that turn that hosted compiler/runtime path into the full live-evolution demonstration.
+
+This prevents both under-testing and accidental duplication.
+
+---
+
+5. Bootstrap finding: the D3 verifier needs an explicit theorem
+
+Status
+
+Important open architectural requirement.
+
+Task 29's host-execution alternative proposes running SHEAR-compiler-produced chunks as derived artifacts behind a verifier and with recorded provenance.
+
+"Verifier" is currently too broad a word to serve as an architectural contract.
+
+Distinctions that must not be collapsed
+
+A verifier might establish any of the following:
+
+Structural validity
+
+The artifact is well-formed bytecode.
+
+Runtime safety invariants
+
+Instruction operands, references, capabilities or execution restrictions satisfy the VM's required invariants.
+
+Provenance
+
+The artifact was produced by an authorized compiler generation for a particular semantic node/version.
+
+Dependency validity
+
+The artifact was compiled against the versions of all semantic dependencies it claims.
+
+Semantic equivalence
+
+The artifact computes the same observable behavior as the semantic graph.
+
+These are very different claims.
+
+Major risk
+
+If semantic equivalence is "verified" by independently host-lowering the semantic node and comparing chunks, then host lowering remains part of the trusted execution pipeline.
+
+That may be useful as an oracle during testing, but it weakens the meaning of:
+
+executed code was produced by the SHEAR compiler
+
+if host compilation is required before execution can be accepted.
+
+Recommendation
+
+Before selecting D3, Task 29 should explicitly state:
+
+The verifier accepts artifact A for semantic version V iff ...
+
+and list exactly what is proved.
+
+A likely useful division is:
+
+runtime verifier:
+    structural validity
+    required execution invariants
+    provenance / authorization
+    dependency freshness
+
+test/reference oracle:
+    semantic agreement with the Python reference model
+    differential comparison
+    corpus acceptance
+
+The verifier does not need to prove compiler correctness unless that is an explicit project goal.
+
+Compiler correctness can remain supported by independent executable evidence.
+
+---
+
+6. Bootstrap finding: define the artifact/provenance chain explicitly
+
+Status
+
+Recommendation.
+
+The existing bootstrap review already requires provenance for compiler generations and derived artifacts.
+
+For the concrete hosted bootstrap, this should become an explicit relation rather than remaining mainly narrative.
+
+A useful conceptual chain is:
+
+semantic entity/version
+    ↓ compiled by
+compiler generation/version
+    ↓ produces
+executable artifact
+    ↓ validated by
+execution-route validation
+    ↓ executed under
+runtime/image version
+
+This need not imply that every arrow becomes a new semantic primitive.
+
+The point is that the bootstrap implementation and diagnostics should be able to answer:
+
+What semantic version did this executable artifact come from?
+Which compiler generation produced it?
+Which dependencies was it produced against?
+Which validation admitted it?
+Which execution route ran it?
+
+Why this matters
+
+Task 27 proves absence of a particular host fallback using targeted tests.
+
+A complete hosted pipeline should make such fallback difficult to hide structurally, not merely something one test currently detects.
+
+This is especially important once several execution routes, caches or optimized artifacts exist.
+
+---
+
+7. Bootstrap finding: make equivalence criteria concrete before optimization
+
+Status
+
+Recommendation.
+
+The bootstrap delivery review already states the right principle:
+
+- deterministic artifacts can be compared directly where appropriate;
+- observable behavior should be compared where exact representation equality is not appropriate;
+- semantically meaningful differences must not be normalized away merely to get agreement.
+
+The concrete bootstrap plan should now instantiate this rule.
+
+Current situation
+
+Task 27 can reasonably demand exact agreement for current compiler chunks.
+
+That is unlikely to remain the right criterion indefinitely.
+
+Future routes may introduce:
+
+- different chunk layouts;
+- optimization;
+- larger compilation units;
+- different caches;
+- native code;
+- artifact metadata;
+- scheduling/runtime differences.
+
+Recommendation
+
+For each bootstrap output, define which relation matters:
+
+exact byte equality
+canonical artifact equality
+same semantic version/dependencies
+same observable behavior
+same continuity expectations
+same failure behavior
+
+Do not use one universal equality relation for all bootstrap artifacts.
+
+This should preferably become part of "docs/bootstrap.md" rather than a new independent theory document.
+
+---
+
+8. Bootstrap finding: resource budgets should become decisions, not remain measurements
+
+Status
+
+Recommendation already anticipated by the bootstrap review.
+
+Task 23 provides measurements.
+
+The bootstrap review says numeric acceptance budgets should be chosen after measuring actual workloads.
+
+That second step is important.
+
+Risk
+
+Without provisional budgets, Task 29 can produce measurements but D3 remains partly subjective.
+
+For example:
+
+route A:
+    semantically simpler
+    100× slower
+
+route B:
+    more machinery
+    much faster
+
+cannot be decided rigorously unless the project has some notion of what "development-appropriate" or "usable" means.
+
+Recommendation
+
+After Task 23 and D4, record provisional budgets for at least:
+
+- compiler rebuild time;
+- peak memory;
+- image/artifact size where relevant;
+- representative execution cost;
+- small-edit-to-activation latency;
+- repeated-update retention.
+
+They do not need to become permanent performance guarantees.
+
+Their purpose is to let D3 and Task 30 be falsifiable engineering decisions.
+
+---
+
+9. Bootstrap finding: "operations.py" should probably not own route-support metadata
+
+Status
+
+Low-severity architecture recommendation.
+
+Task 28 currently proposes that every operation in "shear/operations.py" declare support across:
+
+- host lowering;
+- host execution;
+- SHEAR lowering;
+- SHEAR-VM execution.
+
+"operations.py" currently describes the mechanical structural shape of operations and explicitly keeps their semantics elsewhere.
+
+Risk
+
+Bootstrap-route support is not a structural property of an operation.
+
+It is a property of a particular implementation path at a particular stage of the project.
+
+Embedding both concepts in the same table risks coupling stable language operation metadata to transient bootstrap architecture.
+
+Recommendation
+
+Keep one authoritative support matrix, but consider a separate module such as conceptually:
+
+operations.py
+    language operation shape
+
+bootstrap_support.py
+    current implementation-route coverage
+
+The test can require complete coverage over "OPERATIONS", so there is still no duplication or missing entry.
+
+Reject this recommendation if colocating the metadata materially simplifies enforcement without contaminating consumers of "OPERATIONS".
+
+This is not important enough to delay Task 28.
+
+---
+
+10. Bootstrap finding: temporary bootstrap mechanisms need exit criteria
+
+Status
+
+Architecture-risk recommendation.
+
+The current rebuild path retains source twin functions such as the compiler "_source" entities so successive generations can recompile semantic source instead of recompiling installed wrappers.
+
+This is a reasonable scaffold.
+
+The SHEAR-written bytecode interpreter is likewise currently a useful independent execution path even though it is intentionally slow.
+
+Risk
+
+Bootstrap scaffolding often becomes architecture because later code starts depending on it.
+
+The project should avoid accidentally concluding that:
+
+compiler source must permanently exist as a parallel twin function
+
+or:
+
+every self-produced artifact must permanently execute through the current interpreter
+
+simply because those mechanisms enabled bootstrap.
+
+Recommendation
+
+For mechanisms introduced specifically for bootstrap, explicitly record one of:
+
+permanent semantic mechanism
+
+provisional implementation mechanism
+
+temporary scaffold removed when condition X is met
+
+In particular, once the final hosted execution route is selected, decide whether retained source twins remain necessary or whether canonical semantic functions plus derived executable artifacts directly provide the required relationship.
+
+Likewise, if D3 replaces the interpreted route for normal bootstrap execution, keep the SHEAR VM only for the independent evidence or functionality that justifies retaining it.
+
+---
+
+11. Bootstrap finding: the concrete bootstrap contract is distributed and should be assembled
+
+Status
+
+Recommendation, not missing theory.
+
+Most of the conceptual bootstrap contract already exists in "docs/reviews/bootstrap_delivery.md".
+
+The important concepts are already present:
+
+workload
+dependency closure
+permitted host boundary
+artifact execution route
+provenance
+comparison relation
+resource measurements/budgets
+live-evolution acceptance
+usable command path
+
+Task 28 already plans "docs/bootstrap.md".
+
+That file should become the concrete instantiated contract for the current milestone rather than another general architecture essay.
+
+A useful conceptual definition is:
+
+Hosted bootstrap contract =
+    selected workload
+    + operation/dependency closure
+    + permitted host services
+    + trusted execution boundary
+    + artifact/provenance rules
+    + comparison/equivalence rules
+    + resource budgets
+    + acceptance scenarios
+
+This is primarily consolidation.
+
+The concepts themselves should not be re-specified from scratch if normative specifications already define them.
+
+---
+
+12. Language-design finding: the semantic graph has continuing scope pressure
+
+Status
+
+Architectural risk, already recognized in "priors.md", still current.
+
+"semantic_graph.md" intends everything semantically meaningful to be representable as a semantic value.
+
+Examples include:
+
+- ordinary data;
+- types;
+- functions;
+- constraints;
+- effects;
+- capabilities;
+- contracts;
+- transformations;
+- modules;
+- states;
+- representations;
+- resources;
+- metadata.
+
+This is powerful and internally coherent.
+
+It also creates a recurring pressure:
+
+«If something is semantically interesting, should it become part of the graph?»
+
+The answer cannot always be yes.
+
+Existing protection
+
+The current design already has an important escape hatch: values may remain opaque or external rather than exposing all physical structure in the graph.
+
+"priors.md" also explicitly warns against turning every ordinary operation into graph rewriting or making the semantic graph absorb the whole compiler.
+
+These safeguards should remain active design criteria.
+
+Recommendation
+
+For each new proposed semantic category, ask separately:
+
+Must this be semantically representable?
+
+Must its internals be graph-expanded?
+
+Must the compiler/runtime operate on it through generic graph mechanisms?
+
+Must it affect semantic identity?
+
+Must it survive in the running image?
+
+These are independent decisions.
+
+"Representable as a semantic value" should not automatically imply any of the other four.
+
+A useful kill criterion for future graph expansion is:
+
+«If generic graph representation adds more semantic/runtime machinery than the capability requires, keep the value opaque and expose only the relations that programs actually need.»
+
+---
+
+13. Language-design finding: one function model across phases creates a real phase-boundary problem
+
+Status
+
+Current open architectural pressure.
+
+The README states that the same function model is intended to cover:
+
+- runtime computation;
+- compile-time computation;
+- graph inspection;
+- metaprogramming;
+- semantic transformations;
+- analysis.
+
+There is intentionally no separate fundamental "meta-function" category.
+
+This is an attractive simplification.
+
+But common representation does not remove phase distinctions.
+
+Questions that still need explicit answers as these capabilities grow
+
+A function invoked during compilation may differ from ordinary runtime execution in:
+
+- available capabilities;
+- observable semantic state;
+- resource budget;
+- termination requirements;
+- reproducibility requirements;
+- authority to modify the program;
+- access to external resources;
+- treatment of failure;
+- caching.
+
+These differences can exist while preserving one function model.
+
+Recommendation
+
+Do not introduce a second function language merely to solve this.
+
+Instead, make invocation context increasingly explicit.
+
+Conceptually:
+
+same function value
+    +
+invocation context
+    =
+allowed observation/effects/resources for this phase
+
+The project already moves in this direction through capabilities and execution context.
+
+Before unrestricted compile-time/metaprogram execution becomes a normal language facility, require explicit answers for:
+
+- termination/resource budgets;
+- external effects;
+- reproducibility;
+- program-modification authority;
+- compiler availability and recursive invocation.
+
+This is not required to complete the current hosted bootstrap unless the bootstrap workload exercises those capabilities.
+
+---
+
+14. Language-design finding: semantic minimalism should be evaluated by total mechanism count
+
+Status
+
+Current design principle worth strengthening.
+
+SHEAR aims for a small conceptual basis.
+
+There is a recurring risk in languages of this kind:
+
+fewer primitive constructs
+
+is mistaken for:
+
+less semantic complexity
+
+Complexity can move into:
+
+- graph interpretation;
+- identity machinery;
+- continuity inference;
+- activation;
+- constraints;
+- compiler reflection;
+- capability handling;
+- canonicalization;
+- transformation metadata.
+
+"priors.md" already identifies this pressure.
+
+The current roadmap's falsification experiments, especially "constraints as functions", are a good response.
+
+Recommendation
+
+Continue requiring simplification proposals to measure total mechanism reduction.
+
+A proposed unification should answer:
+
+What production mechanism disappears?
+What special-case semantics disappear?
+What verification burden disappears?
+What runtime cost appears?
+What new coupling appears?
+
+A feature is not simpler merely because it can be encoded through a more general primitive.
+
+Task 24's explicit kill criterion is a good template for future architectural simplification.
+
+---
+
+15. Language-design finding: implementation success should not silently stabilize provisional semantics
+
+Status
+
+Process risk.
+
+The project uses "Decided", "Provisional" and "Open" explicitly, which is valuable.
+
+However, successful implementation plus extensive testing naturally creates inertia.
+
+A heavily tested provisional behavior can become de facto permanent even when the original design question remains open.
+
+Examples are likely to occur around:
+
+- current bytecode shape;
+- exact VM structure;
+- execution route;
+- current representation of compiler artifacts;
+- provisional call/version switching behavior;
+- eventual modules, references-as-data and systems data.
+
+Recommendation
+
+At milestone boundaries, explicitly review provisional semantics that have acquired significant downstream dependencies.
+
+Ask:
+
+Was this behavior tested because it is intended semantics,
+or because it is the current implementation?
+
+Would changing it now invalidate semantic assumptions,
+or only implementation tests?
+
+Has implementation evidence strengthened the original choice enough
+to mark it Decided?
+
+Do not reopen all provisional decisions periodically.
+
+Only review those that are about to become expensive to change.
+
+The hosted-bootstrap milestone is a natural checkpoint for the execution-related ones.
+
+---
+
+16. Language-design finding: the executable reference is strong, but a distilled semantic kernel would improve reasoning
+
+Status
+
+Recommendation, not a demand for full formal semantics.
+
+The current repository has many detailed normative specifications and an increasingly capable executable reference model.
+
+This is sufficient for current engineering.
+
+However, SHEAR's distinctive semantics are spread across several interacting documents:
+
+semantic graph
+identity
+state
+transformations
+continuity
+ownership
+references
+activation
+capabilities
+functions
+runtime state
+
+As the implementation grows, it becomes harder to answer:
+
+«What is the smallest set of semantic rules from which current execution behavior follows?»
+
+Recommendation
+
+Do not stop bootstrap to write a complete formal semantics.
+
+Instead, after the hosted-bootstrap boundary becomes concrete, consider producing a small semantic-kernel document or model containing only the rules needed to describe:
+
+- semantic state;
+- entity/value identity;
+- function evaluation;
+- transformation;
+- continuity;
+- activation;
+- runtime state transition.
+
+Everything else should be classifiable as:
+
+derived language feature
+representation
+host service
+runtime implementation
+tooling
+
+The value would be architectural: it gives future changes a compact target against which to test whether they add a new primitive semantic mechanism.
+
+If existing documents can already supply this view through a short index rather than new specification, prefer the index.
+
+---
+
+17. Language-design finding: future concurrency must not be retrofitted accidentally
+
+Status
+
+Deferred risk, not current defect.
+
+Concurrency is still intentionally deferred.
+
+That is appropriate.
+
+The current language already has concepts concurrency will interact with:
+
+- immutable semantic states;
+- mutable runtime cells;
+- version activation;
+- frames holding old versions;
+- references pinned to states;
+- capability-gated activation;
+- repeated program updates.
+
+These choices are not necessarily incompatible with concurrency, but concurrency will test their boundaries.
+
+Recommendation
+
+Do not design concurrency now.
+
+Before concurrency implementation begins, require a dedicated semantic spike covering at least:
+
+two computations reading/writing runtime cells
+activation while other computations execute old code
+capability authority across computations
+holds and retirement
+failure during concurrent activation/trial
+ordering of externally visible effects
+
+The purpose is to discover whether current semantics compose naturally.
+
+Do not retrofit thread-safety mechanics into the current bootstrap path pre-emptively.
+
+---
+
+18. Language-design finding: formal semantics should remain downstream of executable discriminants, but not indefinitely
+
+Status
+
+Longer-term recommendation.
+
+The project currently benefits from discovering semantics through executable examples and adversarial cases rather than prematurely formalizing speculative rules.
+
+That should continue.
+
+At the same time, once a semantic area is:
+
+Decided
+implemented
+covered by corpus/examples
+stable across several roadmap tasks
+
+a lightweight formalization may start paying for itself.
+
+Likely candidates include:
+
+- identity/state relationships;
+- transformation continuity;
+- activation/version coexistence;
+- reference transfer.
+
+The purpose is not mathematical decoration.
+
+The purpose is to detect contradictions that are difficult to see across prose documents and implementations.
+
+A formal model should be introduced only where it can answer a concrete question or verify a named invariant.
+
+The existing use of Alloy for targeted research is consistent with this approach.
+
+---
+
+19. Process finding: the Plan/Execute/Review/Resolve/Publish workflow is strong but expensive
+
+Status
+
+Trade-off to monitor, not current defect.
+
+The workflow provides unusually strong protection against:
+
+- implementation changing acceptance criteria;
+- tests being weakened to fit code;
+- documentation being rewritten after implementation to legitimize behavior;
+- one model certifying its own work.
+
+That is valuable for semantic changes.
+
+The cost is substantial process overhead.
+
+Recommendation
+
+Preserve the full workflow for changes that affect:
+
+- language semantics;
+- bootstrap trust boundaries;
+- identity/continuity;
+- activation/runtime semantics;
+- compiler correctness assumptions;
+- normative specifications.
+
+For purely mechanical changes, continue resisting expansion of the process beyond demonstrated need.
+
+The current bootstrap review explicitly says not to add more standing process without evidence. That principle should remain.
+
+After several more tasks, it may be worth measuring:
+
+lead time per task
+number of defects found by independent Review
+number of findings rejected
+number of regressions escaping to later tasks
+
+If Review rarely finds material issues in certain categories, those categories might use a lighter path.
+
+Do not optimize the workflow based only on subjective friction.
+
+---
+
+20. Proposed concrete changes to the hosted-bootstrap plan
+
+The following are the changes I would currently recommend considering.
+
+20.1 Task 28 / D4
+
+Make "docs/bootstrap.md" the concrete hosted-bootstrap contract.
+
+It should name:
+
+selected workload
+selected corpus scenarios
+required operation subset
+host-service inventory
+permitted host services
+unsupported/deferred operations
+artifact kinds
+provenance requirements
+comparison relation for each artifact/output
+measurement inputs
+
+Prefer generating/checking support information from code where practical.
+
+20.2 Decision order
+
+Prefer:
+
+Task 28
+→ D4
+→ Task 29 evaluated against D4
+→ D3
+
+unless peer review establishes that Task 29 is intentionally only a workload-independent feasibility spike.
+
+20.3 Task 29
+
+Before implementation comparison, define the verifier contract.
+
+Separate:
+
+runtime admission guarantees
+
+from:
+
+compiler-correctness evidence
+
+Record what each route trusts.
+
+20.4 Task 30
+
+Replace ambiguous "the corpus" with the exact D4 workload.
+
+Require one reproducible path conceptually equivalent to:
+
+declared input
+→ permitted host construction
+→ semantic graph
+→ SHEAR compiler
+→ validated derived artifact
+→ D3 execution route
+→ observable result
+
+For executed program code, provenance should demonstrate that prohibited host lowering was not used.
+
+20.5 Task 31
+
+Specify exactly which live-evolution scenarios extend Task 30:
+
+- candidate production;
+- trial;
+- valid activation;
+- rejected candidate;
+- continuity/live-state preservation;
+- old frame or closure;
+- repeated updates;
+- retirement.
+
+Use existing corpus scenarios where possible.
+
+20.6 After Task 23
+
+Adopt provisional numeric budgets before final D3 acceptance.
+
+20.7 Bootstrap scaffolding
+
+At D3/Task-30 completion, classify:
+
+- retained compiler source twins;
+- SHEAR VM interpreted route;
+- any verifier/provenance adapters;
+- bootstrap-only metadata
+
+as permanent, provisional, or removable under a named condition.
+
+---
+
+21. Things this review does not recommend
+
+To avoid expanding the milestone unnecessarily, this review does not recommend requiring the following before hosted bootstrap:
+
+- removal of Python;
+- native code generation;
+- final memory manager;
+- concurrency;
+- full systems-data model;
+- records unless the actual workload requires them;
+- package management;
+- final module system;
+- polished final syntax;
+- IDE tooling;
+- complete formal semantics;
+- general theorem proving;
+- a second compiler implementation;
+- a new review workflow;
+- redesign of identity, continuity or version retirement without a concrete counterexample.
+
+The bootstrap should remain a vertical delivery milestone, not become a requirement to finish the entire language.
+
+---
+
+22. Highest-priority questions for the next peer reviewer
+
+If review time is limited, focus on these questions.
+
+Q1
+
+Should D4 precede the final Task-29/D3 comparison, or is the current ordering already sufficient?
+
+Q2
+
+Does Task 30 currently have an unambiguous workload distinct from Task 31?
+
+Q3
+
+What exactly must the Task-29 verifier prove, and can that be stated without reintroducing host lowering into the trusted execution path?
+
+Q4
+
+Does the current provenance model contain enough information to establish which semantic version and compiler generation produced an executed artifact?
+
+Q5
+
+Should bootstrap support status live in "operations.py" or in separate route metadata?
+
+Q6
+
+Which current bootstrap mechanisms are scaffolding, and are their exit conditions sufficiently explicit?
+
+Q7
+
+Does the "same function model" across runtime, compilation, transformation and analysis already have enough invocation-context semantics to avoid phase ambiguity?
+
+Q8
+
+Is the semantic graph currently absorbing responsibilities that would be simpler as opaque values or derived implementation structures?
+
+Q9
+
+Are there important provisional semantics that hosted bootstrap will make expensive to change and therefore should be consciously reviewed before the milestone closes?
+
+Q10
+
+Does the repository already provide a sufficiently compact semantic kernel, making the proposed kernel/index recommendation unnecessary?
+
+---
+
+23. Final assessment
+
+The current architecture does not look like a project that needs a foundational reset.
+
+The strongest present risk is not an obviously incorrect primitive.
+
+It is architectural accretion:
+
+a general semantic graph
++ one function model across several contexts
++ self-hosted compiler
++ live evolution
++ provenance
++ multiple execution routes
+
+can gradually acquire more mechanisms than the original abstractions were intended to carry.
+
+The project is already using the correct defense against that risk: executable counterexamples, explicit semantic distinctions, scoped experiments, kill criteria and vertical delivery milestones.
+
+The next step should therefore not be broader redesign.
+
+It should be to make the hosted-bootstrap boundary sufficiently explicit that completing bootstrap becomes mostly an empirical engineering exercise rather than another round of discovering what "bootstrapped" means.
+
+The most important concrete recommendations from this review are:
+
+1. define D4 before making the final D3 route choice;
+2. make Task 30's workload explicitly distinct from Task 31;
+3. state the Task-29 verifier theorem precisely;
+4. instantiate the artifact/provenance and equivalence rules in "docs/bootstrap.md";
+5. turn Task-23 measurements into provisional decision budgets;
+6. keep implementation-route metadata separate from stable language structure unless colocating it demonstrably simplifies the model;
+7. give bootstrap scaffolding explicit permanence/exit classifications;
+8. continue resisting the assumption that semantic representability requires graph expansion or generic graph execution;
+9. keep one function model, but make invocation context and phase-specific authority increasingly explicit as metaprogramming grows;
+10. evaluate architectural simplification by total semantic/runtime/verification mechanism count, not by surface primitive count.

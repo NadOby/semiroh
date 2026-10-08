@@ -1,0 +1,615 @@
+SHEAR design canaries
+
+Provisional.
+
+This document collects small architectural questions that can be used to test whether SHEAR's core abstractions remain sufficiently general.
+
+These are not required features, roadmap items, or promises about future applications.
+
+They are design canaries.
+
+A canary asks:
+
+«Could this be implemented naturally as an ordinary SHEAR program or library, without adding a new privileged language mechanism?»
+
+A failed canary does not automatically require a language change. It may instead show that the proposed application belongs behind an opaque representation, external service, FFI boundary, or specialized library.
+
+The goal is to detect both insufficient expressive power and excessive growth of the language core.
+
+1. General rule
+
+For each canary, ask:
+
+1. Which existing SHEAR mechanisms would implement it?
+2. Does it require a new semantic primitive?
+3. Does it require changing existing semantics?
+4. Can specialized physical representations remain opaque?
+5. Can its semantic objects use ordinary SHEAR identity and relations?
+6. Can it be implemented without a privileged external compiler or code generator?
+7. Does implementing it simplify or complicate the language as a whole?
+
+A good result is usually:
+
+ordinary values
++ functions
++ relations
++ transformations
++ representations
++ capabilities where needed
+
+A suspicious result is:
+
+this application requires a new language primitive
+
+unless the same missing mechanism appears independently across several unrelated canaries.
+
+---
+
+2. Small embedded language
+
+Can a program define a small domain-specific language and use it immediately?
+
+The DSL should be able to introduce some combination of:
+
+- new syntax;
+- new semantic forms;
+- validation;
+- transformations;
+- compilation or interpretation.
+
+It should not require a separate privileged macro language or external compiler toolchain.
+
+The interesting question is not whether arbitrary syntax can be parsed.
+
+The question is whether defining a small language extension feels closer to ordinary programming than to compiler construction.
+
+---
+
+3. Radically different DSL
+
+Can a program implement a language that looks and behaves substantially unlike ordinary SHEAR?
+
+Possible examples include:
+
+- stack-based notation;
+- rule language;
+- query language;
+- dataflow notation;
+- configuration language.
+
+This tests whether language extensibility is genuinely structural rather than limited to syntactic sugar over existing SHEAR expressions.
+
+---
+
+4. User-defined semantic relationships
+
+Can a library introduce new kinds of relationships between existing semantic entities without changing the language implementation?
+
+Other independently written code should be able to inspect and use those relationships through ordinary language facilities.
+
+This tests whether relations are genuinely general rather than mostly internal compiler structure.
+
+---
+
+5. Independent libraries interacting semantically
+
+Suppose three unrelated libraries introduce:
+
+library A → entities
+library B → relations
+library C → transformations
+
+Can they interact without bespoke language support?
+
+For example, can B relate entities created by A, and can C transform structures containing both?
+
+This is a stronger test than merely supporting separate libraries.
+
+---
+
+6. Structured knowledge
+
+Can an ordinary library represent:
+
+- entities;
+- categories;
+- relationships;
+- rules;
+- annotations;
+- provenance;
+
+without requiring corresponding built-in language concepts?
+
+The purpose is not to make SHEAR a knowledge-representation system.
+
+The canary tests whether sufficiently rich application-level semantics can exist without expanding the core.
+
+---
+
+7. Database-like application
+
+Can a program implement a persistent structured store with:
+
+- records;
+- queries;
+- indexes;
+- updates;
+- constraints;
+
+while keeping indexes and storage layouts as derived or opaque representations?
+
+The language should not require every physical database structure to become expanded semantic structure.
+
+---
+
+8. Specialized indexed representation
+
+Can an application maintain an efficient derived index over semantic entities?
+
+Examples could include:
+
+- hash indexes;
+- search trees;
+- spatial indexes;
+- vector indexes;
+- dependency indexes.
+
+The index should be replaceable without changing the semantic identity of the entities it accelerates.
+
+This tests the distinction between semantic state and derived representation.
+
+---
+
+9. Large opaque data
+
+Can SHEAR manipulate a value whose efficient physical representation should clearly not be expanded into generic relations?
+
+Examples include:
+
+- large arrays;
+- matrices;
+- images;
+- mapped files;
+- compressed data;
+- device buffers.
+
+Application code should still be able to attach semantic relationships to the value as a whole.
+
+This tests whether "semantically representable" remains distinct from "graph-expanded."
+
+---
+
+10. External resource
+
+Can a program work with an external resource while keeping:
+
+semantic identity
+runtime resource identity
+physical representation
+
+distinct?
+
+Examples include a file, socket, process, device or external database connection.
+
+The resource should not need to become part of immutable semantic state merely because the program can refer to it.
+
+---
+
+11. Replaceable implementation
+
+Can one implementation strategy be replaced without changing application-level semantics?
+
+Examples:
+
+one index → another index
+one storage representation → another representation
+one compiler backend → another backend
+one interpreter → compiled execution
+
+Application code should depend on the relevant semantic contract rather than incidental implementation structure.
+
+---
+
+12. Derived executable representation
+
+Can executable code be regenerated from semantic definitions without executable artifacts becoming authoritative?
+
+Changing or discarding:
+
+- bytecode;
+- native code;
+- caches;
+- indexes;
+
+should not destroy the underlying semantic program.
+
+This is particularly important for self-hosting and live evolution.
+
+---
+
+13. Cheap local edit
+
+Can a small semantic edit remain small?
+
+For example:
+
+change one expression
+
+should not inherently require changing the identity of unrelated definitions or rebuilding the entire program.
+
+This tests whether semantic identity, dependency tracking and compilation remain sufficiently local.
+
+---
+
+14. Rename and movement
+
+Can an entity:
+
+- be renamed;
+- move between enclosing structures;
+- change representation;
+
+while preserving conceptual identity where continuity is explicitly established?
+
+This tests whether identity is genuinely independent of textual name, tree position and physical representation.
+
+---
+
+15. Split and merge
+
+Can an application meaningfully describe:
+
+one entity → several
+several entities → one
+
+without pretending that continuity implies semantic equality or reversibility?
+
+This is a useful stress test for transformations and references.
+
+---
+
+16. Long-running program evolution
+
+Can a running program:
+
+1. construct a candidate change;
+2. validate or trial it;
+3. compile necessary artifacts;
+4. activate it;
+5. preserve selected runtime state;
+6. allow old execution to finish safely;
+7. eventually retire obsolete versions?
+
+This should use ordinary language/runtime mechanisms rather than a separate deployment subsystem with unrelated semantics.
+
+---
+
+17. Rejected change
+
+Can the same live-evolution mechanism reject an invalid candidate cleanly?
+
+The old active program should remain usable according to the declared failure semantics.
+
+A system that only demonstrates successful replacement is incomplete.
+
+---
+
+18. Repeated evolution
+
+Can a program evolve repeatedly rather than only once?
+
+Repeated updates should expose:
+
+- retained versions;
+- stale artifacts;
+- reference validity;
+- state migration;
+- retirement;
+- resource retention.
+
+This is a stronger canary than a single hot swap.
+
+---
+
+19. Compiler as ordinary program
+
+Can the compiler be inspected, called and replaced using the same basic language mechanisms as other programs?
+
+It may have special authority, resources or execution context.
+
+It should not require a completely separate semantic object model.
+
+---
+
+20. Compiler replacement
+
+Can a program compile a new compiler version, validate it and begin using it while retaining a clear relationship to the semantic compiler definition that produced it?
+
+This tests self-hosting beyond merely compiling compiler source.
+
+---
+
+21. Compile-time ordinary functions
+
+Can an ordinary function participate in compile-time computation without becoming a distinct kind of function?
+
+The invocation context may restrict:
+
+- capabilities;
+- resources;
+- effects;
+- external access;
+- execution budget.
+
+The function model itself should remain shared if practical.
+
+---
+
+22. Different execution contexts
+
+Can the same semantic function meaningfully execute under different contexts such as:
+
+ordinary runtime
+compilation
+trial
+transformation
+analysis
+
+without creating separate function systems?
+
+Differences in authority or available services should come from context rather than unnecessary duplication of the function abstraction.
+
+---
+
+23. Application-defined constraints
+
+Can a library define its own validation or constraint system without extending the language core?
+
+Possible examples include:
+
+- dimensions;
+- protocol states;
+- schemas;
+- domain invariants.
+
+The core need not understand what those constraints mean.
+
+It should provide sufficient mechanisms for programs to represent, evaluate and act on them.
+
+---
+
+24. Application-defined transformation
+
+Can a program define a transformation over its own semantic structures and explicitly describe continuity where relevant?
+
+The language should not require every transformation kind to be built into the compiler.
+
+---
+
+25. Provenance as application data
+
+Can an application record that:
+
+result R
+was produced by operation O
+from inputs A and B
+under configuration C
+
+without requiring built-in concepts for that particular provenance domain?
+
+Generic semantic relationships should be sufficient.
+
+---
+
+26. Introspection
+
+Can a program or tool answer questions such as:
+
+What is this entity?
+What version is active?
+What refers to it?
+What changed?
+What continued across the change?
+Which executable artifact represents it?
+What produced that artifact?
+
+without reconstructing most of the information from source text or implementation-specific runtime structures?
+
+---
+
+27. Tooling without source authority
+
+Can tooling perform useful operations directly over semantic program structure?
+
+Examples include:
+
+- navigation;
+- refactoring;
+- dependency inspection;
+- transformation inspection;
+- semantic diff;
+- documentation generation.
+
+Source text may still be an important representation, but tooling should not require it to be the semantic authority.
+
+---
+
+28. Round trip through another representation
+
+Can semantic program structure be rendered into another representation and reconstructed without accidentally changing unrelated identity or semantics?
+
+The representation does not necessarily need to preserve everything.
+
+What it preserves and loses should be explicit.
+
+---
+
+29. Library-defined execution model
+
+Can a library implement a specialized evaluator or virtual machine using ordinary language facilities?
+
+This tests whether alternative execution models require compiler modification.
+
+It is not necessary for such an implementation to be fast enough for production. Native or specialized backends may remain appropriate derived representations.
+
+---
+
+30. Specialized computation through external implementation
+
+Can a semantic operation be represented normally in SHEAR while its efficient implementation is delegated to specialized native or external machinery?
+
+The language should support:
+
+semantic operation
+        ↓
+opaque/specialized representation
+        ↓
+efficient implementation
+
+without forcing the implementation internals into the semantic model.
+
+---
+
+31. Application that stresses relations more than code
+
+Can SHEAR naturally express a program where the important structure lies primarily in relationships among data rather than in the executable call structure?
+
+This tests whether first-class relations provide practical value outside compiler representation.
+
+---
+
+32. Application that barely uses relations
+
+The inverse canary is equally important.
+
+Can an ordinary computation-heavy program use SHEAR without paying excessive conceptual or runtime cost for relational machinery it barely needs?
+
+If every application must actively think in semantic graphs, the abstraction is probably leaking too far into ordinary programming.
+
+---
+
+33. Canary for excessive generality
+
+For every proposed new use of the semantic relation machinery, ask:
+
+«Would an opaque value, ordinary record, map, index or specialized representation be simpler?»
+
+If yes, use it.
+
+The existence of a general relational substrate is not evidence that every structure should be represented through it.
+
+---
+
+34. Canary for insufficient generality
+
+Conversely, when several unrelated subsystems independently invent:
+
+- their own identity layer;
+- their own relation representation;
+- their own transformation mechanism;
+- their own provenance mechanism;
+- their own continuity mapping;
+
+ask whether the language core is missing a useful common abstraction.
+
+Repeated parallel mechanisms are stronger evidence than one difficult application.
+
+---
+
+35. Canary for accidental privilege
+
+Whenever a new facility is added, ask:
+
+«Could an ordinary SHEAR library implement this?»
+
+If not, determine why.
+
+Valid reasons may include:
+
+- access to machine resources;
+- security boundary;
+- bootstrap requirement;
+- performance;
+- representation access unavailable to ordinary code.
+
+"Because the compiler does it" is not by itself a sufficient reason for permanent privilege.
+
+---
+
+36. Canary for hidden implementation semantics
+
+Ask whether replacing the current:
+
+- Python model;
+- bytecode;
+- interpreter;
+- cache;
+- storage layout;
+- parser;
+
+would accidentally change language semantics.
+
+If so, an implementation choice may have leaked into the semantic contract.
+
+---
+
+37. Canary for mechanism growth
+
+For any proposed abstraction, ask:
+
+What existing mechanism does this remove?
+What new mechanism does it introduce?
+What special cases disappear?
+What new interactions appear?
+
+A more general mechanism is not automatically a simpler language.
+
+Simplification should be judged by total semantic and implementation complexity.
+
+---
+
+38. How to use these canaries
+
+These questions should not become mandatory acceptance tests for every task.
+
+Use them when:
+
+- introducing a major semantic mechanism;
+- deciding whether something belongs in the core;
+- considering a generalization;
+- evaluating whether relations are earning their complexity;
+- designing metaprogramming or DSL facilities;
+- changing the boundary between semantic and derived representations;
+- introducing new privileged compiler/runtime behavior.
+
+A canary may result in:
+
+passes naturally
+passes with an opaque/specialized representation
+reveals a missing reusable abstraction
+reveals excessive language-core responsibility
+not relevant yet
+
+No individual failure is automatically a defect.
+
+Patterns across multiple unrelated canaries are the useful evidence.
+
+39. Core principle
+
+SHEAR should remain a programming language.
+
+Its core should provide sufficiently general mechanisms that unusual systems can be implemented as ordinary programs and libraries.
+
+Those systems should not become language features merely because they are useful tests of the architecture.
+
+The desired direction is:
+
+small general language core
+        ↓
+rich libraries and programs
+
+not:
+
+anticipated application domains
+        ↓
+accumulating language primitives

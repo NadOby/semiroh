@@ -1,0 +1,1230 @@
+SHEAR design goals and architectural guardrails
+
+Provisional.
+
+This document records design goals, boundaries, architectural hypotheses, comparison models, and practical decision tests derived from the current direction of SHEAR.
+
+It is not a normative language specification and does not replace the roadmap, semantic specifications, or design canaries.
+
+Its purpose is to make the project's intent explicit enough that future design decisions can be evaluated against it.
+
+---
+
+1. What SHEAR is trying to make cheap
+
+SHEAR should make the following capabilities natural rather than exceptional.
+
+1.1 Language malleability
+
+Changing or extending the language should feel closer to ordinary programming than to building an external compiler toolchain.
+
+This includes:
+
+- defining small DSLs;
+- introducing new semantic structures;
+- providing custom validation or transformations;
+- compiling or interpreting those structures;
+- immediately using the resulting language facilities.
+
+The relevant precedent is the malleability of Lisp- and Forth-like systems, not necessarily their syntax or implementation.
+
+---
+
+1.2 Cheap DSL construction
+
+A program should be able to define a domain-specific language with some combination of:
+
+- syntax;
+- semantic values;
+- validation;
+- transformations;
+- interpretation;
+- compilation;
+
+without requiring a privileged macro subsystem or external compiler generator.
+
+A small DSL should require proportionally small machinery.
+
+---
+
+1.3 Compiler availability inside the language
+
+Compilation should be an available language capability, not exclusively an offline development step.
+
+A running program should be able, where authorized, to:
+
+- inspect semantic program structure;
+- invoke compiler machinery;
+- produce executable representations;
+- replace compiler components;
+- compile newly introduced language structures.
+
+The compiler may require special capabilities or runtime services, but it should not require a fundamentally separate semantic universe.
+
+---
+
+1.4 Live program evolution
+
+A running program should be able to:
+
+1. construct a candidate semantic change;
+2. validate or trial it;
+3. derive executable representations;
+4. activate it;
+5. preserve explicitly selected runtime state;
+6. allow existing execution to complete according to declared rules;
+7. retire obsolete versions.
+
+Program modification should therefore be part of ordinary language/runtime semantics rather than purely an external deployment operation.
+
+---
+
+1.5 Stable identity across change
+
+Meaningful entities should be able to survive:
+
+- rename;
+- movement;
+- refactoring;
+- representation changes;
+- optimization;
+- version changes;
+
+without identifying conceptual identity with textual name, tree position, storage address, or semantic equality.
+
+Continuity should remain explicit where needed.
+
+---
+
+1.6 Semantic introspection
+
+Programs and tools should be able to inspect semantic program structure directly.
+
+Questions such as the following should be answerable without reverse-engineering source text or implementation internals:
+
+What entity is this?
+What semantic version is active?
+What refers to it?
+What changed?
+What continued?
+What executable representation corresponds to it?
+What produced that representation?
+
+---
+
+1.7 Local and incremental change
+
+A small semantic change should normally have a small semantic and compilation footprint.
+
+Changing one expression should not inherently require:
+
+- replacing unrelated identities;
+- rebuilding the whole program;
+- reconstructing unrelated semantic information.
+
+This should remain a design pressure for identity, dependency tracking, representation caching, and activation.
+
+---
+
+1.8 Representation independence
+
+Semantic meaning should not depend accidentally on:
+
+- source syntax;
+- Python data structures;
+- a particular bytecode;
+- a particular VM;
+- native-code format;
+- cache organization;
+- index structure;
+- storage layout.
+
+Specialized physical representations are expected.
+
+They should remain representations of semantic objects rather than becoming the semantic authority by accident.
+
+---
+
+1.9 Long-lived programs
+
+The architecture should support programs that remain alive across many changes rather than assuming a permanent:
+
+edit
+→ build
+→ start
+→ discard process
+
+cycle.
+
+This motivates:
+
+- semantic snapshots;
+- continuity;
+- live activation;
+- retained compiler machinery;
+- version holds;
+- migration;
+- retirement.
+
+---
+
+1.10 One function model across several uses
+
+Where practical, the same function abstraction should support:
+
+- runtime computation;
+- compilation;
+- metaprogramming;
+- transformation;
+- analysis;
+- validation.
+
+Different contexts may provide different authority, resources, and observable state.
+
+The goal is not to pretend all phases are identical.
+
+The goal is to avoid creating unnecessary parallel function systems.
+
+---
+
+1.11 Rich applications without domain-specific core primitives
+
+SHEAR should be expressive enough to implement unusual systems without absorbing their domain concepts into the language.
+
+Examples may include:
+
+- complex relational applications;
+- databases;
+- DSL systems;
+- specialized evaluators;
+- highly reflective programs;
+- systems with rich metadata or provenance.
+
+These are architectural tests, not language features.
+
+---
+
+1.12 Semantic interoperability between independently written libraries
+
+Independent libraries should be able to introduce structures that interact meaningfully.
+
+For example:
+
+library A introduces entities
+library B introduces relations
+library C introduces transformations
+
+B should be able to relate entities from A, and C should be able to transform structures containing both, provided their contracts permit it.
+
+The language should not require bespoke compiler support for every such composition.
+
+---
+
+2. What SHEAR is not
+
+SHEAR is a programming language.
+
+It should not silently become a particular application architecture merely because some application is useful as a stress test.
+
+SHEAR is not inherently:
+
+- an ontology system;
+- a knowledge graph;
+- a database;
+- an AI architecture;
+- an agent framework;
+- a workflow engine;
+- a DSL framework as a separate product;
+- a theorem prover;
+- a graph database;
+- a deployment platform;
+- a particular runtime image format;
+- a particular compiler backend.
+
+Any of these may be implemented in SHEAR.
+
+That does not make them part of SHEAR.
+
+---
+
+3. Boundary principle
+
+A useful design guardrail is:
+
+«SHEAR should make unusual systems implementable without making unusual systems part of SHEAR.»
+
+Application requirements should justify language changes only when they reveal a reusable missing abstraction rather than a domain-specific convenience.
+
+One difficult application is weak evidence.
+
+Several unrelated applications independently rebuilding the same missing mechanism is much stronger evidence.
+
+---
+
+4. The central architectural hypothesis
+
+SHEAR's graph-oriented architecture makes a substantive bet.
+
+A useful formulation is:
+
+«A common relational semantic substrate is worthwhile when relationships across otherwise separate language subsystems become common enough that specialized representations, indexes, and metadata systems would create more total complexity than one general relational model.»
+
+This hypothesis should remain falsifiable.
+
+The inverse hypothesis is equally important:
+
+«If most semantic relationships remain largely independent, and ordinary programs pay substantial conceptual, runtime, or implementation cost for generic relational machinery, then the architecture is over-generalized.»
+
+The graph should therefore earn its centrality through actual composition, not elegance alone.
+
+---
+
+5. What would count as evidence for the graph hypothesis
+
+Evidence in favor would include recurring needs to relate things such as:
+
+semantic entity
+↕
+type or contract
+↕
+constraint
+↕
+ownership
+↕
+continuity
+↕
+transformation
+↕
+provenance
+↕
+derived executable representation
+↕
+authority
+
+where those relationships themselves need to be:
+
+- inspected;
+- transformed;
+- queried;
+- composed;
+- preserved across change;
+- introduced by ordinary programs.
+
+The stronger case is not merely that all these things can be represented as relations.
+
+The stronger case is that making them share one relational substrate removes duplicate mechanisms and enables useful composition.
+
+---
+
+6. What would count as evidence against it
+
+Warning signs include:
+
+- ordinary programs rarely use generic relations directly;
+- most relation kinds remain isolated subsystems;
+- generic graph operations are slower or harder than specialized structures without compensating benefit;
+- implementations repeatedly need escape hatches around graph semantics;
+- specialized indexes become the practical authority;
+- semantic graph machinery complicates ordinary values with little payoff;
+- cross-subsystem relations are rare;
+- programmers must think in graph terms when ordinary records or trees would suffice;
+- the same capability would be simpler with a conventional object/index model.
+
+These should not automatically trigger redesign.
+
+They should accumulate as evidence.
+
+---
+
+7. A useful alternative architecture benchmark
+
+A standing comparison model is useful:
+
+«What would SHEAR look like if the semantic graph were removed?»
+
+A plausible alternative would be a persistent reflective program image.
+
+Conceptually:
+
+ProgramSnapshot
+    = immutable mapping EntityID → DefinitionVersion
+
+DefinitionVersion
+    = ordinary structured semantic object
+
+Runtime
+    = active ProgramSnapshot
+      + mutable cells/resources
+      + executing frames
+
+ChangeSet
+    = create/update/delete definitions
+      + continuity declarations
+      + migrations
+
+Artifact
+    = executable representation derived from
+      semantic version + dependencies + compiler version
+
+Relationships such as:
+
+- dependencies;
+- ownership;
+- provenance;
+- type information;
+- call relationships;
+
+would use specialized fields or indexes rather than one common relational substrate.
+
+This alternative is not necessarily a proposed replacement.
+
+It is a control architecture.
+
+---
+
+8. Why the alternative matters
+
+The program-image/object-database architecture can probably provide many of SHEAR's desired capabilities:
+
+- stable identity;
+- immutable program snapshots;
+- live evolution;
+- self-hosting;
+- reflective compilation;
+- DSLs;
+- incremental compilation;
+- derived executable artifacts;
+- explicit migrations;
+- semantic introspection.
+
+It likely has advantages in:
+
+- implementation simplicity;
+- conventional compiler optimization;
+- backend integration;
+- performance predictability;
+- debugging;
+- serialization;
+- systems-data representation.
+
+SHEAR should therefore be able to explain what its relational substrate buys beyond this baseline.
+
+---
+
+9. Decision criterion between the two architectures
+
+A compact comparison principle is:
+
+«The object-image architecture wins if most semantic relationships remain independent.»
+
+«SHEAR wins if relationships between those relationships become common and useful.»
+
+If the system repeatedly needs to express things such as:
+
+this constraint applies to this relation
+which was produced by this transformation
+which continues these entities
+whose executable artifact depends on these versions
+under this authority
+
+then specialized indexes begin recreating a general semantic relation layer.
+
+If such compositions remain unusual, the simpler architecture may be preferable.
+
+---
+
+10. Practical architectural decision tests
+
+Before adding or generalizing a semantic mechanism, ask the following separately.
+
+10.1 Semantic existence
+
+Does this need to be a semantic value at all?
+
+Something being useful to the implementation does not imply that programs need semantic access to it.
+
+---
+
+10.2 Expansion
+
+If it is a semantic value, must its internal structure be graph-expanded?
+
+Possible answers include:
+
+inline semantic structure
+opaque semantic value
+external resource
+derived representation
+
+These should not be conflated.
+
+---
+
+10.3 Generic relation machinery
+
+Does this need generic semantic relations?
+
+Would:
+
+- a record field;
+- map;
+- tree;
+- array;
+- ordinary reference;
+- derived index;
+
+be simpler?
+
+---
+
+10.4 Identity
+
+Does this concept require semantic identity?
+
+If so, which identity?
+
+Do not introduce identity merely because the implementation allocates an object.
+
+---
+
+10.5 Persistence
+
+Does it need to survive in the semantic program image?
+
+Some objects may exist only:
+
+- during execution;
+- during compilation;
+- in a cache;
+- externally.
+
+---
+
+10.6 Opacity
+
+Could its efficient physical representation remain opaque?
+
+If yes, prefer that unless programs genuinely need internal semantic structure.
+
+---
+
+10.7 Derived representation
+
+Could this be regenerated from semantic state?
+
+If yes, treat it as a derived artifact unless there is evidence otherwise.
+
+---
+
+10.8 Library boundary
+
+Could an ordinary library implement this?
+
+If not, identify the exact privileged capability that is missing.
+
+"Because the compiler currently implements it" is not sufficient justification.
+
+---
+
+11. A compact decision checklist
+
+For day-to-day design work:
+
+Does this need to be semantic?
+Does it need identity?
+Does it need graph expansion?
+Does it need generic relations?
+Does it need to persist?
+Could it be opaque?
+Could it be derived?
+Could it be a library?
+
+The questions are intentionally independent.
+
+For example:
+
+semantic value: yes
+identity: yes
+graph expansion: no
+generic relations: yes
+persistent: yes
+opaque internals: yes
+derived: no
+library-defined: yes
+
+is a perfectly valid design.
+
+---
+
+12. Same function model, different invocation contexts
+
+A useful principle is:
+
+same function semantics
++
+different invocation context
+=
+different authority, resources, and observable environment
+
+This allows one function model to serve several roles without pretending those roles are identical.
+
+Possible contexts include:
+
+runtime
+compilation
+expansion
+transformation
+trial
+migration
+analysis
+
+The context may determine:
+
+- available capabilities;
+- external access;
+- resource limits;
+- semantic-state visibility;
+- allowed mutation;
+- reproducibility requirements;
+- failure handling;
+- execution budget.
+
+The function need not become a different semantic kind merely because it runs during compilation.
+
+---
+
+13. Why this matters for DSLs
+
+Cheap DSL implementation benefits from reuse of ordinary language mechanisms.
+
+A DSL should be able to use:
+
+- ordinary functions;
+- ordinary values;
+- ordinary semantic structures;
+- ordinary transformations;
+- ordinary compilation APIs;
+
+rather than requiring a privileged macro-language universe.
+
+Invocation context provides a way to retain safety and reproducibility without abandoning that unification.
+
+---
+
+14. Compiler and program should differ primarily by role and authority
+
+The compiler should be an ordinary semantic program to the greatest extent practical.
+
+It may have:
+
+- privileged capabilities;
+- special bootstrap status;
+- access to specific runtime services;
+- stronger resource requirements.
+
+Those differences should not automatically require a separate object model or function model.
+
+A long-term design test is whether:
+
+compile(compiler)
+
+is conceptually much stranger than:
+
+compile(application_function)
+
+If it is, the project should understand why.
+
+---
+
+15. Bootstrap artifact chain
+
+The hosted bootstrap should make the following relationship explicit:
+
+semantic definition/version
+        ↓
+compiler generation/version
+        ↓
+derived executable artifact
+        ↓
+validation/admission
+        ↓
+execution route
+
+For an executed artifact, the system should ideally be able to answer:
+
+Which semantic version did this artifact represent?
+Which compiler produced it?
+Which dependency versions did it assume?
+What validation admitted it?
+Which execution route ran it?
+
+This relationship is useful beyond bootstrap.
+
+It is part of keeping executable representations derived rather than authoritative.
+
+---
+
+16. Runtime verifier versus compiler-correctness evidence
+
+These should remain conceptually distinct.
+
+A runtime verifier may establish:
+
+artifact structure is valid
+required invariants hold
+provenance is acceptable
+dependencies are current
+required authority exists
+
+That does not necessarily prove:
+
+artifact is semantically equivalent to source
+
+Compiler correctness can instead be supported by:
+
+- differential testing;
+- corpus acceptance;
+- independent reference execution;
+- metamorphic tests;
+- generated cases;
+- formal verification where justified.
+
+Do not accidentally rebuild a second trusted compiler inside the verifier merely to prove compiler correctness at runtime.
+
+---
+
+17. Executable artifacts remain derived
+
+Bytecode, native code, indexes, caches, and similar structures should normally remain derived representations.
+
+Conceptually:
+
+semantic program
+    ↓
+derived artifact
+
+not:
+
+artifact
+    ↓
+definition of what the program means
+
+Discarding a derived artifact should cost performance or regeneration time, not semantic meaning.
+
+---
+
+18. Bootstrap scaffolding classification
+
+Every mechanism introduced during bootstrap should eventually be classified as one of:
+
+semantic mechanism
+provisional implementation mechanism
+temporary bootstrap scaffold
+derived optimization
+
+These categories should not silently collapse into one another.
+
+---
+
+19. Semantic mechanism
+
+A semantic mechanism is part of the language model.
+
+Changing it changes what programs mean.
+
+Examples might include:
+
+- semantic identity;
+- transformation semantics;
+- continuity rules;
+- activation authority.
+
+Such mechanisms require normative specification.
+
+---
+
+20. Provisional implementation mechanism
+
+This implements current semantics but is not necessarily permanent.
+
+Examples might include:
+
+- a particular VM structure;
+- a particular bytecode encoding;
+- an interpreter architecture;
+- a cache organization.
+
+It may become stable, but implementation success alone should not turn it into semantics.
+
+---
+
+21. Temporary bootstrap scaffold
+
+A scaffold exists to cross a development boundary.
+
+Examples may include:
+
+- duplicated retained compiler source forms;
+- a slow self-interpreter used only to establish independent execution;
+- temporary adapters between seed and self-hosted representations.
+
+A scaffold should have an explicit exit condition where practical.
+
+Otherwise downstream code will naturally begin depending on it.
+
+---
+
+22. Derived optimization
+
+A derived optimization exists for efficiency and can be regenerated.
+
+Examples include:
+
+- executable code;
+- indexes;
+- caches;
+- precomputed metadata;
+- optimized representations.
+
+It should not acquire semantic authority merely because it is performance-critical.
+
+---
+
+23. Scaffold exit questions
+
+For every bootstrap-specific mechanism, ask:
+
+Is this intended to be permanent?
+If yes, is it semantic or implementation-level?
+If no, what condition allows its removal?
+What currently depends on it?
+Would removing it change semantics or only implementation?
+
+This should be revisited when bootstrap reaches a stable hosted execution route.
+
+---
+
+24. Design minimalism means total complexity, not primitive count
+
+A smaller number of core constructs does not necessarily produce a simpler language.
+
+Complexity can move into:
+
+- graph interpretation;
+- continuity;
+- canonicalization;
+- metaprogramming;
+- type/effect machinery;
+- transformations;
+- ownership;
+- activation;
+- compiler reflection.
+
+For any proposed unification, ask:
+
+What production mechanism disappears?
+What special case disappears?
+What verification burden disappears?
+What runtime cost appears?
+What coupling appears?
+
+An encoding through a more general primitive is not automatically a simplification.
+
+---
+
+25. General mechanisms should earn themselves
+
+A new general abstraction is justified most strongly when several unrelated features independently require essentially the same mechanism.
+
+For example, if:
+
+compiler provenance
+application provenance
+tooling provenance
+external-data provenance
+
+all require the same structural semantics, a general provenance facility may be warranted.
+
+If only one application requires it, a library representation may be better.
+
+---
+
+26. Avoid both under-generalization and over-generalization
+
+Two symmetric failures are possible.
+
+Under-generalization
+
+Several subsystems independently create:
+
+- identity mechanisms;
+- relation systems;
+- continuity systems;
+- transformation protocols;
+- provenance structures.
+
+The language may be missing a useful common abstraction.
+
+Over-generalization
+
+Everything is forced through:
+
+- semantic relations;
+- generic graph traversal;
+- common transformation machinery;
+
+even when ordinary records, arrays, or opaque values would be simpler.
+
+The architecture should actively test for both.
+
+---
+
+27. Opaque values are a central architectural escape hatch
+
+A semantic graph does not imply that every physical structure belongs in graph form.
+
+Large or specialized structures should often remain opaque.
+
+Examples:
+
+arrays
+matrices
+compressed data
+native resources
+mapped files
+database storage
+indexes
+device buffers
+specialized compiler structures
+
+The semantic graph may describe:
+
+- their identity;
+- their role;
+- their relationships;
+- their contracts;
+- their provenance;
+
+without representing their entire physical internals.
+
+---
+
+28. Semantic uniformity does not require physical uniformity
+
+This distinction is essential.
+
+A useful target is:
+
+uniform semantic relationships
++
+heterogeneous efficient representations
+
+not:
+
+uniform semantic relationships
++
+everything physically encoded as generic graph structure
+
+The second would likely destroy many of the performance and implementation benefits of specialized representations.
+
+---
+
+29. Program image as a useful mental model
+
+Even if SHEAR does not commit to a Smalltalk-style image implementation, it is useful to think of a running system as containing:
+
+semantic program
+compiler/transformation machinery
+active semantic version
+derived executable artifacts
+runtime cells/resources
+executing frames
+
+This reinforces the idea that a program can remain alive and evolve without making every component part of semantic state.
+
+---
+
+30. Source text should remain a representation
+
+Human-readable source may be:
+
+- important;
+- canonical as a serialization format for some workflows;
+- version-controlled;
+- editable;
+- reconstructible.
+
+But it should not silently become the semantic authority if the architecture says otherwise.
+
+Tooling should increasingly be able to operate over semantic objects directly.
+
+---
+
+31. Tooling as an architectural test
+
+A strong semantic model should make tools simpler in some areas.
+
+Useful tests include whether tooling can implement:
+
+- semantic navigation;
+- semantic diff;
+- refactoring;
+- continuity inspection;
+- dependency queries;
+- artifact provenance;
+- documentation generation;
+- transformation inspection;
+
+without repeatedly re-parsing and reconstructing semantics from source text.
+
+If tooling still needs independent shadow models of the same relationships, that is evidence worth investigating.
+
+---
+
+32. DSL ergonomics as an architectural metric
+
+Language extensibility should eventually be evaluated in terms of cost.
+
+For a small DSL, consider:
+
+conceptual cost
+implementation code
+number of privileged APIs
+compile-time overhead
+runtime overhead
+integration burden
+
+The goal is not simply that arbitrary DSLs are theoretically possible.
+
+The goal is that useful small DSLs are cheap enough to be worth creating.
+
+---
+
+33. A DSL should not require language-core modification
+
+A normal DSL should be implementable through ordinary facilities.
+
+If introducing a new DSL requires modifying:
+
+- the compiler dispatch loop;
+- parser internals;
+- VM instruction definitions;
+- language-core semantic kinds;
+
+then language extensibility is probably insufficient.
+
+Some radically different languages may legitimately require lower-level facilities, but that should not be the default.
+
+---
+
+34. Independent semantic composition is a stronger test than extensibility
+
+Supporting two independent libraries is easy.
+
+A stronger test is whether semantic structures introduced independently can interact.
+
+For example:
+
+A defines a new semantic entity category.
+B defines relationships applicable to arbitrary entities.
+C defines transformations over those relationships.
+
+If they can compose through shared language mechanisms, the relational architecture is providing real leverage.
+
+---
+
+35. Long-term formalization strategy
+
+SHEAR should not stop implementation to formalize every speculative feature.
+
+A more useful order is:
+
+design hypothesis
+→ executable examples
+→ counterexamples
+→ implementation
+→ stable semantics
+→ targeted formalization
+
+Formal models should answer concrete questions or verify named invariants.
+
+Likely high-value targets are stable foundational areas such as:
+
+- identity;
+- transformations;
+- continuity;
+- activation;
+- reference transfer.
+
+---
+
+36. Executable semantics remain a primary source of evidence
+
+Important semantic claims should preferably have operational discriminants.
+
+Possible evidence includes:
+
+- canary programs;
+- continuity corpus;
+- adversarial regressions;
+- differential execution;
+- generated cases;
+- mutation testing;
+- small exhaustive domains;
+- falsification spikes.
+
+Specification prose remains necessary.
+
+But prose should not be the only thing distinguishing two competing semantic interpretations when an executable discriminator is possible.
+
+---
+
+37. Architecture should be able to falsify itself
+
+Important abstractions should have failure criteria.
+
+Examples:
+
+Does graph form reduce total mechanism count?
+Does per-node identity produce useful locality?
+Does a generalized relation mechanism eliminate duplicated structures?
+Does a simplification actually remove implementation and verification burden?
+
+A beautiful abstraction that repeatedly fails its practical tests should be reconsidered.
+
+---
+
+38. Provisional semantics should not become permanent accidentally
+
+Implementation and extensive tests create inertia.
+
+Before a provisional behavior becomes deeply depended upon, ask:
+
+Is this intended semantics?
+Is this merely current implementation behavior?
+Has implementation evidence strengthened the choice?
+Would changing it break semantic contracts or only tests?
+
+Not every provisional feature needs periodic reconsideration.
+
+Only review those approaching an expensive commitment point.
+
+---
+
+39. Bootstrap is one such commitment point
+
+Hosted bootstrap may stabilize assumptions about:
+
+- executable artifact shape;
+- execution route;
+- compiler representation;
+- verifier boundaries;
+- retained compiler structure;
+- source/artifact relationships.
+
+These should be consciously reviewed before becoming difficult to change.
+
+---
+
+40. Process should remain proportional to semantic risk
+
+Strong Plan/Execute/Review/Resolve discipline is valuable for changes affecting:
+
+- semantics;
+- identity;
+- continuity;
+- activation;
+- bootstrap trust boundaries;
+- compiler correctness assumptions;
+- normative specifications.
+
+Mechanical changes should not automatically acquire the same process burden unless evidence justifies it.
+
+Process itself should remain falsifiable by measuring whether it catches meaningful defects.
+
+---
+
+41. A compact project boundary statement
+
+A useful project statement is:
+
+«SHEAR is a programming language with a reflective, evolvable semantic program model. It aims to make language extension, compilation, introspection, and live evolution ordinary programmable capabilities while keeping domain-specific systems outside the language core.»
+
+This is descriptive, not normative.
+
+---
+
+42. A compact graph hypothesis statement
+
+A useful architectural hypothesis is:
+
+«First-class semantic relations are worth their cost if they replace multiple specialized identity, dependency, provenance, continuity, and metadata systems with a composable common substrate.»
+
+And its falsifier:
+
+«If they mostly reproduce specialized systems less efficiently and rarely compose across domains, the architecture is too general.»
+
+---
+
+43. A compact representation principle
+
+«Semantic uniformity should not imply physical uniformity.»
+
+This should protect SHEAR from the temptation to graph-expand structures whose efficient representation should remain specialized.
+
+---
+
+44. A compact extensibility principle
+
+«A new application domain should normally require new library code, not new language primitives.»
+
+---
+
+45. A compact privilege principle
+
+«Compiler privilege, runtime privilege, and external-resource access should be explained through explicit authority and execution context rather than through unnecessary parallel semantic systems.»
+
+---
+
+46. A compact implementation principle
+
+«Derived representations may be aggressively specialized as long as semantic authority remains elsewhere.»
+
+---
+
+47. A compact simplification principle
+
+«Count total mechanisms, interactions, and verification obligations – not syntax forms or primitive names.»
+
+---
+
+48. A compact evolutionary principle
+
+«A local semantic change should remain local unless its declared dependencies or continuity make it nonlocal.»
+
+---
+
+49. A compact bootstrap principle
+
+«Self-hosting is established by the compiler artifact that actually performs the next compilation, not by the language in which compiler source happens to be written.»
+
+---
+
+50. A compact design guardrail
+
+The strongest general guardrail from this discussion is:
+
+«SHEAR should make unusual systems implementable without making unusual systems part of SHEAR.»
+
+That principle applies equally to:
+
+- databases;
+- DSLs;
+- reflective systems;
+- specialized runtimes;
+- rich relational applications;
+- future application domains not currently anticipated.
+
+SHEAR should provide the language mechanisms.
+
+Programs should provide the applications.

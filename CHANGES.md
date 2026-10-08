@@ -1514,18 +1514,27 @@ the answer held.
   makes expensive to change.
 - D4 sets provisional budgets for compiler rebuild time and
   small-edit-to-activation latency; the host boundary is decided with D3.
+- Task 29 also establishes whether the SHEAR-VM route has a form that keeps
+  the source canonical; without one it is a candidate only if the owner
+  changes the first acceptance anchor. Its admission rule says who may assert
+  which compiler generation produced a chunk and why program code cannot
+  forge that, and the comparison is redone if D4 settles on a materially
+  different workload.
 - Task 30's provenance criterion covers executed program code, maps each
-  executed chunk's node version to its producer, and names the route's own
-  machinery as exempt: on the SHEAR-VM route the VM and its wrappers are
-  host-lowered by design.
+  executed chunk's node version to its producer, and exempts only the route's
+  fixed machinery: on the SHEAR-VM route the VM's own functions, not the
+  per-function wrappers.
 - Task 31 starts beyond task 30's corpus, which already holds the
   self-modification and error canaries.
 - Task 28's matrix test reads support from the code where it exists and
   declares only rejected or deferred for the rest; `operations.py` keeps
   shapes only.
 - vm_in_shear.md section 7 names task 27's twins, wrappers, `generation`
-  record and source dependency map as SHEAR-VM-route scaffolding that goes
-  if D3 chooses host execution.
+  record and source dependency map as SHEAR-VM-route scaffolding: it goes if
+  D3 chooses host execution, and otherwise stays only in a source-preserving
+  form or as an exception the owner accepts.
+- A second review round found the task 28 wording contradicting itself and
+  `RAISE` missing from task 29's list; both fixed.
 - Drift fixed: task 27 is marked implemented and section I's first fact
   updated; self_hosting.md lists `catch` and `raise` as uncovered; README no
   longer lists closures and error handling as untouched; `handoff.md` is

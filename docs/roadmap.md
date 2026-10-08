@@ -758,14 +758,15 @@ time and peak memory per generation are recorded.
 
 **Planned.** Issue #64.
 
-Every operation in `shear/operations.py` declares its status on four routes,
-host lowering, host execution, SHEAR lowering and SHEAR-VM execution, as
-supported, explicitly rejected or deferred. A test checks each declaration
-against behaviour: a deferred operation fails explicitly, never by falling
-back to the host. The test reads support from the code where it exists (host
-lowering's dispatch, `self_hosting.LOWERED`, the SHEAR VM's instruction set)
-and declares only rejected or deferred for the rest; `operations.py` keeps
-operation shapes only. A new `docs/bootstrap.md` inventories the host
+For every operation in `shear/operations.py`, a bootstrap matrix declares
+its status on four routes, host lowering, host execution, SHEAR lowering and
+SHEAR-VM execution, as supported, explicitly rejected or deferred. A test
+checks each declaration against behaviour: a deferred operation fails
+explicitly, never by falling back to the host. The supported entries are
+derived from the code where it exists (host lowering's dispatch,
+`self_hosting.LOWERED`, the SHEAR VM's instruction set); only rejected or
+deferred is declared, in the test. `operations.py` keeps operation shapes
+only. A new `docs/bootstrap.md` inventories the host
 services the compiler workload uses (parsing, `define` and continuity
 inference, state and identity derivation, canonicalization, activation,
 reflection, data operations), each with its contract, implementation,
@@ -790,14 +791,21 @@ section 8).
 The routes are compared on D4's recommended workload with task 28's matrix,
 not on the compiler alone. For the SHEAR VM that includes the instructions it
 does not run (`READ`, `WRITE`, `CODE`, `LINKS`, `QUOTE`, `FUNCTION`,
-`ACTIVATE`, `TRIAL`, `CATCH`, `FAIL`); those that name an entity through the
+`ACTIVATE`, `TRIAL`, `CATCH`, `FAIL`, `RAISE`); those that name an entity
+through the
 running function's links, such as `READ`, `WRITE`, `CODE` and `ACTIVATE`,
 would need it chosen by value in interpreted code (vm_in_shear.md section 8).
 It also includes that the VM's `CALL` runs the callee as installed, so every
-function the workload reaches needs a wrapper. For host execution, the
-verifier's admission rule is stated:
-what it checks for a chunk of node N at version V. Host lowering is not part
-of admission; it stays a test oracle.
+function the workload reaches needs a wrapper, and the wrappers displace the
+semantic source. The spike establishes whether the SHEAR-VM route has a form
+that keeps the source canonical and executable forms derived; if it has none,
+that route stays a candidate only if the owner explicitly changes the first
+acceptance anchor. For host execution, the verifier's admission rule is
+stated: what it checks for a chunk of node N at version V, and who may assert
+that a compiler generation produced that chunk and why program code cannot
+forge the assertion. Host lowering is not part of admission; it stays a test
+oracle. If D4 settles on a workload that differs materially from the
+recommended one, the comparison is redone for it before D3 is accepted.
 
 Done when: the results and a recommendation are recorded, with the admission
 rule and the Provisional items the recommended route makes expensive to
@@ -817,9 +825,9 @@ route; an unsupported operation fails explicitly.
 Done when: task 27's rebuild and the corpus run on this path, provenance
 shows no host lowering for executed program code (each executed chunk's node
 version maps to its producer: host lowering or a SHEAR compiler generation),
-the route's own fixed machinery (on the SHEAR-VM route, the VM and its
-wrappers) is named as exempt, task 28's matrix is updated and the costs are
-recorded.
+the route's own fixed machinery (on the SHEAR-VM route, the VM's own
+functions; per-function wrappers are program code, not machinery) is named
+as exempt, task 28's matrix is updated and the costs are recorded.
 
 ### 31. Live evolution on the bootstrap route (handoff)
 

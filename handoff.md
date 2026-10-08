@@ -17,6 +17,11 @@ repository. Read CLAUDE.md and `docs/roadmap.md` first.
   criterion names program code and exempts the route's machinery, task 31
   builds on task 30's corpus, D4 sets two provisional budgets, task 28 reads
   route support from the code. It also fixes drift found by the review.
+  A second review round (input and reply on `workflow/design-goals`, issue
+  #84) added: route (a) must show a source-preserving form or the owner
+  changes the first anchor; provenance must be unforgeable; the comparison
+  is redone if D4 changes the workload. Reviewed as conceptually ready;
+  next: the owner merges after green CI.
 - Design goals from the same discussion go on a separate branch,
   `workflow/design-goals`, through several review rounds before merging.
 

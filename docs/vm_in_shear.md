@@ -253,7 +253,10 @@ the live function, which after the first swap is a wrapper.
 - The twins, the wrappers holding literal chunks, `generation` and the
   hand-written source dependency map are scaffolding for the SHEAR-VM route.
   They go if decision D3 (roadmap.md) chooses host execution of derived
-  chunks, which keeps the compiler's own functions canonical.
+  chunks, which keeps the compiler's own functions canonical. If D3 chooses
+  the SHEAR VM, they stay only in a form that roadmap task 29 shows keeps the
+  source canonical, or as an exception to the first acceptance anchor that
+  the owner accepts explicitly.
 
 Done when generations 2 and 3 agree with generation 1 and with the host
 compiler's chunks, the retained source equals the original bodies, that test

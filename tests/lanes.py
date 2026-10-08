@@ -1,3 +1,4 @@
+
 """Semantic partitions of the ordinary deterministic test suite.
 
 CI runs every lane in one job, each lane as its own process
@@ -93,6 +94,7 @@ LANES: dict[str, tuple[str, ...]] = {
         "test_vm",
     ),
     "cross-boundary": (
+        "test_content_baseline",
         "test_corpus",
         "test_docs",
         "test_golden",
@@ -128,7 +130,6 @@ def validate_partition() -> None:
     for lane, modules in LANES.items():
         for module in modules:
             previous = assigned.get(module)
-
             if previous is not None:
                 raise RuntimeError(
                     f"{module} belongs to both {previous!r} and {lane!r}"
@@ -155,9 +156,10 @@ def validate_partition() -> None:
                 "missing files: " + ", ".join(sorted(stale))
             )
 
-        raise RuntimeError(
-            "invalid test-lane partition; " + "; ".join(problems)
-        )
+        if problems:
+            raise RuntimeError(
+                "invalid test-lane partition; " + "; ".join(problems)
+            )
 
 
 def suite_for(lane: str) -> unittest.TestSuite:
@@ -229,7 +231,6 @@ def run_all(
             code, output, seconds = future.result()
             finished[lane] = (code, output, seconds)
             status = "ok" if code == 0 else "FAILED"
-
             if grouped and code == 0:
                 print(f"::group::{lane} ({status})")
                 print(output, end="")

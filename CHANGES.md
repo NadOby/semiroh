@@ -1484,4 +1484,18 @@ valid evidence after the relevant oracle was shown to be unsound.
   VM changes as its cause. Follow-up issue #81 tracks that pre-existing
   rendering/mutation-coverage question.
 
-  
+## 2026-10-08
+
+### Classify redundant `let`-value parentheses as provisional layout (#81)
+
+- Investigated the `shear/syntax/printer.py` mutant independently reproduced
+  by both the Task 27 mutation campaign and an unchanged `main` control.
+- Raising the minimum precedence of an ordinary `let` value from 0 to 1 only
+  adds redundant parentheses around precedence-0 expressions such as an inline
+  `if`; parsing and behaviour are unchanged.
+- `docs/syntax.md` already marks exact rendering layout as Provisional, and
+  the mutation catalog contains analogous redundant-parenthesization cases.
+  The survivor is therefore classified narrowly as `unspecified`; production
+  code and rendering behaviour are unchanged.
+
+

@@ -431,3 +431,16 @@ raw(...) is treated as an atom by the renderer. Its precedence marker is
 used only by prec >= need, with need at most 4, so changing 4 to 5 is
 equivalent.
 """
+
+[[survivor]]
+kind = "constant"
+source = "return self.operand(node, locs, 0, False, 0)"
+occurrence = 2
+classification = "unspecified"
+reason = """
+This is the minimum precedence requested for an ordinary let value. Changing
+it from 0 to 1 can only add redundant parentheses around a precedence-0
+expression, such as an inline if. The resulting expression parses identically
+and preserves behaviour; exact parenthesization is provisional rendering
+layout.
+"""

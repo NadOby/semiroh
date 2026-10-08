@@ -579,8 +579,10 @@ mutation targets are carried or dropped by the task 19 rule.
   trial, and the order of externally visible effects.
 - Long-term direction (README, "Design philosophy"): DSLs and malleability,
   compiling new language structures at run time, composing libraries, and
-  applications as libraries. Not scheduled; the design canaries
-  (corpus.md section 7) say when a prerequisite is due.
+  applications as libraries. Not scheduled. The design canaries
+  (corpus.md section 7) identify the prerequisites that block each probe and
+  when those probes become relevant; the owner and this roadmap decide
+  whether and when a prerequisite is due.
 
 ## H. After the semantic-core experiment
 

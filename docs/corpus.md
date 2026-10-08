@@ -221,10 +221,12 @@ relations earn their cost, designing metaprogramming or DSL facilities,
 moving the boundary between semantic and derived representations, or adding
 privileged compiler or runtime behaviour.
 
-A canary that runs becomes a corpus example. One that needs a feature
-becomes a `Wanted` entry (section 4) naming that feature. One that
-re-implements a core mechanism as a library is evidence for removing the
-mechanism, as roadmap task 24 tests for constraints.
+A canary that runs becomes a corpus example only if it is a stable semantic
+discriminator worth keeping. A blocked canary becomes a `Wanted` entry
+(section 4) only if review concludes that its missing capability is a
+reusable language requirement, not merely something this canary needs. A
+canary that re-implements a core mechanism as a library is evidence for
+removing the mechanism, as roadmap task 24 tests for constraints.
 
 The list as written on 2026-10-08
 ([design canaries](reviews/2026-10-08_design_canaries.txt)), with its status

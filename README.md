@@ -784,10 +784,12 @@ The intended balance is pragmatic.
 **Provisional:** not scheduled. Recorded so the goals are not lost; the
 roadmap decides what is built when (docs/reviews/2026-10-08_ledger.md).
 
-SHEAR is meant for large, long-lived systems that change while they run, not
-for small programs: carrying its graph, compiler and versions pays off where
-structure and live change matter. Whether that is best described as glue for
-complex systems or as their control layer is open; either way SHEAR remains
+SHEAR's distinctive machinery (the graph, the compiler and the versions every
+program carries) is expected to pay off most in large, long-lived systems
+that change while they run. The owner does not expect it to suit small
+programs such as a hello world or a simple web server; that is an
+expectation, not a scope decision. Whether SHEAR is best described as glue
+for complex systems or as their control layer is open; either way it remains
 a systems programming language.
 
 Beyond the current roadmap, SHEAR aims to make these ordinary programming
@@ -807,8 +809,9 @@ rather than compiler construction:
 - unusual applications built as libraries: a new application domain should
   normally need library code, not new primitives.
 
-Unusual programs of these kinds are design tests (docs/corpus.md section 7):
-a failure shows what the language must add, remove or change.
+Unusual programs of these kinds are design tests (docs/corpus.md section 7).
+A failure identifies a design pressure to investigate: it may justify a
+language change, a library or opaque boundary, or no action yet.
 
 ## 36. Non-goals
 

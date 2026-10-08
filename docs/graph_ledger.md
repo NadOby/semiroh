@@ -180,7 +180,7 @@ Continuity inference itself is not a graph advantage. It remains a matching prob
 
 The hypothesis behind graph form, stated so it can fail: first-class semantic relations are worth their cost if they replace several specialized identity, dependency, provenance, continuity and metadata systems with one composable substrate. If they mostly reproduce specialized systems less efficiently and rarely compose across domains, the architecture is too general.
 
-The four compositions above are the current evidence for it. The case strengthens as relationships between relationships become common: a constraint on a relation, produced by a transformation that continues entities whose artifacts depend on versions, under an authority. A conventional object image wins where relationships stay independent of each other; SHEAR wins where relationships between them are common and useful.
+The four compositions above are the current evidence for it. The case strengthens as relationships between relationships become common: a constraint on a relation, produced by a transformation that continues entities whose artifacts depend on versions, under an authority. The hypothesis predicts that a conventional object image is favoured where relationships stay independent of each other, and SHEAR where relations themselves compose extensively; the bounded experiment in section 5 is how to test that.
 
 ## 5. Open
 

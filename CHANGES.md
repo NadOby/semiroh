@@ -1598,33 +1598,25 @@ the answer held.
 
 ## 2026-10-09
 
-### Hosted bootstrap boundary – Plan (#64)
+### Hosted bootstrap boundary (#64)
 
-- Recorded the current four-route operation support matrix in
-  `docs/bootstrap.md`: host lowering, host execution, SHEAR lowering,
-  and SHEAR-VM execution, distinguishing supported, rejected and deferred.
-- Inventoried proposed Python host services with their contracts,
-  implementation locations, allowances and verification references.
-- Added Plan-owned acceptance tests in `tests/test_bootstrap_boundary.py`
-  and registered them in the `cross-boundary` CI lane.
-- Documented `unquote`'s direct `GOTO` support, incomplete self-hosted
-  lowering, and interpreter `CALL` delegation to installed functions.
-- Specified fail-closed behavior for unsupported routes and checks
-  against silent host compilation fallback.
-- Left execution-route decision D3 and permitted-host-service decision D4
-  open for the owner. No production semantics or golden records changed.
-- This entry records the Plan contract, not completed hosted-bootstrap
-  implementation. CI verification remains required.
-- Plan review found noncanonical documentation markers, overstated
-  acceptance-test claims, and an unrelated CI-lane edit.
-- Corrected the status markers, aligned the tests with the actual
-  acceptance scope, strengthened the `invalid` diagnostic assertion,
-  and removed the unrelated lane change.
-- Clarified instruction-level `unquote` support and host execution
-  through `CALL`, `APPLY` and `APPLYV` references.
-- Distinguished observed rebuild services from proposed D4 services,
-  including ownership and host-lowered program wrappers.
-- Explicitly deferred transitive execution provenance and complete
-  host-fallback prevention to tasks 29 and 30.
-- No production or golden-record changes were made. Revised Plan
-  verification and independent Review remain outstanding.
+- Added `docs/bootstrap.md`, classifying all 32 graph operations
+  across host lowering, host execution, SHEAR lowering and SHEAR-VM
+  execution as supported, rejected or deferred.
+- Added acceptance tests for dispatch coverage, lowering agreement,
+  explicit rejection, unsupported VM instructions and inventory
+  structure in `tests/test_bootstrap_boundary.py`, registered in
+  the `cross-boundary` CI lane.
+- Inventoried Python host services with their contracts,
+  implementations, proposed D4 allowances, verification references
+  and reported usage during compiler rebuild.
+- Documented instruction-level `unquote` support, native execution
+  delegation through `CALL`, `APPLY` and `APPLYV`, and the distinction
+  between fixed interpreter machinery and host-lowered program code.
+- Recorded how to reproduce the reported rebuild lowering trace,
+  including 16 `code` nodes and four `linksof` nodes.
+- Confirmed the matrix and inventory as inputs to decisions D3 and D4.
+  Complete transitive execution provenance and prevention of host
+  fallback for executed program code remain requirements of later tasks.
+- Preserved production semantics and golden records. The ordinary CI
+  suite and golden comparison passed on the accepted Plan baseline.

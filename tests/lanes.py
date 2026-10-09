@@ -232,6 +232,7 @@ def run_all(
             code, output, seconds = future.result()
             finished[lane] = (code, output, seconds)
             status = "ok" if code == 0 else "FAILED"
+
             if grouped and code == 0:
                 print(f"::group::{lane} ({status})")
                 print(output, end="")

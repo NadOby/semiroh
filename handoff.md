@@ -7,7 +7,7 @@ Read `CLAUDE.md`, the Workflow and task 29 sections of `docs/roadmap.md`, and `d
 - Task: 29, execution-route spike, issue #65.
 - Role: Resolve documentation corrections complete; independent re-review next.
 - Branch: `task/29-execution-route`.
-- Last verified Resolve head before this handoff: `9508ec1989e3d7296e3f6967bd3b4a2ce85de2bb`.
+- Last verified Resolve head before this handoff: `cc4d6df5382d73023e9c37e3496ddc18cce3fb8a`.
 - Execute handoff commit: `e5e4d7724320e00dcb72615874195ed6488cd662`.
 - Protected Plan baseline: `deb03aa3ffc198df8e19fa14da59db904f879a1b`.
 - Base `main` at Plan: `dbe92c6e6450db479d22a203011f9c974ba00089`.
@@ -25,7 +25,7 @@ The protected Plan established the contract in:
 - `tests/lanes.py` – registration under `cross-boundary`.
 - `tests/mutation_catalog.py` – explicit temporary omission of the spike module.
 
-Execute populated section 11 of the spike specification. Resolve changed only nine lines within section 11 to correct evidence interpretation and limitations.
+Execute populated section 11 of the spike specification. The first Resolve pass corrected nine lines in section 11; the second corrected one additional line in section 11.2.
 
 Sections 1–10 remained byte-for-byte unchanged through Resolve. The acceptance tests, lane registration and mutation-catalog omission remain unchanged from the protected Plan baseline.
 
@@ -69,7 +69,7 @@ Every ordinary test lane passed, including all 18 Plan-owned execution-route tes
 
 The mutation campaign was not run. The spike retains its Plan-authorized temporary mutation-catalog omission.
 
-The cited diagnostic predates the documentation-only Resolve commit. No new diagnostic or performance measurement is claimed for Resolve.
+The cited diagnostic predates the documentation-only Resolve commits. No new diagnostic or performance measurement is claimed for Resolve.
 
 ## Results and predictions
 
@@ -123,9 +123,11 @@ The second review also supplied separate local timing observations. Those measur
 
 Neither review established a production-ready execution route or completed hosted bootstrap. Both identified the bounded route-B witness as meaningful evidence.
 
+Following the first Resolve pass, one independent re-review accepted the P2/P3 corrections without further findings. Another independent re-review identified remaining P3 documentation drift in section 11.2: the phrase "shared narrow witness" incorrectly implied route A had executed the route-B linked-call witness. It also noted that the test-infrastructure dependency should remain visible to Task 30 and Publish.
+
 ## Resolve changes
 
-Resolve commit:
+First Resolve commit:
 
     9508ec1989e3d7296e3f6967bd3b4a2ce85de2bb
 
@@ -144,9 +146,19 @@ Nine lines in section 11 were replaced:
 - Section 11.10 documents per-kind verifier templates and removes the unsupported claim of demonstrated precise invalidation.
 - Section 11.11 identifies reusable compiler lifetime, cross-state artifact reuse, maintainable validation and integrated routing as future design requirements.
 
-The branch diff against the preceding Execute head contains nine changed lines, nine deletions and nine additions. The file retains 481 lines.
+The first Resolve diff contains nine changed lines, nine deletions and nine additions.
 
-Sections 1–10, implementation, tests, workflow, numerical observations and fixed predictions were unchanged by Resolve.
+Second Resolve commit:
+
+    cc4d6df5382d73023e9c37e3496ddc18cce3fb8a
+
+Commit message:
+
+    GH-65 Correct route-B comparison wording
+
+Exactly one additional line changed, at section 11.2, line 317. It now states that route B's narrow linked-call witness was compared only with ordinary host execution. Route-A compiler rebuilding remains a different workload.
+
+The file retains 481 lines. Sections 1–10, implementation, tests, workflow, numerical observations and fixed predictions were unchanged by both Resolve passes.
 
 ## Remaining limitations
 
@@ -160,6 +172,7 @@ Sections 1–10, implementation, tests, workflow, numerical observations and fix
 - Artifact lifecycle, dependency invalidation, persistent admission and integrated machine routing remain unresolved.
 - P4 failed substantially; route-A and route-B compiler rebuilding cannot yet be compared on equivalent workloads.
 - Route A's wrapper-free alternative was neither implemented nor measured.
+- The temporary spike module imports `unittest.mock` and, in its diagnostic, `tests.test_execution_route`. Task 30 must eliminate this production-package dependency on test infrastructure when removing, replacing or promoting the spike.
 - The temporary spike module remains outside mutation campaigns under the Plan-authorized omission.
 - Task 30 must remove, replace or explicitly promote the experimental module and make an explicit mutation-testing decision.
 
@@ -173,15 +186,16 @@ Fetch the current branch head, `CLAUDE.md`, `docs/roadmap.md`, this handoff and 
 
 The re-review should:
 
-1. Verify that Resolve changed only the intended evidence-reporting lines in section 11.
+1. Verify that the first Resolve changed nine intended section 11 lines and the second changed only line 317.
 2. Verify sections 1–10 and the Plan-owned tests, lane registration and mutation catalog remain unchanged from `deb03aa3`.
-3. Confirm the corrected linked-call attribution against the actual diagnostic.
+3. Confirm section 11.2 attributes the linked-call witness exclusively to route B and ordinary host execution, without calling it shared with route A.
 4. Confirm the candidate-runtime and original-runtime execution paths in the edit/activation diagnostic.
 5. Confirm the exact-state-bound registry prevents reuse of admitted artifacts across changed states.
 6. Confirm that the discussion of compiler-runtime initialization makes no unsupported quantitative claim.
 7. Confirm the verifier-maintenance limitation reflects the implementation.
-8. Reassess whether all verified P2/P3 findings from both reviews are resolved without creating new contradictions.
-9. Report any new verified defects separately from acknowledged limitations or future Task 30–31 work.
+8. Reassess whether all verified P2/P3 findings, including the latest wording defect, are resolved without new contradictions.
+9. Confirm that the test-infrastructure dependency is retained as Task 30 housekeeping rather than silently dropped.
+10. Report new verified defects separately from acknowledged limitations or future Task 30–31 work.
 
 Review must not modify files. Verified defects return to Resolve, followed by another independent Review. Do not reopen already settled implementation questions without new evidence.
 
@@ -199,6 +213,6 @@ Publish must recheck current `main`, the protected Plan, CI, final diff, Review 
 
 ## Next
 
-Start `Review task 29` in a fresh chat, explicitly focusing on the combined Resolve corrections.
+Start `Review task 29` in a fresh chat, focusing on the second Resolve correction at line 317, Plan integrity and preservation of Task 30 housekeeping.
 
 Follow the owner's mobile GitHub protocol for subsequent changes: read-only assistant GitHub access, one complete file per commit, copyable commit messages, clickable branch-specific edit links, manual owner commits, `Done` confirmation and independent verification. No terminal dependency.

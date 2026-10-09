@@ -63,6 +63,8 @@ No additional Python module is authorized for this spike without returning to Pl
 
 The SHEAR compiler must actually execute as a SHEAR function. Python may construct the descriptor and observe the compiler's returned value; Python must not implement the lowering operation whose result is attributed to the SHEAR compiler.
 
+At the producer boundary, Python may generically decode the complete canonical compiler result, including typed entity and version identifiers, into host values; decoding must be opcode-independent and must not synthesize or modify instructions.
+
 The compiler runtime may be separate from the target program runtime. Production must not modify the target program's semantic definitions.
 
 Provisional API:

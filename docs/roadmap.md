@@ -631,7 +631,7 @@ reference_model.md. No refactor in this task.
 
 ### 23. Content duplication baseline (one session)
 
-**Planned.** After task 20. Issue #60.
+**Implemented** (PR #88).
 
 Measure the machinery that handles semantic content in several forms:
 conversion sites between host values and canonical content, `Value` content

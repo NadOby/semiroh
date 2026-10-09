@@ -1615,3 +1615,16 @@ the answer held.
   open for the owner. No production semantics or golden records changed.
 - This entry records the Plan contract, not completed hosted-bootstrap
   implementation. CI verification remains required.
+- Plan review found noncanonical documentation markers, overstated
+  acceptance-test claims, and an unrelated CI-lane edit.
+- Corrected the status markers, aligned the tests with the actual
+  acceptance scope, strengthened the `invalid` diagnostic assertion,
+  and removed the unrelated lane change.
+- Clarified instruction-level `unquote` support and host execution
+  through `CALL`, `APPLY` and `APPLYV` references.
+- Distinguished observed rebuild services from proposed D4 services,
+  including ownership and host-lowered program wrappers.
+- Explicitly deferred transitive execution provenance and complete
+  host-fallback prevention to tasks 29 and 30.
+- No production or golden-record changes were made. Revised Plan
+  verification and independent Review remain outstanding.

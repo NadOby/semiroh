@@ -93,6 +93,7 @@ LANES: dict[str, tuple[str, ...]] = {
         "test_vm",
     ),
     "cross-boundary": (
+        "test_bootstrap_boundary",
         "test_content_baseline",
         "test_corpus",
         "test_docs",
@@ -246,7 +247,7 @@ def run_all(
         status = "ok" if code == 0 else "FAILED"
         print(f"  {lane:<24} {status:<6} {seconds:6.1f}s")
 
-    return 0 if all(code == 0 for code, _, _ in results) else 1
+    return 0 if all(code == 0 for code, _, seconds in results) else 1
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -2,8 +2,10 @@
 
 The support matrix is documentation; implementation dispatch is the positive
 authority. Only rejected and deferred operation sets are declared here.
-Tests guard against host compilation or execution replacing an unsupported
-SHEAR route.
+
+These tests verify current lowering and interpreter behavior. They do not
+prove transitive absence of host compilation or execution in a complete
+bootstrap pipeline; that provenance check belongs to roadmap task 30.
 """
 
 from __future__ import annotations
@@ -11,7 +13,6 @@ from __future__ import annotations
 import re
 import unittest
 from pathlib import Path
-from unittest import mock
 
 from shear import Runtime, bytecode, operations
 from shear import machine as host_machine
@@ -49,7 +50,7 @@ L = ("lit", 1)
 X = ("arg", "x")
 Q = ("quote", ("unquote", ("lit", 7)))
 
-# Each witness must actually construct a node of the requested kind.
+# Each witness must construct a node of the requested kind.
 # Unquote is an internal quote-hole node, not a standalone input form.
 WITNESSES = {
     "lit": L,
@@ -88,7 +89,7 @@ WITNESSES = {
 
 
 def _matrix() -> dict[str, tuple[str, str, str, str]]:
-    """Read the documented operation rows, preserving duplicate detection."""
+    """Read documented rows and reject duplicate operation names."""
 
     pattern = re.compile(
         r"^\| `([a-z]+)` \| ([SRD]) \| ([SRD]) \|"
@@ -111,7 +112,7 @@ def _matrix() -> dict[str, tuple[str, str, str, str]]:
 
 
 def _node_for(kind: str):
-    """Load a realistic graph and find the required operation node."""
+    """Load a realistic graph and find the requested operation node."""
 
     state = single(WITNESSES[kind])
     matches = []
@@ -129,13 +130,14 @@ def _node_for(kind: str):
 
 
 def _opcodes(kind: str) -> frozenset[str]:
-    return frozenset(instruction[0] for instruction in bytecode.lower(
-        _node_for(kind)
-    ))
+    return frozenset(
+        instruction[0]
+        for instruction in bytecode.lower(_node_for(kind))
+    )
 
 
 def _expanded(state, entity):
-    """Independently expand host graph chunks into SHEAR compiler form."""
+    """Expand host graph chunks into the SHEAR compiler's tuple form."""
 
     node = relation_of(state.values[entity])
     assert node is not None
@@ -203,7 +205,6 @@ class MatrixTests(unittest.TestCase):
             dispatched(bytecode.lower, "kind"),
             frozenset(operations.OPERATIONS),
         )
-
         handled = dispatched(host_machine._execute, "op")
 
         for kind in operations.OPERATIONS:
@@ -217,9 +218,10 @@ class MatrixTests(unittest.TestCase):
 
     def test_supported_statuses_follow_dispatch(self):
         table = _matrix()
-        self.assertEqual(set(self_hosting.LOWERED) - {"label"},
-                         set(operations.OPERATIONS) -
-                         LOWER_DEFERRED - REJECTED)
+        self.assertEqual(
+            set(self_hosting.LOWERED) - {"label"},
+            set(operations.OPERATIONS) - LOWER_DEFERRED - REJECTED,
+        )
         self.assertEqual(set(vm._ORDER), set(dict(vm._cases())))
 
         vm_instructions = set(vm._ORDER)
@@ -239,24 +241,30 @@ class MatrixTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     table[kind],
-                    (host_status, host_status,
-                     lower_status, vm_status),
+                    (host_status, host_status, lower_status, vm_status),
                 )
                 self.assertEqual(
                     vm_status == "D",
                     kind in VM_DEFERRED,
                 )
 
-    def test_host_rejects_invalid_code_explicitly(self):
+    def test_host_rejects_invalid_code_with_specific_diagnostic(self):
         chunk = bytecode.lower(_node_for("invalid"))
         self.assertEqual(chunk[0][0], "RAISE")
+        self.assertIn(
+            "unknown operation 'not_a_bootstrap_operation'",
+            chunk[0][1],
+        )
 
-        with self.assertRaises(LanguageError):
+        with self.assertRaisesRegex(
+            LanguageError,
+            r"unknown operation 'not_a_bootstrap_operation'",
+        ):
             run(Runtime(single(WITNESSES["invalid"])), T, 1)
 
 
 class LoweringBoundaryTests(unittest.TestCase):
-    def test_every_supported_shear_lowering_matches_host_expansion(self):
+    def test_supported_shear_lowering_matches_host_expansion(self):
         runtime = Runtime(load(program(self_hosting.compiler_entities())))
 
         for kind in sorted(
@@ -269,42 +277,37 @@ class LoweringBoundaryTests(unittest.TestCase):
                 actual = run(runtime, LOWER, expression)
                 same(self, actual, expected, kind)
 
-    def test_deferred_lowering_does_not_invoke_host_lowering(self):
+    def test_deferred_lowering_returns_explicit_failure_chunk(self):
         runtime = Runtime(load(program(self_hosting.compiler_entities())))
-        original = bytecode.lower
-        forbidden = LOWER_DEFERRED | REJECTED
 
-        def guarded(node):
-            if node.kind in forbidden:
-                raise AssertionError(
-                    f"host lowering fallback for {node.kind}"
+        for kind in sorted(LOWER_DEFERRED | REJECTED):
+            with self.subTest(kind=kind):
+                # Standalone unquote is input to the compiler, not
+                # a valid standalone graph-form expression.
+                expression = (
+                    ("unquote", L)
+                    if kind == "unquote"
+                    else WITNESSES[kind]
                 )
-            return original(node)
-
-        with mock.patch.object(bytecode, "lower", side_effect=guarded):
-            for kind in sorted(forbidden):
-                with self.subTest(kind=kind):
-                    # The interpreter sees input-form tuple data.
-                    # Standalone unquote is intentional here.
-                    expression = (
-                        ("unquote", L)
-                        if kind == "unquote"
-                        else WITNESSES[kind]
-                    )
-                    result = run(runtime, LOWER, expression)
-                    self.assertEqual(
-                        result,
-                        (("RAISE", "unknown operation"), ("END",)),
-                    )
+                result = run(runtime, LOWER, expression)
+                self.assertEqual(
+                    result,
+                    (("RAISE", "unknown operation"), ("END",)),
+                )
 
 
 class InterpreterBoundaryTests(unittest.TestCase):
-    def test_missing_instructions_are_exactly_the_declared_set(self):
+    def test_missing_instructions_are_the_declared_set(self):
         host_instructions = dispatched(host_machine._execute, "op")
         interpreted = set(vm._ORDER)
 
-        self.assertTrue(VM_MISSING_INSTRUCTIONS.isdisjoint(interpreted))
-        self.assertLessEqual(VM_MISSING_INSTRUCTIONS, host_instructions)
+        self.assertTrue(
+            VM_MISSING_INSTRUCTIONS.isdisjoint(interpreted)
+        )
+        self.assertLessEqual(
+            VM_MISSING_INSTRUCTIONS,
+            host_instructions,
+        )
 
         for kind in VM_DEFERRED:
             with self.subTest(kind=kind):
@@ -314,9 +317,9 @@ class InterpreterBoundaryTests(unittest.TestCase):
 
         self.assertEqual(_opcodes("unquote"), {"GOTO", "END"})
 
-    def test_unsupported_instruction_uses_interpreter_trap(self):
-        # Replace only the interpreter's trap with an observable witness.
-        # A host fallback cannot satisfy this assertion accidentally.
+    def test_unsupported_instructions_reach_interpreter_trap(self):
+        # An observable trap distinguishes VM dispatch from successful
+        # execution through the host's instruction dispatcher.
         marker = "bootstrap-unsupported-instruction"
         entities = vm.vm_entities()
         entities[vm.TRAP] = Function((), ("lit", marker))
@@ -345,26 +348,38 @@ class InterpreterBoundaryTests(unittest.TestCase):
 
 
 class InventoryTests(unittest.TestCase):
-    def test_every_host_service_has_contract_implementation_and_tests(self):
+    def test_inventory_structure_and_test_references(self):
         content = SPEC.read_text(encoding="utf-8")
-        section = content.split("## 3. Host-service inventory", 1)[1]
-        section = section.split("### 3.1", 1)[0]
+        section = content.split(
+            "## 3. Host-service inventory", 1
+        )[1].split("### 3.1", 1)[0]
         rows = [
             line for line in section.splitlines()
-            if line.startswith("| ") and not line.startswith(
-                ("| Service ", "| ---")
-            )
+            if line.startswith("| ")
+            and not line.startswith(("| Service ", "| ---"))
         ]
 
         self.assertGreaterEqual(len(rows), 15)
 
         for line in rows:
             with self.subTest(service=line.split("|")[1].strip()):
-                cells = [cell.strip() for cell in line.split("|")[1:-1]]
-                self.assertEqual(len(cells), 5)
+                cells = [
+                    cell.strip()
+                    for cell in line.split("|")[1:-1]
+                ]
+                self.assertEqual(len(cells), 6)
                 self.assertTrue(all(cells))
 
-                names = re.findall(r"`(test_[a-z_]+\.py)`", cells[4])
+                service, contract, implementation, use, observed, tests = cells
+                self.assertTrue(service)
+                self.assertTrue(contract)
+                self.assertTrue(implementation)
+                self.assertTrue(use)
+                self.assertTrue(observed.startswith((
+                    "Yes", "No", "Partial", "Unverified",
+                )))
+
+                names = re.findall(r"`(test_[a-z_]+\.py)`", tests)
                 self.assertTrue(names)
 
                 for name in names:

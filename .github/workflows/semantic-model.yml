@@ -1,4 +1,3 @@
-
 name: Semantic model
 
 on:
@@ -168,6 +167,7 @@ jobs:
       SHEAR_MUTATE_SEED: ${{ inputs.mutation_seed }}
       SHEAR_MUTATE_BATCH: ${{ inputs.mutation_batch }}
       SHEAR_MUTATE_SHARDS: ${{ needs.mutation-plan.outputs.count }}
+      SHEAR_MUTATE_SHARD: ${{ matrix.shard }}
       SHEAR_MUTATION_REPORT: mutation-report-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}.jsonl
 
     steps:
@@ -178,8 +178,6 @@ jobs:
           python-version: "3.12"
 
       - name: Run mutation batch shard
-        env:
-          SHEAR_MUTATION_REPORT: mutation-report-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}.jsonl
         run: python -m tests.lanes mutation
 
       - name: Upload mutation evidence

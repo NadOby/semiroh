@@ -147,10 +147,20 @@ not an authorization of those services. Each row states its
 contract, implementation, proposed use, reported rebuild
 observation, and existing verification references.
 
-"Observed" refers to the reported task-28 review profile of
-rebuild generations 1 and 2, not an independently CI-verified
-service-call trace. "Yes" and "No" apply only to that workload.
-"Partial" or "Unverified" preserves uncertainty.
+"Observed" refers to a reviewer's trace of rebuild generations
+1 and 2. The trace was reported in review rather than committed
+as a repository artifact. To reproduce the lowering observations,
+create a fresh `Runtime(load(program(vm.bootstrap_entities())))`,
+spy on `bytecode.lower_value` while forwarding to the original
+function, and invoke
+`run(runtime, vm.SWAP_ALL, may_activate=True)` twice.
+Record the `relation_of(value).kind` supplied to each lowering call,
+excluding runtime initialization from the recording window.
+
+This observes host lowering of uncached graph nodes, not every
+executed instruction or cached chunk. Other service observations
+require separate instrumentation. "Yes" and "No" apply only to
+the profiled rebuild; "Partial" and "Unverified" preserve uncertainty.
 
 "Allow" is a proposed Python-hosted service. "Conditional"
 requires D3/D4 resolution. Host-lowered program wrappers are
@@ -171,11 +181,11 @@ reported as current behavior, not approved bootstrap fallback.
 | SHEAR compiler | Produce expanded chunks as data | `examples/self_hosting.py`, `machine.py` | Required; execution conditional | Yes | `test_self_hosting.py`, `test_rebuild.py` |
 | SHEAR VM | Interpret its declared instruction subset | `examples/vm.py` | Conditional on D3 | Yes | `test_vm.py`, `test_rebuild.py` |
 | Host machine | Run derived instructions and provide runtime execution | `machine.py` | Seed and fixed machinery; other admission conditional | Yes | `test_bytecode.py`, `test_vm.py` |
-| Code reflection | Return code for a function in the selected state | `machine.py`, `lang.function_at` | Allow | Yes via `function_at` | `test_self_hosting.py` |
-| Link reflection | Resolve a function's link table | `machine.py`, `lang.py` | Allow | Unverified separately | `test_vm.py` |
+| Code reflection | Return code for a function in the selected state | `machine.py`, `lang.function_at` | Allow | Yes: 16 host-lowered `code` nodes; `function_at` also used | `test_self_hosting.py` |
+| Link reflection | Resolve a function's link table | `machine.py`, `lang.py` | Allow | Yes: 4 host-lowered `linksof` nodes | `test_vm.py` |
 | Data and callable operations | Provide primitives, tuples, comparisons and linked calls | `machine.py`, `canonical.py` | Allow | Yes | `test_data_ops.py`, `test_vm.py` |
 | Cells and constraints | Read and write runtime content; enforce declared constraints | `cells.py`, `runtime.py`, `constraints.py` | Allow | Partial: `cells_of` used; constraint evaluation not observed | `test_cells.py`, `test_constraints.py` |
-| Activation | Stage, check and atomically select a candidate | `Runtime.activate`, `lang.define` | Allow | Yes | `test_activation.py`, `test_metaprogramming.py` |
+| Activation | Stage, check and atomically select a candidate | `Runtime.activate`, `lang.define` | Allow | Yes: two activations reported | `test_activation.py`, `test_metaprogramming.py` |
 | Trials | Run a candidate in isolated runtime state | `Runtime.trial`, `machine.py` | Allow | No | `test_trial_runs.py`, `test_language_trials.py` |
 | Version lifetime | Manage frames, holds and retirement | `Runtime`, `Version`, `Frame`, `Hold` | Allow | Yes | `test_lifecycle.py`, `test_activation.py` |
 | Runtime errors | Surface language, program, runtime and limit errors | `machine.py`, `lang.py` | Allow | Unverified separately | `test_error_handling.py`, `test_error_values.py` |
@@ -184,8 +194,14 @@ reported as current behavior, not approved bootstrap fallback.
 
 The reported rebuild profile includes `define`, matching,
 activation, version holds and retirement, `cells_of`,
-`function_at`, and semantic model services. It does not show
-source parsing, reconciliation, trials or constraint evaluation.
+`function_at`, and semantic model services. The host-lowering
+trace also reports 16 `code` nodes and 4 `linksof` nodes
+across two successive `swap_all` runs.
+
+The review did not observe source parsing, reconciliation,
+trials, constraint evaluation, or `read`, `write`, `catch`
+and `raise` execution. Absence in this profile is not
+proof that these operations are unnecessary for D4.
 
 The host also lowers the wrappers for `evals`, `lower`, `upper`,
 and the `generation` function during generation 2, in addition
@@ -267,7 +283,7 @@ change production semantics.
 **Open:**
 
 D3 and D4 remain owner decisions as defined in `roadmap.md`,
-under "Open decisions" and section I. This document does not
+under "Pending decisions" and section I. This document does not
 restate or supersede their choices and requirements.
 
 In particular, D4 sets provisional budgets for both compiler

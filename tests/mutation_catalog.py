@@ -77,6 +77,10 @@ OMITTED = {
         "re-export surface of the syntax package; behaviour lives in its modules",
     "shear/__init__.py":
         "public re-export surface; semantic behaviour lives in its modules",
+    "shear/execution_route_spike.py": (
+        "Experimental Task 29 spike; remove or replace in Task 30, "
+        "or promote with an explicit mutation-testing decision"
+    ),
     "shear/examples/__init__.py":
         "example/corpus harness rather than a semantic implementation",
     "shear/examples/_support.py":
@@ -174,7 +178,8 @@ def _require_string(
 
     if not value.strip():
         raise CatalogError(
-            f"{context}: {field} must not be empty"
+            f"{context}: {field} must be a "
+            "non-empty stripped string"
         )
 
     return value
@@ -413,7 +418,6 @@ def load_catalog(
     catalog_targets = _require_string_list(
         manifest,
         "catalog_targets",
-        "manifest",
     )
 
     unknown_targets = (

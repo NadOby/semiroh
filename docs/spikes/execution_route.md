@@ -284,16 +284,197 @@ Resolve addresses verified defects. Publish follows an accepted independent Revi
 
 ## 11. Execution results
 
-**Open.** Execute will record:
+### 11.1. Provenance and verification
 
-- Achieved W0 results and precise blockers for each route.
-- W1/W2 coverage inventories.
-- P1–P5 outcomes and any authorized experimental revision.
-- Admission and tracing evidence with CI links.
-- Differential correctness evidence.
-- Timing measurements and limitations.
-- Admission rule and residual trust assumptions.
-- Costly-to-change analysis for the instruction set, the version seen by `code`, and node identities in compiler output.
-- A recommendation for D3, explicitly distinguished from the owner's decision.
+**Status: Execute evidence, pending independent Review.** These observations do not decide D3 or D4.
 
-A successful narrow spike establishes feasibility, not completion of Tasks 30 or 31.
+- Revision: `6ebbc698c881528b53b37c63b5b090f82eb4a037`.
+- Branch: `task/29-execution-route`.
+- CI: https://github.com/NadOby/shear/actions/runs/37981959588
+- Tests job: https://github.com/NadOby/shear/actions/runs/37981959588/job/113994433438
+- Diagnostic job: https://github.com/NadOby/shear/actions/runs/37981959588/job/113994434005
+- Evidence artifact: https://github.com/NadOby/shear/actions/runs/37981959588/artifacts/11641073831
+- Artifact file: `execution-route.json`.
+- Runner: `GitHub Actions 1000008691`; Python 3.12.15; Linux 6.17.0-1022-azure, x86-64, glibc 2.39; four reported CPU cores.
+- The diagnostic did not record the processor model. Task 23's separately recorded hardware and allocation measurements remain the reference baseline, not measurements from this Task 29 runner.
+
+The manually dispatched workflow passed every ordinary test lane, including the 18 Plan-owned execution-route tests. The golden comparison reported 55 unchanged records and zero failures. The diagnostic job completed and uploaded its JSON artifact. The mutation campaign was not run; the spike module retains the Plan-authorized temporary mutation-catalog omission.
+
+Timings use `time.perf_counter()`, three observations per comparable route, with tracing suppressed during the timed intervals. No performance threshold is enforced by CI. The measurements are single-run, single-runner diagnostic evidence, not performance guarantees.
+
+### 11.2. W0 – executable routes
+
+**Route A – three rebuilding generations achieved.** Starting from a fresh bootstrap runtime, three successive `swap_all` activations reported generations 1, 2 and 3. Each generation used the existing SHEAR compiler/VM rebuilding mechanism. The measured interval for each generation includes its swap operation and activation, but excludes bootstrap runtime construction and the subsequent generation-record verification.
+
+The mechanism is not source-preserving: the active compiler functions become wrappers holding literal chunks and delegating to `vm`. Retained source twins preserve separate copies of the original definitions. Generations 2 and 3 therefore demonstrate the existing rebuilding path, not a compliant wrapper-free route A. The interpreter also delegates some linked and indirect calls to host execution, as recorded in `docs/bootstrap.md` section 2.1.
+
+**Route B – one bounded per-node execution witness achieved.** A SHEAR `Function` constructs chunks for `lit`, `arg`, `add` and `call` using a host-provided descriptor. Python observes one actual SHEAR compiler invocation, generically decodes the canonical result, and records the artifact. Admission binds that artifact to the target state, node, version, owner and compiler identity. The host machine then runs the admitted chunks without using ordinary target-node lowering.
+
+The witness is a linked `caller(x)` invoking `target(x) = x + 3`; at `x = 4`, both routes produce `7`. Every target and caller node required for that execution has an admitted artifact. The Plan tests separately compare all four emitted node kinds with the host lowering oracle, and verify a host-cache poison and lowering-fallback guard. The target's semantic definitions and node versions remain unchanged during production and admitted execution.
+
+**Route-B compiler rebuilding – generation 0 only.** The diagnostic attempted production for the actual bootstrap `swap_all` body. It failed closed on `EntityID('swap_all/0.0')`, which is outside the four supported node kinds. No compiler generation was installed through route B; no route-B rebuild timing exists. This is a coverage blocker, not an execution failure of the supported witness. Supporting the existing compiler and its installation path requires many additional operation kinds, host services and a transitive admitted-execution boundary.
+
+The executable comparison supports route B on the shared narrow witness only. Route A's compiler-rebuild timing and route B's witness timing are different workloads and must not be compared as if equivalent.
+
+**Wrapper-free route-A design, not implemented.** Preserve semantic function bodies and hold executable VM chunks in external derived-artifact storage, keyed by semantic node versions and the required compiler/VM dependencies. A trusted execution router selects the SHEAR VM entry without installing literal-chunk wrappers. This requires a separate routing boundary, access to the correct held program version and link environment, and transitive VM execution for every reached program function. Existing `CALL`/`APPLY`/`APPLYV` delegation and unsupported VM instructions prevent the current mechanism from meeting that design. No new language instruction or by-value authority rule is implied by this proposal.
+
+### 11.3. Compiler-generation timings
+
+All values are seconds. Each row has three untraced observations, a median and the observed range.
+
+| Route and generation | Observations | Median | Min–max |
+| --- | --- | ---: | ---: |
+| A, generation 1 | 0.204083, 0.199989, 0.224628 | 0.204083 | 0.199989–0.224628 |
+| A, generation 2 | 7.408509, 7.415722, 7.423526 | 7.415722 | 7.408509–7.423526 |
+| A, generation 3 | 7.465605, 7.441106, 7.474766 | 7.465605 | 7.441106–7.474766 |
+| B, rebuilding | Not executable | N/A | Blocked at generation 0 |
+
+The substantial difference between A's first and subsequent generations is consistent with the installed interpreter route. These observations do not isolate compiler lowering, activation and VM execution into separate per-generation phases.
+
+### 11.4. P4 – cold and warm execution
+
+The comparison uses two fresh instances of the same fixture per observation, with identical linked caller, argument `4`, result `7`, and initially cold target-node caches. Fixture construction is excluded from both intervals. Route B's measured production includes initialization of its separate SHEAR compiler runtime; this route-specific cost is not excluded.
+
+For each of three observations:
+
+- `T_B` includes production for every target/caller node, admission for every produced chunk, and one admitted execution.
+- `T_H` is one ordinary host execution on the independent reference fixture, including lazy lowering.
+- Warm executions are separate measurements after the cold execution.
+
+| Measurement | Observations (ms) | Median (ms) | Range (ms) |
+| --- | --- | ---: | ---: |
+| B production | 8.434757, 8.048946, 7.856976 | 8.048946 | 7.856976–8.434757 |
+| B admission | 1.212718, 1.176401, 1.180669 | 1.180669 | 1.176401–1.212718 |
+| B admitted execution | 0.683779, 0.648633, 0.655025 | 0.655025 | 0.648633–0.683779 |
+| **B total cold** | **10.331254, 9.873980, 9.692670** | **9.873980** | **9.692670–10.331254** |
+| **Host total cold** | **0.055123, 0.056135, 0.052839** | **0.055123** | **0.052839–0.056135** |
+| B warm execution | 0.686413, 0.639887, 0.628335 | 0.639887 | 0.628335–0.686413 |
+| Host warm execution | 0.022131, 0.022001, 0.021791 | 0.022001 | 0.021791–0.022131 |
+
+The fixed P4 ratio is:
+
+    median(T_B) / median(T_H) = 179.126317
+
+**P4 is falsified** against its prespecified maximum of 10. The dominant measured cold component is production, which includes SHEAR compiler-runtime initialization and compilation of the witness nodes. Admission and admitted execution also exceed the host reference independently. The warm comparison is reported separately and does not substitute for P4.
+
+These measurements compare the implemented prototype with ordinary host execution, not optimized production implementations. They do not establish the asymptotic cost of a permanent admission cache, shared compiler runtime or machine integration. No post-observation experimental revision was made.
+
+### 11.5. Small edit and activation
+
+The diagnostic edits `target(x)` from `x + 3` to `x + 5` using `define`, prepares a separate candidate runtime, produces and admits the candidate's target-node chunks, and executes the candidate before activating the transformation on the original runtime. The observed result at `x = 4` changes from `7` before activation to `9` afterward.
+
+| Phase | Elapsed (ms) |
+| --- | ---: |
+| Candidate preparation through `define` | 13.397810 |
+| Candidate compiler production, admission and verification execution | 10.418749 |
+| Original runtime `activate` | 1.194154 |
+| **Total measured interval** | **25.010713** |
+
+This is one measured edit, not a three-observation latency distribution. The candidate phase includes an admitted verification run, so it is not an isolated compilation-only cost. Candidate construction and execution occur outside the original runtime's active state. The Plan test independently verifies that previously admitted artifacts cannot execute after an incompatible activation.
+
+Task 23's corrected native/VM compiler timing, traced-allocation baseline, derived-artifact sizes and state-content proxy remain in `docs/content_baseline.md` sections 5.7 onward. Their separate revision, workloads and measurement methodology must not be conflated with these Task 29 measurements.
+
+### 11.6. P1–P5 outcomes
+
+| Prediction | Outcome | Evidence and boundary |
+| --- | --- | --- |
+| P1 – wrapper route changes active source | **Supported** | Existing `swap_all` installs executable wrappers; retained source twins are separate |
+| P2 – existing compiler needs a per-node entry | **Supported** | Existing compiler emits expanded chunks; spike implements and differentially tests the separate node-aware SHEAR compiler |
+| P3 – authentic structural admission can work | **Supported for W0** | Genuine output admitted; forged evidence, wrong node/version, changed instructions, foreign child and unlinked target rejected |
+| P4 – cold ratio at most 10 | **Falsified** | Measured ratio 179.126317 on the equivalent executable witness |
+| P5 – additional provenance tracing is necessary | **Supported** | Explicit producer, admission and execution boundary events establish the tested witness's artifact identity; existing rebuild instrumentation alone cannot do so |
+
+Admission success is evidence of origin and compatibility, not a proof that arbitrary compiler output implements the intended semantics. Correctness evidence comes from the independent witness result and the four-kind differential comparison. A passing test suite does not imply system-wide producer provenance.
+
+### 11.7. Admission rule and residual trust
+
+The experimental admission rule accepts a chunk only when:
+
+1. Its opaque handle identifies an observed SHEAR compiler result.
+2. The supplied chunk matches that observed result exactly under canonical serialization.
+3. The target state object, node, version and owning function match the producer record.
+4. The node has a supported kind and the expected instruction sequence and arities.
+5. Child evaluations name the node's actual owned children; linked calls target a permitted function with the required argument count.
+6. An admitted execution resolves its required chunks from the state/version-bound registry and rejects absent or incompatible entries rather than lowering them on demand.
+
+The host records a digest and producer compiler identity/version. Trace events are host-maintained, and the producer event identifies the actual SHEAR compiler function used. Admitted artifacts are not stored in semantic state.
+
+The temporary implementation intercepts machine chunk lookup with process-global Python method patching guarded by a lock. This is an experimental execution boundary, not a deployable isolation or concurrency mechanism. The lock does not serialize unrelated machine executions that do not cooperate with it. Registry lifetimes, compiler invalidation and host-only access to admission need a permanent design.
+
+The validation is bounded to `lit`, `arg`, `add` and `call`. It checks known structures and references but is not a general-purpose instruction verifier. It does not verify arbitrary semantic equivalence, capability safety, control-flow effects or completeness of dependencies outside the witness.
+
+### 11.8. W1 – tier-1 and tier-2 corpus inventory
+
+This inventory uses the operation statuses in `docs/bootstrap.md` section 2. Here, “A” refers to the current SHEAR-written VM and its existing compiler; “B” refers only to the four-kind admitted spike. Task 28's instruction-level `S` status does not establish a complete source-to-execution route.
+
+| Corpus requirement | Route A | Route B | Prerequisite and owner |
+| --- | --- | --- | --- |
+| Literals, arguments, addition | SHEAR lower S; VM S | Executed and differentially tested | W0 completed for these kinds |
+| Other arithmetic and comparisons (`sub`, `mul`, `lt`, `eq`) | SHEAR lower S; VM S | Not implemented | Extend node-aware compiler and admission – Task 30 |
+| Conditional/sequence control (`if`, `seq`) | SHEAR lower S; VM S | Not implemented | Branch, jump and child-reference semantics – Task 30 |
+| Statically linked calls and recursion | VM supports `CALL` but may delegate through host `applyv` | Direct linked `CALL` executed | Eliminate undeclared transitive host fallback – Task 30 |
+| Tuples, indexing, slicing, concatenation and `let` | SHEAR lower S; VM S | Not implemented | Add tuple, lexical-binding and safety checks – Task 30 |
+| Function references, `apply`, `applyv` | SHEAR lower S; VM S at instruction level, but references may delegate to host | Not implemented | Indirect dispatch, closures and route provenance – Tasks 30–31 |
+| Cells (`read`, `write`) and constraints | SHEAR lowering S; VM D for `READ`/`WRITE` | Not implemented | Runtime cell services and verified execution – Tasks 30–31 |
+| Code and link reflection (`code`, `linksof`) | SHEAR lowering S; VM D for `CODE`/`LINKS` | Not implemented | Explicit host reflection boundary and version policy – Task 30, D4 |
+| Quote/unquote and code construction | SHEAR lowering D; VM quote D; `GOTO` supports unquote at instruction level only | Not implemented | Whole source-expression semantics, not isolated `GOTO` – Tasks 30–31 |
+| `function`, `activate`, `trial` | SHEAR lowering D; VM D | Not implemented | Candidate construction and live-evolution route – Task 31 |
+| Closures | SHEAR lowering S; VM S for supported subset | Not implemented | Capture and held-version semantics – Task 31 |
+| Catchable and raised errors (`catch`, `raise`) | SHEAR lowering D; VM D for `CATCH`/`FAIL` | Not implemented | Error handlers and preserved error provenance – Tasks 30–31 |
+| Invalid code | Rejected on existing paths, with differing diagnostics | Not admitted by the four-kind route | Uniform fail-closed semantics – Task 30 |
+
+Tier-1 side effects and self-modification, and tier-2 higher-order composition, are therefore **not covered end-to-end** by the spike. A successful route-A bootstrap or route-B linked call cannot be generalized to these canaries.
+
+Additional gaps include VM interpretation of `READ`, `WRITE`, `CODE`, `LINKS`, `QUOTE`, `FUNCTION`, `ACTIVATE`, `TRIAL`, `CATCH`, `FAIL` and `RAISE`; fixed host services for reflection, cells, activation, trials and errors; and transitive `CALL`/`APPLY`/`APPLYV` dispatch without unrecorded host-compiled program code. Task 30 owns complete execution-route provenance and operation coverage for the selected hosted workload; Task 31 owns full live-evolution coverage.
+
+### 11.9. W2 – live-evolution inventory
+
+| Mechanism | Route A today | Route B today | Blocker / owner |
+| --- | --- | --- | --- |
+| Candidate construction | Host `define` and existing graph construction; not SHEAR-VM-complete | Host `define` demonstrated for one edit | Integrated compiler/candidate pipeline – Tasks 30–31 |
+| Trial and isolated candidate execution | Host trial service exists; VM `TRIAL` missing | Candidate admitted execution demonstrated, not `trial` semantics | Trial isolation, effects and rejection – Task 31 |
+| Activation | `swap_all` uses host activation and replaces semantic function definitions | Host activation demonstrated externally; admission does not itself activate | Canonical-source-preserving transition – Task 31 |
+| Rejection and errors | Host guards and exceptions; VM lacks catchable-error instructions | Rejects invalid admission and missing artifacts; no general language error route | Complete failure categories and handler behavior – Task 31 |
+| Continuity across edits | Host transformation/matching services exist | State/version-bound registry rejects stale chunks; no continuity transfer | Mapping, cache reuse and dependency invalidation – Task 31 |
+| Held frames and in-flight code | Host machine holds versions; VM source/version correspondence is not fully verified | Uses held machine state for chunk lookup; no concurrent activation witness | Prove old/new frame behavior and routing – Task 31 |
+| Closures | VM closure subset implemented, with representation distinct from host closures | No admitted closure execution | Capture, application and retirement semantics – Task 31 |
+| Retirement and lifetime | Host runtime retires versions; wrapper/VM artifact lifetime is not integrated | No artifact-retirement or registry cleanup protocol | Hold-aware artifact lifecycle – Task 31 |
+
+Only the stated narrow behaviors were exercised in Task 29. The table is an inventory, not an assertion that any route supports live evolution end-to-end.
+
+### 11.10. Costly-to-change provisional interfaces
+
+**Instruction set and operand conventions.**
+
+- **Route A:** Depends on the SHEAR interpreter's expanded instruction format and its partial operation table. Adding full instruction support means changing the embedded compiler and interpreter, including stack, error, effect and tail-position handling. Its use of host `applyv` for references also requires deliberate transitive routing changes.
+- **Route B:** Depends directly on host per-node chunks, `EVAL` child `EntityID`s, typed operands, instruction ordering, and the machine's cursor conventions. Each instruction extension changes both the SHEAR compiler and host admission rules.
+- **Reversal cost:** Once large programs compile against either format, migration affects compiler output, verifier/admission behavior, executable caches, runtime dispatch and regression fixtures. Route B makes the host chunk ABI a particularly important compatibility surface; route A makes the interpreted instruction vocabulary important.
+- **Open owner decision:** Whether the provisional host instruction set is the durable common IR or whether a versioned, route-independent executable IR should precede Task 30. No new instruction semantics are decided here.
+
+**The semantic version observed by `code`.**
+
+- **Route A:** The existing wrapper path reflects active compiler wrappers while source twins carry the original program. A wrapper-free route needs a clear rule for whether reflection uses active state or the version held by the calling frame; otherwise a compiler may inspect a different definition from the one executing.
+- **Route B:** Admission and execution are bound to the held node's version, but `code` itself remains the existing host operation. Reflection and compilation could disagree if `code` reads active definitions while an in-flight call continues on a held version.
+- **Reversal cost:** Changing active versus held/caller-version semantics later alters compiler dependencies, cache invalidation, continuity following, closure behavior, recursive compilation and observable results under activation.
+- **Open owner decision:** Keep today's active-version `code` view, adopt a held/caller-version view, or introduce an explicit version-selection facility. Task 29 changes none of them; D4 and subsequent language review must settle the policy before depending on it.
+
+**Node identities in compiler output.**
+
+- **Route A:** Existing recursively expanded chunks do not preserve the same per-node execution boundaries as the canonical graph. Making this route source-preserving requires an identity/dependency map outside expanded bytecode, or a revised interpreter representation retaining node references.
+- **Route B:** The tested per-node chunks contain actual child and linked-function `EntityID`s. Version checks and executable artifacts remain external; this supports precise invalidation and trace correlation without replacing semantic definitions.
+- **Reversal cost:** Moving between expanded children, semantic `EntityID`s and opaque execution references changes compiler APIs, dependency tracking, artifact identity, caching, continuity transfer and reproducibility. Per-function expansion would also widen invalidation after node edits.
+- **Open owner decision:** Retain explicit semantic node IDs in derived chunks, adopt opaque version-pinned references, or use expanded child chunks with a separately maintained provenance map. No new program-visible node-identity exposure is authorized by this spike.
+
+### 11.11. Recommendation and remaining decisions
+
+**Recommendation to the owner – conditional preference for route B as the Task 30 architecture, not a D3 decision.**
+
+Route B has a demonstrated narrow trust and source-preservation boundary, precise per-node output and an explicit admitted-execution trace. It avoids route A's current source-wrapper violation and better matches the existing per-node identity model. However, it **failed P4 by a large margin**, cannot yet rebuild the compiler, and relies on temporary global machine interception. Its performance and completeness do not justify accepting it as production machinery now.
+
+Route A demonstrates three actual compiler rebuild generations but continues to replace active semantic source and contains host-delegated execution paths. Its wrapper-free form is a proposed design rather than observed behavior. It remains useful as a separate compiler/VM correctness reference and a competing D3 option.
+
+For a route-B Task 30 plan, prioritize a reusable compiler runtime, persistent state/version-bound admission, full operation coverage, and an integrated machine routing boundary. Measure cold and warm costs again without changing the fixed Task 29 P4 result. For route A, require a concrete source-preserving dispatcher and transitive VM-only execution account before it can satisfy the canonical-source gate.
+
+The owner must still decide D3 (execution route), D4 (hosted workload and permitted host boundary), the provisional budgets, and the costly-to-change language/IR interfaces above. The present spike supplies evidence for those decisions but makes none of them.
+
+Task 30 must also remove, replace or explicitly promote `shear/execution_route_spike.py`, including an explicit mutation-testing decision. Task 31 remains responsible for the live-evolution mechanisms identified in W2. Independent Review must verify the implementation, trust assumptions, trace coverage, timings, Plan-file integrity and scope boundaries before Publish.

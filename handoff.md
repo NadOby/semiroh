@@ -5,89 +5,115 @@ repository. Read `CLAUDE.md` and `docs/roadmap.md` first.
 
 ## State
 
-- Task 28, issue #64: Plan recorded; CI verification pending.
+- Task 28, issue #64: revised Plan complete; CI verification pending.
 - Branch: `task/28-bootstrap-boundary`.
 - Base `main`: `081ba0d0882e9c02906a3f6a4081f77d2907e897`.
-- Plan-owned specification and test baseline:
-  `265bb6cdfac988d0363fffcadf572ce2558ad13c`.
-- Subsequent handoff commits change only this checkpoint.
-- No production code or golden-record changes.
-- No CI success is claimed.
+- Revised Plan baseline:
+  `6cb59dd1565f58aaad5f182d98475385fced6579`.
+- Original Plan baseline: `265bb6c`; superseded after review.
+- No production-code or golden-record changes.
+- No PR opened. No green CI result independently verified.
 
-## Plan contract
+## Deliverables
 
-`docs/bootstrap.md` defines the four-route support matrix and the
-proposed host-service inventory. `tests/test_bootstrap_boundary.py`
-contains the Plan-owned acceptance tests, registered in the
-`cross-boundary` lane by `tests/lanes.py`.
+- `docs/bootstrap.md`: operation support matrix across host lowering,
+  host execution, SHEAR lowering and SHEAR-VM execution.
+- `docs/bootstrap.md`: host-service inventory with contracts,
+  implementations, proposed allowances, reported rebuild observations
+  and existing verification references.
+- `tests/test_bootstrap_boundary.py`: Plan-owned acceptance tests.
+- `tests/lanes.py`: registration in the `cross-boundary` lane.
+- `CHANGES.md`: initial Plan entry and review corrections.
+
+Task 28's specified deliverables are documentation and acceptance
+tests. No production implementation is required to complete this task.
+
+## Plan review and corrections
+
+An external review of the original Plan found:
+
+- P1: noncanonical status markers failed `test_docs`.
+- P2: acceptance criteria claimed checks the tests did not perform.
+- P3: a host-lowering mock was not an effective provenance guard.
+- P3: `unquote` support needed an explicit instruction-level definition.
+- D4 limitation: observed and proposed host services were conflated;
+  ownership and host-lowered program wrappers needed recording.
+- P3: D3/D4 were restated inconsistently with the roadmap.
+- P3: an unrelated variable-name change entered `tests/lanes.py`.
+
+The revised Plan addresses these findings in its specification,
+tests, lane registration and changelog. Those changes have been
+committed but not independently certified by CI or final Review.
+
+## Accepted scope and limitations
 
 The matrix distinguishes supported, rejected and deferred operations.
-Supported routes are grounded in implementation dispatch. Deferred
-routes must fail explicitly rather than silently use host compilation
-or execution.
+Supported entries follow the current dispatch implementations.
 
-The `unquote` exception matters: its host-lowered `GOTO` instruction
-is understood by the SHEAR VM, but the SHEAR compiler does not lower
-`unquote`. Interpreter `CALL` may delegate to host-compiled linked
-functions. Neither property proves an end-to-end host-independent
-pipeline.
+SHEAR lowering cannot compile `quote`, `unquote`, `function`,
+`activate`, `trial`, `catch` or `raise`. Deferred lowering currently
+produces a generic explicit failure.
 
-The host inventory separates existing services from prospective
-task-30 needs, and permitted runtime services from compiler fallback.
-Python remains the hosted execution substrate.
+The SHEAR VM understands the `GOTO` instruction produced by host
+lowering of `unquote`, but cannot execute a complete valid
+quote/unquote expression. Its support classification is at the
+instruction level.
 
-## Execution boundaries
+Interpreter `CALL`, and `APPLY`/`APPLYV` on references, can invoke
+installed host-executed functions. The current rebuild also involves
+host-lowered program wrappers. Task 28 does not prove an entirely
+SHEAR-compiled execution path.
 
-- Validate the acceptance tests through GitHub CI. Do not claim
-  validation from source inspection alone.
-- If an acceptance test is incorrect or contradicts the implementation,
-  return the discrepancy to Plan before changing that test.
-- Preserve the existing semantic graph, identity, continuity,
-  activation, runtime-cell and derived-bytecode contracts.
-- Retain explicit failures for deferred operations and for interpreter
-  instructions outside its supported subset.
-- Ensure unsupported routes never silently invoke a host implementation.
-- Preserve task-27 rebuild provenance checks for compiler source twins
-  in generations 2 and 3.
-- Do not change golden records or production semantics for task 28.
-- Do not implement task 29, task 30 or task 31 in this change.
+The tests check matrix completeness, dispatch and lowering behavior,
+explicit failure results, VM traps, specific invalid-code diagnostics,
+and inventory structure. They do not verify complete transitive
+producer provenance or every implementation reference.
 
-## Open decisions
+The existing task-27 tests provide a narrower provenance check for
+retained compiler source twins. Task 30 owns full pipeline provenance.
 
-- D3: execution by the SHEAR VM versus verified host execution of
-  compiler-produced chunks. Task 29 must supply evidence and define
-  any non-forgeable admission rule.
-- D4: final bootstrap workload, permitted host services and measured
-  budget. Owner approval is required before fixing this boundary.
-- Whether VM support means an individual instruction or complete
-  transitive execution must remain explicit; this Plan uses the
-  instruction-level meaning.
-- Generic `RAISE "unknown operation"` for deferred SHEAR lowering is
-  recorded current behavior, not an approved final diagnostic design.
+## Decisions
 
-## Review targets
+- D3 remains open: execution route for compiler-produced chunks,
+  addressed by task 29.
+- D4 remains open: hosted-bootstrap workload, host-service boundary,
+  and rebuild-time and edit-to-activation budgets.
+- `docs/roadmap.md` is authoritative for both decisions.
+- Task 28 does not change language semantics, golden records,
+  bytecode admission, or permitted runtime authority.
 
-Independently verify every matrix row against implementation, the
-status of `invalid`, the `unquote` exception, the unsupported-opcode
-trap, and whether `CALL` introduces undeclared host execution.
+## Verification and Review
 
-Check that host-fallback guards are sensitive to a plausible
-regression and that the service inventory distinguishes observed
-calls, proposed allowances and verification evidence.
+CI is the only execution platform for this workflow. Confirm that the
+current branch's checks pass before treating the Plan as validated.
+The earlier review reported ten passing new tests but a failing
+`cross-boundary` lane on the original specification; those results
+do not establish that the revised Plan passes.
 
-For Plan-owned specifications and tests, compare Execute's head with
-the Plan baseline `265bb6cdfac988d0363fffcadf572ce2558ad13c`.
-Any later change requires explicit justification and Plan approval
-where it changes acceptance semantics.
+An independent Review should:
+
+- Recheck every matrix row against implementation behavior.
+- Verify the status-marker fix and all CI results.
+- Check the revised tests against the exact claims in section 4.
+- Inspect the `invalid` and `unquote` exceptions.
+- Confirm that host-execution delegation is documented accurately.
+- Check the observed-versus-proposed host-service distinction.
+- Ensure `tests/lanes.py` changes only lane membership.
+- Verify no production or golden-record changes were introduced.
+
+Use `6cb59dd1565f58aaad5f182d98475385fced6579`
+as the revised Plan baseline. This handoff update changes only
+the checkpoint and does not supersede that baseline.
 
 ## Next
 
-Start Execute task 28 in a separate fresh chat, using this branch
-and the recorded Plan baseline.
+Verify CI for the current branch. Start independent Review task 28
+in a fresh chat, using the revised Plan baseline.
 
-Verify the implementation through CI. Open the PR against `main`
-after Execute is complete. Independent Review follows the
-implementation and CI verification.
+If Review finds a Plan-owned defect, return it to Plan rather than
+silently changing acceptance criteria.
 
-Do not claim Task 28 implemented or issue #64 complete on the basis
-of this Plan alone.
+After acceptance, Publish can open the PR against `main`.
+Do not open a PR solely to start an unnecessary Execute phase.
+
+Issue #64 remains open until publication is completed.

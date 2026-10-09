@@ -5,49 +5,87 @@ repository. Read `CLAUDE.md` and `docs/roadmap.md` first.
 
 ## State
 
-- Task 23, issue #60: Publish, awaiting owner merge.
-- Branch: `task/23-content-baseline`.
-- PR: https://github.com/NadOby/shear/pull/88
-- Independent adversarial Review: accepted at `3e757c2`.
-- Revised Plan baseline: `564203e`.
-- Roadmap status: **Implemented** (PR #88).
-- PR includes `Closes #60`.
-- No production semantic changes or golden-record changes.
+- Task 28, issue #64: Plan recorded; CI verification pending.
+- Branch: `task/28-bootstrap-boundary`.
+- Base `main`: `081ba0d0882e9c02906a3f6a4081f77d2907e897`.
+- Plan-owned specification and test baseline:
+  `265bb6cdfac988d0363fffcadf572ce2558ad13c`.
+- The subsequent handoff commit changes only this checkpoint.
+- No production code or golden-record changes.
+- No CI success is claimed.
 
-## Review disposition
+## Plan contract
 
-All four previous P2 findings were resolved and independently accepted:
+`docs/bootstrap.md` defines the four-route support matrix and the
+proposed host-service inventory. `tests/test_bootstrap_boundary.py`
+contains the Plan-owned acceptance tests, registered in the
+`cross-boundary` lane by `tests/lanes.py`.
 
-- F1: direct conversion mechanisms inventoried separately.
-- F2: relationships grounded in source; uncertainty preserved.
-- F3: edit timing excludes pre-activation verification execution.
-- F4: six deterministic correctness-guard tests added through Plan.
+The matrix distinguishes supported, rejected and deferred operations.
+Supported routes are grounded in implementation dispatch. Deferred
+routes must fail explicitly rather than silently use host compilation
+or execution.
 
-The accepted limitations are bounded inventory coverage,
-function-level relationship evidence, route-specific host-fallback
-instrumentation, and single-environment measurements. These are
-not blocking defects.
+The `unquote` exception matters: its host-lowered `GOTO` instruction
+is understood by the SHEAR VM, but the SHEAR compiler does not lower
+`unquote`. Interpreter `CALL` may delegate to host-compiled linked
+functions. Neither property proves an end-to-end host-independent
+pipeline.
 
-## Evidence
+The host inventory separates existing services from prospective
+task-30 needs, and permitted runtime services from compiler fallback.
+Python remains the hosted execution substrate.
 
-- Original helper-call inventory: 140 static sites.
-- Direct mechanism inventory: 22 mechanisms, 12 relationships.
-- Corrected native `lower(lower)` median: 0.037135609 s.
-- Corrected SHEAR-VM median: 5.263811208 s.
-- Corrected small-edit latency: 0.000510425 s.
-- Diagnostic run:
-  https://github.com/NadOby/shear/actions/runs/37912552583
-- Final roadmap-update PR CI:
-  https://github.com/NadOby/shear/actions/runs/37920260712
+## Execution boundaries
 
-Complete measurements and limitations are recorded in
-`docs/content_baseline.md`. The original evidence is preserved.
+- First validate the acceptance tests through GitHub CI. Do not claim
+  validation from source inspection alone.
+- If an acceptance test is incorrect or contradicts the implementation,
+  return the discrepancy to Plan before changing that test.
+- Preserve the existing semantic graph, identity, continuity,
+  activation, runtime-cell and derived-bytecode contracts.
+- Retain explicit failures for deferred operations and for interpreter
+  instructions outside its supported subset.
+- Ensure unsupported routes never silently invoke a host implementation.
+- Preserve task-27 rebuild provenance checks for compiler source twins
+  in generations 2 and 3.
+- Do not change golden records or production semantics for task 28.
+- Do not implement task 29, task 30 or task 31 in this change.
+
+## Open decisions
+
+- D3: execution by the SHEAR VM versus verified host execution of
+  compiler-produced chunks. Task 29 must supply evidence and define
+  any non-forgeable admission rule.
+- D4: final bootstrap workload, permitted host services and measured
+  budget. Owner approval is required before fixing this boundary.
+- Whether VM support means an individual instruction or complete
+  transitive execution must remain explicit; this Plan uses the
+  instruction-level meaning.
+- Generic `RAISE "unknown operation"` for deferred SHEAR lowering is
+  recorded current behavior, not an approved final diagnostic design.
+
+## Review targets
+
+Independently verify every matrix row against implementation, the
+status of `invalid`, the `unquote` exception, the unsupported-opcode
+trap, and whether `CALL` introduces undeclared host execution.
+
+Check that host-fallback guards are sensitive to a plausible
+regression and that the service inventory distinguishes observed
+calls, proposed allowances and verification evidence.
+
+For Plan-owned specifications and tests, compare Execute's head with
+the Plan baseline `265bb6cdfac988d0363fffcadf572ce2558ad13c`.
+Any later change requires explicit justification and Plan approval
+where it changes acceptance semantics.
 
 ## Next
 
-The owner reviews and merges PR #88, or requests changes.
+Commit this checkpoint, then open a PR against `main` to obtain CI
+results. Keep the task in Plan until those results and any required
+Plan corrections are recorded. Execute and independent Review belong
+in separate fresh contexts.
 
-After merging, verify that PR #88 is merged, issue #60 is closed,
-and `main` contains the task. Then select the next roadmap task.
-
-Do not reopen Task 23 without new verified evidence.
+Do not claim Task 28 implemented or issue #64 complete on the basis
+of this Plan alone.

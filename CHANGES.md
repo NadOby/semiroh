@@ -1595,3 +1595,28 @@ the answer held.
   and runner. The image proxy is not an executable-image measurement.
 - No production semantic change or content refactor was made.
   Consolidation and execution-route decisions remain separate tasks.
+
+## 2026-10-09
+
+### Hosted bootstrap boundary (#64)
+
+- Added `docs/bootstrap.md`, classifying all 32 graph operations
+  across host lowering, host execution, SHEAR lowering and SHEAR-VM
+  execution as supported, rejected or deferred.
+- Added acceptance tests for dispatch coverage, lowering agreement,
+  explicit rejection, unsupported VM instructions and inventory
+  structure in `tests/test_bootstrap_boundary.py`, registered in
+  the `cross-boundary` CI lane.
+- Inventoried Python host services with their contracts,
+  implementations, proposed D4 allowances, verification references
+  and reported usage during compiler rebuild.
+- Documented instruction-level `unquote` support, native execution
+  delegation through `CALL`, `APPLY` and `APPLYV`, and the distinction
+  between fixed interpreter machinery and host-lowered program code.
+- Recorded how to reproduce the reported rebuild lowering trace,
+  including 16 `code` nodes and four `linksof` nodes.
+- Confirmed the matrix and inventory as inputs to decisions D3 and D4.
+  Complete transitive execution provenance and prevention of host
+  fallback for executed program code remain requirements of later tasks.
+- Preserved production semantics and golden records. The ordinary CI
+  suite and golden comparison passed on the accepted Plan baseline.

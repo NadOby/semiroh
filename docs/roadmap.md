@@ -774,7 +774,7 @@ time and peak memory per generation are recorded.
 
 ### 28. Bootstrap boundary (one session)
 
-**Planned.** Issue #64.
+**Implemented** (PR #90).
 
 For every operation in `shear/operations.py`, a bootstrap matrix declares
 its status on four routes, host lowering, host execution, SHEAR lowering and

@@ -10,7 +10,7 @@ repository. Read `CLAUDE.md` and `docs/roadmap.md` first.
 - Base `main`: `081ba0d0882e9c02906a3f6a4081f77d2907e897`.
 - Plan-owned specification and test baseline:
   `265bb6cdfac988d0363fffcadf572ce2558ad13c`.
-- The subsequent handoff commit changes only this checkpoint.
+- Subsequent handoff commits change only this checkpoint.
 - No production code or golden-record changes.
 - No CI success is claimed.
 
@@ -38,7 +38,7 @@ Python remains the hosted execution substrate.
 
 ## Execution boundaries
 
-- First validate the acceptance tests through GitHub CI. Do not claim
+- Validate the acceptance tests through GitHub CI. Do not claim
   validation from source inspection alone.
 - If an acceptance test is incorrect or contradicts the implementation,
   return the discrepancy to Plan before changing that test.
@@ -82,10 +82,12 @@ where it changes acceptance semantics.
 
 ## Next
 
-Commit this checkpoint, then open a PR against `main` to obtain CI
-results. Keep the task in Plan until those results and any required
-Plan corrections are recorded. Execute and independent Review belong
-in separate fresh contexts.
+Start Execute task 28 in a separate fresh chat, using this branch
+and the recorded Plan baseline.
+
+Verify the implementation through CI. Open the PR against `main`
+after Execute is complete. Independent Review follows the
+implementation and CI verification.
 
 Do not claim Task 28 implemented or issue #64 complete on the basis
 of this Plan alone.

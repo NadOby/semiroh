@@ -8,7 +8,7 @@ Read `CLAUDE.md`, the Workflow and task 29 sections of `docs/roadmap.md`, and th
 - Role: Plan – final revised contract; Execute next.
 - Branch: `task/29-execution-route`.
 - Base `main`: `dbe92c6e6450db479d22a203011f9c974ba00089`.
-- Protected Plan baseline: `bd114538782c7816f84464430c56a2d1be9046ce`.
+- Protected Plan baseline: `deb03aa3ffc198df8e19fa14da59db904f879a1b`.
 - This handoff commit follows that baseline. Execute must verify the final branch head and ancestry.
 - D3 and D4: Open. No permanent execution-route or language decision.
 - No production changes, golden changes or PR.
@@ -37,6 +37,8 @@ The sole authorized new Python implementation module is:
 It contains the experimental host boundary and the node-aware compiler expressed as SHEAR `Function` data.
 
 The SHEAR compiler must genuinely execute. Python may construct descriptors and observe the returned result, but must not perform lowering attributed to the SHEAR compiler.
+
+Generic, opcode-independent decoding of the complete canonical compiler result is permitted, including reconstruction of typed entity and version identifiers. Python must not synthesize or modify instructions during decoding.
 
 Provisional API:
 
@@ -120,7 +122,7 @@ For each, compare both routes, reversibility costs and unresolved owner choices.
 
 ## Independent Review
 
-Review is a separate, read-only role. It must fetch the implementation head and compare all Plan-owned files against `bd114538782c7816f84464430c56a2d1be9046ce`.
+Review is a separate, read-only role. It must fetch the implementation head and compare all Plan-owned files against `deb03aa3ffc198df8e19fa14da59db904f879a1b`.
 
 Independently examine:
 
@@ -145,4 +147,4 @@ Do not open a PR before accepted independent Review and the necessary owner deci
 
 Start `Execute task 29` in a fresh chat after verifying this handoff commit.
 
-Follow the owner's mobile GitHub editing protocol: read-only tools, complete copyable file content, one file and commit at a time, confirmation by `Done`, and independent verification after each commit. No terminal dependency.
+Follow the owner's mobile GitHub editing protocol: read-only tools, copyable content appropriate to the edit type, one file and commit at a time, confirmation by `Done`, and independent verification after each commit. No terminal dependency.

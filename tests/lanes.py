@@ -224,6 +224,9 @@ def run_all(
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         pending = {pool.submit(timed, lane): lane for lane in lanes}
+
+        # Print each lane as soon as it finishes, so a lane that hangs until
+        # the job times out does not hide the output of the others.
         for future in as_completed(pending):
             lane = pending[future]
             code, output, seconds = future.result()

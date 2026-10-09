@@ -1,94 +1,115 @@
 # Handoff
 
-Compact current state for the next chat. This is a checkpoint of claims,
-not evidence: verify against the repository. Read `CLAUDE.md` and
-`docs/roadmap.md` first.
+Compact checkpoint for the next chat. Claims are not evidence: verify
+against the repository. Read `CLAUDE.md` and `docs/roadmap.md` first.
 
 ## State
 
-- Task 23, issue #60, is awaiting Resolve after independent Review.
+- Task 23, issue #60, has completed Resolve and awaits fresh
+  independent Review.
 - Branch: `task/23-content-baseline`.
 - Original Plan baseline: `c4a4bcc`.
-- Execute head reviewed: `e680a17`.
-- Revised Plan acceptance-test baseline: `564203e`.
+- Revised Plan baseline: `564203e`.
+- Previous reviewed implementation: `d138aa3`.
+- Latest Resolve documentation commit: `fff6d07`.
 - No task PR has been opened.
 
-## Independent Review
+## Review findings and disposition
 
-Review of `e680a17` requested changes: four P2 findings.
+The previous independent Review reported four P2 findings.
 
-- F1 – Incomplete inventory. The 140-site helper-call inventory omits
-  direct mechanisms including `lang._Builder._relation` and
-  `Relation.canonical_node`. Preserve the helper count and inventory
-  the additional mechanisms with explicit exclusions.
-- F2 – Duplication relationships are insufficiently evidenced.
-  Generic overlap text and name-based classifications cannot establish
-  whether sites duplicate content, reconstruct a representation, or
-  reuse a cache. Ground mechanism-pair classifications in source and
-  explicitly mark unresolved relationships.
-- F3 – Small-edit latency includes a pre-activation correctness run.
-  Move this check outside the measured interval, preserve the assertion,
-  and rerun CI diagnostics.
-- F4 – Plan acceptance tests lacked independent negative checks of the
-  measurement runner's correctness guards. Return to Plan.
+- F1 – Incomplete conversion inventory. Addressed by adding
+  `tests/content_baseline_evidence.py` and integrating its
+  source-anchored mechanisms into `tests/content_baseline.py`.
+  The original helper-call count remains separate.
+- F2 – Unsupported duplication classifications. Addressed with
+  named mechanism relationships, source-linked call-site evidence,
+  explicit uncertainty statuses and exclusions. No site is declared
+  redundant merely because its mechanism overlaps another.
+- F3 – Edit-latency measurement included verification execution.
+  Corrected the timer boundaries in
+  `tests/content_baseline_measure.py`, retaining the correctness
+  assertion and regenerating the measurements.
+- F4 – Missing independent acceptance tests for measurement
+  correctness. Resolved through Plan amendment `564203e`.
+  Six deterministic negative and control tests use mocked runtimes
+  without running benchmarks in ordinary CI.
 
-Non-blocking limitations: diagnostic size, host-derived chunk terminology,
-limited host-fallback provenance, and single-environment evidence.
+These are Resolve dispositions, not independent Review acceptance.
+No production semantic code or golden records were changed.
 
-## Plan amendment for F4
+## Verified CI evidence
 
-Commit `564203e` extends the Plan-owned
-`tests/test_content_baseline.py` with deterministic negative tests for:
+- Revised Plan CI:
+  https://github.com/NadOby/shear/actions/runs/37902162561
+- Resolve diagnostic revision:
+  `375076fa6da98656efbd0fe0179a312e8fb981d0`
+- Dispatched diagnostic:
+  https://github.com/NadOby/shear/actions/runs/37912552583
+- Diagnostic artifact ID: `11606884068`.
+- Latest documentation CI:
+  https://github.com/NadOby/shear/actions/runs/37916798393
 
-- Both routes using the same compiler source.
-- Retained compiler-source agreement.
-- Installation of the VM compiler wrapper.
-- Generation-1 provenance.
-- Structural output equality.
-- Rejection of host lowering of retained compiler source.
+All listed runs passed. The diagnostic artifact contains
+`content-inventory.json` and `content-baseline.json`.
 
-Tests use mocked runtimes and do not run performance measurements.
+The updated inventory contains:
 
-CI: https://github.com/NadOby/shear/actions/runs/37902162561
+- 140 static helper-call sites: 127 direct, 13 recursive.
+- 22 separately recorded conversion mechanisms.
+- 12 named mechanism relationships and five exclusions.
+- 38 source-linked call sites; 102 with unresolved overlap.
+- 20 source-supported semantic-necessity classifications;
+  120 unresolved.
+- 2 source-supported retained results, 17 conditional cache
+  cases, 53 potential reconstructions and 68 unresolved.
 
-The original five acceptance tests remain. F4's acceptance-contract gap
-is addressed; the revised Plan baseline is now `564203e`. The
-implementation must preserve these tests during Resolve.
+These are source-level classifications, not measured numbers of
+redundant conversions.
 
-## Prior Execute evidence
+The corrected diagnostic reports:
 
-- Diagnostic revision: `9b5f922`.
-- Diagnostic run:
-  https://github.com/NadOby/shear/actions/runs/37763237141
-- Results recorded in `docs/content_baseline.md` section 5.
-- Original measured `lower(lower)` medians: 0.03619 s native,
-  5.12615 s through the SHEAR VM.
-- Structural output equality, traced allocation peaks, chunk counts,
-  state-content proxy and small edit were recorded.
-- No production semantic code or golden records changed.
+- Native `lower(lower)` median: 0.037135609 seconds.
+- SHEAR-VM median: 5.263811208 seconds.
+- Complete compiler outputs structurally equal.
+- Traced allocation peaks: 212,392 and 1,355,751 bytes.
+- Compiler output: 123,643 canonical serialized bytes.
+- Host-derived graph-node chunks: 1,858, totaling 915,986
+  serialized bytes.
+- State-content proxy: 988,970 bytes.
+- Corrected small-edit total: 0.000510425 seconds.
+- Before/after edit results: 4 and 5, with separate activation.
 
-These observations are not substitutes for independently resolving
-the Review findings.
+Full raw observations, hardware, definitions and limitations are
+in `docs/content_baseline.md` sections 5.7–5.11. Sections 5.1–5.6
+preserve the original diagnostic evidence.
 
-## Resolve contract
+## Independent Review requirements
 
-Resolve F1–F3 individually, using the smallest valid changes.
+Start Review from current `main`, the task branch, the issue and the
+amended Plan baseline. Independently verify:
 
-- Do not change production semantics or weaken Plan acceptance tests.
-- Keep the original 140 helper-call sites distinguishable from newly
-  inventoried conversion mechanisms.
-- Record concrete representation relationships and unresolved cases.
-- Correct the edit-latency measurement boundary without removing
-  correctness assertions.
-- Update affected results and limitations in section 5 of the spec.
-  Preserve the original run as historical evidence.
-- Run ordinary CI and dispatch a fresh diagnostic after the fixes.
-- Record fixes, rebuttals and unresolved findings here.
+- Completeness and accuracy of the bounded mechanism inventory.
+- AST source anchors, call-site classifications and specific
+  mechanism-pair evidence.
+- That uncertain relationships remain explicitly unresolved.
+- Preservation of revised Plan acceptance tests.
+- Corrected edit timing boundaries and retained assertions.
+- Artifact provenance, measurement definitions and reported numbers.
+- Absence of production semantic changes and golden-record changes.
+
+Prior non-blocking limitations remain: diagnostic size, bounded
+inventory coverage, limited fallback instrumentation, host-derived
+chunk terminology and single-environment measurements.
+
+Classify any new observations as verified defects, limitations,
+hypotheses or documentation drift. Resolve fixes require another
+independent Review.
 
 ## Next
 
-Start a fresh Resolve task 23 context, reading the independent Review,
-current source, revised Plan tests, and original measurements.
+Start a fresh **Review task 23** context.
 
-After Resolve, conduct another independent Review. Publish remains
-blocked until that Review accepts the final implementation.
+Publish remains blocked until independent Review accepts the
+implementation. After acceptance, Publish verifies current `main`,
+the final diff and CI, then prepares a PR with `Closes #60`.

@@ -1,218 +1,98 @@
+
 # Handoff
 
-Read `CLAUDE.md`, the Workflow and task 29 sections of `docs/roadmap.md`, and `docs/spikes/execution_route.md`. Verify all claims against GitHub; this checkpoint is not independent evidence.
+Read `CLAUDE.md`, the Workflow and task 29 sections of `docs/roadmap.md`, and `docs/spikes/execution_route.md`. Independently verify repository claims rather than treating this checkpoint as evidence.
 
-## State
+## Current state
 
 - Task: 29, execution-route spike, issue #65.
-- Role: Resolve documentation corrections complete; independent re-review next.
+- Role: Publish, following accepted independent Review and the owner's D3 decision.
 - Branch: `task/29-execution-route`.
-- Last verified Resolve head before this handoff: `cc4d6df5382d73023e9c37e3496ddc18cce3fb8a`.
-- Execute handoff commit: `e5e4d7724320e00dcb72615874195ed6488cd662`.
+- Last checked branch head: `71e046e2ff2a84b90b503f5957c39b134659a33f`.
+- Last checked `main`: `dbe92c6e6450db479d22a203011f9c974ba00089`.
+- Branch is ahead of `main`, not behind it.
 - Protected Plan baseline: `deb03aa3ffc198df8e19fa14da59db904f879a1b`.
-- Base `main` at Plan: `dbe92c6e6450db479d22a203011f9c974ba00089`.
-- D3 and D4: Open. No permanent execution-route or language decision.
-- No PR. No golden changes. No changes to Plan-owned acceptance tests.
+- Tested Execute revision: `6ebbc698c881528b53b37c63b5b090f82eb4a037`.
+- Final documentation Resolve commits: `9508ec1989e3d7296e3f6967bd3b4a2ce85de2bb` and `cc4d6df5382d73023e9c37e3496ddc18cce3fb8a`.
+- Final pre-Publish handoff commit: `71e046e2ff2a84b90b503f5957c39b134659a33f`.
+- The owner reports that the final independent Review accepted the corrected state, with no further Resolve required.
+- No PR has been opened for task 29.
 
-The next reviewer must fetch the current branch head rather than assume the recorded head is still current.
+## Owner decision – D3
 
-## Plan integrity
+**Decided:** Use a hybrid execution architecture.
 
-The protected Plan established the contract in:
+1. The primary hosted execution route is B: the existing host machine executes authenticated, SHEAR-compiled per-node derived artifacts with provenance and a fail-closed admission boundary.
+2. Retain the SHEAR-written VM as an alternative implementation, independent correctness reference and possible bootstrap component.
+3. This selects an architecture, not the experimental route-B implementation or its performance.
+4. The semantic hypergraph remains canonical. Executable representations are derived artifacts and never replace the semantic definitions.
+5. The current Python executor, bytecode encoding, verifier, artifact cache and hashing algorithms are replaceable implementation choices. Changes must preserve semantics, required integrity properties, identities, provenance, activation and version-lifetime contracts.
+6. Preserve the possibility of runtime coexistence and live replacement of implementations. No particular migration mechanism is decided by D3.
 
-- `docs/spikes/execution_route.md` – sections 1–10, predictions and role gates.
-- `tests/test_execution_route.py` – 18 behavioral acceptance tests.
-- `tests/lanes.py` – registration under `cross-boundary`.
-- `tests/mutation_catalog.py` – explicit temporary omission of the spike module.
+**Long-term direction, not task-30 scope:** Native execution on Linux using LLVM as the initial machine-code producer. The SHEAR VM may itself be compiled to native code. A custom MLIR dialect is optional, not selected. Native compilation and removal of Python remain later milestones.
 
-Execute populated section 11 of the spike specification. The first Resolve pass corrected nine lines in section 11; the second corrected one additional line in section 11.2.
+**Open:** D4, the hosted-bootstrap workload and permitted host boundary, must be settled before task 30 planning. Instruction-set/IR conventions, the semantic version observed by `code`, and node identities exposed by compiler output remain provisional or open. No additional language semantics are decided here.
 
-Sections 1–10 remained byte-for-byte unchanged through Resolve. The acceptance tests, lane registration and mutation-catalog omission remain unchanged from the protected Plan baseline.
+## Verified Task 29 evidence
 
-No `tests/golden_changes/GH-65.txt` is authorized.
+The Plan contract is `docs/spikes/execution_route.md` sections 1–10, with 18 Plan-owned behavioral acceptance tests in `tests/test_execution_route.py`. The Plan-owned test expectations, lane registration and mutation-catalog omission were preserved through Execute and Resolve.
 
-## Implementation
+The complete experimental report and its caveats are in section 11 of the spike specification. Its pre-decision recommendation and the Plan's owner-decision gate are historical evidence, not a reversal of the subsequent owner decision recorded above.
 
-The sole new implementation module is `shear/execution_route_spike.py`.
+Route A completed compiler rebuild generations 1, 2 and 3, with median swap times of 0.204083 s, 7.415722 s and 7.465605 s. The implemented route still installs literal-chunk wrappers instead of preserving active canonical source. Its wrapper-free alternative was proposed, not implemented. Route A did not execute the route-B linked-call witness.
 
-It provides the provisional API:
+Route B demonstrated authentic SHEAR compilation, admission and host execution of per-node artifacts for `lit`, `arg`, `add` and `call`. Its linked-call witness returned `7`, as did ordinary host execution. This does not demonstrate full operation coverage or a compiler rebuild: the attempted route-B rebuild stopped at generation 0 on unsupported `swap_all/0.0`.
 
-    produce(runtime, entity) -> (chunk, evidence)
-    admit(state, entity, version, chunk, evidence) -> admitted
-    run_admitted(runtime, entry, *args) -> result
-    trace(runtime) -> tuple[RouteEvent, ...]
-    AdmissionRejected
+The prespecified P4 performance prediction failed:
 
-The node-aware compiler is expressed as SHEAR `Function` data and invoked through the ordinary SHEAR runtime. Python supplies a semantic node descriptor, observes the returned artifact and generically decodes canonical values, including typed identifiers.
+- Cold route B median: 9.873980 ms.
+- Cold ordinary host median: 0.055123 ms.
+- Cold ratio: 179.126317, against the predicted maximum of 10.
+- Warm route B execution median: 0.639887 ms.
+- Warm ordinary host execution median: 0.022001 ms.
 
-Supported kinds are `lit`, `arg`, `add` and `call`. The compiler emits per-node host chunks containing child `EntityID` references.
+The dominant measured cold production component includes compiler-runtime initialization and compilation, but the diagnostic did not measure those subcomponents separately. No optimization benefit has yet been demonstrated. The Route A rebuild and Route B linked-call timings are different workloads and are not directly comparable.
 
-Host admission uses opaque producer evidence, exact output matching, structural checks, node/version/ownership binding and a runtime-specific admitted-artifact registry. Missing or incompatible artifacts fail without ordinary target-node host-lowering fallback during admitted execution.
+A small edit was compiled, admitted and executed in a separate candidate runtime, returning `9`. After activation, the original runtime returned `9` through ordinary host execution, not admitted execution. Cross-activation artifact transfer and unchanged-node reuse were not demonstrated.
 
-The implementation uses temporary process-global machine-method interception guarded by a lock. It is experimental, not a permanent runtime interface or concurrency-safe execution boundary.
+## Verification
 
-The existing route-A compiler and VM are unchanged. The existing GitHub Actions workflow was extended with an opt-in `execution_route_spike` diagnostic input and artifact-upload job.
+Evidence from the tested Execute revision:
 
-Resolve did not change implementation, tests or workflow configuration.
+- CI: https://github.com/NadOby/shear/actions/runs/37981959588
+- All ordinary test lanes passed, including the 18 Plan-owned tests.
+- Golden comparison: 55 unchanged records, no failures.
+- Diagnostic job passed and uploaded `execution-route.json`.
+- The mutation campaign was not run; the spike module retains its Plan-authorized temporary catalog omission.
 
-## Verified CI evidence
+The two Resolve commits changed documentation only, correcting result attribution, cost interpretation, activation attribution, verifier-maintenance caveats and the linked-call comparison wording. No new benchmark result is claimed for Resolve.
 
-- Implementation revision tested: `6ebbc698c881528b53b37c63b5b090f82eb4a037`.
-- Workflow run: https://github.com/NadOby/shear/actions/runs/37981959588
-- Tests job: https://github.com/NadOby/shear/actions/runs/37981959588/job/113994433438
-- Diagnostic job: https://github.com/NadOby/shear/actions/runs/37981959588/job/113994434005
-- Evidence artifact: https://github.com/NadOby/shear/actions/runs/37981959588/artifacts/11641073831
-- Runner: `GitHub Actions 1000008691`.
-- Python: 3.12.15; Linux 6.17.0-1022-azure, x86-64, glibc 2.39; four reported CPU cores.
+Publish must independently recheck the current diff, protected Plan files and applicable CI. The owner's report of independent Review acceptance is a disposition, not a substitute for these checks.
 
-Every ordinary test lane passed, including all 18 Plan-owned execution-route tests. Golden comparison: 55 unchanged records, zero failures. The diagnostic job completed and uploaded `execution-route.json`.
+## Remaining limitations and follow-ups
 
-The mutation campaign was not run. The spike retains its Plan-authorized temporary mutation-catalog omission.
+Route B remains a bounded experimental implementation, not a deployable runtime:
 
-The cited diagnostic predates the documentation-only Resolve commits. No new diagnostic or performance measurement is claimed for Resolve.
+- Only four node kinds are supported.
+- Compiler rebuilding and the full corpus cannot yet use admitted execution.
+- Admission checks origin and structure, not semantic correctness.
+- The verifier uses per-kind opcode templates, with a substantial maintenance cost.
+- Execution uses temporary process-global method interception, not a concurrency-safe integrated machine boundary.
+- The registry is runtime-local and exact-state-bound, preventing reuse across changed states.
+- Persistent artifact storage, dependency invalidation, activation transfer, hold-aware retirement and complete transitive provenance remain unresolved.
+- P4 failed substantially and must be remeasured after integration without rewriting its original result.
 
-## Results and predictions
+Task 30, issue #66, must remove, replace or explicitly promote `shear/execution_route_spike.py`. In particular, its diagnostic currently imports `tests.test_execution_route`, and the module uses `unittest.mock`; promotion requires eliminating test-infrastructure dependencies and deciding mutation-test coverage explicitly.
 
-Full workloads, observations, coverage inventories, caveats and recommendation are in `docs/spikes/execution_route.md` section 11.
+Task 30 owns the integrated hosted execution pipeline and workload coverage after D4. Task 31, issue #67, owns the remaining live-evolution acceptance path. These existing task issues cover the identified follow-up work; none of these limitations is represented as already resolved.
 
-W0:
+## Publish sequence
 
-- Route A achieved compiler rebuild generations 1, 2 and 3. Median swap times: 0.204083 s, 7.415722 s and 7.465605 s.
-- Route A still replaces active compiler definitions with literal-chunk wrappers. Retained source twins do not restore canonical-source preservation.
-- Route B produced, admitted and executed authentic per-node artifacts for a bounded linked-call witness without changing semantic source.
-- Route B and ordinary host execution both returned `7` for the linked-call witness at `x = 4`. Route A did not execute that witness through its VM.
-- The four supported node kinds agreed with the host lowering oracle in differential tests.
-- Route-B compiler rebuilding reached generation 0 only. Production stopped on unsupported `swap_all/0.0`. No route-B rebuild timing exists.
-- A bounded wrapper-free route-A design was recorded, not implemented.
+1. Record D3 in the authoritative roadmap without changing the protected Plan acceptance contract.
+2. Preserve the historical Task 29 spike measurements and accepted Review result.
+3. Add one accurate Task 29 entry to `CHANGES.md`.
+4. Recheck the final branch against `main`, the protected Plan baseline, CI and the accepted Review state.
+5. Open a ready PR closing #65, with the measured failure and deferred Task 30–31 work disclosed separately.
+6. Mark Task 29 Implemented with its PR number and update this checkpoint.
 
-P1, P2, P3 and P5 were supported within their stated evidence boundaries.
-
-P4 was falsified. For the equivalent cold witness:
-
-    median(T_B) = 9.873980 ms
-    median(T_H) = 0.055123 ms
-    median(T_B) / median(T_H) = 179.126317
-
-The fixed prediction required a ratio at most 10. No experimental revision was made.
-
-The dominant measured cold component is production, including separate SHEAR compiler-runtime initialization and node compilation. Those subcomponents were not separately timed in the original diagnostic.
-
-Separate median warm execution times were 0.639887 ms for B and 0.022001 ms for the host reference.
-
-The small-edit diagnostic changed `target(x)` from `x + 3` to `x + 5`. Candidate preparation, production/admission/verification and activation totaled 25.010713 ms.
-
-The candidate returned `9` through admitted execution on a separate candidate runtime. After activation, the original runtime returned `9` through ordinary host execution, not admitted execution. The diagnostic does not demonstrate transfer of admitted artifacts across activation.
-
-W1 and W2 are inventories only. They identify unsupported corpus, instruction, indirect-call, reflection, cell, error, activation, continuity, closure and lifetime behavior. No complete corpus execution or live evolution through route B is claimed.
-
-## Independent Review findings
-
-Two independent reviews assessed the Execute implementation at `e5e4d7724320e00dcb72615874195ed6488cd662`.
-
-The first review found one P3 documentation defect and no verified P0–P2 defects. The linked-call result was incorrectly attributed to both execution routes when the diagnostic compared admitted route B with ordinary host execution.
-
-The second review identified:
-
-1. P2 evidence-reporting defect – the post-activation result was obtained through ordinary host execution, not the admitted route.
-2. P3 evidence-reporting defect – the runtime-local, exact-state-bound registry does not demonstrate precise invalidation or reuse of unchanged-node artifacts after a state change.
-3. P3 cost-interpretation limitation – the original diagnostic includes compiler-runtime initialization in production time but does not separately measure it.
-4. P3 architectural limitation – structural validation uses per-kind opcode templates, creating a maintenance cost when the supported vocabulary expands.
-5. Task 30 housekeeping – the temporary spike imports test infrastructure, and the route-B rebuild attempt was limited to production on an unsupported node.
-
-The second review also supplied separate local timing observations. Those measurements are not added to the original CI evidence or substituted for the fixed P4 result.
-
-Neither review established a production-ready execution route or completed hosted bootstrap. Both identified the bounded route-B witness as meaningful evidence.
-
-Following the first Resolve pass, one independent re-review accepted the P2/P3 corrections without further findings. Another independent re-review identified remaining P3 documentation drift in section 11.2: the phrase "shared narrow witness" incorrectly implied route A had executed the route-B linked-call witness. It also noted that the test-infrastructure dependency should remain visible to Task 30 and Publish.
-
-## Resolve changes
-
-First Resolve commit:
-
-    9508ec1989e3d7296e3f6967bd3b4a2ce85de2bb
-
-Commit message:
-
-    GH-65 Correct execution-route evidence and limitations
-
-Exactly one file changed: `docs/spikes/execution_route.md`.
-
-Nine lines in section 11 were replaced:
-
-- Section 11.2 correctly distinguishes route-B admitted execution from the ordinary host comparison and route-A rebuilding.
-- Section 11.4 distinguishes measured aggregate production time from unmeasured compiler initialization and node-compilation subcomponents.
-- Section 11.5 identifies admitted candidate execution separately from ordinary post-activation host execution and explicitly states that admitted artifacts were not transferred.
-- Section 11.9 corrects the Activation and Continuity across edits inventory rows.
-- Section 11.10 documents per-kind verifier templates and removes the unsupported claim of demonstrated precise invalidation.
-- Section 11.11 identifies reusable compiler lifetime, cross-state artifact reuse, maintainable validation and integrated routing as future design requirements.
-
-The first Resolve diff contains nine changed lines, nine deletions and nine additions.
-
-Second Resolve commit:
-
-    cc4d6df5382d73023e9c37e3496ddc18cce3fb8a
-
-Commit message:
-
-    GH-65 Correct route-B comparison wording
-
-Exactly one additional line changed, at section 11.2, line 317. It now states that route B's narrow linked-call witness was compared only with ordinary host execution. Route-A compiler rebuilding remains a different workload.
-
-The file retains 481 lines. Sections 1–10, implementation, tests, workflow, numerical observations and fixed predictions were unchanged by both Resolve passes.
-
-## Remaining limitations
-
-- Route B covers four node kinds and one narrow linked-call witness, not the complete compiler or corpus.
-- Route B cannot yet rebuild the compiler.
-- Route B's admitted artifacts are tied to their runtime and exact state object. Cross-state reuse and post-activation admitted execution are unimplemented.
-- Admission establishes origin and structural compatibility, not arbitrary semantic correctness.
-- The verifier duplicates selected instruction structure using per-kind templates.
-- Complete transitive provenance is established only for the bounded witness.
-- Process-global machine interception is not safe for unrelated concurrent executions.
-- Artifact lifecycle, dependency invalidation, persistent admission and integrated machine routing remain unresolved.
-- P4 failed substantially; route-A and route-B compiler rebuilding cannot yet be compared on equivalent workloads.
-- Route A's wrapper-free alternative was neither implemented nor measured.
-- The temporary spike module imports `unittest.mock` and, in its diagnostic, `tests.test_execution_route`. Task 30 must eliminate this production-package dependency on test infrastructure when removing, replacing or promoting the spike.
-- The temporary spike module remains outside mutation campaigns under the Plan-authorized omission.
-- Task 30 must remove, replace or explicitly promote the experimental module and make an explicit mutation-testing decision.
-
-These are disclosed limitations and future design requirements, not claims of production readiness.
-
-## Independent re-review
-
-Start a fresh, read-only `Review task 29` context.
-
-Fetch the current branch head, `CLAUDE.md`, `docs/roadmap.md`, this handoff and the protected Plan baseline.
-
-The re-review should:
-
-1. Verify that the first Resolve changed nine intended section 11 lines and the second changed only line 317.
-2. Verify sections 1–10 and the Plan-owned tests, lane registration and mutation catalog remain unchanged from `deb03aa3`.
-3. Confirm section 11.2 attributes the linked-call witness exclusively to route B and ordinary host execution, without calling it shared with route A.
-4. Confirm the candidate-runtime and original-runtime execution paths in the edit/activation diagnostic.
-5. Confirm the exact-state-bound registry prevents reuse of admitted artifacts across changed states.
-6. Confirm that the discussion of compiler-runtime initialization makes no unsupported quantitative claim.
-7. Confirm the verifier-maintenance limitation reflects the implementation.
-8. Reassess whether all verified P2/P3 findings, including the latest wording defect, are resolved without new contradictions.
-9. Confirm that the test-infrastructure dependency is retained as Task 30 housekeeping rather than silently dropped.
-10. Report new verified defects separately from acknowledged limitations or future Task 30–31 work.
-
-Review must not modify files. Verified defects return to Resolve, followed by another independent Review. Do not reopen already settled implementation questions without new evidence.
-
-## Decision and Publish boundary
-
-The spike conditionally favors route B for Task 30 because of canonical-source preservation, per-node identities, trusted admission and explicit execution provenance on the supported witness.
-
-This remains an evidence-based recommendation, not the owner's D3 decision. P4 failure, incomplete compiler coverage, missing cross-activation continuity, per-kind verifier maintenance and temporary global machine interception are material qualifications.
-
-D3 and D4 remain Open. Instruction-set conventions, the semantic version observed by `code`, and node identities in compiler output remain Provisional.
-
-No PR is authorized before accepted independent re-review and the necessary owner decision.
-
-Publish must recheck current `main`, the protected Plan, CI, final diff, Review disposition, outstanding decisions and required follow-up issues. It then prepares the PR closing #65 if authorized.
-
-## Next
-
-Start `Review task 29` in a fresh chat, focusing on the second Resolve correction at line 317, Plan integrity and preservation of Task 30 housekeeping.
-
-Follow the owner's mobile GitHub protocol for subsequent changes: read-only assistant GitHub access, one complete file per commit, copyable commit messages, clickable branch-specific edit links, manual owner commits, `Done` confirmation and independent verification. No terminal dependency.
+GitHub access is read-only for the assistant. The owner edits from mobile: one complete file, one commit, followed by independent verification before the next file. Do not claim publication or merge before checking GitHub.

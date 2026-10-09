@@ -1,3 +1,4 @@
+
 name: Semantic model
 
 on:
@@ -25,6 +26,11 @@ on:
         default: ""
       content_baseline:
         description: "Run task 23 bootstrap measurements (diagnostic only)"
+        required: false
+        default: false
+        type: boolean
+      execution_route_spike:
+        description: "Run task 29 execution-route measurements (diagnostic only)"
         required: false
         default: false
         type: boolean
@@ -162,7 +168,6 @@ jobs:
       SHEAR_MUTATE_SEED: ${{ inputs.mutation_seed }}
       SHEAR_MUTATE_BATCH: ${{ inputs.mutation_batch }}
       SHEAR_MUTATE_SHARDS: ${{ needs.mutation-plan.outputs.count }}
-      SHEAR_MUTATE_SHARD: ${{ matrix.shard }}
       SHEAR_MUTATION_REPORT: mutation-report-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}.jsonl
 
     steps:
@@ -173,6 +178,8 @@ jobs:
           python-version: "3.12"
 
       - name: Run mutation batch shard
+        env:
+          SHEAR_MUTATION_REPORT: mutation-report-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}.jsonl
         run: python -m tests.lanes mutation
 
       - name: Upload mutation evidence
@@ -181,4 +188,31 @@ jobs:
         with:
           name: mutation-evidence-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}
           path: mutation-report-batch-${{ inputs.mutation_batch }}-shard-${{ matrix.shard }}.jsonl
+          if-no-files-found: warn
+
+  execution-route-spike:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.execution_route_spike == true }}
+
+    runs-on: ubuntu-latest
+    name: task 29 execution-route diagnostics
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Measure execution routes
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m shear.execution_route_spike | tee execution-route.json
+
+      - name: Upload task 29 evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: execution-route-${{ github.sha }}
+          path: execution-route.json
           if-no-files-found: warn

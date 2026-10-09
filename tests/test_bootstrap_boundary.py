@@ -1,4 +1,3 @@
-
 """Bootstrap support-boundary acceptance (roadmap task 28, GH-64).
 
 The support matrix is documentation; implementation dispatch is the positive

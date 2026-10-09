@@ -1595,3 +1595,23 @@ the answer held.
   and runner. The image proxy is not an executable-image measurement.
 - No production semantic change or content refactor was made.
   Consolidation and execution-route decisions remain separate tasks.
+
+## 2026-10-09
+
+### Hosted bootstrap boundary – Plan (#64)
+
+- Recorded the current four-route operation support matrix in
+  `docs/bootstrap.md`: host lowering, host execution, SHEAR lowering,
+  and SHEAR-VM execution, distinguishing supported, rejected and deferred.
+- Inventoried proposed Python host services with their contracts,
+  implementation locations, allowances and verification references.
+- Added Plan-owned acceptance tests in `tests/test_bootstrap_boundary.py`
+  and registered them in the `cross-boundary` CI lane.
+- Documented `unquote`'s direct `GOTO` support, incomplete self-hosted
+  lowering, and interpreter `CALL` delegation to installed functions.
+- Specified fail-closed behavior for unsupported routes and checks
+  against silent host compilation fallback.
+- Left execution-route decision D3 and permitted-host-service decision D4
+  open for the owner. No production semantics or golden records changed.
+- This entry records the Plan contract, not completed hosted-bootstrap
+  implementation. CI verification remains required.

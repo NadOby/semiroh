@@ -1,8 +1,8 @@
 # Hosted Bootstrap Boundary
 
 **Status: provisional.** Roadmap task 28, issue #64. This document
-records the current implementation boundary and proposes the hosted
-services for decision D4. It does not settle D3 or D4.
+records the current operation support boundary and inventories the Python
+host services relevant to hosted bootstrap. It does not decide D3 or D4.
 
 Baseline: `main` at `081ba0d0882e9c02906a3f6a4081f77d2907e897`.
 
@@ -17,34 +17,35 @@ The four routes are:
 4. SHEAR-VM execution: expanded chunks interpreted by the SHEAR
    program `vm` in `shear/examples/vm.py`.
 
-The fourth route is itself executed by the Python-hosted machine.
-"Host execution" and "SHEAR-VM execution" describe which interpreter
-implements the program's instructions, not the absence of Python.
+The fourth route is itself executed on the Python-hosted machine.
+The execution columns identify the interpreter implementing an
+instruction, not the absence of Python.
 
-**Status definitions:**
+For the SHEAR-VM column, support means that the expanded instruction
+sequence for the operation is implemented by the interpreter. It does
+not mean that a complete valid source expression can necessarily be
+compiled and executed through both SHEAR routes. In particular,
+`unquote` has instruction-level support for `GOTO`, although valid
+source `unquote` occurs only inside `quote`, which the VM lacks.
 
-- **S – Supported:** the route has an implementation of the operation
-  for valid inputs. This does not promise that every other route
-  needed to reach it is supported.
-- **R – Rejected:** the operation intentionally represents invalid
-  code and produces an explicit failure rather than useful execution.
-  Lowering may produce a failure instruction instead of raising.
-- **D – Deferred:** the route lacks the operation's intended
-  semantics. Its current behavior must fail explicitly. An observed
-  failure is not evidence of implementation support.
+Status definitions:
 
-The matrix describes the current implementation, not the intended
-post-task-30 subset. It is not a declaration that the complete
-hosted-bootstrap pipeline already works.
+- **S – Supported:** the relevant lowering or instruction route
+  implements the operation for its valid inputs at the defined level.
+- **R – Rejected:** the operation denotes invalid code and fails
+  intentionally; lowering may produce an explicit failure instruction.
+- **D – Deferred:** the route does not implement the intended operation.
+  Its current behavior must fail explicitly instead of succeeding through
+  an undeclared alternative execution route.
 
-The host may supply declared runtime primitives and semantic services.
-It must not silently replace SHEAR compilation or interpreted execution
-of program code with host compilation or execution. An explicitly
-declared seed, verifier, or reference oracle is a separate role.
+The matrix describes current code, not the post-task-30 target subset
+or proof of an end-to-end bootstrap.
 
 ## 2. Operation support matrix
 
-**Provisional:** classification of the current implementation.
+**Provisional:**
+
+These classifications describe current implementation behavior.
 Every row corresponds to exactly one operation in
 `shear.operations.OPERATIONS`.
 
@@ -83,194 +84,219 @@ Every row corresponds to exactly one operation in
 | `applyv` | S | S | S | S |
 | `invalid` | R | R | R | R |
 
-`label` belongs to input syntax, not `OPERATIONS`. SHEAR lowering
-recognizes it transparently without introducing a graph operation.
+`label` is an input form, not an operation in `OPERATIONS`.
+SHEAR lowering recognizes it transparently.
 
-### 2.1 Evidence
+### 2.1 Implementation evidence and limitations
 
-Host lowering is implemented by `bytecode.lower`, including its
-activation helper. Host execution dispatches in `machine._execute`.
-`invalid` lowers to an explicit `RAISE` instruction.
+Host lowering is implemented by `bytecode.lower`, including
+`_lower_activation`. Host execution dispatches in `machine._execute`.
+An `invalid` node lowers to `RAISE` and raises a language error when
+executed.
 
 SHEAR lowering's supported subset is
-`self_hosting.LOWERED - {"label"}`. Operations outside that subset
-currently produce `RAISE "unknown operation"` rather than delegating
-to `bytecode.lower`. The diagnostic is generic and does not by itself
-distinguish a deferred operation from an unknown spelling.
+`self_hosting.LOWERED - {"label"}`. All other operation names,
+including `invalid`, currently produce
+`(("RAISE", "unknown operation"), ("END",))`.
+This explicitly fails, but does not distinguish rejected from
+deferred operations in its diagnostic.
 
-SHEAR-VM execution is determined by the instruction cases in
-`vm._cases` and their dispatch in `vm._run_body`. The interpreter
-covers the pure subset, including `CLOSURE`, but not `READ`, `WRITE`,
-`CODE`, `LINKS`, `QUOTE`, `FUNCTION`, `ACTIVATE`, `TRIAL`, `CATCH`,
-`FAIL`, or `RAISE`. Unsupported instructions reach `vm_trap`.
+The SHEAR VM recognizes instructions from `vm._ORDER`, implemented
+through `vm._cases` and `vm._run_body`. Unsupported instructions
+reach `vm_trap`, rather than being run by the host instruction
+dispatcher.
 
-`unquote` is exceptional: host lowering emits `GOTO`, whose expanded
-instruction semantics the SHEAR VM implements. SHEAR lowering does
-not independently compile `unquote`, so this does not establish a
-complete SHEAR-to-SHEAR-VM route for it.
+Host lowering of `unquote` produces `GOTO`, which the SHEAR VM
+implements. That instruction-level S does not imply support for
+a complete quote/unquote expression.
 
-The interpreter's `CALL` can invoke an installed function through
-ordinary `applyv`. If the callee is host-compiled program code, that
-dependency must be reported; instruction support alone is not proof
-of end-to-end bootstrap execution.
+`CALL` uses a linked function through host `applyv`. The VM's
+`APPLY` and `APPLYV` cases also delegate when the VM callable is a
+reference; a VM closure instead enters `vm_run`. Consequently,
+instruction coverage does not prove that all reached program code
+is interpreted, or that its chunks were SHEAR-compiled.
+The transitive execution-route question belongs to task 29.
 
-### 2.2 Boundary invariants
+### 2.2 Existing invariants and bootstrap scope
 
-**Decided (existing semantic constraints):**
+The semantic graph remains canonical and bytecode remains derived.
+The existing identity, continuity, activation, runtime-cell and
+execution contracts are specified in `state_model.md`,
+`identity_model.md`, `continuity_inference.md`,
+`activation_model.md`, and `bytecode.md`. Task 28 does not
+redefine or amend them.
 
-- The semantic graph is authoritative; chunks are derived artifacts.
-- A compiled chunk does not establish semantic identity or continuity.
-- Producing a candidate and activating it remain distinct.
-- An activation must pass existing checks and capability rules.
-- Runtime cell content does not enter `StateID`.
-- Failed or unsupported execution must not activate a candidate.
-- Arbitrary program-produced chunks are not directly admitted to
-  host execution by the current implementation.
+**Provisional:**
 
-**Provisional (bootstrap enforcement):**
+The intended hosted-bootstrap boundary distinguishes permitted
+host services, fixed interpreter machinery, seed compilation,
+SHEAR compilation, and executed program code. Unsupported routes
+must fail explicitly, not silently switch execution engines.
 
-- An unsupported operation must fail on its selected route, without
-  calling a different route to implement it.
-- The permitted host-service set is explicit and auditable.
-- Provenance distinguishes seed compilation, SHEAR compilation,
-  fixed interpreter machinery, and executed program code.
-- A positive execution result cannot conceal an undeclared host
-  compilation or host-executed program-code dependency.
+Task 28 tests the immediate lowering results and interpreter traps.
+It does not establish complete producer provenance or the absence
+of host compilation anywhere in the transitive execution graph.
+That requirement is an explicit task-30 acceptance condition.
 
 ## 3. Host-service inventory
 
-**Provisional:** these are recommended allowances, not an approved D4
-boundary. Each entry gives its contract, implementation, proposed
-allowance, and existing or planned verification.
+**Provisional:**
 
-"Allow" means Python may implement that service during hosted bootstrap.
-"Conditional" means its use or admission rule depends on D3/D4.
-"Seed/oracle" means it is not an allowed fallback for compilation of
-executed program code.
+This is an inventory and a set of proposed allowances for D4,
+not an authorization of those services. Each row states its
+contract, implementation, proposed use, reported rebuild
+observation, and existing verification references.
 
-| Service | Contract | Implementation | Proposed use | Tests |
-| --- | --- | --- | --- | --- |
-| Lexing and parsing | Convert source text to input semantic declarations; reject malformed text | `syntax/lexer.py`, `syntax/parser.py` | Allow | `test_syntax.py`, `test_syntax_units.py` |
-| Graph construction and resolution | Resolve links, validate forms, create owned graph code | `lang.load`, `_Builder`, `relations.py` | Allow | `test_graph_form.py`, `test_lang.py` |
-| Definition and edits | Produce transformations from explicit edits without mutating their source | `lang.define`, `transforms.py` | Allow | `test_node_edits.py`, `test_transforms.py` |
-| Continuity inference | Preserve only justified identities; report inferred mappings without inventing preservation | `matching.py`, `lang.define` | Allow | `test_continuity_inference.py`, `test_continuity_corpus.py` |
-| Semantic state | Store immutable values and ownership; derive state identity from content | `state.py`, `values.py` | Allow | `test_state.py`, `test_state_identity_cost.py` |
-| Entity and version identity | Preserve entity identity and derive content-based version identities | `identity.py`, `values.py` | Allow | `test_identity.py` |
-| Canonicalization | Produce stable canonical representations and reject unsupported content | `canonical.py`, `relations.py` | Allow | `test_canonical.py`, `test_relations.py` |
-| Host lowering and chunk cache | Lower graph nodes into derived, cached chunks | `bytecode.py` | Seed/oracle; not fallback | `test_bytecode.py`, `test_rebuild.py`, new boundary tests |
-| SHEAR compiler execution | Run the compiler program and produce expanded chunk data | `examples/self_hosting.py`, `machine.py` | Required; execution engine conditional | `test_self_hosting.py`, `test_rebuild.py` |
-| SHEAR-VM interpretation | Execute the supported expanded instruction subset through language operations | `examples/vm.py` | Conditional on D3 | `test_vm.py`, `test_rebuild.py`, new boundary tests |
-| Host machine execution | Execute host-derived chunks with explicit frames, stacks, errors and calls | `machine.py` | Fixed seed/runtime service; compiled-artifact admission requires D3 | `test_bytecode.py`, `test_vm.py` |
-| Code reflection | Return the active version's function code in input form | `machine.py` (`CODE`), `lang.function_at` | Allow, provisionally | `test_self_hosting.py` |
-| Link reflection | Return resolved links of the active function | `machine.py` (`LINKS`), `lang.py` | Allow, provisionally | `test_vm.py` |
-| Data operations | Provide arithmetic, tuples, indexing, slicing, comparison and callable dispatch | `machine.py`, `canonical.py` | Allow | `test_data_ops.py`, `test_vm.py` |
-| Cells and constraints | Read/write canonicalized cell content, reject unsatisfied constraints without altering semantic state | `runtime.py`, `constraints.py` | Allow | `test_cells.py`, `test_constraints.py` |
-| Activation | Stage, validate and atomically select the candidate with declared continuity and authority | `Runtime.activate`, `lang.define`, `machine.py` | Allow, provisionally | `test_activation.py`, `test_metaprogramming.py` |
-| Trials | Exercise candidates in isolation without granting activation authority | `Runtime.trial`, `machine.py` | Allow, provisionally | `test_trial_runs.py`, `test_language_trials.py` |
-| Version lifetime | Hold running versions and retire superseded versions under current rules | `Runtime`, `Version`, `Frame`, `Hold` | Allow, provisionally | `test_lifecycle.py`, `test_activation.py` |
-| Runtime error semantics | Report language, program, runtime and limit failures with existing error values | `machine.py`, `lang.py` | Allow | `test_error_handling.py`, `test_error_values.py` |
+"Observed" refers to the reported task-28 review profile of
+rebuild generations 1 and 2, not an independently CI-verified
+service-call trace. "Yes" and "No" apply only to that workload.
+"Partial" or "Unverified" preserves uncertainty.
 
-### 3.1 Actual workload versus prospective pipeline
+"Allow" is a proposed Python-hosted service. "Conditional"
+requires D3/D4 resolution. Host-lowered program wrappers are
+reported as current behavior, not approved bootstrap fallback.
 
-The existing self-rebuild workload uses constructed compiler graph code,
-input-form expressions, host runtime services, and the SHEAR compiler/VM.
-It does not prove that source-text parsing is part of that rebuild.
+| Service | Contract | Implementation | Proposed use | Rebuild observed | Tests |
+| --- | --- | --- | --- | --- | --- |
+| Lexing and parsing | Convert source text to input forms; reject malformed input | `syntax/lexer.py`, `syntax/parser.py` | Allow | No | `test_syntax.py`, `test_syntax_units.py` |
+| Source reconciliation | Resolve source edits into transformations | `reconcile.py` | Allow | No | `test_reconcile.py` |
+| Graph construction and links | Validate forms and construct owned graph code | `lang.load`, `_Builder`, `relations.py` | Allow | Yes | `test_graph_form.py`, `test_lang.py` |
+| Definition and transformations | Produce candidate states without mutating sources | `lang.define`, `transforms.py` | Allow | Yes | `test_node_edits.py`, `test_transforms.py` |
+| Continuity inference | Preserve identities only where matching justifies them | `matching.py`, `lang.define` | Allow | Yes | `test_continuity_inference.py`, `test_continuity_corpus.py` |
+| Immutable semantic state | Store values and derive content-based state identity | `state.py`, `values.py` | Allow | Yes | `test_state.py`, `test_state_identity_cost.py` |
+| Entity and version identity | Distinguish semantic identity from value equality | `identity.py`, `values.py` | Allow | Yes | `test_identity.py` |
+| Canonicalization | Normalize values and provide stable representations | `canonical.py`, `relations.py` | Allow | Yes | `test_canonical.py`, `test_relations.py` |
+| Ownership | Preserve graph ownership and owned-subtree integrity | `ownership.py`, `state.py` | Allow | Yes | `test_ownership.py`, `test_ownership_lifetime.py` |
+| Host lowering and chunk cache | Produce derived chunks from graph nodes | `bytecode.py` | Conditional; seed and oracle, not undeclared fallback | Yes, including wrappers | `test_bytecode.py`, `test_rebuild.py` |
+| SHEAR compiler | Produce expanded chunks as data | `examples/self_hosting.py`, `machine.py` | Required; execution conditional | Yes | `test_self_hosting.py`, `test_rebuild.py` |
+| SHEAR VM | Interpret its declared instruction subset | `examples/vm.py` | Conditional on D3 | Yes | `test_vm.py`, `test_rebuild.py` |
+| Host machine | Run derived instructions and provide runtime execution | `machine.py` | Seed and fixed machinery; other admission conditional | Yes | `test_bytecode.py`, `test_vm.py` |
+| Code reflection | Return code for a function in the selected state | `machine.py`, `lang.function_at` | Allow | Yes via `function_at` | `test_self_hosting.py` |
+| Link reflection | Resolve a function's link table | `machine.py`, `lang.py` | Allow | Unverified separately | `test_vm.py` |
+| Data and callable operations | Provide primitives, tuples, comparisons and linked calls | `machine.py`, `canonical.py` | Allow | Yes | `test_data_ops.py`, `test_vm.py` |
+| Cells and constraints | Read and write runtime content; enforce declared constraints | `cells.py`, `runtime.py`, `constraints.py` | Allow | Partial: `cells_of` used; constraint evaluation not observed | `test_cells.py`, `test_constraints.py` |
+| Activation | Stage, check and atomically select a candidate | `Runtime.activate`, `lang.define` | Allow | Yes | `test_activation.py`, `test_metaprogramming.py` |
+| Trials | Run a candidate in isolated runtime state | `Runtime.trial`, `machine.py` | Allow | No | `test_trial_runs.py`, `test_language_trials.py` |
+| Version lifetime | Manage frames, holds and retirement | `Runtime`, `Version`, `Frame`, `Hold` | Allow | Yes | `test_lifecycle.py`, `test_activation.py` |
+| Runtime errors | Surface language, program, runtime and limit errors | `machine.py`, `lang.py` | Allow | Unverified separately | `test_error_handling.py`, `test_error_values.py` |
 
-Parsing, source reconciliation and the complete corpus-to-execution
-pipeline are prospective task-30 dependencies. They remain inventory
-entries, but must not be described as observed self-rebuild calls.
+### 3.1 Current rebuild versus required hosted pipeline
+
+The reported rebuild profile includes `define`, matching,
+activation, version holds and retirement, `cells_of`,
+`function_at`, and semantic model services. It does not show
+source parsing, reconciliation, trials or constraint evaluation.
+
+The host also lowers the wrappers for `evals`, `lower`, `upper`,
+and the `generation` function during generation 2, in addition
+to the interpreter's own functions. These per-function wrappers
+are program code, not automatically exempt fixed machinery under
+task 30. The current rebuild therefore must not be described as
+already meeting the task-30 no-host-lowering requirement.
+
+Source parsing and reconciliation are prospective dependencies
+of task 30. Trial and live-evolution services are prospective
+dependencies of task 31. An absent call in the present rebuild
+does not establish that a service can be removed from D4.
+
+The reported service observations need independent verification
+before being treated as complete execution-provenance evidence.
+The selected-route measurements and their limits remain in
+`content_baseline.md`.
 
 Python allocation, hashing, memory management and operating-system
-services remain implementation dependencies of the hosted model.
-This inventory does not claim independence from Python, a complete
-foreign-service ABI, or a non-Python lifetime implementation.
-
-The corrected task-23 evidence is in `docs/content_baseline.md`.
-It measures selected routes and a finite inventory, not universal
-absence of host fallback.
+services remain part of this hosted model. Python-independent
+execution is a separate future milestone.
 
 ## 4. Acceptance contract for task 28
 
-**Provisional Plan-owned tests:** `tests/test_bootstrap_boundary.py`,
-registered in `tests/lanes.py`.
+**Provisional:**
 
-1. Matrix completeness: exactly one entry per operation in
-   `OPERATIONS`; no additional graph operations or omitted `invalid`.
-2. Supported host-lowering cases are derived from the actual lowering
-   dispatch and checked with representative graph nodes.
-3. SHEAR-lowering coverage agrees with `self_hosting.LOWERED`,
-   excluding input-only `label`. Covered operations are checked
-   structurally against expanded host chunks where appropriate.
-4. Interpreter support is derived from actual instruction dispatch;
-   supported instruction cases have execution witnesses.
-5. Deferred SHEAR-lowering cases emit the declared explicit failure,
-   rather than invoking host lowering.
-6. Deferred interpreter instructions reach an intentional trap,
-   rather than being dispatched to host instruction execution.
-7. Negative witnesses distinguish intentional rejection from errors
-   arising incidentally in operands or malformed test fixtures.
-8. A guarded rebuild checks forbidden host-lowering requests for
-   retained compiler source in generations 2 and 3, retaining the
-   existing test-27 provenance guarantee.
-9. Tests explicitly classify native `CALL` delegation. They cannot
-   treat a call into host-compiled program code as independent
-   interpreted execution.
-10. The inventory's implementation and test references are checked
-    against repository files; unsupported service claims are not
-    silently promoted to verified coverage.
+The Plan-owned acceptance module is
+`tests/test_bootstrap_boundary.py`, registered in `tests/lanes.py`.
 
-Preserve the existing compiler, VM, corpus, continuity and golden
+1. The matrix has exactly one row for each operation in
+   `OPERATIONS`, including `invalid`, and the input-only `label`
+   is excluded.
+2. Host lowering dispatch covers the operation set. Real graph
+   witnesses yield chunks ending in `END` whose instructions
+   are recognized by the host dispatcher.
+3. SHEAR lowering coverage agrees with
+   `self_hosting.LOWERED - {"label"}`. Supported examples
+   structurally agree with expanded host chunks.
+4. SHEAR-VM support is classified from the interpreter's actual
+   instruction cases and order. A supported `LIT` example
+   executes successfully; this is not an execution witness
+   for every supported opcode.
+5. Deferred SHEAR lowering produces the explicit
+   `RAISE "unknown operation"` result. The test checks that
+   result, not global absence of Python host fallback.
+6. Unsupported SHEAR-VM instructions reach `vm_trap`.
+   An observable replacement trap and the ordinary failing
+   trap verify the route independently of the host opcode
+   dispatcher.
+7. The invalid graph-form witness lowers to `RAISE`
+   and host execution reports its specific unknown-operation
+   error. SHEAR lowering currently gives `invalid` the same
+   generic error chunk as deferred operations.
+8. Each inventory row identifies a contract, implementation,
+   allowance, reported use and test reference. The automated
+   check verifies structure and the existence of named test
+   modules; it does not verify that each implementation
+   reference is a real symbol or that every proposed service
+   is exercised by those tests.
+
+The existing `tests/test_rebuild.py` separately checks that
+generations 2 and 3 do not request host `chunk_of` for the
+retained compiler source twins. Its instrumentation does not
+cover all host-lowered wrappers or transitive execution.
+
+`CALL`, `APPLY` and `APPLYV` delegation is recorded in section
+2.1 as a current limitation. Task 29 must test the proposed
+execution routes and their transitive program-code behavior.
+
+Preserve existing compiler, VM, corpus, continuity and golden
 records. No golden-record changes are intended for issue #64.
-
-Existing tests relevant to independent review include
-`test_operations.py`, `test_self_hosting.py`, `test_vm.py`,
-`test_rebuild.py`, and `test_content_baseline.py`.
-
-New regression tests must expose a plausible boundary violation:
-for example, a deferred compilation case secretly using
-`bytecode.lower`, or an unsupported interpreter instruction being
-executed through the host instead of trapping. A test that only checks
-a shared table against itself is not sufficient.
 
 ## 5. Scope and decision gates
 
-Task 28 creates the boundary specification, tests and inventory.
-It does not implement new language instructions, choose the execution
-engine, create a generic capability system, replace Python services,
-or prove a complete host-free bootstrap.
+Task 28 records the matrix, its acceptance tests and the host
+inventory. It does not implement additional instructions or
+change production semantics.
 
-**Open – D3:** Task 29 compares execution on the SHEAR VM with
-verified host execution of compiler-produced derived chunks.
-Host execution must have a non-forgeable admission rule linking
-each chunk to a semantic node, its version, and its producer.
+**Open:**
 
-**Open – D4:** The owner chooses the final workload and permitted
-host boundary before task 30. Recommended workload: compiler
-self-rebuild, the canary corpus, and live evolution. Python parsing,
-semantic construction, identity, continuity and activation are
-recommended permitted services. Runtime budgets need the recorded
-task-23 measurements and a named environment.
+D3 and D4 remain owner decisions as defined in `roadmap.md`,
+under "Open decisions" and section I. This document does not
+restate or supersede their choices and requirements.
 
-**Open:** Whether `code` reads the active or another version in
-future implementations, whether reflection accepts references
-rather than static links, and how interpreted cells are selected
-without accidental authority escalation. Existing behavior must
-not be changed by Task 28.
+In particular, D4 sets provisional budgets for both compiler
+rebuild time and small-edit-to-activation latency using task-23
+measurements. The permitted Python services include
+canonicalization, subject to D3/D4 approval.
 
-If implementation reveals materially different support, Plan
-must be revised before Execute changes acceptance expectations.
+Tasks 29 through 31 own execution-route evaluation, complete
+pipeline provenance and live evolution respectively. No
+implementation may treat this inventory as a prior decision
+to permit fallback for executed program code.
 
 ## 6. Independent review targets
 
-Review must verify the matrix against implementation, not just the
-table test; the distinction between unsupported and invalid forms;
-the `unquote` exception; positive witnesses and fail-closed negative
-witnesses; interpreter `CALL` delegation; provenance guards across
-rebuilds; and the inventory's allowed-versus-observed distinction.
+Independently verify the operation classifications, especially
+`invalid`, `unquote`, the deferred instructions, and the
+instruction-level meaning of VM support.
 
-Review must also compare Plan-owned specifications and acceptance
-tests at the Plan head against Execute's head. An unapproved change
-to their meaning is a blocking Plan-contract deviation.
+Check that tests distinguish declared behavior from untested
+claims, that malformed witnesses are not mistaken for operation
+support, and that error paths fail explicitly.
 
-The resulting matrix and inventory are inputs to D4 and task 29,
-not evidence that the hosted-bootstrap milestone is complete.
+Inspect `CALL`, `APPLY` and `APPLYV` delegation and reported
+host-lowered wrappers when assessing the future D3/D4 boundary.
+The service-use observations must not be promoted to complete
+producer-provenance evidence without an independent trace.
+
+Compare the Plan-owned specification and acceptance tests with
+the revised Plan baseline before accepting subsequent changes.
+
+The matrix and inventory are inputs to D4 and task 29, not
+evidence that hosted bootstrap is complete.

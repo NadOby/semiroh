@@ -245,3 +245,184 @@ GitHub Actions artifacts may expire. The checked-in diagnostic and pinned commit
 
 No semantic-content refactor or consolidation decision is made by these results. Those decisions remain with the later roadmap tasks.
 
+### 5.7. Resolve evidence – 2026-10-09
+
+The independent Review identified incomplete conversion coverage (F1),
+unsupported duplication classifications (F2), and verification execution
+included in small-edit latency (F3). The revised Plan acceptance tests
+for F4 passed before these corrections.
+
+- Revision: `375076fa6da98656efbd0fe0179a312e8fb981d0`.
+- CI run: https://github.com/NadOby/shear/actions/runs/37912552583
+- Artifact:
+  `content-baseline-375076fa6da98656efbd0fe0179a312e8fb981d0`.
+- Artifact ID: `11606884068`.
+- Files: `content-inventory.json` and `content-baseline.json`.
+- Result: ordinary tests, golden checks, inventory generation and the
+  manually dispatched diagnostic passed.
+
+This evidence supersedes the preliminary classifications in section
+5.2 and the edit-latency measurement in section 5.5. The original
+observations remain recorded with their original methodology.
+
+### 5.8. Corrected semantic-content inventory
+
+The original 140 AST helper-call sites are preserved: 127 direct and
+13 recursive. They cover the same ten selected helpers listed in
+section 5.2.
+
+A separately counted mechanism inventory now identifies 22 named
+conversion mechanisms with source-function and call-anchor locations.
+These include direct transformations omitted from the helper-call
+inventory, notably `Relation.canonical_node` and
+`lang._Builder._relation`, as well as function encoding and decoding,
+graph construction and collapse, cached definition views, host
+bytecode lowering and bootstrap compiler boundaries.
+
+Mechanisms are function-level conversion boundaries, not additional
+static call sites. The 22 mechanisms must not be added to the 140-call
+count.
+
+The inventory records 12 explicit relationships between named
+mechanisms, including encoding/decoding inverses, pipeline
+composition, derived caches, distinct input representations and
+alternative compilation routes. Five exclusion records document the
+scope boundary.
+
+| Call-site classification | Count |
+|---|---:|
+| Source-linked mechanism relationship | 38 |
+| Overlap unresolved | 102 |
+| **Total** | **140** |
+
+Source-linked does not mean redundant. In particular:
+
+- `Relation.canonical_node` and `relation_of` form encoding and
+  decoding directions; `relation_of` can reuse a cached decoded
+  record instead of reconstructing one.
+- `Value.content` is authoritative canonical content. A cached
+  `Relation` or `_Definition` is a derived view, not a second
+  authoritative semantic state.
+- `_Builder._relation` and `_collapse` perform opposite
+  expression/graph conversions.
+- `function_of` reads an input-format function value, while
+  `function_at` reconstructs a loaded graph-form function.
+  Their relative conversion costs remain unresolved.
+- Host bytecode lowering and SHEAR-compiler execution belong to
+  different compilation routes; they are not counted as two
+  executions of one conversion.
+
+Necessity and retention status are now reported separately from
+the original Plan-required category labels.
+
+| Necessity evidence status | Count |
+|---|---:|
+| Source-supported semantic requirement | 20 |
+| Unresolved | 120 |
+
+The 120 unresolved calls retain an `implementation` category for the
+original report schema; that label does not establish that they are
+semantically unnecessary or removable.
+
+| Result-retention evidence status | Count |
+|---|---:|
+| Source-supported stored result | 2 |
+| Conditional cache hit or reconstruction | 17 |
+| Potential reconstruction | 53 |
+| Unresolved | 68 |
+
+These categories describe source-supported behavior and uncertainty,
+not measured allocation counts. No total number of avoidable duplicate
+conversions is asserted.
+
+The full artifact records source coordinates, call expressions,
+mechanism identifiers, relationship classifications and explicit
+exclusions. Remaining overlap questions are evidence gaps for the
+later content-consolidation decision.
+
+### 5.9. Corrected bootstrap measurements
+
+The diagnostic used Python 3.12.15 on Linux
+6.17.0-1022-azure, x86-64, glibc 2.39, with an Intel Xeon Platinum
+8573C and four available cores.
+
+Both routes executed the same `lower(lower)` workload. Complete
+outputs agreed structurally. Generation 1 was installed, the active
+compiler invoked `vm`, retained source matched the original, and
+115,233 inspected host chunk requests did not access retained
+compiler-source entities.
+
+Each route was warmed once and then timed three times without
+tracing. Observations are in seconds.
+
+| Observation | Native | SHEAR VM |
+|---|---:|---:|
+| 1 | 0.037185432 | 5.224083759 |
+| 2 | 0.037135609 | 5.263811208 |
+| 3 | 0.036893244 | 5.298460021 |
+| Median | 0.037135609 | 5.263811208 |
+
+The median ratio is approximately 142:1 for this workload and
+runner. Separate traced allocation peaks were 212,392 bytes
+(native) and 1,355,751 bytes (SHEAR VM).
+
+The size observations were unchanged:
+
+| Quantity | Recorded result |
+|---|---:|
+| Canonically serialized `lower(lower)` output | 123,643 bytes |
+| Host-derived graph-node chunks | 1,858 |
+| Sum of serialized host-derived chunks | 915,986 bytes |
+| Canonical state-content proxy | 988,970 bytes |
+
+The derived graph-node chunks are materialized through host
+bytecode lowering. They must not be described as 1,858 chunks
+produced by the SHEAR compiler. The first quantity is the complete
+SHEAR-compiler output. The state-content proxy remains distinct from
+an executable-image size.
+
+### 5.10. Corrected small-edit latency
+
+The same `content_baseline_edit(x)` change from `x + 1` to `x + 2`
+was measured at `x = 3`.
+
+| Phase | Elapsed seconds |
+|---|---:|
+| `define` | 0.000461267 |
+| Lower changed code nodes | 0.000008102 |
+| `Runtime.activate` | 0.000028453 |
+| Corrected total edit latency | 0.000510425 |
+
+Two changed code nodes and two lowered chunks were recorded.
+The function returned 4 before activation and 5 afterward;
+the activated state ID matched the candidate.
+
+The pre-activation correctness execution remains mandatory but
+now occurs outside the measured intervals. Total latency sums
+preparation time and activation time, excluding that execution.
+The total also includes orchestration not individually attributed
+to the three named phases.
+
+The earlier total of 0.000552658 seconds included the pre-activation
+verification run and is superseded as an edit-latency measurement.
+Differences between the two totals cannot be attributed exclusively
+to that correction because the observations came from different
+CI executions.
+
+### 5.11. Remaining limitations
+
+The mechanism inventory is source-anchored but deliberately bounded.
+Unlisted helpers, arbitrary intermediate host objects and dynamic
+conversion frequency are not exhaustively measured. Source-linked
+mechanism pairs do not establish that removing either conversion
+would preserve semantics.
+
+The host-fallback check covers the exercised retained compiler-source
+route, not all possible execution paths. The size proxy excludes
+runtime machinery and executable packaging. Timings and traced
+allocations are diagnostic observations on one CI environment,
+not performance guarantees.
+
+F1–F3 have corresponding implementation corrections and regenerated
+evidence. Their final acceptance remains subject to another
+independent Review. No production semantics or golden records changed.

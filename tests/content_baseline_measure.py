@@ -356,13 +356,19 @@ def _small_edit() -> dict:
     affected_chunks = bytecode.lowered_count() - lowered_before
     lower_seconds = time.perf_counter() - phase
 
-    # The candidate has been defined and lowered, but is not active.
+    # Finish the preparation interval before correctness verification.
+    # The verification run is not part of edit latency.
+    prepared_at = time.perf_counter()
+
     if run(runtime, EDIT_TARGET, 3) != before:
         raise AssertionError("candidate affected active execution")
 
-    phase = time.perf_counter()
+    # Activation is measured as a separate interval. Total edit latency
+    # combines preparation and activation, excluding the check above.
+    activation_started = time.perf_counter()
     runtime.activate(candidate)
     activated_at = time.perf_counter()
+    activate_seconds = activated_at - activation_started
 
     after = run(runtime, EDIT_TARGET, 3)
 
@@ -377,9 +383,11 @@ def _small_edit() -> dict:
         "phase_seconds": {
             "define": define_seconds,
             "lower": lower_seconds,
-            "activate": activated_at - phase,
+            "activate": activate_seconds,
         },
-        "total_seconds": activated_at - started,
+        "total_seconds": (
+            (prepared_at - started) + activate_seconds
+        ),
         "affected_nodes": len(changed_nodes),
         "affected_chunks": affected_chunks,
         "candidate_state_changed_before_activation": False,

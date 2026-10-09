@@ -1,8 +1,10 @@
-
 """Acceptance tests for the task-23 diagnostic (issue #60).
 
 The Plan owns this contract. Execute implements tests.content_baseline.
 Timing runs only through manually dispatched CI, never these tests.
+
+Plan amendment after independent Review: the measurement runner's
+correctness guards are exercised with fake runtimes, without benchmarking.
 """
 
 from __future__ import annotations
@@ -11,9 +13,13 @@ import ast
 import copy
 import json
 from pathlib import Path
+from types import SimpleNamespace
 import unittest
+from unittest import mock
 
-from tests import content_baseline
+from shear.lang import Function
+from shear.examples import self_hosting, vm
+from tests import content_baseline, content_baseline_measure
 from tests.mutation_catalog import SURVIVORS, SURVIVOR_SOURCE_BLOBS
 
 
@@ -232,6 +238,181 @@ class ContentBaselineTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             content_baseline.validate_measurement(disagreeing)
+
+
+class BootstrapMeasurementGuardTests(unittest.TestCase):
+    """Exercise the diagnostic's real route checks without actual execution.
+
+    Construction, program execution, timing and memory tracing are mocked.
+    Assertions must be performed by _compiler_routes itself. In particular,
+    the host fallback probe must reject a retained source lowering request.
+    """
+
+    def probe(
+        self,
+        *,
+        retained_matches: bool = True,
+        wrapper_valid: bool = True,
+        generation: int = 1,
+        output_matches: bool = True,
+        host_fallback: bool = False,
+    ):
+        source = ("add", ("arg", "e"), ("lit", 1))
+        original = Function(("e",), source)
+        retained = (
+            original if retained_matches
+            else Function(("e",), ("lit", 7))
+        )
+        installed = Function(
+            ("e",),
+            (
+                ("call", "vm", ("arg", "e"))
+                if wrapper_valid else ("lit", 0)
+            ),
+        )
+        initial_state = object()
+        swapped_state = object()
+        instances = []
+        executions = []
+
+        class FakeRuntime:
+            def __init__(self, state):
+                self.active = SimpleNamespace(state=state)
+                instances.append(self)
+
+        def fake_function_at(state, entity):
+            if state is initial_state and entity == self_hosting.LOWER:
+                return original
+            if state is swapped_state:
+                if entity == vm.source_name("lower"):
+                    return retained
+                if entity == self_hosting.LOWER:
+                    return installed
+            raise AssertionError("unexpected function_at request")
+
+        def fake_run(runtime, entry, *args, **kwargs):
+            if entry == vm.SWAP_ALL:
+                if runtime is not instances[1]:
+                    raise AssertionError("bootstrap installed on wrong route")
+                if kwargs != {"may_activate": True}:
+                    raise AssertionError("bootstrap lacks activation capability")
+                runtime.active.state = swapped_state
+                return True
+
+            if entry == vm.GENERATION:
+                if runtime is not instances[1]:
+                    raise AssertionError("generation read on wrong route")
+                return (generation, ())
+
+            if entry == self_hosting.LOWER:
+                if args != (source,) or kwargs:
+                    raise AssertionError("compiler workload is not lower(lower)")
+
+                if runtime is instances[0]:
+                    executions.append("native")
+                    return (("END",),)
+
+                if runtime is instances[1]:
+                    executions.append("shear_vm")
+
+                    if host_fallback:
+                        content_baseline_measure.bytecode.chunk_of(
+                            swapped_state,
+                            vm.source_name("lower"),
+                        )
+
+                    return (
+                        (("END",),) if output_matches
+                        else (("LIT", 7), ("END",))
+                    )
+
+            raise AssertionError("unexpected runtime execution")
+
+        # An outer chunk_of mock makes a simulated fallback harmless if
+        # the diagnostic omits its internal rejection guard. In that case
+        # the negative test fails instead of raising an unrelated error.
+        with (
+            mock.patch.object(
+                content_baseline_measure.vm,
+                "bootstrap_entities",
+                return_value={},
+            ),
+            mock.patch.object(
+                content_baseline_measure,
+                "program",
+                return_value=object(),
+            ),
+            mock.patch.object(
+                content_baseline_measure,
+                "load",
+                return_value=initial_state,
+            ),
+            mock.patch.object(
+                content_baseline_measure,
+                "Runtime",
+                side_effect=FakeRuntime,
+            ),
+            mock.patch.object(
+                content_baseline_measure,
+                "function_at",
+                side_effect=fake_function_at,
+            ),
+            mock.patch.object(
+                content_baseline_measure,
+                "run",
+                side_effect=fake_run,
+            ),
+            mock.patch.object(
+                content_baseline_measure,
+                "_timings",
+                return_value=[0.1, 0.2, 0.3],
+            ),
+            mock.patch.object(
+                content_baseline_measure,
+                "_peak",
+                return_value=1024,
+            ),
+            mock.patch.object(
+                content_baseline_measure.bytecode,
+                "chunk_of",
+                return_value=(("END",),),
+            ),
+        ):
+            result = content_baseline_measure._compiler_routes()
+
+        return result, executions
+
+    def test_both_routes_compile_the_same_lower_source(self) -> None:
+        (routes, _, (_, evidence)), executions = self.probe()
+
+        self.assertEqual(executions, ["native", "shear_vm"])
+        self.assertEqual(
+            routes["native"]["output"],
+            routes["shear_vm"]["output"],
+        )
+        self.assertEqual(evidence["generation"], 1)
+        self.assertTrue(evidence["structural_output_equal"])
+        self.assertFalse(evidence["retained_source_host_fallback"])
+
+    def test_retained_source_mismatch_is_rejected(self) -> None:
+        with self.assertRaises(AssertionError):
+            self.probe(retained_matches=False)
+
+    def test_non_vm_compiler_wrapper_is_rejected(self) -> None:
+        with self.assertRaises(AssertionError):
+            self.probe(wrapper_valid=False)
+
+    def test_wrong_compiler_generation_is_rejected(self) -> None:
+        with self.assertRaises(AssertionError):
+            self.probe(generation=2)
+
+    def test_different_compiler_outputs_are_rejected(self) -> None:
+        with self.assertRaises(AssertionError):
+            self.probe(output_matches=False)
+
+    def test_host_lowering_of_retained_source_is_rejected(self) -> None:
+        with self.assertRaises(AssertionError):
+            self.probe(host_fallback=True)
 
 
 if __name__ == "__main__":

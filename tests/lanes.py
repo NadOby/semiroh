@@ -2,8 +2,8 @@
 
 CI runs every lane in one job, each lane as its own process
 (``python -m tests.lanes --all``).  The partition is deliberately explicit:
-adding a new ordinary test module without assigning it to exactly one lane is
-an error rather than silently reducing CI coverage.
+adding a new ordinary test module without assigning it to exactly one lane
+is an error rather than silently reducing CI coverage.
 """
 
 from __future__ import annotations
@@ -97,6 +97,7 @@ LANES: dict[str, tuple[str, ...]] = {
         "test_content_baseline",
         "test_corpus",
         "test_docs",
+        "test_execution_route",
         "test_golden",
         "test_operations",
         "test_malformed_generation",
@@ -223,15 +224,11 @@ def run_all(
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         pending = {pool.submit(timed, lane): lane for lane in lanes}
-
-        # Print each lane as soon as it finishes, so a lane that hangs until
-        # the job times out does not hide the output of the others.
         for future in as_completed(pending):
             lane = pending[future]
             code, output, seconds = future.result()
             finished[lane] = (code, output, seconds)
             status = "ok" if code == 0 else "FAILED"
-
             if grouped and code == 0:
                 print(f"::group::{lane} ({status})")
                 print(output, end="")

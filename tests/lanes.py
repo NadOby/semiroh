@@ -2,8 +2,8 @@
 
 CI runs every lane in one job, each lane as its own process
 (``python -m tests.lanes --all``).  The partition is deliberately explicit:
-adding a new ordinary test module without assigning it to exactly one lane
-is an error rather than silently reducing CI coverage.
+adding a new ordinary test module without assigning it to exactly one lane is
+an error rather than silently reducing CI coverage.
 """
 
 from __future__ import annotations

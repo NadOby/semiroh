@@ -6,76 +6,89 @@ not evidence: verify against the repository. Read `CLAUDE.md` and
 
 ## State
 
-- Task 23, issue #60, has completed Execute and awaits independent Review.
+- Task 23, issue #60, is awaiting Resolve after independent Review.
 - Branch: `task/23-content-baseline`.
-- Latest Execute commit: `4ebb339`.
-- Plan acceptance contract: `c4a4bcc`.
-- No pull request has been opened for this task.
+- Original Plan baseline: `c4a4bcc`.
+- Execute head reviewed: `e680a17`.
+- Revised Plan acceptance-test baseline: `564203e`.
+- No task PR has been opened.
 
-Execute added:
+## Independent Review
 
-- `tests/content_baseline.py` – deterministic conversion inventory,
-  representation and compiler/VM boundary classification, pinned mutation
-  survivors, and measurement validation.
-- `tests/content_baseline_measure.py` – CI-only bootstrap diagnostic.
-- A manually dispatched `content_baseline` input and diagnostic job in
-  `.github/workflows/semantic-model.yml`.
-- Recorded evidence in `docs/content_baseline.md` section 5 and an
-  architectural-log entry in `CHANGES.md`.
+Review of `e680a17` requested changes: four P2 findings.
 
-No production semantic implementation, golden records, or Plan acceptance
-tests were intentionally changed. The initial blank line in the Plan-owned
-results document was corrected to satisfy documentation checks.
+- F1 – Incomplete inventory. The 140-site helper-call inventory omits
+  direct mechanisms including `lang._Builder._relation` and
+  `Relation.canonical_node`. Preserve the helper count and inventory
+  the additional mechanisms with explicit exclusions.
+- F2 – Duplication relationships are insufficiently evidenced.
+  Generic overlap text and name-based classifications cannot establish
+  whether sites duplicate content, reconstruct a representation, or
+  reuse a cache. Ground mechanism-pair classifications in source and
+  explicitly mark unresolved relationships.
+- F3 – Small-edit latency includes a pre-activation correctness run.
+  Move this check outside the measured interval, preserve the assertion,
+  and rerun CI diagnostics.
+- F4 – Plan acceptance tests lacked independent negative checks of the
+  measurement runner's correctness guards. Return to Plan.
 
-## Evidence
+Non-blocking limitations: diagnostic size, host-derived chunk terminology,
+limited host-fallback provenance, and single-environment evidence.
 
-- Measurement revision: `9b5f922`.
-- Dispatched diagnostic:
+## Plan amendment for F4
+
+Commit `564203e` extends the Plan-owned
+`tests/test_content_baseline.py` with deterministic negative tests for:
+
+- Both routes using the same compiler source.
+- Retained compiler-source agreement.
+- Installation of the VM compiler wrapper.
+- Generation-1 provenance.
+- Structural output equality.
+- Rejection of host lowering of retained compiler source.
+
+Tests use mocked runtimes and do not run performance measurements.
+
+CI: https://github.com/NadOby/shear/actions/runs/37902162561
+
+The original five acceptance tests remain. F4's acceptance-contract gap
+is addressed; the revised Plan baseline is now `564203e`. The
+implementation must preserve these tests during Resolve.
+
+## Prior Execute evidence
+
+- Diagnostic revision: `9b5f922`.
+- Diagnostic run:
   https://github.com/NadOby/shear/actions/runs/37763237141
-- Latest Execute CI:
-  https://github.com/NadOby/shear/actions/runs/37767279723
-- Both runs passed.
-- Diagnostic artifact contains `content-inventory.json` and
-  `content-baseline.json`.
-- Inventory: 140 static conversion-helper calls across the selected
-  helper set, with provisional necessity and retention classifications.
-- `lower(lower)` median: 0.03619 s through the host-executed SHEAR
-  compiler versus 5.12615 s through the installed SHEAR VM compiler.
-  Outputs matched structurally.
-- Peak traced allocations: 212,392 and 1,355,751 bytes respectively.
-- Recorded 1,858 derived code-node chunks, serialized size proxies,
-  and a verified `define` → lowering → activation edit.
-- Measurements are runner-specific diagnostics. The state-content proxy
-  is not an executable image size.
+- Results recorded in `docs/content_baseline.md` section 5.
+- Original measured `lower(lower)` medians: 0.03619 s native,
+  5.12615 s through the SHEAR VM.
+- Structural output equality, traced allocation peaks, chunk counts,
+  state-content proxy and small edit were recorded.
+- No production semantic code or golden records changed.
 
-Full raw observations, definitions, hardware, scope and exclusions are in
-`docs/content_baseline.md` section 5 and the cited CI artifact.
+These observations are not substitutes for independently resolving
+the Review findings.
 
-## Independent Review contract
+## Resolve contract
 
-Review must independently check:
+Resolve F1–F3 individually, using the smallest valid changes.
 
-- Conversion site counts, helper coverage and classifications against
-  current source; avoid treating static calls as proven duplication.
-- Representation distinctions, named compiler/VM boundaries and mutation
-  survivor source pins.
-- Native and interpreted `lower(lower)` workload equivalence, output
-  equality, generation provenance and host-lowering fallback checks.
-- Timing and memory methodology, raw observations, measurement units,
-  CI provenance, and the image-size proxy's exclusions.
-- The small edit's define, lowering and activation boundaries.
-- Workflow isolation, validation behavior, documentation accuracy and
-  absence of unintended production changes.
-
-Classify findings as verified defects, limitations, hypotheses or
-documentation drift. The implementer must not certify their own work.
-Material fixes belong to Resolve; changes to frozen Plan expectations
-require returning to Plan.
+- Do not change production semantics or weaken Plan acceptance tests.
+- Keep the original 140 helper-call sites distinguishable from newly
+  inventoried conversion mechanisms.
+- Record concrete representation relationships and unresolved cases.
+- Correct the edit-latency measurement boundary without removing
+  correctness assertions.
+- Update affected results and limitations in section 5 of the spec.
+  Preserve the original run as historical evidence.
+- Run ordinary CI and dispatch a fresh diagnostic after the fixes.
+- Record fixes, rebuttals and unresolved findings here.
 
 ## Next
 
-Start a fresh chat with **Review task 23**, reading current `main`,
-the issue, the branch and the relevant specifications and tests.
+Start a fresh Resolve task 23 context, reading the independent Review,
+current source, revised Plan tests, and original measurements.
 
-After Review: Resolve findings if necessary, then Publish the task PR
-with `Closes #60`. Do not merge before independent Review.
+After Resolve, conduct another independent Review. Publish remains
+blocked until that Review accepts the final implementation.

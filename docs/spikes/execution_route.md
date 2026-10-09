@@ -2,219 +2,296 @@
 
 **Status: provisional.** Issue #65, roadmap section I, decision D3.
 
-Plan revision after independent criticism of the initial Plan head `21d3f153bf8d1c10ae7b1744efb9f9c84bdb3848`. The original Plan was not accepted for Execute. This revision replaces its scope, predictions and acceptance contract.
-
-No D3 or D4 decision is made here.
+This is the revised Plan contract following two review rounds. It does not decide D3, D4 or permanent language semantics.
 
 ## 1. Question
 
-Compare:
+Compare two execution routes for chunks produced by the SHEAR compiler:
 
-- A: the SHEAR-written VM executing compiler-produced chunks.
-- B: the host machine executing SHEAR-compiled chunks admitted as derived artifacts of identified semantic nodes.
+- A: execution through the SHEAR-written VM.
+- B: host execution of admitted, SHEAR-compiled per-node derived artifacts.
 
-Preserve the semantic graph as canonical, with executable artifacts separate from semantic definitions. Neither route may silently replace unsupported compilation with host lowering.
+The semantic graph remains canonical. Derived executable artifacts cannot replace semantic definitions.
 
-Task 27's wrapper-based rebuild is a working baseline, not proof of source preservation: its active function bodies become wrappers containing literal chunks, while separate source twins retain the original code.
+The existing `swap_all` mechanism is a baseline, not a source-preserving solution: it installs literal-chunk wrappers as active function bodies and retains the originals in separate source twins.
 
-The spike must produce evidence sufficient for an owner decision, not implement the whole hosted-bootstrap milestone.
+The objective is a bounded, falsifiable comparison for the owner's D3 decision, not a complete hosted-bootstrap implementation.
 
-## 2. Scope
+## 2. Workload and scope
 
 W0 – executable comparison:
 
-- Run the existing generation-1 through generation-3 rebuild on route A as the baseline.
-- Construct a bounded route-B witness in which a compiler written in SHEAR produces an identified node's executable chunk, the host admits it, and execution returns the independently expected result.
-- Attempt the same compiler rebuild on route B. Record each achieved generation or the concrete blocker. An incomplete rebuild is not comparable with a complete rebuild.
-- Preserve source identities and versions on the route-B witness; demonstrate actual use of the admitted artifact rather than a hidden host-lowered chunk.
-- Check the producer and execution route of every chunk within the claimed witness. Do not claim global transitive provenance beyond that boundary.
+- Reproduce the existing route-A compiler rebuild through generations 1, 2 and 3.
+- Produce, admit and execute a genuine SHEAR-compiled per-node chunk through route B.
+- Use a function with child nodes and a statically linked call as the route-B witness.
+- Keep the semantic source and its versions unchanged.
+- Attempt compiler rebuilding on route B, recording each achieved generation and its concrete limitations.
+- Distinguish program execution from compiler execution, fixed host machinery and fallback.
 
-W1 – ordinary-program coverage inventory only:
+Only genuinely equivalent executable coverage may be compared quantitatively.
 
-- Apply Task 28's matrix to the tier-1 and tier-2 corpora.
-- Classify required operations, host services, delegated calls and missing instructions.
-- Record the prerequisites and the task owning each gap. No new corpus-wide implementation is required.
+W1 – ordinary corpus coverage inventory:
 
-W2 – live-evolution coverage inventory only:
+- Classify the tier-1 and tier-2 operation requirements against Task 28's matrix.
+- Identify missing instructions, services, indirect-call requirements and fallbacks.
+- Record each gap, its prerequisite and its future owning task.
+- No corpus-wide implementation is required.
 
-- Evaluate candidate creation, trial, activation, rejection, continuity, old frames/closures and retirement against both routes.
-- Identify blocked semantics and services. No new live-evolution implementation is required.
+W2 – live-evolution coverage inventory:
 
-W1 and W2 are not executable acceptance workloads for this spike. Tasks 30 and 31 own their completion.
+- Assess candidate construction, trial, activation, rejection, continuity, held frames and closures, and retirement.
+- Record supported and blocked mechanisms for each route.
+- No new live-evolution implementation is required.
 
-## 3. Provisional spike interfaces
+Route A additionally requires one bounded wrapper-free execution design or a concrete counterexample. Implementation is not required.
 
-These interfaces are internal experiments, not permanent SHEAR syntax, public operations or language semantics.
+Tasks 30 and 31 own full hosted-pipeline and live-evolution completion.
 
-Place the bounded experimental API in `shear/execution_route_spike.py`:
+## 3. Spike modules and interfaces
+
+The entire experimental implementation lives in:
+
+    shear/execution_route_spike.py
+
+This module contains:
+
+- Host-side production observation, structural admission, derived-artifact storage, execution routing and tracing.
+- A node-aware compiler expressed as SHEAR `Function` data, invoked through the ordinary SHEAR runtime.
+- Private helpers necessary to build a separate compiler runtime and construct the host-provided node descriptor.
+
+No additional Python module is authorized for this spike without returning to Plan.
+
+The SHEAR compiler must actually execute as a SHEAR function. Python may construct the descriptor and observe the compiler's returned value; Python must not implement the lowering operation whose result is attributed to the SHEAR compiler.
+
+The compiler runtime may be separate from the target program runtime. Production must not modify the target program's semantic definitions.
+
+Provisional API:
 
     produce(runtime, entity) -> (chunk, evidence)
     admit(state, entity, version, chunk, evidence) -> admitted
     run_admitted(runtime, entry, *args) -> result
+    trace(runtime) -> tuple[RouteEvent, ...]
     AdmissionRejected
 
-`entity` denotes a semantic code node, not its owning function. `version` is that node's `VersionID`. A runtime-scoped admitted-artifact table remains outside semantic state.
+`entity` identifies a semantic code node, not its containing function. `version` is that node's `VersionID`.
 
-`produce` must invoke a genuine compiler function implemented in SHEAR. The host supplies a node descriptor containing the node's kind, payload, child-role identities, owner and relevant links. That descriptor is input data, not compiler output.
+The descriptor supplied to the compiler contains the node's kind, payload, role-to-child `EntityID` mapping, owner and permitted linked entities. The compiler produces a host-format per-node chunk containing semantic child references, not recursively expanded child chunks.
 
-The SHEAR compiler produces one host-format per-node chunk, with child `EntityID` references rather than recursively expanded chunks. The host may construct the descriptor and observe the result, but may not obtain that result by invoking `bytecode.lower` or `bytecode.lower_value`.
+The mandatory supported node kinds for the executable witness are `lit`, `arg`, `add` and `call`. Further support is optional but must be recorded and differentially tested.
 
-This is a spike-only node-aware compiler entry. It does not change the program-visible `code` operation, which continues to return its existing representation. Whether SHEAR programs should later see node identities is an owner decision.
+Admitted artifacts and tracing records live outside semantic state. The spike does not change the program-visible `code` operation or expose node identities through it.
 
-The test suite uses the named interface directly. Execute may choose internal data structures but must not substitute a materially different contract without returning to Plan.
+### Module lifecycle and mutation policy
 
-## 4. Route-B admission
+`shear/execution_route_spike.py` is temporary experimental machinery, not an accepted permanent runtime interface.
 
-**Provisional recommendation: structural admission and trusted producer evidence, with differential compiler-correctness tests.**
+Plan registers it in `tests/mutation_catalog.py` under `OMITTED`, with the reason:
 
-Admission checks:
+    Experimental Task 29 spike; remove or replace in Task 30, or promote with an explicit mutation-testing decision.
 
-1. The node exists in the supplied state and has the claimed version.
-2. The node is executable and belongs to a valid function.
-3. The chunk is a well-formed, supported instruction sequence with valid operand types and control flow.
-4. Child references in instructions belong to the identified node's semantic children.
-5. Function/entity operands requiring link resolution refer only to links available to the node's owner.
-6. The chunk is exactly the artifact whose production was observed by the trusted host. A changed chunk, even if structurally valid, is rejected.
-7. The producer record binds the compiler function and generation, source state, node identity, version and exact output.
-8. Runtime admission binds the artifact to its required state and dependencies. Changes that invalidate the binding cannot reuse the artifact.
-9. Rejection never populates the executable cache and never switches to host lowering.
+The omission is intentional and temporary. Acceptance and adversarial tests remain mandatory; omission does not excuse functional or security defects.
 
-The verifier does not recompute semantic lowering. Structural validation does not prove that an arbitrary admitted chunk implements the correct program. Genuine compiler output can still contain a compiler bug.
+No new example module is necessary. The existing `shear/examples/self_hosting.py` stays unchanged, avoiding its mutation-survivor source pin.
 
-Compiler correctness is checked independently through deterministic expected results and differential comparison with host lowering as a test oracle. That oracle must not participate in production or admission.
+The experimental module may merge with Task 29 as explicitly temporary code. Task 30 must remove it, replace it or deliberately promote it with the appropriate mutation-catalog update. A route-A decision does not justify silently retaining the unused host experiment.
 
-An independent semantic verifier would duplicate substantial compiler logic. Admission by host recomputation would collapse route B into the existing host-lowering path. Neither is included in this spike.
+Because Plan registers a module that Execute has not created yet, the mutation-catalog inventory is expected to fail until that module exists. Execute must create it before claiming ordinary CI is green.
 
-### Trusted producer boundary
+## 4. Host admission and trust boundary
 
-Trusted Python runtime machinery observes the SHEAR compiler invocation and its returned chunk. The observation records the actual executed compiler identity, generation, input identity and version, and returned artifact.
+**Provisional choice: structural admission plus trusted producer evidence.**
 
-An opaque evidence handle refers to this host-owned record. Program data, user-supplied generation numbers and copied or fabricated records do not grant admission authority.
+Admission establishes:
 
-Only internal host machinery can call `admit`. This spike adds no program-visible admission operation, compiler capability or mechanism for directly installing arbitrary executable chunks.
+1. The node exists in the supplied state, is executable, belongs to a valid function and has the claimed version.
+2. The chunk contains supported, well-formed instructions, operand types and control-flow structure.
+3. Child operands refer only to the node's actual semantic children.
+4. Function/entity operands requiring link resolution refer only to entities available through the owner's links.
+5. The chunk matches the exact artifact observed at the trusted producer boundary.
+6. The producer record binds the actual SHEAR compiler invocation, its compiler version/generation, the target state, node, version and returned artifact.
+7. Dependencies and cache identity prevent stale or incorrectly rebound artifacts from executing.
+8. Rejected artifacts never enter the executable cache and never trigger host-lowering fallback.
 
-Evidence establishes origin and output integrity, not compiler correctness.
+Trusted host machinery observes the SHEAR compiler function actually executing and returning its result. It retains an opaque record and issues an evidence handle.
 
-The implementation must demonstrate that evidence cannot be forged using ordinary program data. If the current host runtime cannot establish an authentic producer boundary without broader changes, record the blocker rather than weakening it.
+Neither a tuple built by a SHEAR program nor a copied collection of record fields grants authority. An authentic handle cannot authorize a different chunk or node.
 
-## 5. Route A and open language choices
+Only internal host machinery invokes admission. No program-visible compilation capability, arbitrary-bytecode installation operation or transferable admission credential is added.
 
-Evaluate the existing SHEAR-VM route, including its wrapper-based source-preservation failure.
+Admission does **not** prove compiler correctness. It does not recompute semantic lowering and never invokes host lowering as its verifier.
 
-Provide one bounded design for wrapper-free execution, or a concrete counterexample showing why that design cannot work with the current semantics.
+Compiler correctness must instead be tested against independent expected behavior and, inside tests only, the existing host lowering as a differential oracle.
 
-No wrapper-free runtime implementation is required in Task 29. Specify how a proposed route would select derived artifacts without rewriting the active function definitions, and identify its call and closure consequences.
+An independent semantic verifier would duplicate compiler logic; admission by recomputation would collapse route B into the existing host path. Neither is required or authorized.
 
-`READ`, `WRITE`, `CODE`, `LINKS`, `ACTIVATE` and other currently missing VM instructions remain coverage gaps. In particular, allowing by-value targets for cells or code reflection changes authority and capability semantics. This spike does not introduce those operations.
+## 5. Route tracing
 
-Owner decisions remaining open:
+`trace(runtime)` returns a read-only snapshot of host-maintained observations. Each `RouteEvent` exposes at least:
 
-- D3 – permanent execution route.
-- D4 – hosted workload, permitted host boundary and budgets.
-- Whether structural admission plus differential correctness evidence is an acceptable trust model.
-- Whether and how semantic node identities become visible to SHEAR programs.
-- Whether program-visible compilation or artifact admission receives a capability.
-- Whether by-value cell and reflection targets are allowed, and under what authority.
+    kind
+    route
+    entity
+    version
+    artifact_id
 
-The provisional interfaces in section 3 do not decide these permanent questions.
+The event kinds are `produce`, `admit` and `execute`.
 
-## 6. Predictions before execution
+- Production events identify route `shear-compiler` and expose the actual compiler entity and compiler version.
+- Admission events identify route `host-admission`.
+- Execution events identify route `admitted-host`.
+- `artifact_id` is an exact immutable identity or digest of the produced artifact. Events for the same admitted artifact carry the same identity.
+- `entity` and `version` identify the semantic node whose artifact is involved.
 
-P1 – The existing wrapper-based SHEAR-VM rebuild changes active semantic function bodies while preserving source twins. A wrapper-free design needs an execution-selection mechanism outside those bodies.
+Trace data is not program-supplied. Producing an event without actually observing the corresponding operation does not satisfy this contract.
 
-P2 – The current embedded compiler cannot directly supply host-format per-node chunks because it consumes collapsed expressions and emits expanded child chunks. The node-aware spike requires a distinct SHEAR-implemented entry.
+For the executable witness, the trace must identify every target-program node whose admitted artifact executes. Execution using ordinary host lowering or unrecorded chunks must fail the witness.
 
-P3 – Structural admission with trusted producer evidence can accept a genuinely SHEAR-produced per-node chunk and reject forged, stale or altered submissions without executing host lowering. If this requires a second semantic compiler, the proposed boundary fails.
+No claim of system-wide transitive completeness may be made beyond the explicitly traced workload.
 
-P4 – For an equivalent executable witness, route B including artifact admission has median elapsed time at most 10 times the ordinary host-executed reference path. This is an experimental discriminator, not an accepted D4 performance budget. Report cold admission and warm execution separately. If equivalent coverage is unavailable, report P4 inconclusive.
+## 6. Route A and deferred semantics
 
-P5 – The existing Task 27 host-lowering spy is insufficient to prove transitive producer provenance. A route-specific observer must identify produced and executed artifacts at the claimed boundary.
+Characterize the existing wrapper-based route, including its modification of active semantic source and reliance on installed host functions for some calls.
 
-The task-23 baseline is approximately 0.037 s native and 5.264 s interpreted for `lower(lower)`, a ratio of approximately 142:1. These measurements do not predict admission overhead.
+Describe one design for selecting VM execution through external derived-artifact state without replacing function bodies, or demonstrate a concrete obstacle.
 
-Execute receives one documented experimental revision after recording the falsifying observation and rationale. A material change in language semantics, admission policy or workload returns to Plan.
+No new language instructions or by-value authority mechanism may be introduced to make route A pass this spike.
 
-## 7. Plan-owned acceptance tests
+`READ`, `WRITE`, `CODE`, `LINKS`, `QUOTE`, `FUNCTION`, `ACTIVATE`, `TRIAL`, `CATCH`, `FAIL` and `RAISE` remain documented VM coverage gaps where unsupported.
 
-Use `tests/test_execution_route.py`. Tests must exercise the actual spike interface; a formatted report is not acceptance evidence.
+Whether cell and reflection targets can be chosen by value is a separate language and capability decision.
 
-Required negative tests:
+## 7. Fixed predictions
 
-- Forged or program-supplied producer evidence is rejected.
-- A valid producer handle attached to another node is rejected.
-- A stale node version is rejected.
-- An artifact modified after production is rejected, including a structurally valid modification.
-- An `EVAL` referencing a non-child node is rejected.
-- An instruction referencing an entity outside the owner's permitted links is rejected.
-- Admission cannot call host lowering; a spy fails the test if it does.
-- Rejected artifacts do not enter the admitted cache or execute through fallback.
+P1 – The existing wrapper mechanism changes active semantic function definitions and therefore fails source preservation despite successful observed computation.
 
-Required positive tests:
+P2 – The existing SHEAR compiler emits recursively expanded chunks from collapsed expressions and needs a separate node-aware SHEAR entry to produce per-node host chunks.
 
-- A genuine SHEAR-produced chunk is admitted for its exact node and version.
-- The admitted chunk executes to an independently expected result.
-- The active function body and semantic node versions remain unchanged.
-- A demonstrated edit invalidates a stale admitted artifact.
-- Host lowering of the target code nodes is not invoked during admitted execution.
-- Producer observation and executed-artifact tracing identify the route actually used.
+P3 – Structural admission and trusted producer evidence can admit a genuine SHEAR-produced per-node artifact while rejecting forged, stale and modified submissions without host lowering.
 
-Tests may inspect the experimental API directly. They must fail on the original branch without the implementation for a behavioral reason, not because an evidence table or documentation heading is missing.
+P4 – For the same cold executable witness, total route-B latency is at most 10 times ordinary host-route latency.
 
-Tests of source-preserving wrappers may remain as characterization, but do not substitute for the new red tests.
+Define P4 precisely:
 
-Only the Plan role changes the acceptance contract. Execute adds further implementation tests without weakening Plan-owned cases.
+    T_B = T(produce all required target nodes)
+        + T(admit all produced artifacts)
+        + T(run_admitted once)
 
-No golden-record changes are intended.
+    T_H = T(ordinary host run once, including its lazy lowering)
 
-## 8. Measurements
+    P4 holds when median(T_B) / median(T_H) <= 10.
 
-Use the corrected methodology in `docs/content_baseline.md` section 3.
+Use fresh, equivalent target runtimes, identical program inputs, identical expected outputs and cold target-node chunk caches for both paths.
 
-Mandatory:
-- Rebuild time by achieved generation, identifying which route and compiler produced each result.
-- Cold producer/admission time and warm execution time, compared with equivalent host execution.
-- One small edit through preparation, lowering/admission and activation, with phase and total latency and independently checked before/after behavior.
+Exclude common test-fixture and target-runtime construction from both measurements. Include any route-B-specific compiler-runtime initialization required for production. Exclude only common preparation performed equally for both routes.
 
-Use at least three untraced repetitions with median and range for comparable timed workloads. Record exact commit, runner, Python version, input and cache conditions.
+The host reference runs the same function and arguments through the ordinary machine, including its ordinary lazy host lowering. It is not warm execution alone.
 
-Reuse Task 23's memory and artifact-size baseline. New memory, image-size and allocation measurements are optional unless a concrete route-specific mechanism creates an identified concern.
+Measure route-B production, admission and execution separately as well as their total. Measure subsequent warm runs separately, but do not use warm timings to evaluate P4.
 
-Do not compare timings for workloads with unequal functionality. Report blocked measurements as blocked, not as inferred values.
+If one route cannot execute the same witness without undeclared fallback, P4 is inconclusive rather than confirmed.
 
-If a new machine boundary makes a run-context extraction necessary, identify the minimal responsibility and justify it before implementation. No general machine refactor is authorized.
+P5 – Existing instrumentation is insufficient to establish complete producer and execution provenance; explicit boundary tracing is needed.
 
-## 9. Evidence and decision gates
+The Task 23 diagnostic baseline was approximately 0.037 seconds for native `lower(lower)` against 5.264 seconds under the SHEAR VM, approximately 142:1. It is not the P4 denominator and does not establish admission cost.
 
-Record the spike's observations, tests, coverage ledger, measurements and recommendation in this document, under `## 11. Execution results`. Keep `docs/bootstrap.md` as the Task 28 boundary inventory. No duplicate result table is required.
+Predictions are fixed before Execute starts. One documented experimental revision is permitted after recording a falsifying observation and the reason for revision. Material changes in scope, trust or language semantics return to Plan.
 
-G1 – Source preservation: wrappers that replace canonical function bodies fail this condition.
+## 8. Plan-owned acceptance tests
 
-G2 – Admission: only authentic, node/version-bound artifacts enter the host execution path. Wrong inputs fail closed.
+`tests/test_execution_route.py` must exercise actual behavior, not merely documentation or report formatting.
 
-G3 – Compiler correctness: structural admission is not a proof of semantic correctness. Require independent expected results and differential evidence, and report the residual trust assumption.
+Positive tests:
 
-G4 – Workload: W0 executable evidence is the target; W1/W2 are coverage inventories. Incomplete work cannot be called implemented.
+- A genuine SHEAR-produced chunk for the correct node and version is admitted.
+- A node with children emits the required per-node `EVAL` references and executes to an independently specified result.
+- The SHEAR-produced chunk for each mandatory supported node kind equals `bytecode.lower(relation)` when host lowering is called solely from the test.
+- An admitted execution uses the admitted artifacts rather than cached or newly host-lowered code.
+- Semantic function definitions and node versions remain unchanged.
+- Editing a function invalidates incompatible old artifacts.
+- Tracing identifies the genuine producing compiler and matches production, admission and execution of the same artifacts.
 
-G5 – Cost: compare admission and execution against the matching host reference, using the fixed prediction rather than retrospective thresholds.
+Negative tests:
 
-G6 – Owner authority: present results, alternatives, open risks and a recommendation. Do not decide D3, D4 or permanent authority semantics in Execute.
+- Arbitrary Python evidence is rejected.
+- Evidence-shaped data returned by a SHEAR program is rejected.
+- A genuine handle cannot be reused with another producer's chunk.
+- A genuine handle attached to the wrong node is rejected.
+- A stale version is rejected.
+- A modified but structurally valid instruction sequence is rejected.
+- Foreign child and unlinked entity operands are rejected.
+- Admission does not call host lowering.
+- Producing the target artifact does not secretly invoke host lowering for that target.
+- Rejected artifacts cannot execute through a fallback.
 
-A successful narrow spike establishes feasibility, not the hosted-bootstrap milestone. A blocked or falsified candidate remains a legitimate experimental result but cannot be presented as an implemented route.
+Tests must use the fixed spike API. They must fail on the Plan baseline because behavior is missing, not because a report heading is missing.
 
-## 10. Role contract
+Execute may add tests for implementation details but cannot weaken the Plan-owned cases.
 
-Plan owns this specification, behavioral acceptance tests and lane registration. The accepted Plan head is recorded in `handoff.md` after revision.
+No golden changes are authorized.
 
-Execute implements the bounded experimental API and witnesses, collects CI evidence and records the results in section 11. It does not decide the permanent execution route or rewrite acceptance expectations.
+## 9. Measurements and evidence
 
-Independent Review compares Plan-owned files with the accepted Plan head, tests forged evidence and fallback paths adversarially, verifies actual producer attribution, checks scope and measurements, and identifies any change to Decided semantics.
+Use `docs/content_baseline.md` section 3.
 
-Resolve handles verified Review defects. Publish follows accepted independent Review and the owner's D3 decision. No PR opens earlier.
+Mandatory observations:
 
-Separate nonblocking improvements, including lane-edit process protection, remain follow-ups rather than additional production work in Task 29.
+- Rebuild time for each actually achieved compiler generation on both routes.
+- P4 cold production/admission/execution latency and matching cold host reference.
+- Separate warm execution latency.
+- One small edit through preparation, lowering/admission and activation, with phase and total latency and checked before/after behavior.
 
-Task 30 owns the full hosted pipeline. Task 31 owns complete live evolution.
+For comparable timings, collect at least three untraced observations, their median and range, and record exact commit, CI runner, Python version, workload and cache conditions.
+
+Reuse the Task 23 memory and artifact-size baseline. Extra memory measurements are optional unless the spike reveals a particular cost mechanism.
+
+W1 and W2 coverage inventories must reference the Task 28 matrix and name unsupported capabilities without treating them as passes.
+
+All results and recommendations belong under section 11 of this document, not in a second report in `docs/bootstrap.md`.
+
+### Required costly-to-change analysis
+
+The final recommendation must explicitly analyze these three Provisional interfaces:
+
+1. **Instruction set** – which instructions or operand conventions would become route-specific, and what would be required to migrate the compiler and execution machinery.
+2. **The version observed by `code`** – the cost and semantic consequences of choosing active, held/caller or other version views, including continuity and closure behavior. Do not change `code` in this task.
+3. **Node identities in compiler output** – whether outputs contain `EntityID`s, opaque references or expanded child chunks; the effects on compiler APIs, invalidation and reproducibility.
+
+For each, record route-A implications, route-B implications, what becomes expensive to reverse, and the outstanding owner decision.
+
+The final report must include the admission rule, observed limitations, recommendation and this analysis. Omitting it fails Task 29's roadmap done-when condition.
+
+## 10. Decision and role gates
+
+G1 – Canonical source: replacing active function definitions with chunk wrappers fails unless the owner changes the anchor.
+
+G2 – Admission: source-bound, authentic artifacts only; rejection must be fail-closed.
+
+G3 – Correctness: admission proves structure and origin, not semantic correctness. Differential and independent behavioral tests are required.
+
+G4 – Scope: W0 is executable; W1 and W2 are inventories. Blocked paths cannot be reported as implemented.
+
+G5 – Cost: use the P4 formula fixed before execution. Compare equivalent work and report other costs separately.
+
+G6 – Owner authority: D3 and D4 and permanent language-shaping choices remain open until explicitly decided.
+
+Plan owns this specification and its acceptance tests. Execute implements the experimental API and collects evidence. If the contract proves materially unsuitable, return to Plan.
+
+Independent Review examines the actual compiler invocation, forged authority, output integrity, source preservation, differential correctness, trace authenticity and measurement provenance against the protected Plan baseline.
+
+Resolve addresses verified defects. Publish follows an accepted independent Review and the owner's D3 decision. No earlier PR.
 
 ## 11. Execution results
 
-**Open.** Execute records results here. No spike execution or result is claimed by this Plan.
+**Open.** Execute will record:
+
+- Achieved W0 results and precise blockers for each route.
+- W1/W2 coverage inventories.
+- P1–P5 outcomes and any authorized experimental revision.
+- Admission and tracing evidence with CI links.
+- Differential correctness evidence.
+- Timing measurements and limitations.
+- Admission rule and residual trust assumptions.
+- Costly-to-change analysis for the instruction set, the version seen by `code`, and node identities in compiler output.
+- A recommendation for D3, explicitly distinguished from the owner's decision.
+
+A successful narrow spike establishes feasibility, not completion of Tasks 30 or 31.

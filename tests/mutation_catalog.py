@@ -178,8 +178,7 @@ def _require_string(
 
     if not value.strip():
         raise CatalogError(
-            f"{context}: {field} must be a "
-            "non-empty stripped string"
+            f"{context}: {field} must not be empty"
         )
 
     return value
@@ -418,6 +417,7 @@ def load_catalog(
     catalog_targets = _require_string_list(
         manifest,
         "catalog_targets",
+        "manifest",
     )
 
     unknown_targets = (

@@ -1,84 +1,73 @@
 # Handoff
 
 Read `CLAUDE.md` and `docs/roadmap.md` first. Verify this checkpoint
-against the repository; it is not independent verification evidence.
+against repository state before relying on it.
 
 ## State
 
-- Task 28, issue #64: Plan deliverables complete; independent Review pending.
+- Task 28, issue #64: Published as open PR #90, awaiting owner merge.
 - Branch: `task/28-bootstrap-boundary`.
-- Base `main`: `081ba0d0882e9c02906a3f6a4081f77d2907e897`.
-- Revised Plan baseline:
+- PR: https://github.com/NadOby/shear/pull/90
+- Independent Review: accepted, no blocking findings.
+- Accepted Plan baseline:
   `1f328747069891407668434728c5436d421faa17`.
-- No production or golden-record changes.
-- No PR opened. Publication follows independent Review.
+- Final substantive Publish update:
+  `fbeaa8e3769fbc96cb2230318a490670fa5c175b`.
+- Roadmap: Implemented (PR #90).
+- PR includes `Closes #64`.
+- No production semantics or golden records changed.
 
-## Deliverables
+## Delivered
 
-- `docs/bootstrap.md`: four-route operation matrix, semantics of the
-  statuses, host-service inventory and reproducible trace description.
-- `tests/test_bootstrap_boundary.py`: matrix, lowering, rejection,
-  interpreter-trap and inventory acceptance tests.
-- `tests/lanes.py`: one added `cross-boundary` test registration.
-- `CHANGES.md`: Plan and review-correction history.
+- `docs/bootstrap.md`: four-route operation support matrix, host-service
+  inventory, reported rebuild observations and reproduction method.
+- `tests/test_bootstrap_boundary.py`: acceptance tests for current
+  lowering, interpreter dispatch, failure behavior and inventory.
+- `tests/lanes.py`: one `cross-boundary` registration.
+- `CHANGES.md`: consolidated Task 28 result.
+- `docs/roadmap.md`: Task 28 marked Implemented (PR #90).
 
-Task 28's deliverables require no production implementation.
+D3 and D4 remain open for subsequent tasks.
 
-## Verified CI
+## Verification
 
-The revised Plan passed the ordinary CI suite and golden comparison:
+- Plan baseline CI passed:
+  https://github.com/NadOby/shear/actions/runs/37936673375
+- Consolidated Publish CI passed:
+  https://github.com/NadOby/shear/actions/runs/37940961244
+- Roadmap-update push CI passed:
+  https://github.com/NadOby/shear/actions/runs/37942586287
 
-https://github.com/NadOby/shear/actions/runs/37936673375
+Confirm PR checks for the latest head before merging.
+The Plan-owned specification and acceptance tests remained unchanged
+during Publish.
 
-This run tested baseline `1f328747`. The full deterministic suite
-can also run locally as documented in `CLAUDE.md`; mutation campaigns
-have separate CI execution requirements.
+## Accepted limitations
 
-## Boundary and limitations
+- The missing-instruction test checks disjointness and subset membership,
+  not exact equality with host-lowered instructions outside the VM.
+- The test chunk expander duplicates existing expansion logic.
+- The reviewer confirmed two `Runtime.activate` calls, but the documented
+  lowering trace alone does not reproduce that activation count.
+- Complete transitive execution provenance and prevention of undeclared
+  host fallback remain requirements of tasks 29 and 30.
+- Rebuild service observations are reviewer-reported evidence, not a
+  committed execution trace.
 
-The SHEAR VM's operation classification is instruction-level.
-`unquote` is S there because its host-lowered `GOTO` instruction is
-implemented, not because complete quote/unquote execution works.
+These are nonblocking limitations, not unresolved verified defects.
 
-SHEAR lowering explicitly fails for its deferred operations.
-Its generic error chunk does not distinguish deferred operations
-from `invalid`.
+## Follow-up
 
-The VM's `CALL`, and `APPLY`/`APPLYV` on references, can delegate
-to installed host-executed code. Existing rebuilds also involve
-host-lowered program wrappers. Complete transitive execution
-provenance remains a task-30 requirement.
-
-The host inventory distinguishes proposed D4 allowances from a
-reviewer's reported observations of two rebuild generations.
-The trace recorded 16 host-lowered `code` nodes and four `linksof`
-nodes. `docs/bootstrap.md` explains how to reproduce the lowering
-trace; the observations are not a committed trace artifact.
-
-D3 and D4 remain open. `docs/roadmap.md`, under "Pending decisions",
-is authoritative.
-
-## Remaining nonblocking review observations
-
-- The declared missing-instruction set is checked for disjointness
-  and subset membership, but not exact equality against host-lowered
-  instructions outside `vm._ORDER`.
-- Test chunk expansion duplicates existing expansion logic, limiting
-  its independence as an oracle.
-- The changelog contains intermediate Plan-review narrative and an
-  overbroad historical host-fallback claim. Publish should consolidate
-  it into one accurate task-result entry.
-
-These are recorded limitations, not claims of completed corrections.
+Issue #89, labelled `follow-up`, covers the workflow exception for
+specification-and-test-only tasks:
+https://github.com/NadOby/shear/issues/89
 
 ## Next
 
-Conduct independent Review against Plan baseline `1f328747`.
-Verify the matrix, inventory, CI evidence, review corrections and
-accepted limitations.
+The owner verifies the latest PR checks, reviews and merges PR #90, or
+requests changes.
 
-Return any newly verified Plan-owned defect to Plan or Resolve.
-After acceptance, Publish consolidates `CHANGES.md`, opens the PR
-against `main`, and handles issue #64 closure through merging.
+After merging, verify that PR #90 is merged, issue #64 is closed and
+`main` contains the delivered changes. Then select the next roadmap task.
 
-Do not begin task 29 or change D3/D4 within task 28.
+Do not reopen Task 28 without new verified evidence.

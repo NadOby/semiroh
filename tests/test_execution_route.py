@@ -1,173 +1,313 @@
-"""Acceptance evidence for Task 29's execution-route spike (GH-65).
+"""Plan-owned acceptance for the Task 29 execution-route spike (GH-65).
 
-The spike may reject or block either candidate. Its evidence must say so
-explicitly rather than silently reporting incomplete coverage as success.
-The source-preservation witness tests the existing wrapper baseline.
+These tests specify a bounded host-admission interface. They intentionally
+fail until Execute supplies the experimental implementation. Existing
+Task 27 rebuild tests separately cover the wrapper-based baseline.
 """
 
 from __future__ import annotations
 
-import re
+from importlib import import_module
 import unittest
-from pathlib import Path
+from unittest import mock
 
-from shear import EntityID, Runtime
-from shear.examples import vm
+from shear import EntityID, Runtime, VersionID, bytecode, relation_of
+from shear.examples import self_hosting
 from shear.examples._support import program
-from shear.lang import function_at, load, run
+from shear.lang import Function, define, function_at, links, load
 
 
-ROOT = Path(__file__).resolve().parents[1]
-REPORT = ROOT / "docs" / "bootstrap.md"
-HEADING = "## 7. Task 29 execution-route evidence"
-
-ACCEPTANCE = {f"A{i}" for i in range(1, 12)}
-PREDICTIONS = {f"P{i}" for i in range(1, 6)}
-WORKLOAD = {
-    f"{route}-W{number}"
-    for route in ("A", "B")
-    for number in range(3)
-}
-REQUIRED = ACCEPTANCE | PREDICTIONS | WORKLOAD
-
-RESULT_STATUS = {"pass", "fail", "blocked"}
-PREDICTION_STATUS = {"confirmed", "falsified", "inconclusive"}
-RUN_LINK = "https://github.com/NadOby/shear/actions/runs/"
+TARGET = EntityID("route_target")
+CALLER = EntityID("route_caller")
+UNLINKED = EntityID("route_unlinked")
 
 
-def evidence_rows() -> dict[str, tuple[str, str, str]]:
-    """Read the Task 29 evidence table, not the Task 28 matrix."""
-    text = REPORT.read_text(encoding="utf-8")
-    if HEADING not in text:
-        raise AssertionError("missing Task 29 evidence section")
-
-    section = text.split(HEADING, 1)[1]
-    rows = {}
-
-    for line in section.splitlines():
-        if not line.startswith("|"):
-            continue
-
-        fields = [field.strip() for field in line.strip("|").split("|")]
-        if len(fields) != 4 or fields[0] not in REQUIRED:
-            continue
-
-        key, status, proof, finding = fields
-        if key in rows:
-            raise AssertionError(f"duplicate evidence row: {key}")
-        rows[key] = (status.lower(), proof, finding)
-
-    return rows
+def fixture() -> Runtime:
+    """A compiler plus code with children and a statically linked call."""
+    entities = {
+        **self_hosting.compiler_entities(),
+        TARGET: Function(
+            ("x",),
+            ("add", ("arg", "x"), ("lit", 3)),
+        ),
+        CALLER: Function(
+            ("x",),
+            ("call", "callee", ("arg", "x")),
+        ),
+        EntityID("route_caller.links"): links(
+            CALLER, callee=TARGET,
+        ),
+        UNLINKED: Function((), ("lit", 99)),
+    }
+    return Runtime(load(program(entities)))
 
 
-class ExistingRouteBoundaryTests(unittest.TestCase):
-    def test_wrapper_swap_changes_active_semantic_source(self):
-        runtime = Runtime(load(program(vm.bootstrap_entities())))
-        before = runtime.active.state
-
-        originals = {
-            name: function_at(before, EntityID(name))
-            for name in vm.SWAPPED
-        }
-        twins = {
-            name: function_at(before, vm.source_name(name))
-            for name in vm.SWAPPED
-        }
-
-        self.assertTrue(run(runtime, vm.SWAP_ALL, may_activate=True))
-        after = runtime.active.state
-
-        for name in vm.SWAPPED:
-            with self.subTest(function=name):
-                active = function_at(after, EntityID(name))
-                retained = function_at(after, vm.source_name(name))
-
-                self.assertNotEqual(active.body, originals[name].body)
-                self.assertEqual(active.body[:2], ("call", "vm"))
-                self.assertEqual(retained.body, twins[name].body)
-                self.assertEqual(retained.params, twins[name].params)
-
-    def test_existing_wrapper_witness_does_not_change_source_twins(self):
-        runtime = Runtime(load(program(vm.bootstrap_entities())))
-        before = runtime.active.state
-
-        identities = {
-            name: before.values[vm.source_name(name)].version_id
-            for name in vm.SWAPPED
-        }
-
-        run(runtime, vm.SWAP_ALL, may_activate=True)
-        after = runtime.active.state
-
-        for name, version in identities.items():
-            with self.subTest(function=name):
-                self.assertEqual(
-                    after.values[vm.source_name(name)].version_id,
-                    version,
-                )
+def body_node(state, function: EntityID) -> EntityID:
+    return relation_of(state.values[function]).roles["body"]
 
 
-class EvidenceContractTests(unittest.TestCase):
-    def test_evidence_is_complete_and_has_unique_ids(self):
-        rows = evidence_rows()
-        self.assertEqual(set(rows), REQUIRED)
+def replacement(
+    chunk: tuple,
+    opcode: str,
+    instruction: tuple,
+) -> tuple:
+    """Change one matching instruction while retaining valid tuple form."""
+    result = list(chunk)
+    matches = [
+        index
+        for index, current in enumerate(result)
+        if current[0] == opcode
+    ]
+    if not matches:
+        raise AssertionError(f"witness lacks {opcode}")
+    result[matches[0]] = instruction
+    return tuple(result)
 
-    def test_every_result_has_a_status_and_a_falsifiable_witness(self):
-        for key, (status, proof, finding) in evidence_rows().items():
-            with self.subTest(id=key):
-                allowed = (
-                    PREDICTION_STATUS
-                    if key in PREDICTIONS
-                    else RESULT_STATUS
-                )
-                self.assertIn(status, allowed)
-                self.assertTrue(proof, f"{key}: missing proof")
-                self.assertTrue(finding, f"{key}: missing finding")
-                self.assertNotIn("TODO", proof.upper())
-                self.assertNotIn("TODO", finding.upper())
 
-    def test_pass_claims_have_ci_evidence(self):
-        for key, (status, proof, _) in evidence_rows().items():
-            if status == "pass":
-                with self.subTest(id=key):
-                    self.assertIn(
-                        RUN_LINK,
-                        proof,
-                        f"{key}: passing claims need a CI run",
-                    )
+class AdmissionTests(unittest.TestCase):
+    def setUp(self):
+        # Missing API is a real red acceptance failure on the Plan baseline,
+        # not a skipped test or a missing documentation section.
+        self.route = import_module("shear.execution_route_spike")
+        self.runtime = fixture()
+        self.state = self.runtime.active.state
+        self.root = body_node(self.state, TARGET)
 
-    def test_workload_comparison_includes_both_routes(self):
-        rows = evidence_rows()
-
-        for route in ("A", "B"):
-            for number in range(3):
-                self.assertIn(f"{route}-W{number}", rows)
-
-        self.assertTrue(
-            any(
-                rows[key][0] == "pass"
-                for key in ("A-W0", "B-W0")
-            ),
-            "at least one route must demonstrate compiler rebuilding",
+    def produce(self, node=None):
+        return self.route.produce(
+            self.runtime,
+            self.root if node is None else node,
         )
 
-    def test_blocked_criteria_are_not_presented_as_passes(self):
-        rows = evidence_rows()
+    def admit(self, chunk, evidence, node=None, version=None):
+        node = self.root if node is None else node
+        version = (
+            self.state.values[node].version_id
+            if version is None else version
+        )
+        return self.route.admit(
+            self.state, node, version, chunk, evidence,
+        )
 
-        for key in ACCEPTANCE | WORKLOAD:
-            status, proof, finding = rows[key]
+    def admit_function(self, function=TARGET):
+        nodes = self.state.owned_subtree(function)
+        for node in sorted(nodes):
+            chunk, evidence = self.produce(node)
+            self.admit(chunk, evidence, node)
+        return nodes
 
-            if status == "blocked":
-                with self.subTest(id=key):
-                    self.assertTrue(
-                        re.search(
-                            r"missing|requires|unsupported|unresolved|"
-                            r"dependency|prerequisite|counterexample",
-                            finding,
-                            re.IGNORECASE,
-                        ),
-                        f"{key}: identify the concrete blocker",
-                    )
+    def test_compiler_produces_a_per_node_chunk(self):
+        node = relation_of(self.state.values[self.root])
+        self.assertEqual(node.kind, "add")
+
+        chunk, evidence = self.produce()
+
+        self.assertIsNotNone(evidence)
+        self.assertEqual(chunk[-1], ("END",))
+        self.assertEqual(chunk[-2], ("ADD",))
+        self.assertEqual(
+            tuple(ins[1] for ins in chunk if ins[0] == "EVAL"),
+            (node.roles["left"], node.roles["right"]),
+        )
+        self.assertTrue(
+            all(isinstance(ins, tuple) for ins in chunk)
+        )
+
+    def test_genuine_production_is_admitted(self):
+        chunk, evidence = self.produce()
+        admitted = self.admit(chunk, evidence)
+        self.assertIsNotNone(admitted)
+
+    def test_program_supplied_evidence_is_rejected(self):
+        chunk, _ = self.produce()
+        with self.assertRaises(self.route.AdmissionRejected):
+            self.admit(chunk, object())
+
+    def test_evidence_is_bound_to_its_node(self):
+        chunk, evidence = self.produce()
+        foreign = body_node(self.state, UNLINKED)
+
+        with self.assertRaises(self.route.AdmissionRejected):
+            self.admit(chunk, evidence, foreign)
+
+    def test_wrong_version_is_rejected(self):
+        chunk, evidence = self.produce()
+        stale = VersionID("not-the-current-version")
+        self.assertNotEqual(
+            stale, self.state.values[self.root].version_id,
+        )
+
+        with self.assertRaises(self.route.AdmissionRejected):
+            self.admit(chunk, evidence, version=stale)
+
+    def test_modified_but_well_formed_output_is_rejected(self):
+        chunk, evidence = self.produce()
+        altered = replacement(chunk, "ADD", ("SUB",))
+        self.assertNotEqual(altered, chunk)
+
+        with self.assertRaises(self.route.AdmissionRejected):
+            self.admit(altered, evidence)
+
+    def test_foreign_child_reference_is_rejected(self):
+        chunk, evidence = self.produce()
+        foreign = body_node(self.state, UNLINKED)
+        children = relation_of(
+            self.state.values[self.root]
+        ).endpoints
+        self.assertNotIn(foreign, children)
+
+        altered = replacement(
+            chunk, "EVAL", ("EVAL", foreign),
+        )
+        with self.assertRaises(self.route.AdmissionRejected):
+            self.admit(altered, evidence)
+
+    def test_unlinked_function_operand_is_rejected(self):
+        node = body_node(self.state, CALLER)
+        chunk, evidence = self.produce(node)
+        self.assertTrue(any(ins[0] == "CALL" for ins in chunk))
+
+        altered = replacement(
+            chunk, "CALL", ("CALL", UNLINKED, 1),
+        )
+        with self.assertRaises(self.route.AdmissionRejected):
+            self.admit(altered, evidence, node)
+
+    def test_admission_never_invokes_host_lowering(self):
+        chunk, evidence = self.produce()
+
+        with (
+            mock.patch.object(
+                bytecode, "lower",
+                side_effect=AssertionError("host lowering in admission"),
+            ),
+            mock.patch.object(
+                bytecode, "lower_value",
+                side_effect=AssertionError("host lowering in admission"),
+            ),
+        ):
+            self.assertIsNotNone(self.admit(chunk, evidence))
+
+    def test_production_does_not_host_lower_the_target(self):
+        self.assertNotIn(
+            "_chunk", self.state.values[self.root].__dict__
+        )
+        target_relation = relation_of(
+            self.state.values[self.root]
+        )
+        original_lower = bytecode.lower
+        original_lower_value = bytecode.lower_value
+
+        def guard_lower(relation):
+            if relation == target_relation:
+                raise AssertionError("host lowered the target relation")
+            return original_lower(relation)
+
+        def guard_value(value, entity, owner):
+            if entity == self.root:
+                raise AssertionError("host lowered the target node")
+            return original_lower_value(value, entity, owner)
+
+        with (
+            mock.patch.object(
+                bytecode, "lower", side_effect=guard_lower,
+            ),
+            mock.patch.object(
+                bytecode, "lower_value", side_effect=guard_value,
+            ),
+        ):
+            chunk, evidence = self.produce()
+
+        self.assertIsNotNone(evidence)
+        self.assertEqual(chunk[-1], ("END",))
+
+    def test_rejected_artifact_cannot_execute_by_fallback(self):
+        chunk, _ = self.produce()
+        with self.assertRaises(self.route.AdmissionRejected):
+            self.admit(chunk, object())
+
+        with self.assertRaises(self.route.AdmissionRejected):
+            self.route.run_admitted(self.runtime, TARGET, 4)
+
+    def test_admitted_execution_preserves_semantic_source(self):
+        original_state_id = self.state.id
+        original_function = function_at(self.state, TARGET)
+        nodes = self.state.owned_subtree(TARGET)
+        versions = {
+            node: self.state.values[node].version_id
+            for node in nodes
+        }
+        self.admit_function()
+
+        # A poisoned ordinary host cache must not replace the independently
+        # admitted artifact. The fixture is private to this test.
+        self.state.values[self.root].__dict__["_chunk"] = (
+            ("LIT", 777), ("END",),
+        )
+
+        original_chunk_of = bytecode.chunk_of
+        original_lower_value = bytecode.lower_value
+
+        def guard_chunk(state, entity, owner=None):
+            if entity in nodes:
+                raise AssertionError("ordinary host chunk fallback")
+            return original_chunk_of(state, entity, owner)
+
+        def guard_value(value, entity, owner):
+            if entity in nodes:
+                raise AssertionError("ordinary host lowering fallback")
+            return original_lower_value(value, entity, owner)
+
+        with (
+            mock.patch.object(
+                bytecode, "chunk_of", side_effect=guard_chunk,
+            ),
+            mock.patch.object(
+                bytecode, "lower_value", side_effect=guard_value,
+            ),
+        ):
+            actual = self.route.run_admitted(
+                self.runtime, TARGET, 4,
+            )
+
+        self.assertEqual(actual, 7)
+        self.assertEqual(self.runtime.active.state.id, original_state_id)
+        self.assertEqual(
+            function_at(self.runtime.active.state, TARGET),
+            original_function,
+        )
+        self.assertEqual(
+            {
+                node: self.runtime.active.state.values[node].version_id
+                for node in nodes
+            },
+            versions,
+        )
+
+    def test_edit_invalidates_old_admitted_artifacts(self):
+        self.admit_function()
+        self.assertEqual(
+            self.route.run_admitted(self.runtime, TARGET, 4), 7,
+        )
+
+        edit = define(
+            self.runtime.active.state,
+            {
+                TARGET: Function(
+                    ("x",),
+                    ("add", ("arg", "x"), ("lit", 5)),
+                ),
+            },
+        )
+        self.runtime.activate(edit)
+        self.assertNotEqual(
+            self.runtime.active.state.id, self.state.id,
+        )
+
+        # The old artifact is not executable under the new semantic state.
+        # No undeclared host-lowering fallback may replace it.
+        with self.assertRaises(self.route.AdmissionRejected):
+            self.route.run_admitted(self.runtime, TARGET, 4)
 
 
 if __name__ == "__main__":

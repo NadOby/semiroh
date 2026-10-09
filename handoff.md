@@ -1,85 +1,142 @@
 # Handoff
 
-Read `CLAUDE.md` and `docs/roadmap.md` first. Verify this checkpoint against the repository. It is not verification evidence.
+Read `CLAUDE.md` and `docs/roadmap.md` first. Verify every claim in this checkpoint against the repository.
 
 ## State
 
-- Task 29, issue #65: Plan complete; Execute next.
+- Task 29, issue #65: Revised Plan prepared following blocking Plan review findings.
 - Branch: `task/29-execution-route`.
 - Base `main`: `dbe92c6e6450db479d22a203011f9c974ba00089`.
-- Plan-owned baseline: `56c4cf8033a43c192bad250748f10990fd01d926`.
-- The final Plan handoff commit follows that baseline. Execute must fetch and verify the actual branch head.
-- D3 and D4 remain Open. Neither is decided by Plan.
-- No production changes, intended golden-record changes or PR.
+- Revised Plan-owned baseline: `7bda8682af2bfd5fc60e7409b07c9c268ddcd866`.
+- This handoff commit follows that baseline. Verify the final branch head before Execute.
+- D3 and D4 remain Open. No permanent language or execution-route decision has been made.
+- No production-code or golden-record changes. No PR.
 
-## Plan-owned files
+## Plan revision
 
-- `docs/spikes/execution_route.md`: alternatives A and B, workload W0–W2, predictions P1–P5, acceptance criteria A1–A11, decision gates G1–G6, measurement contract and role boundaries.
-- `tests/test_execution_route.py`: source-preservation witnesses and evidence-report acceptance checks.
+The initial Plan was rejected because it required an independent semantic verifier resembling a second compiler, delegated language-shaping decisions to Execute, tested mostly report formatting and exceeded the scope of a bounded spike.
+
+The revised contract is `docs/spikes/execution_route.md`.
+
+Decisions provisional for this spike only:
+
+- Structural admission plus trusted producer evidence; semantic correctness is assessed by independent expectations and differential tests rather than by recomputing lowering in the verifier.
+- A node-aware SHEAR compiler entry producing one per-node chunk, without modifying the existing program-visible `code` operation.
+- Producer evidence created and retained by trusted host runtime machinery observing the actual compiler invocation and result.
+- No program-visible artifact-admission operation or credential.
+- By-value targets for cells and reflection remain blocked. Their capability semantics are not changed.
+
+These provisional experiment interfaces do not resolve D3, D4 or the permanent language-level authority model.
+
+## Protected Plan files
+
+- `docs/spikes/execution_route.md`: revised scope, interfaces, predictions, acceptance tests, measurements and decision gates.
+- `tests/test_execution_route.py`: behavioral positive and negative tests against the spike API.
 - `tests/lanes.py`: `test_execution_route` registered in `cross-boundary`.
-- No `tests/golden_changes/GH-65.txt` is required; no golden changes are authorized.
+- No golden changes are authorized. No `tests/golden_changes/GH-65.txt` is needed.
 
-These files form the protected Plan baseline for independent Review. Any material correction to the specification or its acceptance tests returns to Plan.
+Review must compare these files against the revised Plan baseline. The lane-file diff includes the registration and one unrelated blank-line deletion; this is cosmetic, not an intended semantic change.
 
-## Execution contract
+## Execute scope
 
-Compare:
-- A: SHEAR-VM execution, including a bounded source-preserving alternative to wrappers.
-- B: verified host execution of SHEAR-compiled per-node derived artifacts.
+The executable comparison is W0:
 
-Preserve canonical semantic graph code, node/version identity, held-version behavior, candidate/activation separation, existing failure semantics and continuity.
+- Route A: existing SHEAR-VM compiler rebuild across generations 1–3, with its wrapper/source-preservation limitation recorded.
+- Route B: a SHEAR-compiled, structurally admitted per-node artifact executed by the host while the semantic source remains unchanged.
+- Attempt compiler rebuilding through route B, recording achieved generations and any concrete blocker.
+- Prove the actual producer and execution route within the claimed witness. Do not claim complete transitive provenance without tracing it.
 
-Use the provisional D4 workload:
-- W0: compiler generations 1–3.
-- W1: ordinary corpus and error behavior.
-- W2: live-evolution probe.
+W1 (ordinary corpora) and W2 (live evolution) require coverage inventories only. Do not implement their unsupported operations in this task.
 
-Record missing operation and service coverage explicitly. Tasks 30 and 31 own completion of the hosted pipeline and live-evolution milestone.
+For route A, describe one bounded wrapper-free design or give a concrete counterexample. No wrapper-free runtime implementation is required.
 
-For B, establish genuine SHEAR compiler origin, trusted non-forgeable producer assertions, structural and semantic admission, correct cache identity and invalidation, and rejection of forged, stale, wrong-node or malformed artifacts. Host lowering is a differential oracle, not an admission mechanism.
+## Spike API
 
-For A, demonstrate whether execution can keep active semantic function bodies canonical without relying on wrappers, and identify every transitive host fallback.
+Implement the provisional internal module `shear/execution_route_spike.py` with:
 
-Add executable behavioral and adversarial tests for the selected experiments. The Plan-owned evidence-report tests are not substitutes for implementation tests.
+    produce(runtime, entity) -> (chunk, evidence)
+    admit(state, entity, version, chunk, evidence) -> admitted
+    run_admitted(runtime, entry, *args) -> result
+    AdmissionRejected
 
-Record predictions before running the experiments; only one documented experimental revision is allowed. Escalate architectural changes and Decided-semantics changes rather than deciding them in Execute.
+`entity` identifies a semantic code node, and `version` is its `VersionID`. Admitted artifacts stay outside semantic state.
 
-## Evidence and CI
+`produce` invokes a genuine SHEAR compiler function consuming a host-provided semantic-node descriptor and emitting a host-format per-node chunk with child `EntityID` references.
 
-- Append `## 7. Task 29 execution-route evidence` to `docs/bootstrap.md`.
-- Record all 22 evidence IDs: A1–A11, P1–P5, A-W0 through A-W2 and B-W0 through B-W2.
-- Table columns: ID, Status, Proof, Finding.
-- Acceptance/workload statuses: pass, fail, blocked.
-- Prediction statuses: confirmed, falsified, inconclusive.
-- Each passing acceptance/workload result requires a GitHub Actions run link. Identify concrete blockers.
-- At least one route must demonstrate W0.
-- Collect timings and memory using `docs/content_baseline.md` section 3; identify runner, commit, inputs and cache conditions.
-- Compare only equivalent coverage. Preserve explicit negative results.
-- Expected initial red tests: evidence-report checks until Execute records results.
-- No successful test run has yet been verified for this Plan.
+Admission must check node existence and version, ownership, supported instruction structure, permitted child/entity references, immutable output binding and authentic host-owned producer evidence. It must reject invalid input without fallback or cache pollution.
 
-The report must give a recommendation, not enact D3. If D4 differs materially from the provisional workload, the comparison needs revision before D3 acceptance.
+Compiler provenance does not prove compiler correctness. The latter remains a differential and behavioral testing obligation.
+
+Do not add an arbitrary program-visible host-bytecode execution primitive. Do not use host lowering to produce or admit the experimental artifact.
+
+## Tests and evidence
+
+The Plan-owned `tests/test_execution_route.py` specifies:
+
+- Genuine per-node production and admission.
+- Forged, wrong-node, stale and altered evidence rejection.
+- Foreign child and unlinked function operand rejection.
+- No host lowering in admission or target production.
+- Execution using admitted artifacts instead of host lowering or cached host chunks.
+- Preserved active semantic source and node versions.
+- Invalidation after an edit.
+- No execution fallback after rejection.
+
+The new tests intentionally fail without `shear.execution_route_spike`. Passing CI has not been verified for the revised Plan; the initial red state is expected.
+
+Execute must add implementation-specific tests without weakening the Plan-owned expectations. If the specified API is materially unsuitable, return to Plan.
+
+Evidence and recommendations belong in `docs/spikes/execution_route.md` section 11, not in a duplicate table in `docs/bootstrap.md`.
+
+Use GitHub Actions to verify behavior. Record the exact commit, runner, runtime version, commands, outputs, failures and limitations.
+
+## Predictions and measurements
+
+P1–P5 are fixed in the revised spike specification before execution.
+
+P4 predicts that route B, including admission, stays within 10 times the comparable ordinary host-executed reference time. This is an experimental threshold, not a D4 budget.
+
+Mandatory measurements:
+
+- Rebuild time for each achieved generation.
+- Cold production/admission and warm execution timing.
+- Small-edit-to-activation latency, separated into phases.
+
+Reuse the corrected Task 23 baseline and measurement methodology. At least three untraced observations are required for comparable timings. Do not compare workloads with different coverage as equivalent.
+
+One recorded experimental revision is allowed. Further material redesign returns to Plan.
 
 ## Independent Review
 
-Review must fetch current git state and compare the implementation head against the protected Plan baseline. Inspect all changes to tests, specifications and golden declarations.
+The reviewer must independently verify:
 
-Verify independently:
-- Genuine compiler producer provenance and absence of undeclared host lowering.
-- Semantic verification, negative admission tests and non-forgeable assertions.
-- Source preservation and transitive call coverage.
-- Workload parity, blocked paths and behavioral expectations.
-- CI evidence, measurement methods and pre-recorded predictions.
-- Preservation of Decided semantics.
+- The accepted Plan baseline and Plan-owned file integrity.
+- Genuine SHEAR compiler execution rather than disguised host lowering.
+- Structural admission, evidence authenticity and negative witnesses.
+- No unauthorized program-visible admission authority.
+- Actual use of admitted artifacts without host fallback.
+- Source preservation and invalidation.
+- Correct characterization of route A and gaps in W1/W2.
+- Reproducible measurements, fixed predictions and honest coverage limits.
 
-Classify findings as verified defects, limitations, hypotheses or documentation drift. Review does not modify production code. Resolve handles verified defects, followed by another independent Review.
+Classify findings as verified defects, limitations, hypotheses or documentation drift. Resolve verified defects and obtain another independent Review.
 
-## Publish boundary
+## Follow-ups and decisions
 
-Do not open a PR before Publish and an accepted independent Review. D3 requires the owner's decision. Publish verifies main, final diff, CI and Plan-owned file integrity, then opens a PR closing #65.
+Owner decisions remaining Open:
 
-Defer nonblocking follow-ups separately, using `follow-up` issues where needed.
+- D3: final compiler-produced-chunk execution route.
+- D4: hosted workload, host services and provisional budgets.
+- Permanent node-identity exposure, admission authority and by-value capability semantics.
+
+A potential `follow-up` issue is a repository check that prevents unrelated changes to test-lane registration files. No such issue has been created or claimed here.
+
+Tasks 30 and 31 own full hosted-pipeline and live-evolution implementation.
+
+## Publish
+
+Do not open a PR before independent Review accepts the final result and the owner decides D3. Publish must reverify `main`, CI, the accepted Plan baseline and the final diff, then prepare a PR closing #65.
 
 ## Next
 
-Start `Execute task 29` in a fresh chat after verifying this handoff commit. Use GitHub Actions for execution. Do not assume GitHub write access or ask the owner to run local commands.
+Start a fresh `Execute task 29` chat after verifying this handoff commit. Use read-only GitHub tools and GitHub Actions; follow the owner's mobile, one-file-per-commit protocol. Do not assume write access or ask the owner to run local commands.

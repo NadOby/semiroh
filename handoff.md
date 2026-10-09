@@ -1,119 +1,84 @@
 # Handoff
 
-Compact checkpoint for the next chat. Verify claims against the
-repository. Read `CLAUDE.md` and `docs/roadmap.md` first.
+Read `CLAUDE.md` and `docs/roadmap.md` first. Verify this checkpoint
+against the repository; it is not independent verification evidence.
 
 ## State
 
-- Task 28, issue #64: revised Plan complete; CI verification pending.
+- Task 28, issue #64: Plan deliverables complete; independent Review pending.
 - Branch: `task/28-bootstrap-boundary`.
 - Base `main`: `081ba0d0882e9c02906a3f6a4081f77d2907e897`.
 - Revised Plan baseline:
-  `6cb59dd1565f58aaad5f182d98475385fced6579`.
-- Original Plan baseline: `265bb6c`; superseded after review.
-- No production-code or golden-record changes.
-- No PR opened. No green CI result independently verified.
+  `1f328747069891407668434728c5436d421faa17`.
+- No production or golden-record changes.
+- No PR opened. Publication follows independent Review.
 
 ## Deliverables
 
-- `docs/bootstrap.md`: operation support matrix across host lowering,
-  host execution, SHEAR lowering and SHEAR-VM execution.
-- `docs/bootstrap.md`: host-service inventory with contracts,
-  implementations, proposed allowances, reported rebuild observations
-  and existing verification references.
-- `tests/test_bootstrap_boundary.py`: Plan-owned acceptance tests.
-- `tests/lanes.py`: registration in the `cross-boundary` lane.
-- `CHANGES.md`: initial Plan entry and review corrections.
+- `docs/bootstrap.md`: four-route operation matrix, semantics of the
+  statuses, host-service inventory and reproducible trace description.
+- `tests/test_bootstrap_boundary.py`: matrix, lowering, rejection,
+  interpreter-trap and inventory acceptance tests.
+- `tests/lanes.py`: one added `cross-boundary` test registration.
+- `CHANGES.md`: Plan and review-correction history.
 
-Task 28's specified deliverables are documentation and acceptance
-tests. No production implementation is required to complete this task.
+Task 28's deliverables require no production implementation.
 
-## Plan review and corrections
+## Verified CI
 
-An external review of the original Plan found:
+The revised Plan passed the ordinary CI suite and golden comparison:
 
-- P1: noncanonical status markers failed `test_docs`.
-- P2: acceptance criteria claimed checks the tests did not perform.
-- P3: a host-lowering mock was not an effective provenance guard.
-- P3: `unquote` support needed an explicit instruction-level definition.
-- D4 limitation: observed and proposed host services were conflated;
-  ownership and host-lowered program wrappers needed recording.
-- P3: D3/D4 were restated inconsistently with the roadmap.
-- P3: an unrelated variable-name change entered `tests/lanes.py`.
+https://github.com/NadOby/shear/actions/runs/37936673375
 
-The revised Plan addresses these findings in its specification,
-tests, lane registration and changelog. Those changes have been
-committed but not independently certified by CI or final Review.
+This run tested baseline `1f328747`. The full deterministic suite
+can also run locally as documented in `CLAUDE.md`; mutation campaigns
+have separate CI execution requirements.
 
-## Accepted scope and limitations
+## Boundary and limitations
 
-The matrix distinguishes supported, rejected and deferred operations.
-Supported entries follow the current dispatch implementations.
+The SHEAR VM's operation classification is instruction-level.
+`unquote` is S there because its host-lowered `GOTO` instruction is
+implemented, not because complete quote/unquote execution works.
 
-SHEAR lowering cannot compile `quote`, `unquote`, `function`,
-`activate`, `trial`, `catch` or `raise`. Deferred lowering currently
-produces a generic explicit failure.
+SHEAR lowering explicitly fails for its deferred operations.
+Its generic error chunk does not distinguish deferred operations
+from `invalid`.
 
-The SHEAR VM understands the `GOTO` instruction produced by host
-lowering of `unquote`, but cannot execute a complete valid
-quote/unquote expression. Its support classification is at the
-instruction level.
+The VM's `CALL`, and `APPLY`/`APPLYV` on references, can delegate
+to installed host-executed code. Existing rebuilds also involve
+host-lowered program wrappers. Complete transitive execution
+provenance remains a task-30 requirement.
 
-Interpreter `CALL`, and `APPLY`/`APPLYV` on references, can invoke
-installed host-executed functions. The current rebuild also involves
-host-lowered program wrappers. Task 28 does not prove an entirely
-SHEAR-compiled execution path.
+The host inventory distinguishes proposed D4 allowances from a
+reviewer's reported observations of two rebuild generations.
+The trace recorded 16 host-lowered `code` nodes and four `linksof`
+nodes. `docs/bootstrap.md` explains how to reproduce the lowering
+trace; the observations are not a committed trace artifact.
 
-The tests check matrix completeness, dispatch and lowering behavior,
-explicit failure results, VM traps, specific invalid-code diagnostics,
-and inventory structure. They do not verify complete transitive
-producer provenance or every implementation reference.
+D3 and D4 remain open. `docs/roadmap.md`, under "Pending decisions",
+is authoritative.
 
-The existing task-27 tests provide a narrower provenance check for
-retained compiler source twins. Task 30 owns full pipeline provenance.
+## Remaining nonblocking review observations
 
-## Decisions
+- The declared missing-instruction set is checked for disjointness
+  and subset membership, but not exact equality against host-lowered
+  instructions outside `vm._ORDER`.
+- Test chunk expansion duplicates existing expansion logic, limiting
+  its independence as an oracle.
+- The changelog contains intermediate Plan-review narrative and an
+  overbroad historical host-fallback claim. Publish should consolidate
+  it into one accurate task-result entry.
 
-- D3 remains open: execution route for compiler-produced chunks,
-  addressed by task 29.
-- D4 remains open: hosted-bootstrap workload, host-service boundary,
-  and rebuild-time and edit-to-activation budgets.
-- `docs/roadmap.md` is authoritative for both decisions.
-- Task 28 does not change language semantics, golden records,
-  bytecode admission, or permitted runtime authority.
-
-## Verification and Review
-
-CI is the only execution platform for this workflow. Confirm that the
-current branch's checks pass before treating the Plan as validated.
-The earlier review reported ten passing new tests but a failing
-`cross-boundary` lane on the original specification; those results
-do not establish that the revised Plan passes.
-
-An independent Review should:
-
-- Recheck every matrix row against implementation behavior.
-- Verify the status-marker fix and all CI results.
-- Check the revised tests against the exact claims in section 4.
-- Inspect the `invalid` and `unquote` exceptions.
-- Confirm that host-execution delegation is documented accurately.
-- Check the observed-versus-proposed host-service distinction.
-- Ensure `tests/lanes.py` changes only lane membership.
-- Verify no production or golden-record changes were introduced.
-
-Use `6cb59dd1565f58aaad5f182d98475385fced6579`
-as the revised Plan baseline. This handoff update changes only
-the checkpoint and does not supersede that baseline.
+These are recorded limitations, not claims of completed corrections.
 
 ## Next
 
-Verify CI for the current branch. Start independent Review task 28
-in a fresh chat, using the revised Plan baseline.
+Conduct independent Review against Plan baseline `1f328747`.
+Verify the matrix, inventory, CI evidence, review corrections and
+accepted limitations.
 
-If Review finds a Plan-owned defect, return it to Plan rather than
-silently changing acceptance criteria.
+Return any newly verified Plan-owned defect to Plan or Resolve.
+After acceptance, Publish consolidates `CHANGES.md`, opens the PR
+against `main`, and handles issue #64 closure through merging.
 
-After acceptance, Publish can open the PR against `main`.
-Do not open a PR solely to start an unnecessary Execute phase.
-
-Issue #64 remains open until publication is completed.
+Do not begin task 29 or change D3/D4 within task 28.

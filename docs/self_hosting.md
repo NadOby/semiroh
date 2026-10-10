@@ -170,6 +170,8 @@ to use the same runtime representation or compromising independent
 behavioral checks. The exact shared implementation boundaries remain
 provisional for Task 30.
 
+Their observable behaviour over the supported subset must agree.
+
 ## 6. Open
 
 **Open:**

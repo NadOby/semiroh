@@ -373,6 +373,15 @@ modestly.
 Bytecode remains derived from semantic graph nodes. A program cannot install
 a chunk as the executable definition of a host function.
 
+**D3 – Decided** (roadmap task 29, PR #91): The host may execute a
+SHEAR-compiler-produced chunk only through host-internal, fail-closed
+admission bound to its semantic node and version, with observed compiler
+provenance and structural verification. This does not authorize arbitrary
+program-supplied bytecode or introduce a program-visible installation
+operation. Task 30 specifies and integrates the admission mechanism;
+this architectural permission is not a claim that the current experimental
+route is a complete hosted execution implementation.
+
 Roadmap task 8 resolved the original self-hosting question by having the
 compiler written in SHEAR emit bytecode as ordinary tuple data. Roadmap
 task 10 then added an interpreter written in SHEAR that executes those
@@ -406,8 +415,3 @@ machine.
 
 - **Chunk lifetime is the value's.** Nothing bounds the number of chunks
   alive at once except the values themselves.
-
-- **Host execution of program-produced chunks.** The SHEAR-written VM
-  demonstrates that such chunks can be run as data. Whether the host machine
-  should ever accept one directly remains separate from the derived-bytecode
-  model.

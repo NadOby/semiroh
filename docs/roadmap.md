@@ -215,6 +215,14 @@ allowances or budgets. Instruction-set/IR conventions, the version observed
 by `code`, and identities exposed by compiler output remain provisional or
 open until their respective contracts are decided.
 
+The original Task 29 Plan required a new route comparison before accepting
+D3 if D4 chose a materially different workload. The owner accepted D3 as an
+architecture principle before D4, explicitly superseding that timing gate,
+not waiving workload validation. If D4 materially departs from the recommended
+workload, Task 30 planning must require renewed route validation against it;
+D3 is revisited only if that evidence undermines the selected architecture.
+The performance and canonical-source acceptance anchors remain in force.
+
 Decided since: constraint relations see an owner endpoint with its owned
 subtree (relation_model.md §7).
 
@@ -772,9 +780,11 @@ same chunk. Three facts shape this section:
   `activate`, `trial`, `catch` or `raise` (self_hosting.md section 2,
   vm_in_shear.md). These are mostly the live-evolution operations, so the
   bootstrap route cannot compile a self-modifying program yet.
-- Program-produced chunks run only on the SHEAR VM (bytecode.md section 8),
-  at about 150x the host machine for one layer: `lower(lower)` takes 0.04 s
-  natively and 5.9 s on the SHEAR VM (2 cores, best of 3).
+- Before D3, program-produced chunks ran only on the SHEAR VM
+  (bytecode.md section 8), at about 150x the host machine for one layer:
+  `lower(lower)` took 0.04 s natively and 5.9 s on the SHEAR VM
+  (2 cores, best of 3). D3 subsequently permits authenticated,
+  compiler-produced artifacts through host-internal admission.
 
 The acceptance anchors are the review's section 4: the semantic graph stays
 canonical and executable forms stay derived; an image keeps the compiler
@@ -836,6 +846,8 @@ costs by task 23's method. If the route adds a machine boundary, weigh
 extracting one run-context component from `machine.py` first (review
 section 8).
 
+**Historical Plan contract, not a claim of demonstrated workload coverage:**
+
 The routes are compared on D4's recommended workload with task 28's matrix,
 not on the compiler alone. For the SHEAR VM that includes the instructions it
 does not run (`READ`, `WRITE`, `CODE`, `LINKS`, `QUOTE`, `FUNCTION`,
@@ -860,6 +872,13 @@ rule and the Provisional items the recommended route makes expensive to
 change (the instruction set, which version `code` reads, node identities in
 its output), and the owner decides D3.
 
+**Post-spike disposition:** Task 29 demonstrated bounded route witnesses,
+not a full equivalent-workload comparison. The owner selected the hybrid
+architecture as D3, explicitly superseding the Plan's timing gate. The
+obligation to validate a materially different D4 workload survives, as
+specified under D4 above. The original predictions and failed P4 result
+remain unchanged in the spike report.
+
 ### 30. Hosted-bootstrap pipeline (handoff)
 
 **Planned.** Issue #66. After D3 and D4.
@@ -876,6 +895,16 @@ version maps to its producer: host lowering or a SHEAR compiler generation),
 the route's own fixed machinery (on the SHEAR-VM route, the VM's own
 functions; per-function wrappers are program code, not machinery) is named
 as exempt, task 28's matrix is updated and the costs are recorded.
+
+**D3 scope clarification:** The primary hosted path is route B.
+Per-function VM wrappers are retained only as historical/reference-route
+test scaffolding; they are not part of the primary hosted execution path and
+cannot replace active canonical source there. When reference-route tests
+run, the SHEAR VM's own functions may be named as fixed machinery, but
+wrappers do not count as exempt machinery. Task 30 Plan must identify
+concrete shared compiler/IR and runtime implementation components and
+independent correctness oracles without requiring VM feature parity or
+a broad VM rewrite.
 
 ### 31. Live evolution on the bootstrap route (handoff)
 

@@ -1620,3 +1620,88 @@ the answer held.
   fallback for executed program code remain requirements of later tasks.
 - Preserved production semantics and golden records. The ordinary CI
   suite and golden comparison passed on the accepted Plan baseline.
+
+
+## 2026-10-10
+
+### Execution-route spike and hybrid architecture (#65, PR #91)
+
+- Completed the Task 29 execution-route spike comparing the SHEAR-written
+  VM (route A) with authenticated host execution of SHEAR-compiler-produced
+  per-node artifacts (route B). The semantic graph remains canonical;
+  executable chunks are derived representations.
+- Route A rebuilt the compiler through generations 1, 2 and 3, but the
+  existing mechanism installs literal-chunk wrappers as active function
+  bodies. This is not a source-preserving bootstrap.
+- Route B demonstrated genuine SHEAR compilation, trusted provenance,
+  fail-closed structural admission and execution of `lit`, `arg`, `add`
+  and `call` nodes. The linked-call witness returned the expected value.
+  Admission establishes artifact origin and structure, not compiler
+  correctness. Route B could not rebuild the compiler: the attempted
+  rebuild stopped at generation 0.
+- The prespecified P4 performance prediction failed. Cold route B took
+  9.873980 ms median versus 0.055123 ms for ordinary host execution,
+  a ratio of 179.126317 against the predicted maximum of 10.
+  Warm execution took 0.639887 ms versus 0.022001 ms. These are
+  experimental measurements, not performance guarantees. Route A and
+  route B were not benchmarked on an equivalent complete workload.
+- The bounded activation witness demonstrated a candidate edit, but
+  post-activation execution used ordinary host lowering rather than
+  retained admitted chunks. Cross-activation artifact reuse was not
+  demonstrated.
+- The tested Execute revision passed all ordinary CI lanes, including
+  18 Plan-owned execution-route tests; 55 golden records were unchanged.
+  The mutation campaign was not run. The experimental module has a
+  temporary, explicitly documented mutation-catalog omission.
+
+**D3 – Decided:** Adopt a hybrid execution architecture. Route B is the
+primary hosted path; retain the SHEAR VM as an alternative implementation,
+correctness reference and possible bootstrap component. Share semantic
+contracts, operation metadata, compiler pipeline, executable IR and runtime
+services where practical, while keeping execution mechanisms separate.
+Independent behavioral oracles must remain available. Full VM feature
+parity and simultaneous development of two production executors are not
+required. Exact shared interfaces remain provisional.
+
+Linux-native execution using LLVM as the initial machine-code producer is
+the long-term direction. Compiling the SHEAR VM itself remains an option.
+A custom MLIR dialect is optional, not selected. Native compilation and
+removal of Python are outside Task 30.
+
+**D4 – Open:** The hosted-bootstrap workload, permitted host services and
+provisional performance budgets must be settled before Task 30 planning.
+
+Task 30 (#66) owns the integrated execution pipeline, unsupported
+operations, artifact lifecycle, compiler rebuilding, provenance and
+performance remeasurement. It must remove, replace or explicitly promote
+the experimental spike module and resolve its test-infrastructure
+dependencies and mutation coverage. Task 31 (#67) owns admitted execution
+through live evolution, activation and retirement. Neither task's
+remaining work is claimed complete by this spike.
+
+
+### Task 29 pre-merge documentation reconciliation (#65, PR #91)
+
+- Reconciled `bytecode.md` and `self_hosting.md` with D3:
+  authenticated, SHEAR-compiler-produced per-node artifacts may reach
+  host execution only through host-internal, fail-closed admission bound
+  to semantic node/version and observed producer provenance. Arbitrary
+  program-supplied bytecode remains prohibited.
+- Reconciled the original Task 29 comparison gate with the subsequent
+  owner decision. D3 remains Decided although D4 is Open; materially
+  different D4 workloads require renewed route validation, with D3
+  reconsidered only if the evidence undermines the architecture.
+  The original experimental scope and failed P4 result remain recorded.
+- Clarified in `vm_in_shear.md` and the roadmap that Task 27's source
+  twins, literal-chunk wrappers and generation bookkeeping remain
+  historical/reference-route test scaffolding, not the primary hosted
+  execution mechanism. Wrappers are not exempt fixed machinery.
+- Required Task 30 planning to identify concrete shared compiler/IR
+  and runtime implementation components while preserving independent
+  correctness oracles and avoiding mandatory VM feature parity.
+- Updated `bootstrap.md` to distinguish decided D3 from open D4,
+  retained the historical canary statuses in `corpus.md`, and appended
+  the subsequent owner decision to the Task 29 spike report without
+  revising its original experimental evidence.
+- Documentation-only reconciliation. No production behavior, Plan-owned
+  acceptance tests, golden records or benchmark measurements changed.

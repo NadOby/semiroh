@@ -265,3 +265,12 @@ then:
 | 30. Specialized computation, external implementation | blocked | opaque values, foreign integration |
 | 31. Application stressing relations more than code | blocked | entity creation |
 | 32. Application barely using relations | passes | the recursion and control examples |
+
+**Post-D3 clarification (2026-10-10):** D3 is now Decided (roadmap
+task 29, PR #91): authenticated host execution of SHEAR-compiler-produced
+per-node artifacts is the primary route, with the SHEAR VM retained as an
+alternative and correctness reference. The dated table above remains
+historical. Canaries 11 and 12 remain partial: the architecture is selected,
+but Task 29 did not demonstrate a complete replaceable runtime or
+source-preserving compiler rebuild on the admitted route. Those require
+Task 30 and, for live evolution, Task 31.

@@ -77,6 +77,10 @@ OMITTED = {
         "re-export surface of the syntax package; behaviour lives in its modules",
     "shear/__init__.py":
         "public re-export surface; semantic behaviour lives in its modules",
+    "shear/execution_route_spike.py": (
+        "Experimental Task 29 spike; remove or replace in Task 30, "
+        "or promote with an explicit mutation-testing decision"
+    ),
     "shear/examples/__init__.py":
         "example/corpus harness rather than a semantic implementation",
     "shear/examples/_support.py":

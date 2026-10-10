@@ -251,12 +251,15 @@ the live function, which after the first swap is a wrapper.
   how the chunk was produced: that is shown by the test that the host machine
   never lowers or runs the retained source after generation 1.
 - The twins, the wrappers holding literal chunks, `generation` and the
-  hand-written source dependency map are scaffolding for the SHEAR-VM route.
-  They go if decision D3 (roadmap.md) chooses host execution of derived
-  chunks, which keeps the compiler's own functions canonical. If D3 chooses
-  the SHEAR VM, they stay only in a form that roadmap task 29 shows keeps the
-  source canonical, or as an exception to the first acceptance anchor that
-  the owner accepts explicitly.
+  hand-written source dependency map remain historical/reference-route test
+  scaffolding under the hybrid D3 decision (roadmap task 29, PR #91).
+  They are not part of primary hosted route B. The reference tests may
+  retain them to reproduce Task 27's generations, but their replacement
+  of active canonical compiler source is not an acceptable hosted-bootstrap
+  mechanism. Wrappers are program code, not exempt fixed VM machinery.
+  Future source-preserving VM execution requires a different mechanism;
+  Task 30 does not require rewriting the reference VM or removing its
+  existing regression tests.
 
 Done when generations 2 and 3 agree with generation 1 and with the host
 compiler's chunks, the retained source equals the original bodies, that test
@@ -303,7 +306,9 @@ than the predicted 25 s.
 - **Speed.** A tuple program counter and stack copy data per instruction, and
   opcode dispatch is a chain of comparisons. Numeric opcodes or a dispatch
   table could improve this if performance ever matters.
-- Whether the host machine should execute an arbitrary chunk constructed by a
-  program (self_hosting.md section 5, bytecode.md section 8). The interpreted
-  path demonstrates that program-produced bytecode can already be executed
-  without granting that capability to the host machine.
+
+D3 decides that the host may execute authenticated, SHEAR-compiler-produced
+per-node artifacts through internal admission bound to semantic node,
+version and observed producer provenance (bytecode.md section 8).
+Arbitrary program-supplied bytecode remains outside that permission.
+Task 30 owns the integrated admission implementation.

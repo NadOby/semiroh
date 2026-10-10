@@ -8,10 +8,11 @@ closure lowering additionally pinned by `tests/test_closure_self_hosting.py`.
 
 Two pieces: an operation with which a program reads the code of a function
 as data, and the lowering pass of bytecode.md written in the language,
-checked against the host's. The owner chose the scope: the compiler emits
-bytecode as data and is checked against the host; bytecode stays derived and
-the host still runs what it lowers itself. Running what the compiler emits
-was added in roadmap task 10 (section 5).
+checked against the host's. The original task-8 scope was that the compiler
+emits bytecode as data and is checked against the host, while the host runs
+only what it lowers itself. Running what the compiler emits was added in
+roadmap task 10 (section 5). D3 subsequently selected authenticated
+host execution of SHEAR-compiled derived artifacts (roadmap task 29).
 
 ## 1. `code`
 
@@ -93,6 +94,12 @@ Adding closure lowering did not require changing the bootstrap model:
 `CLOSURE` is ordinary emitted bytecode data, and the compiler itself remains
 inside the subset it can compile.
 
+The current expanded output does not preserve the host's per-node artifact
+boundaries or semantic child identities. It is not itself the admitted
+per-node representation selected by D3. Task 30 must establish the required
+node/version mapping and compiler provenance without replacing canonical
+graph source.
+
 ## 3. Checks
 
 **Decided:**
@@ -132,9 +139,10 @@ runtime value and does not replace `function` in self-modifying code.
 
 **Decided:**
 
-The compiler's output is not executed directly by the host machine as an
-arbitrary program-provided chunk. Bytecode remains a derived artifact of the
-semantic graph, and the host executes chunks it derives itself.
+The original task-8/task-10 boundary prohibited the host machine from
+executing arbitrary program-provided chunks: bytecode is a derived artifact
+of the semantic graph, and the ordinary host path runs host-lowered chunks.
+That restriction on arbitrary program-supplied bytecode remains in force.
 
 Roadmap task 10 added `vm_in_shear.md`: a bytecode interpreter written in
 SHEAR runs the chunks the compiler emits. A program can therefore compile a
@@ -146,8 +154,23 @@ Roadmap task 17 extends that independent path with `CLOSURE`. The compiler
 written in SHEAR emits closure bytecode, and the VM written in SHEAR
 constructs and applies its own tagged closure representation.
 
-The two paths deliberately need not share runtime representation. Their
-observable behaviour over the supported subset must agree.
+**D3 – Decided** (roadmap task 29, PR #91): The primary hosted route
+permits the host machine to execute SHEAR-compiler-produced per-node chunks
+only through host-internal, fail-closed admission bound to semantic node
+and version, with observed compiler provenance and structural verification.
+This is not a program-visible chunk installation facility. Task 29
+demonstrated the rule only for a bounded subset; Task 30 must integrate
+the complete admitted-execution pipeline.
+
+Retain the SHEAR-written VM as an alternative execution path, correctness
+reference and possible bootstrap component. Share underlying semantic
+contracts, operation metadata, compiler pipeline, compatible executable
+IR and runtime services where practical, without forcing the two executors
+to use the same runtime representation or compromising independent
+behavioral checks. The exact shared implementation boundaries remain
+provisional for Task 30.
+
+Their observable behaviour over the supported subset must agree.
 
 ## 6. Open
 
@@ -164,6 +187,7 @@ observable behaviour over the supported subset must agree.
   construction path.
 - Values taken apart at run time may be canonical nodes; whether a run
   should hand back plain tuples is open.
-- Whether the host machine should ever execute arbitrary bytecode produced
-  by a program. The SHEAR-written VM currently provides that capability
-  without making it a host primitive.
+
+Host execution of authenticated compiler-produced artifacts is decided by
+D3, not an open choice. Exact admission, source-preserving compilation,
+artifact lifecycle and integration are Task 30 work (roadmap.md).

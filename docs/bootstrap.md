@@ -2,7 +2,8 @@
 
 **Status: provisional.** Roadmap task 28, issue #64. This document
 records the current operation support boundary and inventories the Python
-host services relevant to hosted bootstrap. It does not decide D3 or D4.
+host services relevant to hosted bootstrap. Task 28 did not decide D3
+or D4; D3 was subsequently decided by task 29 (roadmap.md).
 
 Baseline: `main` at `081ba0d0882e9c02906a3f6a4081f77d2907e897`.
 
@@ -115,7 +116,8 @@ a complete quote/unquote expression.
 reference; a VM closure instead enters `vm_run`. Consequently,
 instruction coverage does not prove that all reached program code
 is interpreted, or that its chunks were SHEAR-compiled.
-The transitive execution-route question belongs to task 29.
+Task 29 evaluated bounded execution-route witnesses; complete
+transitive provenance remains a task-30 requirement.
 
 ### 2.2 Existing invariants and bootstrap scope
 
@@ -163,8 +165,9 @@ require separate instrumentation. "Yes" and "No" apply only to
 the profiled rebuild; "Partial" and "Unverified" preserve uncertainty.
 
 "Allow" is a proposed Python-hosted service. "Conditional"
-requires D3/D4 resolution. Host-lowered program wrappers are
-reported as current behavior, not approved bootstrap fallback.
+requires a D4 allowance or Task 30's admitted-execution boundary,
+as applicable. Host-lowered program wrappers are reported as current
+behavior, not approved bootstrap fallback.
 
 | Service | Contract | Implementation | Proposed use | Rebuild observed | Tests |
 | --- | --- | --- | --- | --- | --- |
@@ -178,9 +181,9 @@ reported as current behavior, not approved bootstrap fallback.
 | Canonicalization | Normalize values and provide stable representations | `canonical.py`, `relations.py` | Allow | Yes | `test_canonical.py`, `test_relations.py` |
 | Ownership | Preserve graph ownership and owned-subtree integrity | `ownership.py`, `state.py` | Allow | Yes | `test_ownership.py`, `test_ownership_lifetime.py` |
 | Host lowering and chunk cache | Produce derived chunks from graph nodes | `bytecode.py` | Conditional; seed and oracle, not undeclared fallback | Yes, including wrappers | `test_bytecode.py`, `test_rebuild.py` |
-| SHEAR compiler | Produce expanded chunks as data | `examples/self_hosting.py`, `machine.py` | Required; execution conditional | Yes | `test_self_hosting.py`, `test_rebuild.py` |
-| SHEAR VM | Interpret its declared instruction subset | `examples/vm.py` | Conditional on D3 | Yes | `test_vm.py`, `test_rebuild.py` |
-| Host machine | Run derived instructions and provide runtime execution | `machine.py` | Seed and fixed machinery; other admission conditional | Yes | `test_bytecode.py`, `test_vm.py` |
+| SHEAR compiler | Produce expanded chunks as data | `examples/self_hosting.py`, `machine.py` | Required; execution through admission under D3 | Yes | `test_self_hosting.py`, `test_rebuild.py` |
+| SHEAR VM | Interpret its declared instruction subset | `examples/vm.py` | Reference/alternative under D3 | Yes | `test_vm.py`, `test_rebuild.py` |
+| Host machine | Run derived instructions and provide runtime execution | `machine.py` | Seed and fixed machinery; authenticated artifact admission under D3, integrated by task 30 | Yes | `test_bytecode.py`, `test_vm.py` |
 | Code reflection | Return code for a function in the selected state | `machine.py`, `lang.function_at` | Allow | Yes: 16 host-lowered `code` nodes; `function_at` also used | `test_self_hosting.py` |
 | Link reflection | Resolve a function's link table | `machine.py`, `lang.py` | Allow | Yes: 4 host-lowered `linksof` nodes | `test_vm.py` |
 | Data and callable operations | Provide primitives, tuples, comparisons and linked calls | `machine.py`, `canonical.py` | Allow | Yes | `test_data_ops.py`, `test_vm.py` |
@@ -268,8 +271,9 @@ retained compiler source twins. Its instrumentation does not
 cover all host-lowered wrappers or transitive execution.
 
 `CALL`, `APPLY` and `APPLYV` delegation is recorded in section
-2.1 as a current limitation. Task 29 must test the proposed
-execution routes and their transitive program-code behavior.
+2.1 as a current limitation. Task 29 evaluated bounded
+execution-route witnesses; complete transitive routing and
+producer-provenance verification belong to Task 30.
 
 Preserve existing compiler, VM, corpus, continuity and golden
 records. No golden-record changes are intended for issue #64.
@@ -280,21 +284,28 @@ Task 28 records the matrix, its acceptance tests and the host
 inventory. It does not implement additional instructions or
 change production semantics.
 
-**Open:**
+**D3 – Decided** (roadmap task 29, PR #91): Route B is the primary
+hosted execution path. The host may execute authenticated SHEAR-compiled
+per-node derived artifacts through fail-closed internal admission with
+node/version binding and observed compiler provenance. The SHEAR VM is
+retained as an alternative and independent correctness reference.
+The detailed admission implementation belongs to Task 30. Neither
+arbitrary program-supplied bytecode nor silent host-lowering fallback
+is permitted on the hosted path.
 
-D3 and D4 remain owner decisions as defined in `roadmap.md`,
-under "Pending decisions" and section I. This document does not
-restate or supersede their choices and requirements.
+**D4 – Open:** The hosted-bootstrap workload, permitted Python host
+services and provisional rebuild/edit-to-activation budgets remain
+owner decisions before Task 30 planning. This inventory proposes
+allowances; it does not grant them. Canonicalization remains a
+proposed host allowance subject to D4.
 
-In particular, D4 sets provisional budgets for both compiler
-rebuild time and small-edit-to-activation latency using task-23
-measurements. The permitted Python services include
-canonicalization, subject to D3/D4 approval.
+The D3/D4 decision and the condition for renewed workload validation
+are recorded in roadmap.md. This document does not supersede them.
 
-Tasks 29 through 31 own execution-route evaluation, complete
-pipeline provenance and live evolution respectively. No
-implementation may treat this inventory as a prior decision
-to permit fallback for executed program code.
+Task 29 evaluated the execution-route alternatives. Task 30 owns
+the integrated hosted pipeline and complete executed-program
+provenance. Task 31 owns live evolution. The operation matrix
+does not authorize any undeclared fallback.
 
 ## 6. Independent review targets
 
@@ -307,12 +318,13 @@ claims, that malformed witnesses are not mistaken for operation
 support, and that error paths fail explicitly.
 
 Inspect `CALL`, `APPLY` and `APPLYV` delegation and reported
-host-lowered wrappers when assessing the future D3/D4 boundary.
-The service-use observations must not be promoted to complete
-producer-provenance evidence without an independent trace.
+host-lowered wrappers when assessing the selected route B and
+the D4 host-service boundary. The service-use observations must
+not be promoted to complete producer-provenance evidence
+without an independent trace.
 
 Compare the Plan-owned specification and acceptance tests with
 the revised Plan baseline before accepting subsequent changes.
 
-The matrix and inventory are inputs to D4 and task 29, not
-evidence that hosted bootstrap is complete.
+The matrix and inventory remain inputs to D4 and historical
+inputs to task 29, not evidence that hosted bootstrap is complete.

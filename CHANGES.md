@@ -1678,3 +1678,30 @@ the experimental spike module and resolve its test-infrastructure
 dependencies and mutation coverage. Task 31 (#67) owns admitted execution
 through live evolution, activation and retirement. Neither task's
 remaining work is claimed complete by this spike.
+
+
+### Task 29 pre-merge documentation reconciliation (#65, PR #91)
+
+- Reconciled `bytecode.md` and `self_hosting.md` with D3:
+  authenticated, SHEAR-compiler-produced per-node artifacts may reach
+  host execution only through host-internal, fail-closed admission bound
+  to semantic node/version and observed producer provenance. Arbitrary
+  program-supplied bytecode remains prohibited.
+- Reconciled the original Task 29 comparison gate with the subsequent
+  owner decision. D3 remains Decided although D4 is Open; materially
+  different D4 workloads require renewed route validation, with D3
+  reconsidered only if the evidence undermines the architecture.
+  The original experimental scope and failed P4 result remain recorded.
+- Clarified in `vm_in_shear.md` and the roadmap that Task 27's source
+  twins, literal-chunk wrappers and generation bookkeeping remain
+  historical/reference-route test scaffolding, not the primary hosted
+  execution mechanism. Wrappers are not exempt fixed machinery.
+- Required Task 30 planning to identify concrete shared compiler/IR
+  and runtime implementation components while preserving independent
+  correctness oracles and avoiding mandatory VM feature parity.
+- Updated `bootstrap.md` to distinguish decided D3 from open D4,
+  retained the historical canary statuses in `corpus.md`, and appended
+  the subsequent owner decision to the Task 29 spike report without
+  revising its original experimental evidence.
+- Documentation-only reconciliation. No production behavior, Plan-owned
+  acceptance tests, golden records or benchmark measurements changed.

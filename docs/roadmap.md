@@ -553,17 +553,17 @@ target; a time-based heartbeat continues even when no mutant finishes.
 Survivors are reported immediately, while ordinary killed mutants remain
 suppressed from the human log.
 
-Completion reports are grouped by target and mutation kind and include elapsed
+Completion reports are grouped by target and Completion reports are grouped by target and mutation kind and include elapsed
 time and per-target timing statistics. The same event source is written as
 JSONL machine-readable evidence containing exact selected keys and every
-outcome. Manual mutation shards publish these reports as CI artifacts even
-when the shard fails because an unclassified survivor was found.
+outcome. Manual mutation shards publish these reports as CI artifacts even when
+the shard fails because an unclassified survivor was found.
 
 An exact reported mutation can be replayed directly under its recorded
-target-source and mutation-engine pins without reconstructing its seed,
-batch or shard. Completed shard reports can also be supplied to
-`replay-failures`, which runs one semantic baseline and then replays only
-their recorded unclassified survivors.
+target-source and mutation-engine pins without reconstructing its seed, batch or
+shard. Completed shard reports can also be supplied to `replay-failures`, which
+runs one semantic baseline and then replays only their recorded unclassified
+survivors.
 
 The mutation subprocess semantic oracle is centralized in
 `tests/mutation_oracle.py`. Harness-integrity and survivor-catalog checks remain
@@ -575,8 +575,8 @@ Done when: for a fixed source tree, budget, seed and batch, mutant-level shards
 are deterministic, disjoint and exhaustive and differ in selected mutant count
 by at most one; campaigns provide useful live progress and immediate survivor
 reporting; machine-readable results are emitted even on failure; any reported
-mutation key can be replayed directly and failed reports can replay only
-their unclassified survivors; mutation-oracle selection is centralized and
+mutation key can be replayed directly and failed reports can replay only their
+unclassified survivors; mutation-oracle selection is centralized and
 regression-tested; and no production file or intended semantic behaviour
 changes.
 

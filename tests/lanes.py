@@ -100,6 +100,8 @@ LANES: dict[str, tuple[str, ...]] = {
         "test_execution_route",
         "test_golden",
         "test_hosted_corpus",
+        "test_hosted_pipeline",
+        "test_hosted_safety",
         "test_operations",
         "test_malformed_generation",
         "test_mutation_regressions_boundaries",
@@ -156,7 +158,7 @@ def validate_partition() -> None:
 
         if stale:
             problems.append(
-                "missing files: " + ", ".join(sorted(stale))
+                "missing files: " + ", ".join(sorted(stale)
             )
 
         raise RuntimeError(
@@ -206,10 +208,10 @@ def run_all(
 ) -> int:
     """Run every lane as a separate process, ``jobs`` at a time.
 
-    Each lane runs exactly the command it runs alone, so this executes the
-    same tests as running the lanes one by one. Each lane's output is printed
-    as soon as it finishes, grouped in GitHub Actions, then a timing table in
-    ``LANES`` order; the result fails if any lane fails.
+    Each lane runs exactly the command it runs alone, so this executes
+    the same tests as running the lanes one by one. Each lane's output
+    is printed as soon as it finishes, grouped in GitHub Actions, then
+    a timing table in ``LANES`` order; the result fails if any lane fails.
     """
 
     lanes = list(LANES)
@@ -226,8 +228,6 @@ def run_all(
     with ThreadPoolExecutor(max_workers=workers) as pool:
         pending = {pool.submit(timed, lane): lane for lane in lanes}
 
-        # Print each lane as soon as it finishes, so a lane that hangs until
-        # the job times out does not hide the output of the others.
         for future in as_completed(pending):
             lane = pending[future]
             code, output, seconds = future.result()
@@ -249,7 +249,7 @@ def run_all(
         status = "ok" if code == 0 else "FAILED"
         print(f"  {lane:<24} {status:<6} {seconds:6.1f}s")
 
-    return 0 if all(code == 0 for code, _, seconds in results) else 1
+    return 0 if all(code == 0 for code, _, _ in results) else 1
 
 
 def main(argv: list[str] | None = None) -> int:

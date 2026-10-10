@@ -506,7 +506,7 @@ empty.
 
 ### 18. Verification hardening (handoff)
 
-**Implemented** (PR #42). The verification design and policy is in
+**Implemented** (PR #42). The verification design and policy are in
 verification_hardening.md; execution evidence is recorded in `CHANGES.md`
 and the PR.
 

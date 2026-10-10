@@ -553,7 +553,7 @@ target; a time-based heartbeat continues even when no mutant finishes.
 Survivors are reported immediately, while ordinary killed mutants remain
 suppressed from the human log.
 
-Completion reports are grouped by target and Completion reports are grouped by target and mutation kind and include elapsed
+Completion reports are grouped by target and mutation kind and include elapsed
 time and per-target timing statistics. The same event source is written as
 JSONL machine-readable evidence containing exact selected keys and every
 outcome. Manual mutation shards publish these reports as CI artifacts even when

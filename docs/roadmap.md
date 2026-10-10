@@ -26,12 +26,12 @@ findings are its reply.
 
 **Decided.** Work is tracked in GitHub issues. Each roadmap task not yet
 done has an issue labelled `task`, named in its entry's status line; any
-other change gets an issue before work starts, and a follow-up found while
-working becomes an issue labelled `follow-up`. An issue holds the goal, the
-status and the discussion. This roadmap remains the order and the task
-definitions, the specifications the design, `CHANGES.md` the log and
-`handoff.md` the checkpoint between chats. Commits and PRs name their issue
-as CLAUDE.md describes.
+other change gets an issue before work starts, and a follow-up found during
+a task becomes an issue labelled `follow-up`. An issue holds the goal, the status and the
+discussion. This roadmap remains the order and the task definitions, the
+specifications the design, `CHANGES.md` the log and `handoff.md` the
+checkpoint between chats. Commits and PRs name their issue as CLAUDE.md
+describes.
 
 1. **Plan** (`Plan task N`). A fresh context, preferably with the strongest
    reasoning model available. No production changes.
@@ -88,30 +88,30 @@ as CLAUDE.md describes.
      expected values were not relaxed to fit the implementation; production
      code has no special case that only satisfies the acceptance tests;
      specifications were not changed afterwards to legitimize the behaviour;
-     golden declarations contain only the semantic changes Plan intended;
-     and a material error in the Plan went back through Plan instead of
-     being absorbed by Execute.
+     golden declarations contain only the semantic changes Plan intended; and
+     a material error in the Plan went back through Plan instead of being
+     absorbed by Execute.
    - Look actively for false confidence: weakened or changed acceptance
      tests; test gaming or task-specific special cases in production code;
      self-referential or non-independent oracles; golden changes declared
      in `tests/golden_changes/` without a reason in the plan; incorrect
-     mutation-survivor carry-over; CI gaps; accidental semantic or public-API
-     changes; replay or reduction mistakes; documentation drift.
+     mutation-survivor carry-over; CI gaps; accidental semantic or
+     public-API changes; replay or reduction mistakes; documentation drift.
    - Classify each observation as a verified defect, a limitation, a
-     hypothesis or documentation drift. Give each verified defect a
-     severity from P0 to P3, its exact location, why it is a defect, a
-     concrete failure mode or counterexample, and the smallest valid fix.
-     Do not turn suspicion into a defect, and do not re-raise historical
-     issues that the current code has fixed.
+     hypothesis or documentation drift. Give each verified defect a severity
+     from P0 to P3, its exact location, why it is a defect, a concrete
+     failure mode or counterexample, and the smallest valid fix. Do not turn
+     suspicion into a defect, and do not re-raise historical issues that the
+     current code has fixed.
    - Do not repair production code, tests or specifications. The findings
      are the reply; the owner or Resolve records them in `handoff.md` if
      they should outlive the chat.
 4. **Resolve** (`Resolve task N`). An execution-capable context.
-   - Handle the findings one by one: fix a verified defect with the
-     smallest valid change, or rebut it with concrete repository evidence.
+   - Handle the findings one by one: fix a verified defect with the smallest
+     valid change, or rebut it with concrete repository evidence.
    - Do not change Decided semantics, acceptance expectations or
-     specifications to make a finding disappear; escalate such decisions
-     to the owner.
+     specifications to make a finding disappear; escalate such decisions to
+     the owner.
    - Record the findings (from the Review's reply), fixes, rebuttals and
      unresolved findings in `handoff.md`.
    - A fresh Review pass follows every Resolve. Review and Resolve repeat
@@ -127,9 +127,9 @@ as CLAUDE.md describes.
    - Open a ready PR (without PR access, give the owner its title and
      description) whose description closes the task's issue
      (`Closes #<n>`), then mark the roadmap entry Implemented with the PR's
-     number. The PR states intentionally deferred limitations and
-     follow-ups separately from defects; each deferred follow-up gets a
-     `follow-up` issue named in the PR.
+     number. The PR states intentionally deferred limitations and follow-ups
+     separately from defects; each deferred follow-up gets a `follow-up`
+     issue named in the PR.
 
 The owner merges, or pushes back, and says so.
 
@@ -329,8 +329,8 @@ full ownership map.
 
 **Done** (#22).
 
-Code is stored as graph form (D1). Tuple bodies with links become the input
-format that converts into it, so `test_first_program.py`,
+Code is stored as graph form (D1). Tuple bodies with links become the input format
+that converts into it, so `test_first_program.py`,
 `test_metaprogramming.py` and `test_language_trials.py` keep running,
 through the converter. The spike's leaf-node `self` role is replaced by
 something the core supports directly. Operations on tuple values stay
@@ -345,11 +345,11 @@ corpus; PR #17 is closed in favour of this task.
 **Done** (#24).
 
 `activate` and `trial` can target a single node, so hot swapping at the
-language level has the same granularity as identity. This is the piece the
-spike did not build.
+language level has the same granularity as identity. This is the piece
+the spike did not build.
 
-Done when: a program replaces one subexpression of a running function,
-and only that node's version changes.
+Done when: a program replaces one subexpression of a running function, and
+only that node's version changes.
 
 ### 6. Canary corpus, tier 2: data and higher order (handoff)
 
@@ -487,9 +487,9 @@ Close the last remaining corpus gap: anonymous callable values with lexical
 captures.
 
 Keep `Function` as code-as-data for program construction and activation.
-Introduce a distinct executable closure value containing code and its
-captured lexical environment. `apply` and `applyv` accept closures as well as
-existing function references.
+Introduce a distinct executable closure value containing code and its captured
+lexical environment. `apply` and `applyv` accept closures as well as existing
+function references.
 
 Captures are by value when the closure is created and do not depend on the
 caller's scope. A returned closure remains callable after its creating frame
@@ -506,7 +506,7 @@ empty.
 
 ### 18. Verification hardening (handoff)
 
-**Implemented** (PR #42). The verification design and policy are in
+**Implemented** (PR #42). The verification design and policy is in
 verification_hardening.md; execution evidence is recorded in `CHANGES.md`
 and the PR.
 
@@ -545,13 +545,13 @@ selection, the shard union is exactly the unsharded work set with no
 duplicates, and shard sizes differ by at most one mutant. Timing measurements
 remain diagnostic only and do not affect assignment.
 
-Mutation campaigns are observable while they run. The start event records
-the mutation-engine version, target-source versions, campaign inputs and
-selected mutation keys. Flushed progress reports completed and total mutants,
-killed mutants, classified and unclassified survivors, elapsed time and a
-current target; a time-based heartbeat continues even when no mutant
-finishes. Survivors are reported immediately, while ordinary killed mutants
-remain suppressed from the human log.
+Mutation campaigns are observable while they run. The start event records the
+mutation-engine version, target-source versions, campaign inputs and selected
+mutation keys. Flushed progress reports completed and total mutants, killed
+mutants, classified and unclassified survivors, elapsed time and a current
+target; a time-based heartbeat continues even when no mutant finishes.
+Survivors are reported immediately, while ordinary killed mutants remain
+suppressed from the human log.
 
 Completion reports are grouped by target and mutation kind and include elapsed
 time and per-target timing statistics. The same event source is written as
@@ -566,10 +566,10 @@ batch or shard. Completed shard reports can also be supplied to
 their recorded unclassified survivors.
 
 The mutation subprocess semantic oracle is centralized in
-`tests/mutation_oracle.py`. Harness-integrity and survivor-catalog checks
-remain mandatory in the ordinary mutation CI lane but cannot become
-mutation-kill oracles. Regression tests pin that baseline and mutant
-subprocesses use the same semantic oracle.
+`tests/mutation_oracle.py`. Harness-integrity and survivor-catalog checks remain
+mandatory in the ordinary mutation CI lane but cannot become mutation-kill
+oracles. Regression tests pin that baseline and mutant subprocesses use the same
+semantic oracle.
 
 Done when: for a fixed source tree, budget, seed and batch, mutant-level shards
 are deterministic, disjoint and exhaustive and differ in selected mutant count
@@ -588,16 +588,16 @@ Refactor the language implementation against the stronger verification
 baseline from task 18, without intentionally changing semantics.
 
 The immediate targets are the accidental duplication and weak boundaries
-exposed by task 17: operation structure is described independently in
-several tables and switch statements; `syntax.py` and `lang.py` have
-accumulated multiple responsibilities; and bytecode lowering and machine
-execution still have an avoidable dependency seam.
+exposed by task 17: operation structure is described independently in several
+tables and switch statements; `syntax.py` and `lang.py` have accumulated
+multiple responsibilities; and bytecode lowering and machine execution still
+have an avoidable dependency seam.
 
 Prefer one declarative source for mechanical operation shape – arity, code
 children and structural roles – while keeping genuinely different semantics
 explicit in the parser, runtime, compiler and self-hosted implementations.
-Split large modules only where those boundaries are demonstrated by the
-code and tests, not merely because a file is large.
+Split large modules only where those boundaries are demonstrated by the code
+and tests, not merely because a file is large.
 
 Done when: mechanical operation metadata has one authoritative definition,
 syntax responsibilities are separated behind the existing public API,
@@ -623,9 +623,9 @@ reports, including the call-depth limit; nothing is rolled back.
 Done when: `tests/test_error_handling.py` passes unchanged; the `errors`
 examples run in the corpus and round-trip through text; every program of
 main keeps its StateID, text and bytecode, so `tests/language_golden.json`
-is re-recorded only to add entries; existing failures keep their classes
-and messages; the language docs name the new operations; and survivors of
-edited mutation targets are carried or dropped by the task 19 rule.
+is re-recorded only to add entries; existing failures keep their classes and
+messages; the language docs name the new operations; and survivors of edited
+mutation targets are carried or dropped by the task 19 rule.
 
 ## Later
 
@@ -658,8 +658,8 @@ edited mutation targets are carried or dropped by the task 19 rule.
 - Concurrency starts with a semantic spike, not with thread safety added to
   the current path: two computations reading and writing cells, activation
   while other computations run old code, capability authority across
-  computations, holds and retirement, failure during concurrent activation
-  or trial, and the order of externally visible effects.
+  computations, holds and retirement, failure during concurrent activation or
+  trial, and the order of externally visible effects.
 - Long-term direction (README, "Design philosophy"): DSLs and malleability,
   compiling new language structures at run time, composing libraries, and
   applications as libraries. Not scheduled. The design canaries
@@ -697,8 +697,8 @@ evidence. No refactor in this task.
 **Planned.** Issue #59.
 
 `Reference(StateID, EntityID, VersionID)`: `State.resolve` and reference
-transfer check `StateID` first, so `StaleReference` is reachable only for
-a malformed or forged reference. Determine whether a valid reference can
+transfer check `StateID` first, so `StaleReference` is reachable only for a
+malformed or forged reference. Determine whether a valid reference can
 distinguish anything with `VersionID` that `(StateID, EntityID)` cannot.
 
 Take the planned `ref` values into account (the "references held as data
@@ -747,8 +747,8 @@ Kill criterion: it succeeds only if the mechanism count drops. Cost side:
 new VM operations, runtime-only semantic cases, special Unknown or budget
 machinery, constraint-only environment interfaces. Removed side: the
 constraint evaluator, constraint node semantics, constraint-specific
-recursion and control, the duplicate `External` path. Success allows at
-most one generic boundary for external authority and one generic execution
+recursion and control, the duplicate `External` path. Success allows at most
+one generic boundary for external authority and one generic execution
 budget; strong-Kleene behaviour comes from functions and data.
 
 Done when: the experiment is run against recorded predictions and the
@@ -756,27 +756,26 @@ result – adopt or kill – is recorded.
 
 ### 25. Field identity under layout change (handoff)
 
-**Planned.** Issue #61. Research input to records; the owner has postponed
-systems data until records exist (Later).
+**Planned.** Issue #61. Research input to records; the owner has postponed systems
+data until records exist (Later).
 
 When records are planned, first run this spike. Scenario: record A `{x, y}`,
 a reference R to `A.y`, and a running old-version frame holding R;
 activation continues A to A' with layout `{x, z, y}` and a converter; new
-code reads `A'.y`, the old frame continues under the old state, and R has
-an explicitly defined fate. Then vary one dimension at a time: moved
-field, deleted field, split record, ownership change, old-version
-retirement.
+code reads `A'.y`, the old frame continues under the old state, and R has an
+explicitly defined fate. Then vary one dimension at a time: moved field,
+deleted field, split record, ownership change, old-version retirement.
 
-The central question is the status of `A.y`, to be discriminated rather
-than presupposed: its own semantic identity; no identity (A plus a
-selector); or a logical property with layout and access path separate.
-It interacts with the planned `ref` values. The activation and lifetime
-protocol is modelled in Alloy (the runner from the archived experiment
-returns here); representation and layout are tested in Python.
+The central question is the status of `A.y`, to be discriminated rather than
+presupposed: its own semantic identity; no identity (A plus a selector); or
+a logical property with layout and access path separate. It interacts with
+the planned `ref` values. The activation and lifetime protocol is modelled
+in Alloy (the runner from the archived experiment returns here);
+representation and layout are tested in Python.
 
 Done when: the scenario and its variations are run against recorded
-predictions and the result names which `A.y` outcome holds and what
-records need from it.
+predictions and the result names which `A.y` outcome holds and what records
+need from it.
 
 ### 26. Content consolidation decision (one session)
 
@@ -794,9 +793,9 @@ own task.
 ## I. Hosted bootstrap
 
 **Provisional.** Adopted from the bootstrap delivery review
-([reviews/bootstrap_delivery.md](reviews/bootstrap_delivery.md)), which
-stays as the dated input for this section. Issue #69; the tasks are grouped
-in the GitHub milestone "Hosted bootstrap".
+([reviews/bootstrap_delivery.md](reviews/bootstrap_delivery.md)), which stays
+as the dated input for this section. Issue #69; the tasks are grouped in the
+GitHub milestone "Hosted bootstrap".
 
 The destination of the work after task 20 is SHEAR bootstrapped from the
 Python model, with its distinctive capability on the same path. Four stages
@@ -849,8 +848,8 @@ their own conditions; neither side waits for the other.
 **Implemented** (PR #82). The design is in vm_in_shear.md section 7.
 
 Keep the compiler's source as data across swaps. Generation 1 is today's
-`swap_all`; generation 2 is compiled by the swapped generation-1 compiler
-on the SHEAR VM and installed; generation 3 compiles again. Record which
+`swap_all`; generation 2 is compiled by the swapped generation-1 compiler on
+the SHEAR VM and installed; generation 3 compiles again. Record which
 generation produced each installed chunk.
 
 Done when: generations 2 and 3 agree with generation 1 and with the host
@@ -863,61 +862,60 @@ time and peak memory per generation are recorded.
 **Implemented** (PR #90).
 
 For every operation in `shear/operations.py`, a bootstrap matrix declares
-its status on four routes, host lowering, host execution, SHEAR lowering
-and SHEAR-VM execution, as supported, explicitly rejected or deferred.
-A test checks each declaration against behaviour: a deferred operation
-fails explicitly, never by falling back to the host. The supported
-entries are derived from the code where it exists (host lowering's
-dispatch, `self_hosting.LOWERED`, the SHEAR VM's instruction set); only
-rejected or deferred is declared, in the test. `operations.py` keeps
-operation shapes only. A new `docs/bootstrap.md` inventories the host
+its status on four routes, host lowering, host execution, SHEAR lowering and
+SHEAR-VM execution, as supported, explicitly rejected or deferred. A test
+checks each declaration against behaviour: a deferred operation fails
+explicitly, never by falling back to the host. The supported entries are
+derived from the code where it exists (host lowering's dispatch,
+`self_hosting.LOWERED`, the SHEAR VM's instruction set); only rejected or
+deferred is declared, in the test. `operations.py` keeps operation shapes
+only. A new `docs/bootstrap.md` inventories the host
 services the compiler workload uses (parsing, `define` and continuity
 inference, state and identity derivation, canonicalization, activation,
 reflection, data operations), each with its contract, implementation,
 whether the hosted bootstrap permits it, and the test that covers it.
 
-Done when: the matrix test passes and the inventory is written, as input
-to D4.
+Done when: the matrix test passes and the inventory is written, as input to
+D4.
 
 ### 29. Execution route for compiler-produced chunks (one session)
 
 **Implemented** (PR #91). Issue #65. A spike for D3.
 
-Compare the SHEAR VM with host execution of the SHEAR compiler's chunks
-as derived artifacts of the nodes they compile, behind a verifier and
-with recorded provenance. The second needs the compiler to see node
-identities (self_hosting.md section 6) and keeps the source canonical,
-which the swap of task 27 does not. Predictions are recorded before the
-run; one revision; costs by task 23's method. If the route adds a
-machine boundary, weigh extracting one run-context component from
-`machine.py` first (review section 8).
+Compare the SHEAR VM with host execution of the SHEAR compiler's chunks as
+derived artifacts of the nodes they compile, behind a verifier and with
+recorded provenance. The second needs the compiler to see node identities
+(self_hosting.md section 6) and keeps the source canonical, which the swap of
+task 27 does not. Predictions are recorded before the run; one revision;
+costs by task 23's method. If the route adds a machine boundary, weigh
+extracting one run-context component from `machine.py` first (review
+section 8).
 
 **Historical Plan contract, not a claim of demonstrated workload coverage:**
 
 The routes are compared on D4's recommended workload with task 28's matrix,
-not on the compiler alone. For the SHEAR VM that includes the instructions
-it does not run (`READ`, `WRITE`, `CODE`, `LINKS`, `QUOTE`, `FUNCTION`,
+not on the compiler alone. For the SHEAR VM that includes the instructions it
+does not run (`READ`, `WRITE`, `CODE`, `LINKS`, `QUOTE`, `FUNCTION`,
 `ACTIVATE`, `TRIAL`, `CATCH`, `FAIL`, `RAISE`); those that name an entity
-through the running function's links, such as `READ`, `WRITE`, `CODE` and
-`ACTIVATE`, would need it chosen by value in interpreted code
-(vm_in_shear.md section 8). It also includes that the VM's `CALL` runs
-the callee as installed, so every function the workload reaches needs a
-wrapper, and the wrappers displace the semantic source. The spike
-establishes whether the SHEAR-VM route has a form that keeps the source
-canonical and executable forms derived; if it has none, that route stays
-a candidate only if the owner explicitly changes the first acceptance
-anchor. For host execution, the verifier's admission rule is stated:
-what it checks for a chunk of node N at version V, and who may assert
-that a compiler generation produced that chunk and why program code
-cannot forge the assertion. Host lowering is not part of admission;
-it stays a test oracle. If D4 settles on a workload that differs
-materially from the recommended one, the comparison is redone for it
-before D3 is accepted.
+through the
+running function's links, such as `READ`, `WRITE`, `CODE` and `ACTIVATE`,
+would need it chosen by value in interpreted code (vm_in_shear.md section 8).
+It also includes that the VM's `CALL` runs the callee as installed, so every
+function the workload reaches needs a wrapper, and the wrappers displace the
+semantic source. The spike establishes whether the SHEAR-VM route has a form
+that keeps the source canonical and executable forms derived; if it has none,
+that route stays a candidate only if the owner explicitly changes the first
+acceptance anchor. For host execution, the verifier's admission rule is
+stated: what it checks for a chunk of node N at version V, and who may assert
+that a compiler generation produced that chunk and why program code cannot
+forge the assertion. Host lowering is not part of admission; it stays a test
+oracle. If D4 settles on a workload that differs materially from the
+recommended one, the comparison is redone for it before D3 is accepted.
 
-Done when: the results and a recommendation are recorded, with the
-admission rule and the Provisional items the recommended route makes
-expensive to change (the instruction set, which version `code` reads,
-node identities in its output), and the owner decides D3.
+Done when: the results and a recommendation are recorded, with the admission
+rule and the Provisional items the recommended route makes expensive to
+change (the instruction set, which version `code` reads, node identities in
+its output), and the owner decides D3.
 
 **Post-spike disposition:** Task 29 demonstrated bounded route witnesses,
 not a full equivalent-workload comparison. The owner selected the hybrid

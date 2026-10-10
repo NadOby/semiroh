@@ -164,26 +164,56 @@ limit the corpus found (about 200 levels of non-tail recursion). The
 bytecode is the executable IR layer of the syntax notes and the shape an
 MLIR dialect could later map from.
 
-## Pending decisions
+## Decision D3: hosted execution route
 
-Both belong to section I, hosted bootstrap.
+**Decided** (task 29, PR #91). Adopt a hybrid architecture. The primary
+hosted route executes authenticated, SHEAR-compiled per-node derived artifacts
+on the existing host machine (route B), with compiler provenance, node/version
+binding, structural admission and fail-closed execution. Retain the
+SHEAR-written VM (route A) as an alternative implementation, independent
+correctness reference and possible bootstrap component; full feature parity
+and concurrent development of two production executors are not required.
 
-- **D3: where compiler-produced chunks run.** Open; task 29 brings options
-  and a recommendation. Either the SHEAR VM (no change in what the host
-  trusts, about 150x the host machine per layer), or the host machine running
-  the SHEAR compiler's chunks as derived artifacts of the nodes they compile,
-  with recorded provenance and behind a verifier. The second narrows
-  bytecode.md section 8 without letting a program run arbitrary bytecode.
-- **D4: the hosted-bootstrap workload and boundary.** Open; settled before
-  task 30 is planned, with task 28's inventory. Recommended: the workload is
-  the SHEAR compiler rebuilding itself plus the corpus, live evolution
-  included; Python stays permitted for parsing, `define` and continuity
-  inference, state and identity derivation, canonicalization and activation;
-  the result is called hosted, never Python-independent. Task 29 compares
-  the routes on this recommended workload. D4 also sets provisional budgets
-  for compiler rebuild time and small-edit-to-activation latency from task
-  23's measurements; the host boundary is decided with D3, since it depends
-  on the route.
+Share the underlying semantic contracts, operation metadata, compiler pipeline
+and executable IR where practical, plus runtime services such as identity,
+version handling and activation. Keep route-specific execution machinery
+separate. The shared layer must not make differential correctness checks
+self-referential: retain independent behavioral oracles, including existing
+host lowering in tests. Exact IR/adapter design and VM refactoring are
+provisional; no broad VM rewrite is part of task 30 by default.
+
+The semantic hypergraph remains canonical; executable forms are derived.
+D3 selects the execution architecture, not the task-29 prototype. The current
+Python machine, bytecode layout, admission implementation, caches and hashes
+are replaceable, subject to preservation of SHEAR semantics, integrity,
+provenance, identities and version-lifetime/activation guarantees. Keep future
+coexistence and live replacement of runtimes possible; no concrete handover
+mechanism is decided here. Admission authenticates origin and structure, not
+arbitrary compiler correctness.
+
+Task 29 did not demonstrate satisfactory route-B performance or complete
+hosted bootstrap: its fixed cold-cost prediction failed at 179.126317 times
+ordinary host execution, and compiler rebuilding was blocked at generation 0.
+These measured limitations remain Task 30 inputs, not accepted operating costs.
+
+**Long-term direction, not task-30 scope:** Linux-native code using LLVM as
+the initial machine-code producer, with the possibility of compiling the
+SHEAR VM itself. A custom MLIR dialect is optional, not required or selected.
+Native execution and removal of Python are later milestones.
+
+## Pending decision D4: hosted-bootstrap workload and boundary
+
+**Open**; settle before task 30 is planned, with task 28's inventory.
+Recommended: the SHEAR compiler rebuilding itself plus the corpus, live
+evolution included. Python may provide explicitly permitted services for
+parsing, `define` and continuity inference, state and identity derivation,
+canonicalization and activation; this is hosted, not Python-independent.
+D4 specifies the permitted host services and sets provisional budgets for
+compiler rebuild time and small-edit-to-activation latency from task 23's
+measurements. D3 fixes the execution-route principle, not those service
+allowances or budgets. Instruction-set/IR conventions, the version observed
+by `code`, and identities exposed by compiler output remain provisional or
+open until their respective contracts are decided.
 
 Decided since: constraint relations see an owner endpoint with its owned
 subtree (relation_model.md §7).
@@ -795,7 +825,7 @@ D4.
 
 ### 29. Execution route for compiler-produced chunks (one session)
 
-**Planned.** Issue #65. A spike for D3.
+**Implemented** (PR #91). Issue #65. A spike for D3.
 
 Compare the SHEAR VM with host execution of the SHEAR compiler's chunks as
 derived artifacts of the nodes they compile, behind a verifier and with

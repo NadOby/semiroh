@@ -1,242 +1,128 @@
 # Handoff
 
-Read `CLAUDE.md`, `docs/roadmap.md`, and the relevant specifications
-before continuing. Independently verify this checkpoint against GitHub.
+Read `CLAUDE.md`, `docs/roadmap.md` and the relevant specifications before continuing. Independently verify this checkpoint against GitHub.
 
 ## Current state
 
-- Task 29 – Execution route for compiler-produced chunks.
-- Issue: #65.
-- PR: #91, https://github.com/NadOby/shear/pull/91
-- Branch: `task/29-execution-route`.
-- Pre-handoff branch head: `cf2b34e3e7630d451a2138790a136a583d12f3c4`.
-- Checked `main` before reconciliation: `dbe92c6e6450db479d22a203011f9c974ba00089`.
-- Role: Resolve of pre-merge documentation review, awaiting fresh
-  independent Review before owner merge.
-- Task 29 is marked Implemented (PR #91).
-- The original implementation and final Resolve state passed independent
-  Review. Two subsequent pre-merge reviews found P2 documentation
-  inconsistencies and P3 documentation drift.
-- Those findings have been addressed by documentation-only commits.
-  Their resolution is not yet independently accepted.
-- Ordinary CI passed on preceding reconciliation commits. CI for
-  `cf2b34e` was in progress at this checkpoint.
-- `CHANGES.md` contains the original Task 29 entry and an append-only
-  pre-merge documentation reconciliation entry.
+- Task: 30 – Hosted-bootstrap pipeline.
+- Issue: #66.
+- Branch: `task/30-hosted-bootstrap`.
+- Role: Plan complete; next role is Execute in a fresh chat.
+- Main baseline at Plan start: `c1a4596ff555b1f3483b93398a3e8f73fd89bffa`.
+- **Protected Plan contract head:** `2f2081b866ca2d686a4cabed3fa4a05a48a31789`.
+- The subsequent handoff-only commit does not alter the protected specification or acceptance tests.
+- Execute starts from the task branch HEAD, including this handoff.
+- GitHub access for the planning assistant was read-only. Owner committed each supplied file through GitHub and each commit was independently checked.
 
-## D3 – Decided
+The authoritative Plan specification is `docs/hosted_pipeline.md`. This handoff is a checkpoint, not an independent source of architectural authority.
 
-Adopt a hybrid execution architecture.
+## Settled architecture
 
-- Route B is the primary hosted execution path: authenticated,
-  SHEAR-compiler-produced per-node artifacts executed by the existing
-  host machine with structural, fail-closed admission and provenance.
-- Admission is host-internal, bound to semantic node and version, and
-  requires observed compiler provenance. Arbitrary program-supplied
-  bytecode cannot be installed or executed directly by the host.
-- Retain the SHEAR-written VM (route A) as an alternative implementation,
-  independent correctness reference and possible bootstrap component.
-- Share semantic contracts, operation metadata, compiler pipeline,
-  compatible executable IR and runtime services where practical.
-- Task 30 Plan must identify concrete shared implementation components,
-  not merely compatible interface descriptions.
-- Keep execution-specific machinery separate. Do not build two complete
-  production executors in parallel or require immediate VM feature parity.
-- Shared implementation must not make correctness checks self-referential.
-  Keep independent behavioral oracles.
-- The canonical program remains the semantic hypergraph. Executable
-  representations are derived artifacts.
-- Python, current bytecode encoding, admission implementation, hashes
-  and caches are replaceable, subject to preserving the relevant semantic,
-  identity, integrity, provenance, activation and lifetime guarantees.
-- Exact shared IR and adapter boundaries remain provisional.
-  Task 30 does not require a broad rewrite of the existing SHEAR VM.
+D3 and D4 in `docs/roadmap.md` are Decided and remain authoritative. Issue #66 retains older full-workload assumptions; D4 supersedes them.
 
-Task 27's source twins, literal-chunk wrappers, generation record and
-dependency map remain historical/reference-route test scaffolding.
-They are not part of the primary hosted execution path. Wrappers
-are program code, not exempt fixed interpreter machinery. They
-must not displace canonical source in the hosted-bootstrap pipeline.
-Existing reference-route regression tests remain valid.
+Eight Task 30 Plan decisions were settled with the owner:
 
-Long-term direction: native Linux execution with LLVM as the first
-machine-code producer. Compiling the SHEAR VM itself remains possible.
-A custom MLIR dialect is optional, not selected. Native execution
-and removal of Python are later milestones, not Task 30 requirements.
+1. **Unified compiler:** One SHEAR-authored lowering implementation shared by expanded-chunk and node-aware paths. Split across multiple files where useful. No parallel independent compiler algorithms.
+2. **Corpus:** All 20 declared non-evolution examples, with every original scenario, expected exception and cell assertion. No positive-only filtering.
+3. **Error operations:** Implement `catch` and `raise` on route B in Task 30, while preserving the dedicated error canaries for Task 31.
+4. **Generations:** Shared pinned canonical compiler source, separate derived artifact generations. Host orchestration selects generations without replacing source.
+5. **Node descriptors:** Host-provided immutable, version-pinned semantic descriptors. No new program-visible node reflection API. This boundary remains replaceable and is technical debt.
+6. **Seed:** Closed, finite, deterministic manifest of the host-lowered generation-0 SHEAR compiler and all transitive code dependencies. No implicit expansion.
+7. **Invalidation:** Conservative, fail-closed invalidation. Full dependency-safe reuse across live activation belongs to Task 31.
+8. **Metaprogramming:** Defer `quote`, `unquote`, `function`, `activate` and `trial` compiler support unless a concrete Task 30 dependency requires it. Return material scope changes to Plan.
 
-## D4 – Open
+D4 permits explicitly contracted, replaceable host semantic services and fixed host execution machinery. It forbids Python from synthesizing instructions attributed to SHEAR compilation, arbitrary program-visible bytecode installation and unobserved host-lowering fallback.
 
-Before planning Task 30, the owner must settle:
+## Protected Plan-owned files
 
-- The hosted-bootstrap workload, using Task 28's operation and service
-  inventories.
-- Exactly which Python host services remain permitted.
-- Provisional compiler rebuild and small-edit-to-activation budgets,
-  using Task 23's measured baseline.
+All are present as of the protected Plan contract head:
 
-Recommended workload: compiler rebuilding itself and the corpus,
-with live evolution.
+- `docs/hosted_pipeline.md` – exact workload, compiler architecture, seed, generations, route-B admission, artifact invalidation, diagnostics, exclusions and independent Review criteria.
+- `tests/test_hosted_corpus.py` – full existing corpus scenarios, source preservation and admitted execution trace.
+- `tests/test_hosted_pipeline.py` – generations 1–3, seed, admission, source-text command and error operators.
+- `tests/test_hosted_safety.py` – dependency invalidation, link rebinding, host-cache isolation and failure provenance.
+- `tests/lanes.py` – all three modules registered in `cross-boundary`; otherwise restored to the main baseline.
 
-The original Task 29 Plan required redoing the route comparison before
-D3 acceptance if D4 selected a materially different workload. The
-owner subsequently accepted D3 as an architectural principle before
-D4, superseding the timing gate but not workload validation.
+These files are the protected Plan contract. Execute must not weaken their assertions, change expectations to accommodate implementation, silently skip scenarios or amend the specification to rationalize different behavior.
 
-If D4 materially departs from the recommended workload, Task 30
-planning must require renewed route validation. Revisit D3 only if
-that evidence undermines the selected architecture. The performance
-and canonical-source acceptance anchors remain in force.
+No golden-record changes are declared or expected. Do not create `tests/golden_changes/GH-66.txt` unless a new Plan pass explicitly authorizes particular changed records.
 
-Instruction-set/IR conventions, the version observed by `code`,
-and node identities exposed through compiler output retain their
-existing provisional or open status.
+## Test baseline and verification
 
-## Task 29 evidence
+The Plan tests deliberately import `shear.hosted_bootstrap`, which is absent before implementation. Consequently the branch's ordinary test suite and cross-boundary CI lane are expected to be red until Execute supplies the hosted interface.
 
-Protected Plan baseline:
-`deb03aa3ffc198df8e19fa14da59db904f879a1b`
+Do not treat that absence as a reason to skip the tests, substitute `lang.run`, or make CI report false success.
 
-Tested Execute revision:
-`6ebbc698c881528b53b37c63b5b090f82eb4a037`
+The provisional test-facing contract includes:
 
-Final original Resolve revisions:
-`9508ec1989e3d7296e3f6967bd3b4a2ce85de2bb`
-`cc4d6df5382d73023e9c37e3496ddc18cce3fb8a`
+- `HostedSession(runtime)`, `prepare(compiler_generation=...)`, `run`, `trace`, `produce`, `admit`, `rebuild_through`, and `seed_manifest`.
+- `AdmissionRejected`.
+- Observable generation reports, artifact producer provenance, admitted-execution events and finite seed membership.
+- A reproducible source-text command through `python3 -m shear.hosted_bootstrap`.
 
-Specification and complete experimental report:
-`docs/spikes/execution_route.md`
+Implementation may split these responsibilities internally, but it must satisfy the behavioral and observable contract. Any genuine contradiction in Plan-owned tests must return to Plan rather than be silently edited by Execute.
 
-Original CI evidence:
-https://github.com/NadOby/shear/actions/runs/37981959588
+No local implementation tests or successful CI runs are claimed for the unimplemented pipeline.
 
-- Route A rebuilt generations 1, 2 and 3, but installed
-  literal-chunk wrappers instead of preserving active canonical source.
-- Route B demonstrated SHEAR-produced artifacts for `lit`, `arg`,
-  `add` and `call`, authenticated admission and a linked-call witness.
-- Route B could not rebuild the compiler: generation 0 only.
-- The original P4 performance prediction failed. Route B cold median:
-  9.873980 ms; ordinary host median: 0.055123 ms; ratio: 179.126317,
-  against the predicted maximum of 10.
-- Route B warm execution median: 0.639887 ms; ordinary host warm
-  execution median: 0.022001 ms.
-- Route A rebuild and Route B witness measurements are not directly
-  comparable workloads. Neither route is established as sufficiently
-  fast for the final workload.
-- The activation witness did not establish admitted execution after
-  activation or cross-activation artifact reuse.
-- All ordinary test lanes passed on the tested Execute revision,
-  including 18 Plan-owned tests. Golden records: 55 unchanged.
-- Mutation testing was not run for Task 29; the experimental module
-  retains its explicitly authorized temporary catalog omission.
-- Admission proves observed artifact origin and structural compatibility,
-  not semantic correctness of arbitrary compiler output.
+## Execute contract
 
-## Pre-merge review resolution
+Implement in this order where practical:
 
-Two independent pre-merge reviews of PR #91, at commit `a8e687e`,
-identified overlapping documentation defects.
+1. Unify actual SHEAR compiler lowering for expanded output and per-node IR, preserving existing `lower(e)` behavior.
+2. Supply pinned compiler descriptors and the deterministic finite G0 seed inventory.
+3. Integrate per-runtime route-B production, admission and artifact lookup without Task 29's process-global interception.
+4. Enforce provenance transitively through static calls, indirect calls, closures and child evaluation. Missing or incompatible artifacts must fail closed.
+5. Build and execute genuine compiler generations G1, G2 and G3, each produced by its predecessor, against unchanged canonical source.
+6. Implement the required non-evolution operations, including `catch` and `raise`; run all 20 selected corpus examples through the admitted route.
+7. Implement conservative dependency-safe invalidation and the documented text-to-execution command, including a reconciliation/edit path.
+8. Validate all Plan-owned tests and existing reference-route tests; provide operation/service inventories, independent comparison evidence, performance diagnostics and the mutation-catalog disposition.
+9. Append the Task 30 architectural entry to `CHANGES.md`. Keep historical Task 23/29 evidence unchanged.
 
-P2 – D3/D4 comparison gate:
+The production integration must remove, replace or explicitly promote `shear/execution_route_spike.py`, including its experimental test dependencies and temporary mutation-catalog omission.
 
-- `docs/roadmap.md` now records that the owner accepted D3 as an
-  architecture principle, explicitly superseding the Plan's
-  before-D3 timing gate.
-- A materially different D4 workload still requires renewed validation.
-  D3 is reconsidered if that evidence undermines the architecture.
-- Task 29's actual bounded W0 comparison is distinguished from the
-  originally proposed complete workload comparison.
+Host lowering is permitted for the manifest-closed seed and as an independent test oracle. It must not be a hidden fallback or part of route-B admission.
 
-P2 – Host execution admission:
+The compiler generations must be observed executions, not merely structurally identical artifacts with changed labels or reused producer evidence.
 
-- `docs/bytecode.md` section 8 now permits authenticated
-  SHEAR-compiler-produced per-node artifacts through host-internal
-  admission, bound to semantic node and version with observed producer
-  provenance.
-- The prohibition on arbitrary program-visible bytecode installation
-  remains in force.
-- `docs/self_hosting.md` distinguishes historical host-only lowering
-  from D3's permitted authenticated artifact route.
+## Performance evidence
 
-P2/P3 – Hybrid VM scaffolding and Task 30:
+D4's provisional targets are diagnostic, not acceptance gates:
 
-- `docs/vm_in_shear.md` now classifies Task 27's swap wrappers and source
-  twins as historical/reference-route test scaffolding.
-- `docs/roadmap.md` clarifies Task 30's non-exempt program-code wrappers
-  and requires concrete shared compiler/IR and runtime components
-  alongside independent behavioral oracles.
+- At most 10 seconds per compiler generation, aspiration 1 second.
+- At most 50 ms from small edit through preparation, admitted compilation and activation, aspiration 10 ms.
 
-P3 – Historical and normative references:
+Measure named hardware, initialization, production, admission, execution, verification, cold/warm conditions and repeated untraced observations separately.
 
-- `docs/bootstrap.md` distinguishes decided D3 from open D4,
-  without changing the Task 28 operation matrix or measurements.
-- `docs/corpus.md` preserves the dated canary table and adds a
-  post-D3 clarification for canaries 11 and 12.
-- `docs/spikes/execution_route.md` appends a subsequent-owner-decision
-  postscript; the original Plan contract, experimental results,
-  predictions and recommendation are unchanged.
+Preserve Task 29's falsified 179.126317-times cold-cost observation. Revalidate route B on Task 30's actual workload before making performance or architecture claims. Different route-A and route-B workloads must not be compared as equivalent.
 
-The documentation reconciliation starts after `a8e687e` and ends,
-before this handoff commit, at `cf2b34e`. It changes:
+## Task 31 exclusions
 
-- `docs/bytecode.md`
-- `docs/roadmap.md`
-- `docs/vm_in_shear.md`
-- `docs/bootstrap.md`
-- `docs/self_hosting.md`
-- `docs/corpus.md`
-- `docs/spikes/execution_route.md`
-- `CHANGES.md` (append-only)
+Issue #67 retains program-driven code construction, trial and activation; remaining metaprogramming operators; self-modification and dedicated error canaries; sustained live updates; held frames or closures across activation; cross-activation artifact reuse; and version retirement.
 
-No production implementation, tests, golden records or experimental
-measurements were intentionally changed in this reconciliation.
-Independent Review must verify that claim from the repository diff.
+Host-orchestrated G1–G3 generation changes do not establish live evolution.
 
-## Deferred work
+No full SHEAR-written VM parity, native execution or Python removal is required by Task 30.
 
-Task 30 – issue #66:
+## Independent Review contract
 
-- Integrate the hosted execution path without the experimental
-  process-global interception mechanism.
-- Extend the SHEAR compiler to the D4 workload.
-- Provide complete provenance for executed program-code artifacts,
-  with no hidden host-lowering fallback.
-- Address artifact lifecycle, verifier maintenance, dependency tracking,
-  cross-state reuse and compiler rebuilding.
-- Reassess performance on comparable workloads, including any
-  materially different D4 workload.
-- Remove, replace or explicitly promote
-  `shear/execution_route_spike.py`, including its test-infrastructure
-  dependencies and mutation-catalog treatment.
-- Identify shared compiler/IR and runtime implementation components
-  without requiring VM feature parity or weakening independent tests.
-- Preserve canonical source; reference-route wrappers do not count
-  as hosted-bootstrap implementation.
+Review Task 30 in a fresh context, separate from Execute.
 
-Task 31 – issue #67:
+1. Fetch current main and task branch and verify the recorded protected Plan head.
+2. Diff Execute HEAD against `2f2081b866ca2d686a4cabed3fa4a05a48a31789` over all Plan-owned specification and test files and golden declarations. Explain every change; unexplained weakening is blocking.
+3. Independently verify exact corpus coverage, expected failures and cell behavior, compiler-generation ancestry, unchanged canonical source and complete transitively observed artifact provenance.
+4. Audit every path able to perform host lowering or retrieve an executable chunk, especially indirect calls, closures, error handlers and caches.
+5. Verify finite seed closure, adversarial admission tests, dependency invalidation, absence of process-global runtime interception and the independent correctness oracle.
+6. Check the command path, operation and service inventories, actual measurements, mutation-catalog treatment, golden records, full ordinary tests and CI.
+7. Distinguish verified defects from limitations, hypotheses and documentation drift; classify defect severity.
 
-- Execute live evolution through the hosted bootstrap path.
-- Demonstrate candidate construction, trial, activation, rejection,
-  held frames and closures, continuity and retirement.
-
-Neither task's deferred work is claimed completed by Task 29.
+Execute cannot independently certify its own implementation. Resolve handles Review findings; Publish follows only after independent Review acceptance.
 
 ## Next action
 
-1. Fetch the current PR #91 head, current `main`, `CLAUDE.md`,
-   roadmap and this handoff. Independently review the documentation
-   reconciliation against both pre-merge reviews.
-2. Check every P2/P3 finding, the D3/D4 decision boundaries, the
-   Task 30 wrapper policy, and whether shared implementation is
-   sufficiently specified without requiring premature VM refactoring.
-3. Verify original Plan-owned acceptance tests and specifications,
-   production implementation, golden records and measurements remain
-   intact. Confirm final diff and CI.
-4. If Review accepts the final state, the owner may merge PR #91.
-   Otherwise perform another bounded Resolve and fresh Review.
-5. Settle D4 before starting Plan Task 30 in a separate fresh context.
+Start a fresh chat with **Execute Task 30 (#66)**.
 
-GitHub access for the assistant is read-only. The owner works from
-mobile with complete-file, one-commit-at-a-time editing and independent
-verification after each commit. Present edits in this order:
-commit message, clickable GitHub edit link, complete inline file.
-`CHANGES.md` and historical postscript updates are append-only.
+Fetch current main and this task branch. Read `CLAUDE.md`, `docs/roadmap.md`, `docs/hosted_pipeline.md`, the protected acceptance tests, `handoff.md`, D3/D4 and the relevant historical evidence.
+
+Use the protected Plan head above. Implement without changing settled semantics or weakening tests. If a material Plan assumption fails, return to Plan.
+
+For mobile, read-only GitHub work: provide complete file replacements, clickable GitHub edit links and copyable `GH-66` commit messages, one commit at a time. Verify every user-made commit before continuing.

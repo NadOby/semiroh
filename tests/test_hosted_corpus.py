@@ -24,10 +24,10 @@ import unittest
 from unittest import mock
 from weakref import WeakKeyDictionary
 
-from shear import Runtime, bytecode
+from shear import CellContentRejected, Runtime, bytecode
 from shear.examples import EXAMPLES, play
-from shear.hosted_bootstrap import HostedSession
-from shear.lang import load
+from shear.hosted_bootstrap import AdmissionRejected, HostedSession
+from shear.lang import LanguageError, load
 
 
 INCLUDED = frozenset({
@@ -124,6 +124,13 @@ class HostedCorpusTests(unittest.TestCase):
         self.assertTrue(DEFERRED <= names)
         self.assertFalse(INCLUDED & DEFERRED)
 
+    def test_admission_failure_is_not_a_program_failure(self):
+        """An admission failure must not satisfy an expected error step."""
+
+        self.assertTrue(issubclass(AdmissionRejected, Exception))
+        self.assertFalse(issubclass(AdmissionRejected, LanguageError))
+        self.assertFalse(issubclass(AdmissionRejected, CellContentRejected))
+
     def test_complete_scenarios_on_admitted_route(self):
         """All original steps, including failures and cell checks."""
 
@@ -155,6 +162,8 @@ class HostedCorpusTests(unittest.TestCase):
 
                     # Preparation is complete. No ordinary host
                     # lowering may rescue missing execution artifacts.
+                    # An admission failure must remain outside SHEAR's
+                    # normal error semantics, even for Raises steps.
                     with (
                         mock.patch.object(
                             bytecode,
@@ -167,11 +176,17 @@ class HostedCorpusTests(unittest.TestCase):
                             side_effect=forbid_host_lowering,
                         ),
                     ):
-                        return session.run(
-                            entry,
-                            *args,
-                            may_activate=may_activate,
-                        )
+                        try:
+                            return session.run(
+                                entry,
+                                *args,
+                                may_activate=may_activate,
+                            )
+                        except AdmissionRejected as exc:
+                            raise AssertionError(
+                                "Hosted admission failure is not an "
+                                "expected SHEAR program error"
+                            ) from exc
 
                 play(example, admitted_run)
 

@@ -201,27 +201,72 @@ the initial machine-code producer, with the possibility of compiling the
 SHEAR VM itself. A custom MLIR dialect is optional, not required or selected.
 Native execution and removal of Python are later milestones.
 
-## Pending decision D4: hosted-bootstrap workload and boundary
+## Decision D4: hosted-bootstrap workload and boundary
 
-**Open**; settle before task 30 is planned, with task 28's inventory.
-Recommended: the SHEAR compiler rebuilding itself plus the corpus, live
-evolution included. Python may provide explicitly permitted services for
-parsing, `define` and continuity inference, state and identity derivation,
-canonicalization and activation; this is hosted, not Python-independent.
-D4 specifies the permitted host services and sets provisional budgets for
-compiler rebuild time and small-edit-to-activation latency from task 23's
-measurements. D3 fixes the execution-route principle, not those service
-allowances or budgets. Instruction-set/IR conventions, the version observed
-by `code`, and identities exposed by compiler output remain provisional or
-open until their respective contracts are decided.
+**Decided** (owner, 2026-10-10; issue #92). Hosted bootstrap is staged.
+Task 30 proves source-preserving compiler self-rebuilding and admitted
+execution of a declared non-evolution subset of the existing corpus.
+Task 31 completes the remaining self-modification and error canaries
+and sustained live evolution. The compiler and the SHEAR-written VM may
+continue evolving in task 31; full VM feature parity is not required.
+Controlled host-orchestrated compiler generation changes in task 30
+do not substitute for program-driven trial and activation in task 31.
 
-The original Task 29 Plan required a new route comparison before accepting
-D3 if D4 chose a materially different workload. The owner accepted D3 as an
-architecture principle before D4, explicitly superseding that timing gate,
-not waiving workload validation. If D4 materially departs from the recommended
-workload, Task 30 planning must require renewed route validation against it;
-D3 is revisited only if that evidence undermines the selected architecture.
-The performance and canonical-source acceptance anchors remain in force.
+Python may provide explicitly contracted, replaceable host services for
+parsing and reconciliation, graph construction, `define` and continuity
+inference, canonicalization, ownership, state/entity/version identity,
+reflection, primitive data and callable operations, cells and constraints,
+candidate trials, activation, error handling and version lifetime.
+Fixed execution machinery remains hosted. This is an incremental path
+toward a minimal host kernel, not a requirement to rewrite the semantic
+runtime during tasks 30–31. Python may form compiler node descriptors
+and generically decode compiler output, but may not synthesize instructions
+attributed to SHEAR compilation.
+
+A finite, inventoried bootstrap seed and its declared dependencies may
+be host-lowered. Thereafter every executed program-code artifact must
+originate in an observed SHEAR compiler invocation, be bound to its
+semantic node and version, and pass D3's host-internal, fail-closed
+admission. Transitive calls, indirect calls and closures cannot evade
+provenance. No undeclared host lowering, compiler-shaped Python fallback
+or arbitrary program-supplied bytecode is permitted. Fixed host machinery
+and seed code must be identifiable; per-function wrappers are program
+code, never exempt machinery.
+
+Reuse existing per-node bytecode as provisional shared executable IR;
+share concrete compiler/IR and semantic-runtime implementation where
+practical, while preserving independent correctness oracles. Derived
+chunks use explicit child `EntityID` references. Trusted artifact
+metadata binds each node's `VersionID`, producer compiler generation,
+artifact and relevant dependencies. No program-visible authority to
+install chunks is added. `code` continues to observe the active version;
+compilation uses explicitly pinned source-node descriptors. Reuse across
+states is permitted only while node versions and dependencies remain
+valid. Task 30 establishes safe invalidation; task 31 tests reuse across
+activation, held frames, closures and retirement. The exact IR encoding,
+dependency representation, verifier and cache layout remain provisional.
+Host lowering stays a differential test oracle, not an admission check;
+admission authenticates origin and structure, not semantic correctness.
+
+**Provisional soft performance targets**, measured on named hardware:
+compiler rebuild at most 10 s per generation (aspiration 1 s), and
+small edit through preparation, admitted compilation and activation at
+most 50 ms (aspiration 10 ms). Neither is a task acceptance gate.
+Record initialization, production, admission, execution, verification,
+activation, cold/warm conditions and untraced repeated observations
+separately. Task 23's 0.510425 ms ordinary-host edit, task 29's
+25.010713 ms non-equivalent candidate pipeline, and route-A rebuilds
+of about 7.42–7.47 s are evidence anchors, not route-B predictions;
+route B did not complete a compiler rebuild. Retain task 29's
+falsified 179.126317-times cold-cost observation unchanged.
+
+D4's staged task-30 workload differs from task 29's recommended full
+workload. Plan Task 30 must therefore validate route B on its exact
+declared workload, and task 31 must validate the live-evolution workload
+before claiming the final milestone. Revisit D3 only if equivalent-work
+evidence undermines its architecture. Canonical source, separate
+candidate construction and activation, independent behavioral oracles,
+and complete producer provenance remain mandatory.
 
 Decided since: constraint relations see an owner endpoint with its owned
 subtree (relation_model.md §7).
@@ -883,39 +928,58 @@ remain unchanged in the spike report.
 
 **Planned.** Issue #66. After D3 and D4.
 
-Extend the SHEAR compiler to the subset D4 names, including the operations
-above where the workload needs them; embedded `catch` and `raise` close the
-follow-up of error_handling.md. One documented command runs source text
-through host parsing and `define`, SHEAR lowering, and execution on D3's
-route; an unsupported operation fails explicitly.
+Integrate D3 route B, replacing or explicitly promoting the task-29
+spike without its experimental process-global interception. Use
+authenticated SHEAR-compiled per-node chunks with canonical graph source
+unchanged. Define one reproducible command from source text through
+host parsing, reconciliation/`define`, SHEAR compilation and admitted
+execution. Declare a finite host-lowered bootstrap seed and fixed
+machinery; unsupported operations fail explicitly without host fallback.
 
-Done when: task 27's rebuild and the corpus run on this path, provenance
-shows no host lowering for executed program code (each executed chunk's node
-version maps to its producer: host lowering or a SHEAR compiler generation),
-the route's own fixed machinery (on the SHEAR-VM route, the VM's own
-functions; per-function wrappers are program code, not machinery) is named
-as exempt, task 28's matrix is updated and the costs are recorded.
+Rebuild the compiler through generations 1, 2 and 3 on the admitted path,
+with each post-seed generation compiled by its predecessor. Run a
+**declared non-evolution subset** of the existing corpus through that
+same route: ordinary arithmetic, control, data, recursion, higher-order
+functions, closures and ordinary cell behavior as supported by the
+explicit Plan contract. Plan Task 30 must name the exact corpus cases,
+their required operations and excluded cases; self-modification and
+error canaries needing full live evolution are deferred to task 31,
+not silently claimed as covered. Host-orchestrated compiler generation
+changes do not establish language-driven live evolution.
 
-**D3 scope clarification:** The primary hosted path is route B.
-Per-function VM wrappers are retained only as historical/reference-route
-test scaffolding; they are not part of the primary hosted execution path and
-cannot replace active canonical source there. When reference-route tests
-run, the SHEAR VM's own functions may be named as fixed machinery, but
-wrappers do not count as exempt machinery. Task 30 Plan must identify
-concrete shared compiler/IR and runtime implementation components and
-independent correctness oracles without requiring VM feature parity or
-a broad VM rewrite.
+Done when the declared subset and source-preserving rebuild pass;
+every executed program-code node, including transitively reached calls,
+has authenticated node/version/compiler-generation provenance; no
+undeclared host lowering or program-code wrapper exemption occurs;
+the operation matrix and costs are updated; and the shared compiler/IR
+and runtime components and independent behavioral oracles are identified.
+Safe artifact invalidation is required; complete reuse across live
+activation is tested in task 31. Performance targets in D4 are diagnostic,
+not acceptance gates. Where the task-30 workload differs from task-29
+witnesses, validate the chosen route on equivalent work.
+
+**D3 scope clarification:** Route B is primary. The SHEAR VM and task-27
+literal-chunk wrappers remain alternative/reference scaffolding; wrappers
+cannot replace active canonical source in the hosted pipeline. Share
+concrete compiler/IR and runtime implementation where practical, but
+retain independent behavioral tests. No broad VM rewrite or full feature
+parity is a task-30 prerequisite.
 
 ### 31. Live evolution on the bootstrap route (handoff)
 
 **Planned.** Issue #67. After task 30.
 
-With every executed chunk produced by the SHEAR compiler, beyond the corpus
-of task 30: a running image that
-changes its program, compiles the candidate with its retained compiler,
-trials and activates it with declared continuity and live data, and rejects
-a bad candidate by the failure semantics; an old frame or closure across a
-change; repeated updates with retirement under the declared lifetime policy.
+Complete the corpus cases deferred by task 30, including self-modification
+and error-handling canaries, with every executed program-code artifact
+produced by the SHEAR compiler and admitted through route B. Extend the
+compiler and, where useful, the SHEAR-written VM to support the remaining
+operations; full VM parity is not required. Exercise a persistent running
+image that reads and changes its canonical program, compiles a candidate
+with its retained compiler, trials and activates it with declared
+continuity and live data, and rejects bad candidates by the language's
+failure semantics. Cover an old frame or closure across activation,
+dependency-safe artifact reuse, repeated updates and version retirement.
 
-Done when: these pass and update latency and retained states are recorded.
-The hosted-bootstrap milestone is then met.
+Done when these cases run through the admitted path without host-lowering
+fallback, with update latency and retained states recorded. D4's soft
+budgets are diagnostic. This completes the hosted-bootstrap milestone.

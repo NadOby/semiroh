@@ -1,9 +1,11 @@
 # Hosted Bootstrap Boundary
 
-**Status: provisional.** Roadmap task 28, issue #64. This document
-records the current operation support boundary and inventories the Python
-host services relevant to hosted bootstrap. Task 28 did not decide D3
-or D4; D3 was subsequently decided by task 29 (roadmap.md).
+**Status: provisional operation inventory; D3 and D4 decided.** Roadmap
+task 28, issue #64. This document records the current operation support
+boundary and inventories Python host services relevant to hosted
+bootstrap. Task 28 did not decide D3 or D4. D3 was subsequently
+decided by task 29 (PR #91); D4 was decided by the owner on
+2026-10-10 (issue #92, roadmap.md).
 
 Baseline: `main` at `081ba0d0882e9c02906a3f6a4081f77d2907e897`.
 
@@ -142,12 +144,13 @@ That requirement is an explicit task-30 acceptance condition.
 
 ## 3. Host-service inventory
 
-**Provisional:**
+**Provisional inventory; D4 allowances decided in section 5.**
 
-This is an inventory and a set of proposed allowances for D4,
-not an authorization of those services. Each row states its
-contract, implementation, proposed use, reported rebuild
-observation, and existing verification references.
+This is the historical Task 28 inventory and its original proposed
+allowances. The table preserves the proposals and observations as
+recorded; section 5 supplies the subsequent D4 authorization and
+restrictions. Each row states its contract, implementation, proposed
+use, reported rebuild observation, and existing verification references.
 
 "Observed" refers to a reviewer's trace of rebuild generations
 1 and 2. The trace was reported in review rather than committed
@@ -293,18 +296,69 @@ The detailed admission implementation belongs to Task 30. Neither
 arbitrary program-supplied bytecode nor silent host-lowering fallback
 is permitted on the hosted path.
 
-**D4 – Open:** The hosted-bootstrap workload, permitted Python host
-services and provisional rebuild/edit-to-activation budgets remain
-owner decisions before Task 30 planning. This inventory proposes
-allowances; it does not grant them. Canonicalization remains a
-proposed host allowance subject to D4.
+**D4 – Decided** (owner, 2026-10-10; issue #92):
 
-The D3/D4 decision and the condition for renewed workload validation
-are recorded in roadmap.md. This document does not supersede them.
+- **Staged workload.** Task 30 demonstrates canonical-source-preserving
+  compiler generations 1–3 on admitted route B and a precisely declared
+  non-evolution corpus subset. Task 31 completes the self-modification
+  and error canaries and sustained live evolution. The SHEAR compiler
+  and SHEAR VM may continue evolving during task 31, without mandatory
+  VM feature parity.
+- **Replaceable host services.** Python may provide the semantic and
+  runtime services enumerated in section 3, including canonicalization,
+  parsing, reconciliation, `define`, continuity inference, identity,
+  ownership, reflection, cells, constraints, trial, activation, errors
+  and lifetime management. Their interfaces must be explicit and
+  replaceable. Minimizing the Python host kernel is an incremental
+  long-term direction, not a task-30 or task-31 completion gate.
+- **Compilation boundary.** Python may prepare node descriptors and
+  decode compiler results generically. Only a finite, documented seed
+  and its dependencies may undergo host lowering. Subsequently,
+  program code executes exclusively as authenticated
+  SHEAR-compiler-produced artifacts through D3 admission. No silent
+  host compilation, Python-generated substitute instructions,
+  executable wrapper exemptions or program-supplied bytecode
+  authority. Fixed interpreter machinery and the seed are separately
+  identified. Producer evidence covers transitive execution.
+- **Derived IR and identities.** Reuse provisional per-node host
+  bytecode as shared executable IR, with explicit child `EntityID`s,
+  version-pinned compiler inputs and trusted node/version, compiler
+  generation and dependency provenance. `code` keeps the current
+  active-version view. Artifact reuse requires compatible node
+  versions and dependencies; invalidation is established in task 30,
+  while activation, holds and retirement are tested in task 31.
+  Exact IR encoding, admission adapters and cache layout remain
+  provisional.
+- **Independent verification.** Compiler-produced chunks must agree
+  with independently specified behavior. Existing host lowering is
+  a differential oracle used in tests only, not an admission verifier
+  or hidden execution fallback. Share actual compiler/IR and runtime
+  implementation where practical without making correctness tests
+  self-referential.
+- **Soft budgets.** On recorded hardware, initial diagnostic targets
+  are at most 10 s per compiler rebuild generation and 50 ms from a
+  small edit through admitted preparation and activation; aspirational
+  targets are 1 s and 10 ms respectively. Neither target gates
+  acceptance. Record comparable workloads, separate phase timings,
+  cold/warm conditions and repeated untraced observations. Task 23
+  and Task 29 observations remain historical evidence, not proof
+  that route B meets these targets.
+
+The stage boundary requires Task 30 Plan to enumerate precisely which
+corpus cases are included and deferred. Host-orchestrated compiler
+rebuilding does not satisfy task 31's program-driven live evolution.
+Because the staged workload differs from Task 29's originally
+recommended full workload, the selected route must be validated on
+the actual task-30 workload, and again for task 31's live-evolution
+workload. Reconsider D3 only if comparable evidence undermines it.
+
+The D3 and D4 decisions and their acceptance boundaries are recorded
+in roadmap.md. This document does not supersede them.
 
 Task 29 evaluated the execution-route alternatives. Task 30 owns
-the integrated hosted pipeline and complete executed-program
-provenance. Task 31 owns live evolution. The operation matrix
+the integrated hosted pipeline, source-preserving rebuilding, and
+complete provenance for its declared workload. Task 31 completes
+live evolution and remaining corpus coverage. The operation matrix
 does not authorize any undeclared fallback.
 
 ## 6. Independent review targets
@@ -326,5 +380,5 @@ without an independent trace.
 Compare the Plan-owned specification and acceptance tests with
 the revised Plan baseline before accepting subsequent changes.
 
-The matrix and inventory remain inputs to D4 and historical
-inputs to task 29, not evidence that hosted bootstrap is complete.
+The matrix and inventory remain historical inputs to D4 and
+task 29, not evidence that hosted bootstrap is complete.

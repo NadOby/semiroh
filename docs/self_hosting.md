@@ -18,11 +18,8 @@ host execution of SHEAR-compiled derived artifacts (roadmap task 29).
 
 **Decided:**
 
-The `code` operation, except which version it reads.
-
-**Provisional:**
-
-Which version `code` reads.
+The `code` operation, including which version it reads. Active-version
+semantics were confirmed by D4 (roadmap.md, decision D4; issue #92).
 
     ("code", link)      (params, body) of the linked function, in input form
 
@@ -35,9 +32,9 @@ name as payload, exactly like `ref`, so a rename of the function follows by
 continuity. It lowers to one instruction, `CODE f name`.
 
 - It reads the function from the **active** version, not from the version
-  the running frame was entered in. **Provisional.** After an `activate` in
-  the same run, `code` shows the code the next call would run. Reading needs
-  no activation capability.
+  the running frame was entered in. After an `activate` in the same run,
+  `code` shows the code the next call would run. Reading needs no
+  activation capability.
 - A link that does not resolve is an `invalid` node, and a link that names
   something that is not a function is a `LanguageError`, both when the node
   runs.

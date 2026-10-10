@@ -478,3 +478,21 @@ For a route-B Task 30 plan, prioritize a reusable compiler runtime, persistent a
 The owner must still decide D3 (execution route), D4 (hosted workload and permitted host boundary), the provisional budgets, and the costly-to-change language/IR interfaces above. The present spike supplies evidence for those decisions but makes none of them.
 
 Task 30 must also remove, replace or explicitly promote `shear/execution_route_spike.py`, including an explicit mutation-testing decision. Task 31 remains responsible for the live-evolution mechanisms identified in W2. Independent Review must verify the implementation, trust assumptions, trace coverage, timings, Plan-file integrity and scope boundaries before Publish.
+
+
+### 11.12. Subsequent owner decision (2026-10-10)
+
+**D3 – Decided** after this report (roadmap.md, PR #91): adopt the hybrid
+architecture, with authenticated host execution of SHEAR-compiled per-node
+artifacts as the primary hosted route and the SHEAR-written VM retained as
+an alternative and independent correctness reference. Shared compiler/IR
+and runtime implementation are preferred where practical, without
+compromising independent behavioral oracles or requiring VM feature parity.
+
+D4 remains open before Task 30 planning. If its workload differs materially
+from the recommended one, renewed route validation is required; D3 is
+revisited only if the new evidence undermines the selected architecture.
+
+This postscript records the owner's decision, not a revised experimental
+result. Sections 1–11.11, including the original predictions, measured P4
+failure, coverage limitations and recommendation, remain historical evidence.

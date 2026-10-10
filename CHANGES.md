@@ -1705,3 +1705,37 @@ remaining work is claimed complete by this spike.
   revising its original experimental evidence.
 - Documentation-only reconciliation. No production behavior, Plan-owned
   acceptance tests, golden records or benchmark measurements changed.
+
+
+### D4 hosted-bootstrap decision (#92)
+
+**D4 – Decided** (2026-10-10): Adopt staged hosted bootstrap under
+the hybrid D3 execution architecture.
+
+- Task 30 establishes source-preserving compiler self-rebuilding
+  through generations 1–3 and admitted execution of an explicitly
+  declared non-evolution corpus subset. Task 31 completes remaining
+  self-modification and error canaries, persistent live evolution,
+  activation, held versions and retirement. The compiler and SHEAR
+  VM may continue evolving; full VM parity is not required.
+- Python semantic and runtime services remain permitted behind
+  explicit, replaceable contracts. The long-term direction is an
+  incrementally minimized host kernel, not a mandatory runtime rewrite
+  during tasks 30–31.
+- Permit a finite, inventoried host-compiled bootstrap seed and
+  fixed machinery. Subsequent executed program code requires genuine
+  SHEAR compiler provenance, node/version binding and fail-closed
+  admission. No undeclared host lowering or program-code exemptions.
+- Reuse provisional per-node bytecode as shared IR, with explicit
+  semantic node identities and dependency-aware artifact reuse.
+  Preserve active-version `code` semantics and version-pinned
+  compilation inputs. Keep independent behavioral oracles.
+- Set nonblocking diagnostic targets of 10 s per compiler rebuild
+  generation and 50 ms per small edit through activation, with
+  aspirational targets of 1 s and 10 ms respectively. Existing
+  Task 23 and Task 29 measurements remain unchanged.
+- Require validation against the actual staged workloads. D3 remains
+  decided unless new comparable evidence undermines its architecture.
+
+Documentation-only decision record. No production semantics, tests,
+golden records or historical measurements changed.

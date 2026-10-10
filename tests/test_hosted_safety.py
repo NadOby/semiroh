@@ -24,6 +24,7 @@ from shear.examples import self_hosting
 from shear.examples._support import program
 from shear.hosted_bootstrap import AdmissionRejected, HostedSession
 from shear.lang import Function, LanguageError, define, links, load
+from shear.lang import run as reference_run
 
 
 CALLER = EntityID("safety_caller")
@@ -138,7 +139,6 @@ class InvalidationTests(unittest.TestCase):
             with self.assertRaises(AdmissionRejected):
                 session.run(CALLER, 4)
 
-        # Explicit preparation against the new state restores service.
         session.prepare(compiler_generation=1)
         self.assertEqual(session.run(CALLER, 4), 9)
 
@@ -150,17 +150,46 @@ class InvalidationTests(unittest.TestCase):
         self.assertEqual(session.run(CALLER, 3), 4)
 
         before = runtime.active.state
+        original_call = body_node(before, CALLER)
 
+        self.assertEqual(
+            relation_of(before.values[original_call]).roles["target"],
+            CALLEE,
+        )
+
+        # A links-only edit does not retarget already-resolved call nodes.
+        # Redefine the caller and its link table together so that define
+        # constructs a genuinely changed executable call dependency.
         result = define(before, {
+            CALLER: Function(
+                ("n",),
+                ("call", "child", ("arg", "n")),
+            ),
             EntityID("safety_caller.links"): links(
                 CALLER,
                 child=ALTERNATE,
             ),
         })
+
+        candidate = result.destination
+        rebound_call = body_node(candidate, CALLER)
+
+        self.assertEqual(
+            relation_of(candidate.values[rebound_call]).roles["target"],
+            ALTERNATE,
+        )
+        self.assertNotEqual(candidate.id, before.id)
+
+        # Independent behavioral oracle. This expectation comes from
+        # existing SHEAR semantics, not hosted-route reported results.
+        oracle = Runtime(candidate)
+        self.assertEqual(reference_run(oracle, CALLER, 3), 13)
+
         runtime.activate(result)
 
-        self.assertNotEqual(runtime.active.state.id, before.id)
+        self.assertEqual(runtime.active.state.id, candidate.id)
 
+        # Previous artifacts cannot authorize the changed call dependency.
         with self.assertRaises(AdmissionRejected):
             session.run(CALLER, 3)
 

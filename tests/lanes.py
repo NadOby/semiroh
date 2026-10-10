@@ -158,7 +158,7 @@ def validate_partition() -> None:
 
         if stale:
             problems.append(
-                "missing files: " + ", ".join(sorted(stale)
+                "missing files: " + ", ".join(sorted(stale))
             )
 
         raise RuntimeError(
@@ -208,10 +208,10 @@ def run_all(
 ) -> int:
     """Run every lane as a separate process, ``jobs`` at a time.
 
-    Each lane runs exactly the command it runs alone, so this executes
-    the same tests as running the lanes one by one. Each lane's output
-    is printed as soon as it finishes, grouped in GitHub Actions, then
-    a timing table in ``LANES`` order; the result fails if any lane fails.
+    Each lane runs exactly the command it runs alone, so this executes the
+    same tests as running the lanes one by one. Each lane's output is printed
+    as soon as it finishes, grouped in GitHub Actions, then a timing table in
+    ``LANES`` order; the result fails if any lane fails.
     """
 
     lanes = list(LANES)
@@ -228,6 +228,8 @@ def run_all(
     with ThreadPoolExecutor(max_workers=workers) as pool:
         pending = {pool.submit(timed, lane): lane for lane in lanes}
 
+        # Print each lane as soon as it finishes, so a lane that hangs until
+        # the job times out does not hide the output of the others.
         for future in as_completed(pending):
             lane = pending[future]
             code, output, seconds = future.result()
